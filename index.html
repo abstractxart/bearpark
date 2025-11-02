@@ -1,3 +1,4 @@
+```html
 <!doctype html>
 <html lang="en" id="top" class="no-js">
 <head>
@@ -302,6 +303,55 @@
   @supports (height: 100dvh){
     #buyDrawer{height:100dvh}
   }
+
+  /* ==== MICRO-POLISH ADDITIONS ========================================= */
+
+  /* Focus wiggle for keyboard users */
+  @keyframes wiggle { 0%{transform:rotate(0)} 40%{transform:rotate(-1.5deg)} 80%{transform:rotate(1.2deg)} 100%{transform:rotate(0)} }
+  a:focus-visible, .btn:focus-visible { animation: wiggle .18s var(--ease-spring); }
+
+  /* Honey glow ring hover */
+  .links a:hover, .arcade a.hotspot:hover, .tile:hover .face, .btn:hover {
+    box-shadow: 0 0 0 4px rgba(237,183,35,.22), 0 0 0 8px rgba(0,0,0,.50) inset, var(--elev-strong);
+  }
+
+  /* Mascot idle bob (works directly on the img) */
+  .hero .logo{ transform-origin:40% 40%; animation:bearBob 3.2s ease-in-out infinite; }
+  @keyframes bearBob{ 0%,100%{ transform:translateY(0) rotate(-4deg) } 50%{ transform:translateY(2px) rotate(-3deg) } }
+  .hero .logo:hover{ filter:brightness(1.06) saturate(1.06); transform:translateY(1px) rotate(-3deg); }
+
+  /* Drawer spring open */
+  .drawer.open.spring{ animation:drawerSpring .46s var(--ease-spring); }
+  @keyframes drawerSpring{
+    0%{ transform:translateX(102%) }
+    80%{ transform:translateX(-1.2%) }
+    100%{ transform:translateX(0) }
+  }
+
+  /* CRT scanline shimmer over arcade image (hover only) */
+  .arcade{ position:relative }
+  .arcade::after{
+    content:""; position:absolute; inset:0; border-radius:20px; pointer-events:none; opacity:0;
+    background:repeating-linear-gradient(180deg, rgba(255,255,255,.08) 0 1px, rgba(0,0,0,0) 1px 3px);
+    mix-blend-mode:soft-light; transition:opacity .25s ease, background-position .6s linear;
+  }
+  .arcade:hover::after{ opacity:.55; background-position:0 -50px; }
+
+  /* FAB chip layout + safe area */
+  .fab-buy{ padding-left:16px; padding-right:16px; gap:10px; margin-bottom:calc(env(safe-area-inset-bottom,0px) + 0px); }
+  .fab-buy .chip{ display:inline-flex; align-items:baseline; gap:8px; font-weight:900; }
+  .fab-buy .chip small{ font-size:11px; opacity:.75 }
+  .fab-buy[aria-expanded="true"]{ filter:brightness(1.02) }
+
+  /* Confetti canvas */
+  #confettiLayer{ position:fixed; inset:0; pointer-events:none; z-index:120 }
+
+  /* Reduced motion: tone extras down */
+  @media (prefers-reduced-motion:reduce){
+    .hero .logo{ animation:none }
+    .arcade::after{ display:none }
+    .drawer.open.spring{ animation:none }
+  }
   </style>
 </head>
 <body>
@@ -333,7 +383,8 @@
   <header class="hero" role="banner">
     <div class="wrap center reveal">
       <div class="plate" id="heroPlate">
-        <img class="logo" src="https://files.catbox.moe/25ekkd.png" alt="BEAR PARK sign" width="120" height="120" loading="eager" decoding="sync">
+        <!-- swapped to provided mascot -->
+        <img class="logo" src="https://files.catbox.moe/sv9big.png" alt="BEAR mascot" width="120" height="120" loading="eager" decoding="sync">
         <h1 class="h1">BEAR</h1>
         <p class="subtitle">welcome to BEAR park</p>
       </div>
@@ -794,7 +845,7 @@
   /* ===== Ensure all imgs lazy/async if not set ===== */
   document.querySelectorAll('img:not([loading])').forEach(img=>{ img.loading='lazy'; img.decoding='async'; });
 
-  /* ===== Drawer + Prices + Dexscreener Chart (consolidated) ===== */
+  /* ===== Drawer + Prices + Dexscreener Chart (consolidated) + cherries ===== */
   (function(){
     const PAIR_ID = '4245415200000000000000000000000000000000.rbearguasyu7tuw53rufQzFdWmJHpJEqFW_xrp';
     const DS_URL = `https://api.dexscreener.com/latest/dex/pairs/xrpl/${PAIR_ID}`;
@@ -802,7 +853,8 @@
     /* FAB + drawer wiring */
     const fab=document.createElement('button');
     fab.className='fab-buy';
-    fab.innerHTML='<span class="txt">$BEAR</span>';
+    // CHIP with live price + market cap (ARIA live)
+    fab.innerHTML = '<span class="txt">$BEAR</span><span class="chip" aria-live="polite" aria-atomic="true"><span id="fabPrice">—</span><small id="fabMcap">MC —</small></span>';
     fab.setAttribute('aria-controls','buyDrawer');
     fab.setAttribute('aria-expanded','false');
     fab.setAttribute('aria-label','Open Buy $BEAR panel');
@@ -813,19 +865,30 @@
     scrim.hidden=true;
     document.body.appendChild(scrim);
 
+    // Confetti canvas (once)
+    (function addConfettiLayer(){
+      const c = document.createElement('canvas'); c.id='confettiLayer';
+      document.body.appendChild(c);
+    })();
+
     const drawer=document.getElementById('buyDrawer');
     const closeBtn=drawer.querySelector('[data-close-drawer]');
 
     function openDrawer(){
-      drawer.classList.add('open'); scrim.hidden=false;
+      drawer.classList.add('open'); drawer.classList.add('spring');
+      setTimeout(()=>drawer.classList.remove('spring'), 460);
+      scrim.hidden=false;
       fab.setAttribute('aria-expanded','true'); drawer.setAttribute('aria-hidden','false');
       document.body.style.overflow='hidden';
       ensureChart(); sizeChartSoon();
+      coin(); buzz(10);
+      if (!openedOnce.val){ openedOnce.val=true; setTimeout(()=>window.bearConfetti(900,70),220); }
     }
     function closeDrawer(){
       drawer.classList.remove('open'); scrim.hidden=true;
       fab.setAttribute('aria-expanded','false'); drawer.setAttribute('aria-hidden','true');
       document.body.style.overflow='';
+      buzz(6);
     }
 
     fab.addEventListener('click', openDrawer);
@@ -870,6 +933,72 @@
     const fmt = (n, min=2, max=8) => Number(n).toLocaleString(undefined,{minimumFractionDigits:min, maximumFractionDigits:max});
     const fmt0 = (n) => Number(n).toLocaleString(undefined,{maximumFractionDigits:0});
 
+    /* Count-up utility */
+    function countUp(el, to, opts={}) {
+      const dur = opts.duration || 600, from = Number(el?.dataset?.val || 0);
+      if(!el) return;
+      const start = performance.now();
+      function step(t){
+        const p = Math.min(1, (t-start)/dur);
+        const v = from + (to-from) * (0.5 - Math.cos(p*Math.PI)/2);
+        el.textContent = (opts.prefix||"") + (opts.format ? opts.format(v) : v.toFixed(opts.decimals ?? 2));
+        if (p<1) requestAnimationFrame(step); else el.dataset.val = String(to);
+      }
+      requestAnimationFrame(step);
+    }
+
+    /* Tiny SFX + haptics */
+    let SFX_ON = localStorage.getItem('bear_sfx') === '1';
+    let HAPTIC_ON = true;
+    const openedOnce = { val:false };
+
+    function coin(){ if(!SFX_ON) return; try{
+      const ctx = new (window.AudioContext||window.webkitAudioContext)();
+      const o = ctx.createOscillator(); const g = ctx.createGain();
+      o.frequency.value = 880; o.type='triangle'; o.connect(g); g.connect(ctx.destination);
+      g.gain.setValueAtTime(0.0001, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.2, ctx.currentTime+0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime+0.18);
+      o.start(); o.stop(ctx.currentTime+0.2);
+    }catch{} }
+    function buzz(len=12){ if(HAPTIC_ON && 'vibrate' in navigator) navigator.vibrate(len); }
+
+    /* Confetti shooter */
+    (function(){
+      const c = document.getElementById('confettiLayer');
+      const ctx = c.getContext('2d'); let W=0,H=0;
+      function rs(){ W= c.width = innerWidth; H = c.height = innerHeight; } rs();
+      addEventListener('resize', rs);
+      window.bearConfetti = function shoot(ms=900, n=80){
+        if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        const parts = Array.from({length:n}, ()=>({
+          x: Math.random()*W, y: -20, vx: (Math.random()-0.5)*1.5, vy: 1+Math.random()*2.5,
+          s: 2+Math.random()*3, a: 1, rot: Math.random()*Math.PI, vr: (Math.random()-0.5)*0.2,
+          col: `hsl(${40+Math.random()*60} 90% 55%)`
+        }));
+        const start = performance.now();
+        function tick(t){
+          ctx.clearRect(0,0,W,H);
+          parts.forEach(p=>{ p.vy+=0.04; p.x+=p.vx; p.y+=p.vy; p.rot+=p.vr; p.a*=0.992;
+            ctx.save(); ctx.globalAlpha = Math.max(0,p.a);
+            ctx.translate(p.x,p.y); ctx.rotate(p.rot);
+            ctx.fillStyle=p.col; ctx.fillRect(-p.s/2,-p.s/2,p.s,p.s); ctx.restore();
+          });
+          if (t - start < ms) requestAnimationFrame(tick); else ctx.clearRect(0,0,W,H);
+        }
+        requestAnimationFrame(tick);
+      };
+    })();
+
+    /* Shortcuts + toggles */
+    addEventListener('keydown', (e)=>{
+      const k=e.key.toLowerCase();
+      if (k==='b') { e.preventDefault(); drawer.classList.contains('open') ? closeDrawer() : openDrawer(); }
+      if (k==='m') { SFX_ON = !SFX_ON; localStorage.setItem('bear_sfx', SFX_ON?'1':'0'); }
+      if (k==='h') { HAPTIC_ON = !HAPTIC_ON; }
+    });
+
+    /* Build price fetch */
     async function fetchDex(){
       const r=await fetch(DS_URL,{cache:'no-store'});
       if(!r.ok) throw new Error('DexScreener HTTP '+r.status);
@@ -880,37 +1009,61 @@
         priceNative: Number(p.priceNative),
         priceUsd: p.priceUsd!=null?Number(p.priceUsd):NaN,
         vol24Usd: Number(p.volume?.h24 ?? p.volume24h ?? 0),
-        // NEW: Prefer marketCap; fallback to fdv
+        change24: (p.priceChange?.h24!=null)?Number(p.priceChange.h24):null,
         mcapUsd: Number((p.marketCap ?? p.fdv) ?? NaN)
       };
     }
 
     async function updatePrices(){
       try{
-        const {priceNative, priceUsd, vol24Usd, mcapUsd} = await fetchDex();
+        const {priceNative, priceUsd, vol24Usd, mcapUsd, change24} = await fetchDex();
         const xrpLine = $id('bearXrpBig');
         const usdLine = $id('bearUsdBig');
+        const fabPrice = $id('fabPrice');
+        const fabMcap = $id('fabMcap');
 
         if (Number.isFinite(priceNative) && xrpLine){
           const d = priceNative >= 1 ? {min:3,max:6} : {min:4,max:8};
-          xrpLine.textContent = fmt(priceNative, d.min, d.max);
+          const v = Number(priceNative.toFixed(d.max));
+          if (xrpLine.textContent.trim()==='—') xrpLine.textContent = fmt(v, d.min, d.max);
+          else countUp(xrpLine, v, {decimals:d.max});
         }
-        const usdVal = Number.isFinite(priceUsd) ? priceUsd : NaN;
+        const usdVal = Number.isFinite(priceUsd) ? Number(priceUsd) : NaN;
         if (Number.isFinite(usdVal) && usdLine){
-          usdLine.textContent = fmt(usdVal, 5, 8);
+          const v = Number(usdVal.toFixed(6));
+          if (usdLine.textContent.trim()==='—') usdLine.textContent = fmt(v, 5, 8);
+          else countUp(usdLine, v, {decimals:6});
         }
-        if (volUsdEl){
-          const vol = Number.isFinite(vol24Usd) ? vol24Usd : NaN;
-          if (Number.isFinite(vol)) volUsdEl.textContent = '$' + fmt0(vol);
+        if (volUsdEl && Number.isFinite(vol24Usd)){
+          volUsdEl.textContent = '$' + fmt0(vol24Usd);
         }
-        // NEW: Market Cap update
         if (mcapUsdEl && Number.isFinite(mcapUsd)){
-          mcapUsdEl.textContent = '$' + fmt0(mcapUsd);
+          const mv = Math.round(mcapUsd);
+          if (mcapUsdEl.textContent.trim()==='—') mcapUsdEl.textContent = '$' + fmt0(mv);
+          else countUp(mcapUsdEl, mv, {format:(n)=>fmt0(n), prefix:'$'});
         }
-
         if (legacyUsdEl && legacyUsdEl.textContent.trim()==='—' && Number.isFinite(usdVal)){
           legacyUsdEl.textContent = fmt(usdVal, 5, 8);
         }
+        // Update change24 badge if exists
+        const ch=$id('change24');
+        if (ch && change24!=null){
+          const num=Number(change24);
+          ch.textContent = (num>=0?'+':'') + num.toFixed(2) + '%';
+          ch.style.color = num>=0 ? '#7CFF8E' : '#ff7c7c';
+        }
+
+        // FAB chip
+        if (fabPrice && Number.isFinite(usdVal)) {
+          const pv = Number(usdVal.toFixed(6));
+          if (fabPrice.textContent.trim()==='—') fabPrice.textContent = pv.toFixed(6);
+          else countUp(fabPrice, pv, {decimals:6});
+        }
+        if (fabMcap && Number.isFinite(mcapUsd)) {
+          const mv = Math.round(mcapUsd);
+          fabMcap.textContent = 'MC ' + fmt0(mv);
+        }
+
       }catch(err){
         console.debug('Price update failed', err);
       }
@@ -968,7 +1121,7 @@
       iframe.title = 'Dexscreener $BEAR/XRP chart';
       iframe.loading = 'eager';
       iframe.allow = 'clipboard-write; encrypted-media';
-      iframe.allowFullscreen = true; // <-- added for mobile TradingView friendliness
+      iframe.allowFullscreen = true; // mobile TradingView friendliness
       iframe.style.position = 'absolute';
       iframe.style.inset = '0';
       iframe.style.width = '100%';
@@ -1001,7 +1154,7 @@
       try{
         const u = new URL(iframe.src, location.href);
         const old = Number(u.searchParams.get('chartHeight')) || 0;
-        if (Math.abs(old - h) > 20) { // avoid reload thrash
+        if (Math.abs(old - h) > 20) {
           u.searchParams.set('chartHeight', String(h));
           iframe.src = u.toString();
         }
@@ -1023,8 +1176,28 @@
     if (document.getElementById('buyDrawer').classList.contains('open')) {
       ensureChart(); sizeChartSoon();
     }
-    // === END CHART FIX
+
+    // Arcade hotspots delight: sfx + haptics + confetti
+    document.querySelectorAll('.arcade a.hotspot').forEach(a=>{
+      a.addEventListener('click', ()=>{ coin(); buzz(8); window.bearConfetti(700,40); }, {passive:true});
+    });
+
+  })();
+
+  /* ===== Parallax honey drips (GPU, lightweight) ===== */
+  (function(){
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const layer = document.createElement('div');
+    layer.style.cssText = 'position:fixed;inset:-10vmax;pointer-events:none;z-index:0;opacity:.22;filter:saturate(1.1)';
+    layer.style.background = `
+      radial-gradient(40vmax 12vmax at 10% 0%, rgba(237,183,35,.18), transparent 60%),
+      radial-gradient(30vmax 10vmax at 90% 10%, rgba(146,255,118,.08), transparent 60%),
+      radial-gradient(30vmax 10vmax at 50% 100%, rgba(187,146,255,.08), transparent 60%)`;
+    document.body.appendChild(layer);
+    let ticking=false, y=0;
+    addEventListener('scroll', ()=>{ if(!ticking){ requestAnimationFrame(()=>{ y = scrollY*0.06; layer.style.transform = `translateY(${y}px)`; ticking=false; }); ticking=true; } }, {passive:true});
   })();
   </script>
 </body>
 </html>
+```
