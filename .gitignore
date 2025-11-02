@@ -1,0 +1,14 @@
+﻿bear-gate-starter/
+node_modules/
+.next/
+dist/
+build/
+.vercel/
+.env*
+bear-gate-starter/
+node_modules/
+.next/
+dist/
+build/
+.vercel/
+.env*

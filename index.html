@@ -1,0 +1,1030 @@
+<!doctype html>
+<html lang="en" id="top" class="no-js">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BEAR Park — BEARcade</title>
+  <meta name="description" content="Welcome to BEAR Park — play BEARcade games, explore the lore of Bearableguy123, view BEAR NFTs, watch the live stream, and join the $BEAR community." />
+  <meta name="theme-color" content="#edb723" />
+  <meta name="color-scheme" content="dark light" />
+  <link rel="canonical" href="https://bearpark.xyz/" />
+
+  <!-- Open Graph / Twitter -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="BEAR Park — BEARcade" />
+  <meta property="og:description" content="Defend the castle. Play BEARcade. Join the $BEAR fam." />
+  <meta property="og:image" content="https://files.catbox.moe/qnd2tx.png" />
+  <meta property="og:url" content="https://bearpark.xyz/" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="BEAR Park — BEARcade" />
+  <meta name="twitter:description" content="Defend the castle. Play BEARcade. Join the $BEAR fam." />
+  <meta name="twitter:image" content="https://files.catbox.moe/qnd2tx.png" />
+
+  <!-- Favicons -->
+  <link rel="icon" href="/favicon.ico">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+  <!-- Performance: preconnects + hero preload -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="preload" as="image" href="https://files.catbox.moe/qnd2tx.png" fetchpriority="high" />
+  <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&display=swap" rel="stylesheet" />
+
+  <style>
+  /* ==== THEME =========================================================== */
+  :root{
+    --gold:#edb723;
+    --gold-ink:#231b04;
+    --charcoal:#141619;
+    --card:#1e2226;
+    --ink:#0b0d0e;
+    --accent:#d75c46;
+    --honey:#ffefb3;
+    --elev: 0 0.8px 1.6px rgba(0,0,0,.18), 0 5px 18px rgba(0,0,0,.28);
+    --elev-strong: 0 10px 28px rgba(0,0,0,.45), 0 1px 0 rgba(255,255,255,.03) inset;
+    --ease-spring:cubic-bezier(.18,.9,.2,1);
+    --ring: 0 0 0 4px #000, 0 0 0 6px rgba(237,183,35,.66);
+    accent-color: var(--gold);
+  }
+
+  /* ==== BASE ============================================================ */
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--charcoal);color:#fff}
+  html{scroll-behavior:smooth}
+  img{max-width:100%;height:auto;display:block}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:1100px;margin:0 auto;padding:52px 20px}
+  .center{display:flex;justify-content:center;align-items:center}
+
+  /* Global font */
+  body, p, .tile .lbl, button, a, small {
+    font-family:"Luckiest Guy","Arial Black",Impact,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    text-rendering:optimizeLegibility;
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+  }
+
+  /* Decorative grain + aurora */
+  body::before{
+    content:"";
+    position:fixed; inset:-20vmax; pointer-events:none; z-index:-2;
+    background:
+      radial-gradient(100vmax 60vmax at 10% -10%, rgba(237,183,35,.055), transparent 60%),
+      radial-gradient(80vmax 60vmax at 100% 10%, rgba(215,92,70,.055), transparent 60%),
+      radial-gradient(80vmax 60vmax at 50% 110%, rgba(118,174,255,.045), transparent 60%);
+    filter:blur(24px) saturate(1.05);
+  }
+  body::after{
+    content:"";
+    position:fixed; inset:0; pointer-events:none; z-index:-1;
+    background-image:
+      radial-gradient(rgba(255,255,255,.05), transparent 40%),
+      repeating-linear-gradient(0deg, rgba(255,255,255,.02) 0 2px, transparent 2px 4px);
+    mix-blend-mode:overlay; opacity:.18;
+  }
+
+  /* Skip link */
+  .skip-link{position:absolute;left:-999px;top:auto;width:1px;height:1px;overflow:hidden}
+  .skip-link:focus{left:12px;top:12px;width:auto;height:auto;z-index:1000;background:#000;color:#fff;border:3px solid var(--gold);border-radius:10px;padding:10px 14px}
+
+  /* Sticky nav + scroll progress */
+  .site-nav{position:sticky;top:0;z-index:50;background:linear-gradient(180deg, #0f1114, rgba(15,17,20,.8));backdrop-filter:saturate(1.05) blur(6px);border-bottom:4px solid #000}
+  .site-nav .bar{max-width:1100px;margin:0 auto;display:flex;align-items:center;gap:14px;padding:10px 20px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:900}
+  .brand img{width:36px;height:36px}
+  .links{display:flex;gap:10px;flex-wrap:wrap}
+  .links a{font-weight:900;padding:8px 12px;border-radius:12px}
+  .links a[aria-current="true"], .links a:hover{background:#1c1f23}
+  .nav-cta{margin-left:auto}
+  .progress{position:absolute;inset-inline:0;top:0;height:4px;background:linear-gradient(90deg,var(--gold),#ffe280);transform-origin:left center;transform:scaleX(0)}
+
+  /* Headings */
+  .h1,.h2,.h3{font-weight:900; letter-spacing:.5px; text-align:center; line-height:1.05; margin:0 0 14px; color:#fff; text-shadow:0 4px 0 rgba(0,0,0,.35), 0 1px 0 rgba(0,0,0,.25)}
+  .h1{font-size:clamp(44px,7vw,96px)}
+  .h2{font-size:clamp(38px,5.5vw,72px)}
+  .h3{font-size:clamp(28px,3.5vw,44px)}
+  p{margin:0 0 14px;font-weight:600;font-size:18px;line-height:1.35}
+  .on-dark{color:var(--gold)!important}
+
+  /* Sections */
+  section{position:relative}
+  section.alt{background:var(--gold);color:var(--gold-ink)}
+  section.dark{background:linear-gradient(180deg,#141619 0%, #101215 100%);color:#fff}
+  .spacer{height:12px}
+
+  /* Buttons */
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:.6rem;font:900 clamp(16px,2.2vw,22px)/1 "Luckiest Guy","Arial Black",Impact,system-ui,sans-serif;border-radius:22px;padding:.95rem 1.35rem;color:#fff;background:var(--accent);border:4px solid #000; box-shadow:0 10px 0 #7b2a20, 0 18px 24px rgba(0,0,0,.35);transition:transform .12s var(--ease-spring), box-shadow .12s var(--ease-spring), filter .2s ease;white-space:nowrap; position:relative; will-change:transform}
+  .btn:hover{filter:brightness(1.06)}
+  .btn:active{transform:translateY(4px); box-shadow:0 6px 0 #7b2a20, 0 10px 16px rgba(0,0,0,.35)}
+  .btn.ghost{background:#1c1f23;color:#fff;box-shadow:0 10px 0 #000,0 18px 24px rgba(0,0,0,.35)}
+  .btn.gold{background:var(--gold);color:#000;box-shadow:0 10px 0 #9b7a0d,0 18px 24px rgba(0,0,0,.35)}
+  .btn:focus-visible{outline:none; box-shadow:var(--ring)}
+
+  /* Cards */
+  .card{
+    background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02)) padding-box,
+               linear-gradient(180deg, rgba(255,255,255,.18), rgba(255,255,255,0)) border-box;
+    border:4px solid rgba(255,255,255,.08);
+    border-radius:20px;
+    padding:22px;
+    box-shadow:var(--elev-strong);
+    overflow:hidden;
+    -webkit-overflow-scrolling:auto;
+    background-clip:padding-box;
+    backdrop-filter:saturate(1.1) blur(2px);
+    transform-style:preserve-3d;
+    will-change:transform;
+    transition:transform .4s var(--ease-spring), box-shadow .4s var(--ease-spring)
+  }
+  .card:hover{ transform:translateY(-4px); box-shadow:0 18px 40px rgba(0,0,0,.5) }
+  .card:focus-within{ box-shadow:var(--ring), var(--elev-strong) }
+
+  /* Hero */
+  .hero{--hero-bg:url("https://files.catbox.moe/qnd2tx.png"); background:radial-gradient(1200px 500px at 50% -10%, rgba(255,255,255,.065), transparent 60%) , var(--hero-bg) center/cover no-repeat; min-height:56vh; display:flex; align-items:center; position:relative; border-bottom:6px solid #000; overflow:hidden}
+  .hero .plate{background:var(--gold); color:var(--ink); border:6px solid #000; border-radius:22px; box-shadow:0 22px 48px rgba(0,0,0,.45), 0 2px 0 rgba(255,255,255,.25) inset; padding:20px 28px; display:inline-block; margin:0 auto; position:relative; transform:perspective(800px) rotateX(0) rotateY(0) translateZ(0); transition:transform .6s var(--ease-spring), box-shadow .4s var(--ease-spring); will-change:transform}
+  .hero .logo{position:absolute; left:-72px; top:-40px; width:120px; transform:rotate(-4deg); filter:drop-shadow(0 8px 0 rgba(0,0,0,.4))}
+  .hero .subtitle{font:800 clamp(16px,2.4vw,22px)/1.2 "Luckiest Guy"; margin-top:-6px; color:var(--ink)}
+
+  /* Side honey rails */
+  .rails::before,.rails::after{content:"";position:fixed;top:0;bottom:0;width:18px;z-index:1;pointer-events:none;opacity:.65}
+  .rails::before{left:6px;background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,0)), repeating-linear-gradient(180deg, rgba(0,0,0,.8) 0 3px, rgba(0,0,0,0) 3px 6px), linear-gradient(180deg, var(--gold) 0%, #946e00 100%);border:3px solid #000;border-radius:999px}
+  .rails::after{right:6px;background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,0)), repeating-linear-gradient(180deg, rgba(0,0,0,.8) 0 3px, rgba(0,0,0,0) 3px 6px), linear-gradient(180deg, var(--gold) 0%, #946e00 100%);border:3px solid #000;border-radius:999px}
+
+  /* Arcade image */
+  .arcade{position:relative;width:100%;max-width:1100px;margin:0 auto}
+  .arcade img{width:100%;height:auto;display:block;border:4px solid #000;border-radius:20px;box-shadow:0 18px 40px rgba(0,0,0,.45)}
+  .arcade a.hotspot{position:absolute;display:block;border-radius:16px;text-indent:-9999px;overflow:hidden;outline:none;background:transparent;transition: box-shadow .25s var(--ease-spring), transform .25s var(--ease-spring)}
+  .arcade a.hotspot:focus-visible{outline:6px solid rgba(237,183,35,.7)}
+  .arcade a.hotspot:hover, .arcade a.hotspot:focus-visible{ box-shadow: 0 0 0 6px rgba(237,183,35,.35), 0 0 0 10px rgba(0,0,0,.6); }
+  .arcade a.hotspot::after{
+    content:"";
+    position:absolute; left:50%; top:0; width:20px; height:0; transform:translate(-50%,0);
+    background: linear-gradient(180deg, #fff6c7 0%, #ffe280 40%, #edb723 70%, #9b7a0d 100%);
+    border:3px solid #000; border-top:none; border-radius:0 0 16px 16px; box-shadow:0 6px 0 #946e00, 0 12px 20px rgba(0,0,0,.4);
+    transition:height .35s var(--ease-spring), opacity .25s ease; opacity:0;
+  }
+  .arcade a.hotspot:hover::after, .arcade a.hotspot:focus-visible::after{ height:36px; opacity:1 }
+
+  /* Grid & tiles */
+  .grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:22px}
+  @media (max-width:820px){.grid-2{grid-template-columns:1fr}}
+  .tile{text-decoration:none;display:flex;flex-direction:column;align-items:center;gap:14px}
+  .tile .face{width:100%;min-height:140px;padding:22px;background:var(--card);border:4px solid #000;border-radius:18px;box-shadow:0 12px 0 #000,0 18px 28px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;transition:transform .35s var(--ease-spring), box-shadow .35s var(--ease-spring);transform-style:preserve-3d; will-change:transform}
+  .tile:hover .face{ transform:translateY(-4px); box-shadow:0 16px 0 #000,0 26px 40px rgba(0,0,0,.45) }
+  .tile img{max-width:220px;max-height:64px;object-fit:contain;filter:drop-shadow(0 2px 0 rgba(0,0,0,.4))}
+  .tile .lbl{font-weight:800;font-size:18px;line-height:1.2;color:var(--ink);opacity:.9}
+  .dark .tile .lbl{color:var(--gold)}
+
+  /* NFTs */
+  #nfts .card{padding:26px}
+  #nfts .card{background:linear-gradient(180deg,#141619 0%, #101215 100%) !important; border:4px solid #000 !important}
+  .nft-media{display:block;border:6px solid #000;border-radius:16px;overflow:hidden}
+  .nft-media img,.nft-media video{display:block;width:100%;height:auto}
+  #nfts .card h3,#nfts .card p{color:var(--gold)!important}
+
+  /* Community banner */
+  .community-banner{position:relative;overflow:hidden;border-radius:22px;border:6px solid #000;background:#000;box-shadow:0 20px 40px rgba(0,0,0,.45)}
+  .community-banner img.bg{width:100%;opacity:.45;filter:saturate(1.05) contrast(1.02)}
+  .community-banner .overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px}
+  .pair{display:flex;gap:16px;flex-wrap:wrap;justify-content:center}
+
+  /* Kick stream (true 16:9) */
+  .square{position:relative;width:100%;max-width:900px;margin:0 auto;aspect-ratio:16/9;border-radius:16px;overflow:hidden}
+  .square iframe,.square .placeholder{position:absolute;inset:0;width:100%;height:100%;border:0;border-radius:16px}
+  .square .placeholder{display:grid;place-items:center;background:#0b0d0e;border:0}
+
+  /* Carousel */
+  .carousel{position:relative;overflow:visible;border:6px solid #000;border-radius:16px}
+  .carousel .viewport{position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;touch-action:none;cursor:grab;background:#0b0d0e}
+  .carousel .viewport.grabbing{cursor:grabbing}
+  .slides{display:flex;will-change:transform;transition:transform .7s var(--ease-spring)}
+  .slides img{width:100%;height:100%;flex:0 0 100%;object-fit:contain; user-select:none;-webkit-user-drag:none;pointer-events:none;background:#0b0d0e; transform-origin:center center}
+  .dots{display:flex;gap:8px;justify-content:center;margin-top:12px}
+  .dot{width:10px;height:10px;border-radius:50%;background:#333;border:2px solid #000;opacity:.5;transition:transform .25s var(--ease-spring)}
+  .dot.active{background:var(--gold);opacity:1; transform:scale(1.2)}
+  footer{border-top:6px solid #000}
+
+  /* Scroll reveal */
+  .reveal{opacity:0; transform:translateY(18px) scale(.98); filter:blur(.5px)}
+  .reveal.in{opacity:1; transform:translateY(0) scale(1); filter:blur(0); transition:opacity .6s var(--ease-spring), transform .6s var(--ease-spring), filter .6s var(--ease-spring)}
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion:reduce){
+    html{scroll-behavior:auto}
+    .reveal{opacity:1; transform:none; filter:none}
+    .slides{transition:none}
+    .btn, .card, .tile .face{transition:none}
+  }
+
+  /* Buy drawer + FAB base styles used by JS */
+  .fab-buy{
+    position:fixed; right:22px; bottom:22px; z-index:60;
+    display:inline-flex; align-items:center; justify-content:center; gap:.5rem;
+    font:900 18px/1 "Luckiest Guy","Arial Black",Impact,system-ui,sans-serif;
+    padding:14px 18px; border-radius:999px; color:#000; background:var(--gold);
+    border:4px solid #000; box-shadow:0 10px 0 #9b7a0d, 0 18px 24px rgba(0,0,0,.35);
+    transition:transform .12s var(--ease-spring), filter .15s ease;
+  }
+  .fab-buy:hover{filter:brightness(1.05)}
+  .fab-buy:active{transform:translateY(2px)}
+
+  .drawer{
+    position:fixed; top:0; right:0; bottom:0;
+    width:min(420px, calc(100% - 72px));
+    background:linear-gradient(180deg,#141619 0%, #0e1013 100%);
+    border-left:6px solid #000; z-index:70;
+    transform:translateX(102%); transition:transform .38s var(--ease-spring);
+    box-shadow:-24px 0 40px rgba(0,0,0,.55);
+    display:flex; flex-direction:column;
+  }
+  .drawer.open{ transform:translateX(0) }
+  .drawer-scrim{ position:fixed; inset:0; background:rgba(0,0,0,.55); backdrop-filter:blur(2px); z-index:65 }
+  .drawer-head{ position:sticky; top:0; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 18px; border-bottom:4px solid #000; background:#0f1114 }
+  .drawer-body{ padding:18px; overflow:auto; display:grid; gap:14px }
+
+  .btn.sm{ font-size:16px; padding:.6rem .9rem; border-radius:14px; box-shadow:0 6px 0 #000,0 12px 18px rgba(0,0,0,.35) }
+
+  .price-card{
+    display:grid; gap:6px; padding:16px;
+    border:4px solid #000; border-radius:16px;
+    background:radial-gradient(500px 200px at 50% -20%, rgba(237,183,35,.1), transparent 60%), #0b0d0e;
+    box-shadow:0 12px 22px rgba(0,0,0,.35)
+  }
+  .price-card .metric{ font-size:32px; font-weight:900; display:flex; align-items:baseline; gap:8px }
+  .price-card .metric small{ opacity:.8; font-size:14px }
+  .price-card .sub{ opacity:.9 }
+
+  .links-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px }
+  .links-grid .tile .lbl{ color:var(--gold) }
+  @media (max-width:520px){ .links-grid{ grid-template-columns:1fr } }
+
+  /* === User-requested removals === */
+  .site-nav{display:none !important}
+  .rails::before,.rails::after{display:none !important}
+
+  /* === CHART OVERRIDES (mobile paint fix + full-height) === */
+  #dexChartCard{
+    padding:0 !important; border:0 !important; border-radius:16px; overflow:hidden;
+    /* mobile iframe paint fix: neutralize compositing effects only here */
+    backdrop-filter:none !important;
+    -webkit-backdrop-filter:none !important;
+    transform:none !important;
+    filter:none !important;
+    will-change:auto !important;
+    background:#0b0d0e;
+    box-shadow:var(--elev-strong);
+  }
+  #dexChartWrap{
+    position:relative; width:100%;
+    min-height:560px;
+    border-radius:16px; overflow:hidden;
+    contain:paint; /* isolate from fancy parents */
+  }
+  #dexChartWrap iframe{
+    position:absolute; inset:0; width:100%; height:100%; border:0; display:block;
+  }
+
+  /* Make the drawer full-screen on phones & foldables so width isn't the limiter */
+  @media (max-width:1024px){
+    #buyDrawer{
+      left:0 !important; right:0 !important; top:0 !important; bottom:0 !important;
+      width:100vw !important; height:100vh !important; border-left:0 !important; border-radius:0 !important;
+    }
+    .drawer-scrim{display:none !important;}
+    #buyDrawer .drawer-head{padding-top:calc(env(safe-area-inset-top,0px) + 14px)}
+    #buyDrawer .drawer-body{padding-bottom:calc(env(safe-area-inset-bottom,0px) + 18px); overscroll-behavior:contain}
+
+    /* ensure a tall chart even before JS resizes */
+    #dexChartWrap{ min-height:70vh !important; }
+  }
+
+  /* Use dynamic viewport height where supported */
+  @supports (height: 100dvh){
+    #buyDrawer{height:100dvh}
+  }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#bearcade">Skip to BEARcade</a>
+
+  <!-- Sticky nav -->
+  <div class="site-nav" role="navigation" aria-label="Primary">
+    <div class="progress" id="progress"></div>
+    <div class="bar">
+      <a class="brand" href="#top" aria-label="BEAR Park Home">
+        <img src="https://files.catbox.moe/25ekkd.png" width="72" height="72" alt="BEAR Park logo" loading="eager" decoding="sync" />
+        <span>BEAR Park</span>
+      </a>
+      <nav class="links" aria-label="Sections">
+        <a href="#bearcade">BEARcade</a>
+        <a href="#bg123">BG123</a>
+        <a href="#nfts">NFTs</a>
+        <a href="#community">Community</a>
+        <a href="#memes">5D Memes</a>
+        <a href="#network">Network</a>
+      </nav>
+      <div class="nav-cta">
+        <a class="btn gold" href="#network">Buy $BEAR</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- HERO -->
+  <header class="hero" role="banner">
+    <div class="wrap center reveal">
+      <div class="plate" id="heroPlate">
+        <img class="logo" src="https://files.catbox.moe/25ekkd.png" alt="BEAR PARK sign" width="120" height="120" loading="eager" decoding="sync">
+        <h1 class="h1">BEAR</h1>
+        <p class="subtitle">welcome to BEAR park</p>
+      </div>
+    </div>
+  </header>
+
+  <!-- BEARCADE -->
+  <section class="alt" id="bearcade">
+    <div class="wrap reveal">
+      <h2 class="h2">BEARCADE</h2>
+      <p style="text-align:center;margin:-6px 0 24px;">DEFEND THE CASTLE $BEAR SOLDIER!</p>
+
+      <div class="arcade" role="group" aria-label="Arcade machines (3)">
+        <img src="https://files.catbox.moe/tthatu.png" alt="Three retro arcade machines with honey walls and neon trim" width="1100" height="650" loading="eager" decoding="async">
+        <a class="hotspot" href="https://flappy-bear-five.vercel.app/" target="_blank" rel="noopener noreferrer" style="left:6.4%; top:28%; width:27.6%; height:64%;" aria-label="Open Flappy Bear in a new tab">Flappy Bear</a>
+        <a class="hotspot" href="https://bear-jumpventure1.vercel.app/" target="_blank" rel="noopener noreferrer" style="left:36.7%; top:28%; width:26.8%; height:64%;" aria-label="Open Bear Ninja in a new tab">Bear Ninja</a>
+        <a class="hotspot" href="https://bear-jumpventure.vercel.app/" target="_blank" rel="noopener noreferrer" style="left:66.6%; top:28%; width:27.0%; height:64%;" aria-label="Open Bear Jumpventure in a new tab">Bear Jumpventure</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- BEARABLEGUY123 -->
+  <section class="dark" id="bg123">
+    <div class="wrap reveal">
+      <h2 class="h2">BEARABLEGUY123</h2>
+      <p class="center on-dark" style="opacity:.9;margin:-6px 0 20px;">Since 2018, Bearableguy posted riddles in images with a red masked bear. The community uncovered hints like “589.”</p>
+
+      <div class="card" role="region" aria-roledescription="carousel" aria-label="Bearableguy image gallery" aria-live="polite">
+        <div class="carousel" id="carousel">
+          <div class="viewport" id="viewport" tabindex="0" aria-label="Carousel viewport (use left and right arrow keys)">
+            <div class="slides" id="slides">
+              <img src="https://files.catbox.moe/f6k3b1.jpg" alt="BG123 poster 1" width="1600" height="900" loading="lazy" decoding="async">
+              <img src="https://files.catbox.moe/18vwoq.jpg" alt="BG123 poster 2" width="1600" height="900" loading="lazy" decoding="async">
+              <img src="https://files.catbox.moe/ruozs3.jpg" alt="BG123 poster 3" width="1600" height="900" loading="lazy" decoding="async">
+              <img src="https://files.catbox.moe/ha4uwj.jpg" alt="BG123 poster 4" width="1600" height="900" loading="lazy" decoding="async">
+              <img src="https://files.catbox.moe/n0le0t.jpg" alt="BG123 poster 5" width="1600" height="900" loading="lazy" decoding="async">
+              <img src="https://files.catbox.moe/wbin3t.jpg" alt="BG123 poster 6" width="1600" height="900" loading="lazy" decoding="async">
+              <img src="https://files.catbox.moe/lrtbxe.png" alt="BG123 poster 7" width="1600" height="900" loading="lazy" decoding="async">
+            </div>
+          </div>
+        </div>
+        <div class="dots" id="dots" role="tablist" aria-label="Choose slide"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- NFTs -->
+  <section class="alt" id="nfts">
+    <div class="wrap reveal">
+      <h2 class="h2">BEAR NFTs</h2>
+      <p style="text-align:center;margin:-6px 0 24px;">The BEAR community has collectible NFTs for profile pictures — the <strong>Ultra Rare Collection</strong> and the <strong>Pixel Collection</strong>.</p>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3 class="h3">ULTRA RARE BEARS</h3>
+          <p style="text-align:center;opacity:.95;">The BEAR Ultra Rare collection was the first mint and consists of 667 NFTs.</p>
+          <div class="spacer"></div>
+          <a class="nft-media" href="https://xrp.cafe/collection/bearxrpl" target="_blank" rel="noopener">
+            <img src="https://cdn.xrp.cafe/362e53289fd2-49f8-b070-4a3a6f95617272729975700c-46ba-a056-0aaf34028496f5a507b1d5a4-4adc-ad01-8d8b6ecd631d.webp" alt="Ultra Rare Bear preview" width="1200" height="1200" loading="lazy" decoding="async">
+          </a>
+          <div class="center" style="margin-top:16px;">
+            <a class="btn gold" href="https://xrp.cafe/collection/bearxrpl" target="_blank" rel="noopener">Ultra Collection</a>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 class="h3">PIXEL BEARS</h3>
+          <p style="text-align:center;opacity:.95;">There are 5880 Pixel BEARS to provide a profile picture for every $BEAR maxi.</p>
+          <div class="spacer"></div>
+          <a class="nft-media" href="https://xrp.cafe/collection/bear-pixel-collection" target="_blank" rel="noopener">
+            <video src="https://files.catbox.moe/babbn1.mp4" playsinline muted autoplay loop poster="https://files.catbox.moe/babbn1.jpg"></video>
+          </a>
+          <div class="center" style="margin-top:16px;">
+            <a class="btn gold" href="https://xrp.cafe/collection/bear-pixel-collection" target="_blank" rel="noopener">Pixel Collection</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- COMMUNITY -->
+  <section class="dark" id="community">
+    <div class="wrap reveal">
+      <h2 class="h2">COMMUNITY</h2>
+
+    <div class="community-banner" role="img" aria-label="$BEAR community montage with honey lighting">
+        <img class="bg" src="https://files.catbox.moe/kgs8as.jpg" alt="" width="2000" height="1000" loading="lazy" decoding="async">
+        <div class="overlay">
+          <p class="on-dark" style="text-align:center;margin:0 0 8px;">Come meet the $BEAR fam in the official communities!</p>
+          <div class="pair">
+            <a class="btn gold" href="https://x.com/bearxrpl" target="_blank" rel="noopener">Join us on X</a>
+            <a class="btn gold" href="https://discord.com/invite/atGTNuzqH6" target="_blank" rel="noopener">Join Discord</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5D MEMES -->
+  <section class="alt" id="memes">
+    <div class="wrap reveal">
+      <h2 class="h2">5D MEMES</h2>
+      <p style="text-align:center;margin:-6px 0 18px;color:var(--gold-ink)">Live stream from Kick</p>
+
+      <div class="card">
+        <div class="square" id="kickWrap">
+          <!-- Lazy-loaded Kick embed with placeholder -->
+          <button class="placeholder btn ghost" id="kickPlaceholder" aria-label="Load live Kick stream">
+            ▶ Load live Kick stream
+          </button>
+        </div>
+        <div class="center" style="margin-top:14px;">
+          <a class="btn ghost" href="https://kick.com/bearxrpl" target="_blank" rel="noopener">Open on Kick</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- NETWORK -->
+  <section class="dark" id="network">
+    <div class="wrap reveal">
+      <h2 class="h2">NETWORK</h2>
+      <p class="on-dark" style="text-align:center;margin:-6px 0 24px;">Buy $BEAR here</p>
+
+      <div class="grid-2">
+        <a class="tile" href="https://firstledger.net/token/rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW/4245415200000000000000000000000000000000" target="_blank" rel="noopener">
+          <div class="face"><img src="https://files.catbox.moe/du61x3.jpg" alt="First Ledger" width="300" height="64" loading="lazy" decoding="async"></div>
+          <span class="lbl">First Ledger</span>
+        </a>
+        <a class="tile" href="https://xmagnetic.org/dex/BEAR+rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW_XRP+XRP?network=mainnet" target="_blank" rel="noopener">
+          <div class="face"><img src="https://files.catbox.moe/m9ck1m.png" alt="Magnetic DEX" width="300" height="64" loading="lazy" decoding="async"></div>
+          <span class="lbl">Magnetic DEX</span>
+        </a>
+        <a class="tile" href="https://xpmarket.com/token/BEAR-rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW" target="_blank" rel="noopener">
+          <div class="face"><img src="https://files.catbox.moe/1dw0sy.png" alt="XPMarket" width="220" height="64" loading="lazy" decoding="async"></div>
+          <span class="lbl">XPMarket</span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <footer class="dark">
+    <div class="wrap center" style="gap:14px;flex-wrap:wrap;">
+      <span class="on-dark" style="opacity:.9;">© BEAR Park — Defend the castle 🏰</span>
+      <a class="btn ghost" href="#top">Back to Top</a>
+    </div>
+  </footer>
+
+  <!-- Buy Drawer -->
+  <aside id="buyDrawer" class="drawer" aria-hidden="true">
+    <div class="drawer-head">
+      <h3 class="h3" style="margin:0;">Buy $BEAR</h3>
+      <button class="btn ghost sm" data-close-drawer aria-label="Close buy panel">Close</button>
+    </div>
+    <div class="drawer-body">
+      <div class="price-card">
+        <div class="metric" aria-live="polite">
+          <span id="priceUsd">—</span><small>USD</small>
+        </div>
+        <div class="sub">24h <span id="change24">—</span> · Vol <span id="vol24">—</span></div>
+        <!-- NEW: Market Cap line -->
+        <div class="sub">Mkt Cap <span id="mcapUsd">—</span></div>
+      </div>
+
+      <!-- Chart card will be injected directly under this price card -->
+
+      <div class="links-grid">
+        <a class="tile" href="https://firstledger.net/token/rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW/4245415200000000000000000000000000000000" target="_blank" rel="noopener">
+          <div class="face"><img src="https://files.catbox.moe/du61x3.jpg" alt="First Ledger"></div>
+          <span class="lbl">First Ledger</span>
+        </a>
+        <a class="tile" href="https://xmagnetic.org/dex/BEAR+rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW_XRP+XRP?network=mainnet" target="_blank" rel="noopener">
+          <div class="face"><img src="https://files.catbox.moe/m9ck1m.png" alt="Magnetic DEX"></div>
+          <span class="lbl">Magnetic DEX</span>
+        </a>
+        <a class="tile" href="https://xpmarket.com/token/BEAR-rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW" target="_blank" rel="noopener">
+          <div class="face"><img src="https://files.catbox.moe/1dw0sy.png" alt="XPMarket"></div>
+          <span class="lbl">XPMarket</span>
+        </a>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Structured data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "BEAR Park",
+    "url": "https://bearpark.xyz/",
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": "https://bearpark.xyz/?q={search_term_string}",
+      "query-input": "required name=search_term_string"
+    }
+  }
+  </script>
+
+  <script>
+  document.documentElement.classList.remove('no-js');
+
+  /* Input modality hint */
+  document.addEventListener('mousedown',()=>document.body.classList.add('using-mouse'));
+  document.addEventListener('keydown',()=>document.body.classList.remove('using-mouse'));
+
+  /* ===== Scroll reveal ===== */
+  const io=new IntersectionObserver((entries)=>entries.forEach(e=>{
+    if(e.isIntersecting){
+      e.target.classList.add('in'); io.unobserve(e.target);
+    }
+  }),{threshold:.15});
+  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+
+  /* ===== Sticky nav scroll progress + scrollspy ===== */
+  (function(){
+    const progress = document.getElementById('progress');
+    const links = Array.from(document.querySelectorAll('.links a'));
+    const sections = links.map(a => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+
+    function spy(){
+      const de=document.documentElement;
+      const scrollTop = de.scrollTop || document.body.scrollTop;
+      const scrollHeight = de.scrollHeight - de.clientHeight;
+      const pct = scrollHeight ? scrollTop / scrollHeight : 0;
+      if(progress) progress.style.transform = `scaleX(${pct})`;
+
+      let activeIndex = sections.findIndex((sec, i) => {
+        const next = sections[i+1];
+        const top = sec.offsetTop - 120;
+        const bottom = next ? next.offsetTop - 120 : Infinity;
+        return scrollTop >= top && scrollTop < bottom;
+      });
+      links.forEach((a,i)=> a.setAttribute('aria-current', i===activeIndex ? 'true' : 'false'));
+    }
+    document.addEventListener('scroll', spy, {passive:true});
+    window.addEventListener('resize', spy);
+    spy();
+  })();
+
+  /* ===== Hero parallax ===== */
+  (function(){
+    const plate=document.getElementById('heroPlate');
+    if(!plate) return;
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    function tilt(x,y){
+      const rX = (y-0.5)*10;
+      const rY = (x-0.5)*-10;
+      plate.style.transform = `perspective(800px) rotateX(${rX}deg) rotateY(${rY}deg) translateZ(0)`;
+    }
+    function reset(){ plate.style.transform='perspective(800px) rotateX(0) rotateY(0)'; }
+
+    window.addEventListener('mousemove',e=>{
+      const r=plate.getBoundingClientRect();
+      tilt((e.clientX-r.left)/r.width,(e.clientY-r.top)/r.height);
+    });
+    window.addEventListener('mouseleave',reset);
+  })();
+
+  /* ===== Magnetic buttons (skip on touch) ===== */
+  (function(){
+    if (matchMedia('(pointer: coarse)').matches) return;
+    const strength = 14;
+    const maxShift = 10;
+
+    document.querySelectorAll('.btn').forEach(btn=>{
+      let raf = null;
+      function onMove(e){
+        if (raf) cancelAnimationFrame(raf);
+        raf = requestAnimationFrame(()=>{
+          const rect = btn.getBoundingClientRect();
+          const cx = rect.left + rect.width/2;
+          const cy = rect.top + rect.height/2;
+          const dx = Math.max(-maxShift, Math.min(maxShift, (e.clientX - cx)/strength));
+          const dy = Math.max(-maxShift, Math.min(maxShift, (e.clientY - cy)/strength));
+          btn.style.transform = `translate(${dx}px, ${dy}px)`;
+        });
+      }
+      btn.addEventListener('mousemove', onMove);
+      btn.addEventListener('mouseleave', ()=>{
+        if (raf) cancelAnimationFrame(raf);
+        btn.style.transform = 'translate(0,0)';
+      });
+    });
+  })();
+
+  /* ===== Carousel: a11y + keys + swipe + zoom/pan ===== */
+  (function(){
+    const slides = document.getElementById('slides');
+    const viewport = document.getElementById('viewport');
+    if(!slides || !viewport) return;
+
+    const imgs = slides.querySelectorAll('img');
+    const dotsWrap = document.getElementById('dots');
+
+    const Z_MIN = 1, Z_MAX = 4;
+    let idx=0, n=imgs.length, timer=null, userPaused=false;
+    let isDrag=false, startX=0, deltaX=0, dragged=false;
+    let scale=1, panX=0, panY=0, pinchStartDist=0, startScale=1, lastX=0, lastY=0;
+    let zoomGesture=false;
+
+    imgs.forEach((_,i)=>{
+      const b=document.createElement('button');
+      b.type='button';
+      b.className='dot'+(i===0?' active':'');
+      b.setAttribute('role','tab');
+      b.setAttribute('aria-selected', i===0 ? 'true' : 'false');
+      b.setAttribute('aria-label', `Show slide ${i+1} of ${n}`);
+      b.addEventListener('click', ()=>go(i,true));
+      dotsWrap.appendChild(b);
+    });
+    const dots=[...dotsWrap.children];
+
+    function applyZoom(){ imgs[idx].style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`; }
+    function resetZoom(all=false){
+      scale=1; panX=0; panY=0;
+      (all?imgs:[imgs[idx]]).forEach(i=>{
+        i.style.transition='transform .2s ease';
+        i.style.transform='scale(1)';
+        setTimeout(()=>i.style.transition='',200);
+      });
+    }
+    function clampPan(){
+      const vw=viewport.clientWidth, vh=viewport.clientHeight;
+      const maxX=(vw*(scale-1))/2, maxY=(vh*(scale-1))/2;
+      panX=Math.max(-maxX,Math.min(maxX,panX));
+      panY=Math.max(-maxY,Math.min(maxY,panY));
+    }
+    function go(i, user){
+      resetZoom(true);
+      idx=(i+n)%n;
+      slides.style.transition='transform .7s var(--ease-spring)';
+      slides.style.transform=`translateX(-${idx*100}%)`;
+      dots.forEach((d,k)=>{
+        const active = k===idx;
+        d.classList.toggle('active',active);
+        d.setAttribute('aria-selected', active ? 'true' : 'false');
+      });
+      viewport.setAttribute('aria-label', `Carousel viewport — slide ${idx+1} of ${n}`);
+      if(user && !userPaused) restart();
+    }
+    function next(){ go(idx+1,false) }
+    function restart(){
+      clearInterval(timer);
+      timer=setInterval(()=>{ if(!userPaused && scale===1) next(); },4000);
+    }
+
+    viewport.addEventListener('mousedown',e=>{
+      isDrag=true; dragged=false; startX=e.clientX; lastX=e.clientX; lastY=e.clientY;
+      viewport.classList.add('grabbing'); clearInterval(timer);
+    });
+    window.addEventListener('mousemove',e=>{
+      if(!isDrag) return;
+      if(scale>1){
+        const dx=e.clientX-lastX, dy=e.clientY-lastY;
+        lastX=e.clientX; lastY=e.clientY; panX+=dx; panY+=dy; clampPan(); applyZoom(); dragged=true; return;
+      }
+      deltaX=e.clientX-startX;
+      slides.style.transition='none';
+      slides.style.transform=`translateX(${ -idx*100 + (deltaX/viewport.clientWidth)*100 }%)`;
+      if(Math.abs(deltaX)>3) dragged=true;
+    });
+    window.addEventListener('mouseup',()=>{
+      if(!isDrag) return;
+      isDrag=false; viewport.classList.remove('grabbing');
+      if(scale>1){ if(!userPaused) restart(); return; }
+      const threshold = viewport.clientWidth*0.12;
+      if(Math.abs(deltaX)>threshold){ go(idx + (deltaX<0?1:-1), true); } else { go(idx,false); }
+      if(!userPaused) restart();
+    });
+
+    viewport.addEventListener('click',()=>{
+      if(dragged || scale>1 || zoomGesture) return;
+      userPaused=!userPaused;
+      if(userPaused) clearInterval(timer); else restart();
+    });
+    viewport.addEventListener('keydown',e=>{
+      if(e.key==='ArrowRight'){ go(idx+1,true); }
+      else if(e.key==='ArrowLeft'){ go(idx-1,true); }
+      else if(e.key===' '){ userPaused=!userPaused; if(userPaused) clearInterval(timer); else restart(); e.preventDefault(); }
+    });
+
+    viewport.addEventListener('touchstart',e=>{
+      if(e.touches.length===2){
+        zoomGesture=true; clearInterval(timer);
+        const [a,b]=e.touches; pinchStartDist=Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY); startScale=scale;
+      } else if(e.touches.length===1){
+        dragged=false; startX=e.touches[0].clientX; lastX=e.touches[0].clientX; lastY=e.touches[0].clientY;
+      }
+    },{passive:false});
+
+    viewport.addEventListener('touchmove',e=>{
+      if(zoomGesture && e.touches.length===2){
+        e.preventDefault();
+        const [a,b]=e.touches; const dist=Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);
+        scale=Math.max(Z_MIN,Math.min(Z_MAX, startScale * (dist/pinchStartDist)));
+        clampPan(); applyZoom();
+      } else if(scale>1 && e.touches.length===1){
+        e.preventDefault();
+        const t=e.touches[0]; const dx=t.clientX-lastX, dy=t.clientY-lastY;
+        lastX=t.clientX; lastY=t.clientY; panX+=dx; panY+=dy; clampPan(); applyZoom(); dragged=true;
+      } else if(scale===1 && e.touches.length===1){
+        const x=e.touches[0].clientX; deltaX=x-startX;
+        slides.style.transition='none';
+        slides.style.transform=`translateX(${ -idx*100 + (deltaX/viewport.clientWidth)*100 }%)`;
+      }
+    },{passive:false});
+
+    viewport.addEventListener('touchend',e=>{
+      if(zoomGesture && e.touches.length<2){
+        zoomGesture=false;
+        if(scale<=1.01){ scale=1; panX=0; panY=0; applyZoom(); }
+        restart(); return;
+      }
+      if(scale>1){ restart(); return; }
+      const threshold = viewport.clientWidth*0.12;
+      if(Math.abs(deltaX)>threshold){ go(idx + (deltaX<0?1:-1), true); } else { go(idx,false); }
+    });
+
+    viewport.addEventListener('wheel',e=>{
+      e.preventDefault(); clearInterval(timer);
+      const rect=viewport.getBoundingClientRect();
+      const cx=e.clientX-rect.left - rect.width/2;
+      const cy=e.clientY-rect.top - rect.height/2;
+      const prevScale=scale;
+      scale = Math.max(Z_MIN, Math.min(Z_MAX, scale * (e.deltaY>0 ? 0.9 : 1.1)));
+      panX = (panX + cx) * (scale/prevScale) - cx;
+      panY = (panY + cy) * (scale/prevScale) - cy;
+      clampPan(); applyZoom();
+    },{passive:false});
+
+    go(0,false);
+    restart();
+    window.addEventListener('visibilitychange',()=>document.hidden?clearInterval(timer):(!userPaused&&restart()));
+  })();
+
+  /* ===== Lazy load Kick iframe ===== */
+  function loadKick(){
+    const wrap=document.getElementById('kickWrap');
+    if(!wrap || wrap.dataset.loaded) return;
+    const iframe=document.createElement('iframe');
+    iframe.src='https://player.kick.com/bearxrpl?autoplay=true&muted=true';
+    iframe.allow='autoplay; encrypted-media; picture-in-picture';
+    iframe.title='Kick Stream';
+    wrap.innerHTML='';
+    wrap.appendChild(iframe);
+    wrap.dataset.loaded='1';
+  }
+  const kickBtn=document.getElementById('kickPlaceholder');
+  if(kickBtn){
+    kickBtn.addEventListener('click', loadKick);
+    const obs=new IntersectionObserver((es,o)=>{
+      es.forEach(e=>{ if(e.isIntersecting){ loadKick(); o.disconnect(); } });
+    },{rootMargin:'200px'});
+    obs.observe(kickBtn);
+  }
+
+  /* ===== Ensure all imgs lazy/async if not set ===== */
+  document.querySelectorAll('img:not([loading])').forEach(img=>{ img.loading='lazy'; img.decoding='async'; });
+
+  /* ===== Drawer + Prices + Dexscreener Chart (consolidated) ===== */
+  (function(){
+    const PAIR_ID = '4245415200000000000000000000000000000000.rbearguasyu7tuw53rufQzFdWmJHpJEqFW_xrp';
+    const DS_URL = `https://api.dexscreener.com/latest/dex/pairs/xrpl/${PAIR_ID}`;
+
+    /* FAB + drawer wiring */
+    const fab=document.createElement('button');
+    fab.className='fab-buy';
+    fab.innerHTML='<span class="txt">$BEAR</span>';
+    fab.setAttribute('aria-controls','buyDrawer');
+    fab.setAttribute('aria-expanded','false');
+    fab.setAttribute('aria-label','Open Buy $BEAR panel');
+    document.body.appendChild(fab);
+
+    const scrim=document.createElement('div');
+    scrim.className='drawer-scrim';
+    scrim.hidden=true;
+    document.body.appendChild(scrim);
+
+    const drawer=document.getElementById('buyDrawer');
+    const closeBtn=drawer.querySelector('[data-close-drawer]');
+
+    function openDrawer(){
+      drawer.classList.add('open'); scrim.hidden=false;
+      fab.setAttribute('aria-expanded','true'); drawer.setAttribute('aria-hidden','false');
+      document.body.style.overflow='hidden';
+      ensureChart(); sizeChartSoon();
+    }
+    function closeDrawer(){
+      drawer.classList.remove('open'); scrim.hidden=true;
+      fab.setAttribute('aria-expanded','false'); drawer.setAttribute('aria-hidden','true');
+      document.body.style.overflow='';
+    }
+
+    fab.addEventListener('click', openDrawer);
+    closeBtn.addEventListener('click', closeDrawer);
+    scrim.addEventListener('click', closeDrawer);
+    window.addEventListener('keydown', e=>{ if(e.key==='Escape') closeDrawer(); });
+
+    const navBuy=document.querySelector('.nav-cta a[href="#network"]');
+    if(navBuy){
+      navBuy.addEventListener('click', (e)=>{ e.preventDefault(); openDrawer(); });
+    }
+
+    /* Build big duo metric lines (XRP first) */
+    const priceCard = document.querySelector('.price-card');
+    const metric = priceCard?.querySelector('.metric');
+    const legacyUsdEl = document.getElementById('priceUsd');
+    const volUsdEl = document.getElementById('vol24');
+    const mcapUsdEl = document.getElementById('mcapUsd'); // NEW
+
+    if (metric && !document.getElementById('bearXrpBig')) {
+      metric.classList.add('duo');
+      if (legacyUsdEl) legacyUsdEl.style.display='none';
+      const usdSmall = legacyUsdEl && legacyUsdEl.nextElementSibling?.tagName==='SMALL' ? legacyUsdEl.nextElementSibling : null;
+      if (usdSmall) usdSmall.style.display='none';
+
+      const wrap=document.createElement('div');
+      wrap.innerHTML =
+        `<div class="line"><span class="label">$BEAR / XRP</span><span id="bearXrpBig" class="price">—</span></div>
+         <div class="line"><span class="label">$BEAR / USD</span><span id="bearUsdBig" class="price">—</span></div>`;
+      metric.prepend(wrap);
+
+      const st=document.createElement('style');
+      st.textContent=
+        `.price-card .metric.duo{flex-direction:column;align-items:flex-start;gap:.4rem}
+         .price-card .metric .line{display:flex;align-items:baseline;gap:.6rem;flex-wrap:wrap}
+         .price-card .metric .label{color:var(--gold);font-weight:900;letter-spacing:.3px}
+         .price-card .metric .price{color:#fff;font-weight:900}`;
+      document.head.appendChild(st);
+    }
+
+    function $id(id){ return document.getElementById(id); }
+    const fmt = (n, min=2, max=8) => Number(n).toLocaleString(undefined,{minimumFractionDigits:min, maximumFractionDigits:max});
+    const fmt0 = (n) => Number(n).toLocaleString(undefined,{maximumFractionDigits:0});
+
+    async function fetchDex(){
+      const r=await fetch(DS_URL,{cache:'no-store'});
+      if(!r.ok) throw new Error('DexScreener HTTP '+r.status);
+      const j=await r.json();
+      const p=j?.pairs?.[0];
+      if(!p) throw new Error('Pair not found');
+      return {
+        priceNative: Number(p.priceNative),
+        priceUsd: p.priceUsd!=null?Number(p.priceUsd):NaN,
+        vol24Usd: Number(p.volume?.h24 ?? p.volume24h ?? 0),
+        // NEW: Prefer marketCap; fallback to fdv
+        mcapUsd: Number((p.marketCap ?? p.fdv) ?? NaN)
+      };
+    }
+
+    async function updatePrices(){
+      try{
+        const {priceNative, priceUsd, vol24Usd, mcapUsd} = await fetchDex();
+        const xrpLine = $id('bearXrpBig');
+        const usdLine = $id('bearUsdBig');
+
+        if (Number.isFinite(priceNative) && xrpLine){
+          const d = priceNative >= 1 ? {min:3,max:6} : {min:4,max:8};
+          xrpLine.textContent = fmt(priceNative, d.min, d.max);
+        }
+        const usdVal = Number.isFinite(priceUsd) ? priceUsd : NaN;
+        if (Number.isFinite(usdVal) && usdLine){
+          usdLine.textContent = fmt(usdVal, 5, 8);
+        }
+        if (volUsdEl){
+          const vol = Number.isFinite(vol24Usd) ? vol24Usd : NaN;
+          if (Number.isFinite(vol)) volUsdEl.textContent = '$' + fmt0(vol);
+        }
+        // NEW: Market Cap update
+        if (mcapUsdEl && Number.isFinite(mcapUsd)){
+          mcapUsdEl.textContent = '$' + fmt0(mcapUsd);
+        }
+
+        if (legacyUsdEl && legacyUsdEl.textContent.trim()==='—' && Number.isFinite(usdVal)){
+          legacyUsdEl.textContent = fmt(usdVal, 5, 8);
+        }
+      }catch(err){
+        console.debug('Price update failed', err);
+      }
+    }
+    updatePrices();
+    setInterval(updatePrices, 60000);
+    document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) updatePrices(); });
+
+    /* === Dexscreener chart === */
+    const PAIR_PATH = `xrpl/${PAIR_ID}`;
+
+    // Height based on *actual available space* in the drawer (no clipping)
+    function computeAvailableChartHeight(){
+      const dr = document.getElementById('buyDrawer');
+      const headH = dr.querySelector('.drawer-head')?.getBoundingClientRect().height || 0;
+      const body = dr.querySelector('.drawer-body');
+      const cs = getComputedStyle(body);
+      const padY = (parseFloat(cs.paddingTop)||0) + (parseFloat(cs.paddingBottom)||0);
+      const gapY = parseFloat(cs.rowGap || cs.gap || '14') || 14;
+      const priceH = body.querySelector('.price-card')?.getBoundingClientRect().height || 0;
+      const vh = (window.visualViewport && window.visualViewport.height) ? window.visualViewport.height : (window.innerHeight || document.documentElement.clientHeight || 700);
+      const extra = 24; // fudge for rounding/borders
+      return Math.max(560, Math.floor(vh - headH - padY - priceH - gapY - extra));
+    }
+
+    function makeChartUrl(h){
+      const base = `https://dexscreener.com/${PAIR_PATH}`;
+      // Hide side info & trades; force dark; pass *exact* height to TradingView
+      return `${base}?embed=1&theme=dark&info=0&trades=0&chartType=candles&interval=15&chartHeight=${encodeURIComponent(h)}`;
+    }
+
+    function ensureChart(){
+      if (document.getElementById('dexscreenerChart')) return;
+      const body = document.querySelector('#buyDrawer .drawer-body');
+      if(!body) return;
+
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.id = 'dexChartCard';
+      card.style.padding = '0';
+      card.style.borderRadius = '16px';
+      card.style.overflow = 'hidden';
+
+      const wrap = document.createElement('div');
+      wrap.id = 'dexChartWrap';
+      wrap.style.position = 'relative';
+      wrap.style.width = '100%';
+      wrap.style.borderRadius = '16px';
+      wrap.style.overflow = 'hidden';
+
+      const iframe = document.createElement('iframe');
+      iframe.id = 'dexscreenerChart';
+      const initialH = computeAvailableChartHeight();
+      iframe.src = makeChartUrl(initialH);
+      iframe.title = 'Dexscreener $BEAR/XRP chart';
+      iframe.loading = 'eager';
+      iframe.allow = 'clipboard-write; encrypted-media';
+      iframe.allowFullscreen = true; // <-- added for mobile TradingView friendliness
+      iframe.style.position = 'absolute';
+      iframe.style.inset = '0';
+      iframe.style.width = '100%';
+      iframe.style.height = '100%';
+      iframe.style.border = '0';
+
+      // Give the wrapper a real pixel height that follows the viewport
+      wrap.style.height = initialH + 'px';
+      wrap.appendChild(iframe);
+      card.appendChild(wrap);
+
+      const priceCardEl = body.querySelector('.price-card');
+      if (priceCardEl && priceCardEl.nextSibling) {
+        priceCardEl.parentNode.insertBefore(card, priceCardEl.nextSibling);
+      } else {
+        body.prepend(card);
+      }
+    }
+
+    function sizeChart(){
+      const wrap = document.getElementById('dexChartWrap');
+      if(!wrap) return;
+      const iframe = document.getElementById('dexscreenerChart');
+      if(!iframe) return;
+
+      const h = computeAvailableChartHeight();
+      if (wrap.style.height !== h + 'px') wrap.style.height = h + 'px';
+
+      // Force Dexscreener's internal TradingView height to match wrapper
+      try{
+        const u = new URL(iframe.src, location.href);
+        const old = Number(u.searchParams.get('chartHeight')) || 0;
+        if (Math.abs(old - h) > 20) { // avoid reload thrash
+          u.searchParams.set('chartHeight', String(h));
+          iframe.src = u.toString();
+        }
+      }catch(_e){}
+    }
+    const sizeChartSoon = () => setTimeout(sizeChart, 120);
+
+    window.addEventListener('resize', sizeChart);
+    window.addEventListener('orientationchange', sizeChart);
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', sizeChart);
+
+    // Watch drawer open/close to size chart
+    const mo=new MutationObserver(()=>{
+      const d=document.getElementById('buyDrawer');
+      if(d.classList.contains('open')) { ensureChart(); sizeChartSoon(); }
+    });
+    mo.observe(document.getElementById('buyDrawer'),{attributes:true, attributeFilter:['class']});
+
+    if (document.getElementById('buyDrawer').classList.contains('open')) {
+      ensureChart(); sizeChartSoon();
+    }
+    // === END CHART FIX
+  })();
+  </script>
+</body>
+</html>
