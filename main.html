@@ -258,14 +258,68 @@
   .links-grid .tile .lbl{ color:var(--gold) }
   @media (max-width:520px){ .links-grid{ grid-template-columns:1fr } }
 
-  /* === User-requested removals === */
-  .site-nav{display:none !important}
-  .rails::before,.rails::after{display:none !important}
+  /* === USER-WALLET GATING STYLES === */
+  #wallet-gate {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.95);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    padding: 2rem;
+    backdrop-filter: blur(4px);
+  }
+
+  #wallet-gate .content {
+    background: var(--card);
+    border: 4px solid #000;
+    border-radius: 20px;
+    padding: 2rem;
+    max-width: 400px;
+    text-align: center;
+    box-shadow: var(--elev-strong);
+  }
+
+  #wallet-gate h2 {
+    margin: 0 0 1rem;
+    font-size: 2rem;
+    color: var(--gold);
+  }
+
+  #wallet-gate p {
+    margin: 0 0 1.5rem;
+    font-size: 1.1rem;
+    color: #fff;
+    opacity: 0.9;
+  }
+
+  #connect-wallet {
+    width: 100%;
+    font-size: 1.2rem;
+    padding: 1rem 1.5rem;
+    border-radius: 22px;
+    background: var(--gold);
+    color: #000;
+    border: 4px solid #000;
+    box-shadow: 0 10px 0 #9b7a0d, 0 18px 24px rgba(0,0,0,0.35);
+    transition: transform 0.12s var(--ease-spring), filter 0.15s ease;
+  }
+
+  #connect-wallet:hover {
+    filter: brightness(1.05);
+  }
+
+  #connect-wallet:active {
+    transform: translateY(2px);
+  }
 
   /* === CHART OVERRIDES (mobile paint fix + full-height) === */
   #dexChartCard{
     padding:0 !important; border:0 !important; border-radius:16px; overflow:hidden;
-    /* mobile iframe paint fix: neutralize compositing effects only here */
+    /* mobile iframe paint fix: neutralize compositinging effects only here */
     backdrop-filter:none !important;
     -webkit-backdrop-filter:none !important;
     transform:none !important;
@@ -392,7 +446,7 @@
           <p style="text-align:center;opacity:.95;">The BEAR Ultra Rare collection was the first mint and consists of 667 NFTs.</p>
           <div class="spacer"></div>
           <a class="nft-media" href="https://xrp.cafe/collection/bearxrpl" target="_blank" rel="noopener">
-            <img src="https://cdn.xrp.cafe/362e53289fd2-49f8-b070-4a3a6f95617272729975700c-46ba-a056-0aaf34028496f5a507b1d5a4-4adc-ad01-8d8b6ecd631d.webp" alt="Ultra Rare Bear preview" width="1200" height="1200" loading="lazy" decoding="async">
+            <img src="https://cdn.xrp.cafe/362e53289fd2-49f8-b070-4a3a6f95617272729977200c-46ba-a056-0aaf34028496f5a507b1d5a4-4adc-ad01-8d8b6ecd631d.webp" alt="Ultra Rare Bear preview" width="1200" height="1200" loading="lazy" decoding="async">
           </a>
           <div class="center" style="margin-top:16px;">
             <a class="btn gold" href="https://xrp.cafe/collection/bearxrpl" target="_blank" rel="noopener">Ultra Collection</a>
@@ -501,7 +555,7 @@
       <!-- Chart card will be injected directly under this price card -->
 
       <div class="links-grid">
-        <a class="tile" href="https://firstledger.net/token/rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW/4245415200000000000000000000000000000000" target="_blank" rel="noopener">
+        <a class="tile" href="https://firstledger.net/token/rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW/42454152000000000000000000000000000000000" target="_blank" rel="noopener">
           <div class="face"><img src="https://files.catbox.moe/du61x3.jpg" alt="First Ledger"></div>
           <span class="lbl">First Ledger</span>
         </a>
@@ -516,6 +570,15 @@
       </div>
     </div>
   </aside>
+
+  <!-- Wallet-gating overlay -->
+  <div id="wallet-gate" class="reveal">
+    <div class="content">
+      <h2>Connect Wallet</h2>
+      <p>Connect your XRP wallet to access BEAR Park features.</p>
+      <button id="connect-wallet" class="btn gold">Connect Wallet</button>
+    </div>
+  </div>
 
   <!-- Structured data -->
   <script type="application/ld+json">
@@ -534,6 +597,56 @@
 
   <script>
   document.documentElement.classList.remove('no-js');
+
+  // Add this at the top of your script
+  document.body.classList.add('no-wallet');
+
+  // Wallet-gating logic
+  const walletGate = document.getElementById('wallet-gate');
+  const connectBtn = document.getElementById('connect-wallet');
+
+  // Check if user already connected
+  if (!localStorage.getItem('xrplAddress')) {
+    walletGate.style.display = 'flex';
+  } else {
+    document.body.classList.remove('no-wallet');
+    walletGate.style.display = 'none';
+  }
+
+  // Wallet connection handler (unchanged)
+  connectBtn.addEventListener('click', async () => {
+    try {
+      let address = null;
+
+      // Try Xaman first
+      if (window.xrpl && window.xrpl.connect) {
+        const xrpl = window.xrpl;
+        const client = new xrpl.Client('wss://xrpl.ws/');
+        await client.connect();
+        const account = await client.request({
+          method: 'getAccountInfo',
+          params: [{ account: 'rHb9CJAWyBvRjNY4JWw8rQbGt41gqjKj7s' }] // Test account
+        });
+        address = account.result.account_data.Account;
+        client.disconnect();
+      } 
+      // Try Joey (example placeholder - adjust based on Joey's API)
+      else if (window.joey && window.joey.getAddress) {
+        address = await window.joey.getAddress();
+      } else {
+        alert('Please install Xaman or Joey wallet first!');
+        return;
+      }
+
+      // Store address and unlock content
+      localStorage.setItem('xrplAddress', address);
+      document.body.classList.remove('no-wallet');
+      location.reload(); // Refresh to show content
+    } catch (err) {
+      console.error('Wallet connection failed:', err);
+      alert('Failed to connect wallet. Make sure you're using Xaman or Joey.');
+    }
+  });
 
   /* Input modality hint */
   document.addEventListener('mousedown',()=>document.body.classList.add('using-mouse'));
@@ -796,7 +909,7 @@
 
   /* ===== Drawer + Prices + Dexscreener Chart (consolidated) ===== */
   (function(){
-    const PAIR_ID = '4245415200000000000000000000000000000000.rbearguasyu7tuw53rufQzFdWmJHpJEqFW_xrp';
+    const PAIR_ID = '4245415200000000000000000000000000000000.rbearguasyu7tuw53rufQzFdWmmJHpJEqFW_xrp';
     const DS_URL = `https://api.dexscreener.com/latest/dex/pairs/xrpl/${PAIR_ID}`;
 
     /* FAB + drawer wiring */
