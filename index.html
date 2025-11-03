@@ -528,14 +528,13 @@
           // Generate QR code
           const qrContainer = document.createElement('div');
 
-          qrContainer.innerHTML = `<p style="font-size: 16px; margin: 10px 0;">Open Joey Wallet to connect:</p>
+          qrContainer.innerHTML = `<p style="font-size: 16px; margin: 10px 0;">Connect with Joey Wallet:</p>
                              <div style="margin: 20px auto; padding: 20px; background: white; border-radius: 12px; max-width: 300px; display: inline-block;">
                                <div id="joeyQR"></div>
                              </div>
-                             <button id="copyUriBtn" style="margin: 15px auto; padding: 12px 24px; background: #8b5cf6; color: white; border: 3px solid #000; border-radius: 12px; font-family: 'Luckiest Guy', Arial; font-size: 16px; cursor: pointer; box-shadow: 0 6px 0 #5b21b6;">Copy Connection Code</button>
-                             <p style="font-size: 14px; margin: 15px 0; color: #999; font-family: Arial, sans-serif;">1. Scan the QR code with Joey Wallet's scanner, OR</p>
-                             <p style="font-size: 14px; margin: 10px 0; color: #999; font-family: Arial, sans-serif;">2. Click "Copy Connection Code" and paste it into Joey Wallet</p>
-                             <p style="font-size: 13px; margin: 20px 0; color: #999; font-family: Arial, sans-serif;">Note: If Joey Wallet's scanner isn't working, this may be a temporary issue with the Joey Wallet app. Please try XAMAN wallet instead.</p>`;
+                             <a id="openJoeyBtn" href="${uri}" style="display: inline-block; margin: 15px auto; padding: 12px 24px; background: #8b5cf6; color: white; border: 3px solid #000; border-radius: 12px; font-family: 'Luckiest Guy', Arial; font-size: 16px; cursor: pointer; box-shadow: 0 6px 0 #5b21b6; text-decoration: none;">Open Joey Wallet</a>
+                             <p style="font-size: 14px; margin: 15px 0; color: #999; font-family: Arial, sans-serif;">Scan the QR code OR click "Open Joey Wallet" to connect automatically</p>
+                             <p style="font-size: 13px; margin: 20px 0; color: #999; font-family: Arial, sans-serif;">Note: If Joey Wallet isn't opening or scanning properly, please try XAMAN wallet instead for a more reliable connection.</p>`;
 
           statusEl.innerHTML = '';
           statusEl.appendChild(qrContainer);
@@ -548,42 +547,6 @@
               width: 250,
               height: 250
             });
-
-            // Add copy button functionality
-            const copyBtn = document.getElementById('copyUriBtn');
-            if(copyBtn){
-              copyBtn.addEventListener('click', async () => {
-                try{
-                  await navigator.clipboard.writeText(uri);
-                  copyBtn.textContent = '✓ Copied!';
-                  copyBtn.style.background = '#2d8e3f';
-                  setTimeout(() => {
-                    copyBtn.textContent = 'Copy Connection Code';
-                    copyBtn.style.background = '#8b5cf6';
-                  }, 2000);
-                }catch(err){
-                  // Fallback for older browsers
-                  const textArea = document.createElement('textarea');
-                  textArea.value = uri;
-                  textArea.style.position = 'fixed';
-                  textArea.style.left = '-999999px';
-                  document.body.appendChild(textArea);
-                  textArea.select();
-                  try{
-                    document.execCommand('copy');
-                    copyBtn.textContent = '✓ Copied!';
-                    copyBtn.style.background = '#2d8e3f';
-                    setTimeout(() => {
-                      copyBtn.textContent = 'Copy Connection Code';
-                      copyBtn.style.background = '#8b5cf6';
-                    }, 2000);
-                  }catch(e){
-                    copyBtn.textContent = 'Copy failed';
-                  }
-                  document.body.removeChild(textArea);
-                }
-              });
-            }
           }, 100);
 
           // Wait for approval
