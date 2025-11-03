@@ -64,7 +64,24 @@
     -moz-osx-font-smoothing:grayscale;
   }
 
-  /* Decorative grain + aurora - removed to allow for side bars */
+  /* Decorative grain + aurora */
+  body::before{
+    content:"";
+    position:fixed; inset:-20vmax; pointer-events:none; z-index:-2;
+    background:
+      radial-gradient(100vmax 60vmax at 10% -10%, rgba(237,183,35,.055), transparent 60%),
+      radial-gradient(80vmax 60vmax at 100% 10%, rgba(215,92,70,.055), transparent 60%),
+      radial-gradient(80vmax 60vmax at 50% 110%, rgba(118,174,255,.045), transparent 60%);
+    filter:blur(24px) saturate(1.05);
+  }
+  body::after{
+    content:"";
+    position:fixed; inset:0; pointer-events:none; z-index:-1;
+    background-image:
+      radial-gradient(rgba(255,255,255,.05), transparent 40%),
+      repeating-linear-gradient(0deg, rgba(255,255,255,.02) 0 2px, transparent 2px 4px);
+    mix-blend-mode:overlay; opacity:.18;
+  }
 
   /* Skip link */
   .skip-link{position:absolute;left:-999px;top:auto;width:1px;height:1px;overflow:hidden}
@@ -128,36 +145,10 @@
   .hero .logo{position:absolute; left:-72px; top:-40px; width:120px; transform:rotate(-4deg); filter:drop-shadow(0 8px 0 rgba(0,0,0,.4))}
   .hero .subtitle{font:800 clamp(16px,2.4vw,22px)/1.2 "Luckiest Guy"; margin-top:-6px; color:var(--ink)}
 
-  /* Side color bars - purple, green, yellow */
-  body::after {
-    content: "";
-    position: fixed;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    width: 60px;
-    background: linear-gradient(to bottom,
-      #7a2f8e 0%, #7a2f8e 33.33%,
-      #2d8e3f 33.33%, #2d8e3f 66.66%,
-      #edb723 66.66%, #edb723 100%);
-    z-index: 999;
-    pointer-events: none;
-  }
-
-  body::before {
-    content: "";
-    position: fixed;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    width: 60px;
-    background: linear-gradient(to bottom,
-      #7a2f8e 0%, #7a2f8e 33.33%,
-      #2d8e3f 33.33%, #2d8e3f 66.66%,
-      #edb723 66.66%, #edb723 100%);
-    z-index: 999;
-    pointer-events: none;
-  }
+  /* Side honey rails */
+  .rails::before,.rails::after{content:"";position:fixed;top:0;bottom:0;width:18px;z-index:1;pointer-events:none;opacity:.65}
+  .rails::before{left:6px;background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,0)), repeating-linear-gradient(180deg, rgba(0,0,0,.8) 0 3px, rgba(0,0,0,0) 3px 6px), linear-gradient(180deg, var(--gold) 0%, #946e00 100%);border:3px solid #000;border-radius:999px}
+  .rails::after{right:6px;background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,0)), repeating-linear-gradient(180deg, rgba(0,0,0,.8) 0 3px, rgba(0,0,0,0) 3px 6px), linear-gradient(180deg, var(--gold) 0%, #946e00 100%);border:3px solid #000;border-radius:999px}
 
   /* Arcade image */
   .arcade{position:relative;width:100%;max-width:1100px;margin:0 auto}
@@ -269,6 +260,7 @@
 
   /* === User-requested removals === */
   .site-nav{display:none !important}
+  .rails::before,.rails::after{display:none !important}
 
   /* === CHART OVERRIDES (mobile paint fix + full-height) === */
   #dexChartCard{
