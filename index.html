@@ -1,3 +1,4 @@
+```html
 <!doctype html>
 <html lang="en" id="top" class="no-js">
 <head>
@@ -302,6 +303,108 @@
   @supports (height: 100dvh){
     #buyDrawer{height:100dvh}
   }
+
+  /* === APPEND-ONLY: Tri-color viewport ring + bottom wave moat ===================== */
+  :root{
+    /* Brand tri-colors */
+    --tri-purple: #680cd9;
+    --tri-yellow: #feb501;
+    --tri-green:  #08ae08;
+
+    /* Ring */
+    --ring-thick: 12px;
+    --ring-radius: 22px;
+    --ring-spin: 60s;
+
+    /* Moat */
+    --moat-h: 150px;         /* desktop default ~120–160px */
+    --moat-peek: 84px;       /* visible crest height inside viewport */
+    --moat-speed: 50s;       /* ~40–60s */
+    --moat-size: auto 160px; /* background-size (W auto, H tuned to crest) */
+  }
+
+  @keyframes ring-spin { to { transform: rotate(360deg) } }
+  @keyframes moat-drift { to { background-position-x: -1000px } }
+
+  /* Rotating tri-color frame */
+  html::before{
+    content:"";
+    position:fixed;
+    /* Respect iOS safe areas so the ring never clips the notch */
+    top:    env(safe-area-inset-top, 0px);
+    right:  env(safe-area-inset-right, 0px);
+    bottom: env(safe-area-inset-bottom, 0px);
+    left:   env(safe-area-inset-left, 0px);
+    z-index:55;                 /* below FAB (60), above content */
+    pointer-events:none;
+    border-radius:var(--ring-radius);
+    padding:var(--ring-thick);  /* used for mask cutout */
+    background:
+      conic-gradient(
+        from 0deg,
+        var(--tri-purple) 0 120deg,
+        var(--tri-yellow)  120deg 240deg,
+        var(--tri-green)   240deg 360deg
+      );
+    /* Cut the center, leaving a 12px ring */
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+            mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+            mask-composite: exclude;
+    /* Subtle inset stroke to match the BEARcade vibe */
+    box-shadow: 0 0 0 3px #000 inset;
+    transform: translateZ(0);   /* keep it silky */
+    animation: ring-spin var(--ring-spin) linear infinite;
+  }
+
+  /* Bottom “wave moat” */
+  html::after{
+    content:"";
+    position:fixed; left:0; right:0; bottom:0;
+    height:var(--moat-h);
+    z-index:54;                 /* just under the ring */
+    pointer-events:none;
+    background-image:url("/assets/waves.png");
+    background-repeat:repeat-x;
+    background-position:0 100%;
+    background-size:var(--moat-size);
+    /* Show only the crest ‘peeking’ into the page */
+    -webkit-mask: linear-gradient(180deg, #000 0 var(--moat-peek), transparent var(--moat-peek));
+            mask: linear-gradient(180deg, #000 0 var(--moat-peek), transparent var(--moat-peek));
+    /* Subtle inset shadow so it feels carved in */
+    box-shadow: 0 -18px 24px rgba(0,0,0,.45) inset;
+    animation: moat-drift var(--moat-speed) linear infinite;
+  }
+
+  /* Mobile tuning */
+  @media (max-width: 480px){
+    :root{
+      --moat-h: 110px;
+      --moat-peek: 66px;
+      --moat-size: auto 120px;
+    }
+  }
+
+  /* Prefer reduced motion: stop both animations */
+  @media (prefers-reduced-motion: reduce){
+    html::before,
+    html::after{ animation: none !important; }
+  }
+
+  /* Extra safety: clamp safe-area with max() if supported */
+  @supports (padding: max(0px)){
+    html::before{
+      top:    max(0px, env(safe-area-inset-top, 0px));
+      right:  max(0px, env(safe-area-inset-right, 0px));
+      bottom: max(0px, env(safe-area-inset-bottom, 0px));
+      left:   max(0px, env(safe-area-inset-left, 0px));
+    }
+  }
+  /* === END APPEND ====================================================== */
   </style>
 </head>
 <body>
@@ -1028,3 +1131,4 @@
   </script>
 </body>
 </html>
+```
