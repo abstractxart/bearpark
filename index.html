@@ -46,16 +46,6 @@
     --ring: 0 0 0 4px #000, 0 0 0 6px rgba(237,183,35,.66);
     accent-color: var(--gold);
   }
-  .nft-stats-row{
-  margin-top:12px; display:grid; gap:10px;
-  grid-template-columns:repeat(3,1fr); /* stacks nicely on mobile */
-  background:#0b0d0e; border:4px solid #000; border-radius:14px; padding:12px;
-  box-shadow:0 10px 0 #000,0 16px 26px rgba(0,0,0,.35)
-}
-@media (min-width:820px){ .nft-stats-row{ grid-template-columns:repeat(7,1fr) } }
-.nft-stats-row small{display:block;opacity:.75}
-.nft-stats-row strong{font-weight:900;letter-spacing:.2px}
-
 
   /* ==== BASE ============================================================ */
   *{box-sizing:border-box}
@@ -316,7 +306,6 @@
 </head>
 <body>
   <a class="skip-link" href="#bearcade">Skip to BEARcade</a>
-  
 
   <!-- Sticky nav -->
   <div class="site-nav" role="navigation" aria-label="Primary">
@@ -409,15 +398,6 @@
             <a class="btn gold" href="https://xrp.cafe/collection/bearxrpl" target="_blank" rel="noopener">Ultra Collection</a>
           </div>
         </div>
-        <div class="nft-stats-row" id="ultraStats" aria-live="polite">
-  <div><small>Floor</small><strong><span data-ultra="floorXrp">—</span> XRP <small>≈ $<span data-ultra="floorUsd">—</span></small></strong></div>
-  <div><small>Owners</small><strong><span data-ultra="owners">—</span></strong></div>
-  <div><small>Supply</small><strong><span data-ultra="supply">—</span></strong></div>
-  <div><small>Last Sale</small><strong><span data-ultra="lastSale">—</span></strong></div>
-  <div><small>Vol 24h</small><strong>$<span data-ultra="vol24">—</span></strong></div>
-  <div><small>Vol 7d</small><strong>$<span data-ultra="vol7">—</span></strong></div>
-  <div><small>Vol 30d</small><strong>$<span data-ultra="vol30">—</span></strong></div>
-</div>
 
         <div class="card">
           <h3 class="h3">PIXEL BEARS</h3>
@@ -432,15 +412,6 @@
         </div>
       </div>
     </div>
-    <div class="nft-stats-row" id="pixelStats" aria-live="polite">
-  <div><small>Floor</small><strong><span data-pixel="floorXrp">—</span> XRP <small>≈ $<span data-pixel="floorUsd">—</span></small></strong></div>
-  <div><small>Owners</small><strong><span data-pixel="owners">—</span></strong></div>
-  <div><small>Supply</small><strong><span data-pixel="supply">—</span></strong></div>
-  <div><small>Last Sale</small><strong><span data-pixel="lastSale">—</span></strong></div>
-  <div><small>Vol 24h</small><strong>$<span data-pixel="vol24">—</span></strong></div>
-  <div><small>Vol 7d</small><strong>$<span data-pixel="vol7">—</span></strong></div>
-  <div><small>Vol 30d</small><strong>$<span data-pixel="vol30">—</span></strong></div>
-</div>
   </section>
 
   <!-- COMMUNITY -->
