@@ -205,7 +205,6 @@
   .metric-box .label{font-size:12px;opacity:.9;color:var(--gold)}
   .metric-box .value{font-size:20px;font-weight:900;color:#fff;line-height:1}
   .metric-box small{opacity:.75}
-  .metric-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;justify-content:center}
   .metrics .stamp{justify-self:end;font-size:12px;opacity:.7}
 
   /* Community banner */
@@ -277,19 +276,17 @@
   /* === CHART OVERRIDES (mobile paint fix + full-height) === */
   #dexChartCard{
     padding:0 !important; border:0 !important; border-radius:16px; overflow:hidden;
-    /* mobile iframe paint fix: neutralize compositing effects only here */
     backdrop-filter:none !important; -webkit-backdrop-filter:none !important;
     transform:none !important; filter:none !important; will-change:auto !important;
     background:#0b0d0e; box-shadow:var(--elev-strong);
   }
   #dexChartWrap{
-    position:relative; width:100%; min-height:560px; border-radius:16px; overflow:hidden; contain:paint; /* isolate from fancy parents */
+    position:relative; width:100%; min-height:560px; border-radius:16px; overflow:hidden; contain:paint;
   }
   #dexChartWrap iframe{
     position:absolute; inset:0; width:100%; height:100%; border:0; display:block;
   }
 
-  /* Make the drawer full-screen on phones & foldables so width isn't the limiter */
   @media (max-width:1024px){
     #buyDrawer{
       left:0 !important; right:0 !important; top:0 !important; bottom:0 !important;
@@ -298,11 +295,9 @@
     .drawer-scrim{display:none !important;}
     #buyDrawer .drawer-head{padding-top:calc(env(safe-area-inset-top,0px) + 14px)}
     #buyDrawer .drawer-body{padding-bottom:calc(env(safe-area-inset-bottom,0px) + 18px); overscroll-behavior:contain}
-    /* ensure a tall chart even before JS resizes */
     #dexChartWrap{ min-height:70vh !important; }
   }
 
-  /* Use dynamic viewport height where supported */
   @supports (height: 100dvh){ #buyDrawer{height:100dvh} }
   </style>
 </head>
@@ -397,9 +392,9 @@
           <p style="text-align:center;opacity:.95;">The BEAR Ultra Rare collection was the first mint and consists of 667 NFTs.</p>
           <div class="spacer"></div>
 
-          <a class="nft-media" href="https://xrp.cafe/collection/bearxrpl" target="_blank" rel="noopener">
+          <div class="nft-media">
             <img src="https://cdn.xrp.cafe/362e53289fd2-49f8-b070-4a3a6f95617272729975700c-46ba-a056-0aaf34028496f5a507b1d5a4-4adc-ad01-8d8b6ecd631d.webp" alt="Ultra Rare Bear preview" width="1200" height="1200" loading="lazy" decoding="async">
-          </a>
+          </div>
 
           <!-- Metrics strip (auto-fills) -->
           <div class="metrics"
@@ -409,7 +404,6 @@
             <div class="metric-box">
               <div class="label">Floor</div>
               <div class="value"><span data-k="floorXrp">—</span> <small>XRP</small></div>
-              <small id="ultraFloorUsd" aria-live="polite">— USD</small>
             </div>
             <div class="metric-box">
               <div class="label">Volume</div>
@@ -418,19 +412,8 @@
             <div class="metric-box">
               <div class="label">Holders</div>
               <div class="value" data-k="holders">—</div>
-              <small><span data-k="items">—</span> items</small>
             </div>
             <small class="stamp" data-k="stamp">—</small>
-          </div>
-
-          <div class="metric-actions">
-            <button class="btn gold sm" data-refresh="#ultraMetrics" aria-label="Refresh Ultra Rare metrics">↻ Refresh</button>
-            <a class="btn ghost sm" href="https://xpmarket.com/nfts/collection/4ef64-bear-ultra-rare-collection" target="_blank" rel="noopener">View on XPMarket</a>
-            <a class="btn ghost sm" href="https://xrp.cafe/collection/bearxrpl" target="_blank" rel="noopener">View on XRP.cafe</a>
-          </div>
-
-          <div class="center" style="margin-top:16px;">
-            <a class="btn gold" href="https://xrp.cafe/collection/bearxrpl" target="_blank" rel="noopener">Ultra Collection</a>
           </div>
         </div>
 
@@ -440,40 +423,28 @@
           <p style="text-align:center;opacity:.95;">There are 5880 Pixel BEARS to provide a profile picture for every $BEAR maxi.</p>
           <div class="spacer"></div>
 
-          <a class="nft-media" href="https://xrp.cafe/collection/bear-pixel-collection" target="_blank" rel="noopener">
+          <div class="nft-media">
             <video src="https://files.catbox.moe/babbn1.mp4" playsinline muted autoplay loop poster="https://files.catbox.moe/babbn1.jpg"></video>
-          </a>
+          </div>
 
           <!-- Metrics strip (auto-fills) -->
           <div class="metrics"
                id="pixelMetrics"
-               data-source="xrpcafe"
-               data-url="https://xrp.cafe/collection/bear-pixel-collection">
+               data-source="xrplto"
+               data-url="https://xrpl.to/nft-collection/bear-pixel-collection">
             <div class="metric-box">
               <div class="label">Floor</div>
               <div class="value"><span data-k="floorXrp">—</span> <small>XRP</small></div>
-              <small id="pixelFloorUsd" aria-live="polite">— USD</small>
             </div>
             <div class="metric-box">
-              <div class="label">Total Volume</div>
-              <div class="value"><span data-k="totalVolumeXrp">—</span> <small>XRP</small></div>
+              <div class="label">Volume</div>
+              <div class="value"><span data-k="volumeXrp">—</span> <small>XRP</small></div>
             </div>
             <div class="metric-box">
               <div class="label">Holders</div>
               <div class="value" data-k="holders">—</div>
-              <small><span data-k="items">—</span> items</small>
             </div>
             <small class="stamp" data-k="stamp">—</small>
-          </div>
-
-          <div class="metric-actions">
-            <button class="btn gold sm" data-refresh="#pixelMetrics" aria-label="Refresh Pixel metrics">↻ Refresh</button>
-            <a class="btn ghost sm" href="https://xrp.cafe/collection/bear-pixel-collection" target="_blank" rel="noopener">View on XRP.cafe</a>
-            <a class="btn ghost sm" href="https://xmart.art/collections/rBEARbo4Prn33894evmvYcAf9yAQjp4VJF/bear-pixel-collection/browse-all" target="_blank" rel="noopener">View on XMart</a>
-          </div>
-
-          <div class="center" style="margin-top:16px;">
-            <a class="btn gold" href="https://xrp.cafe/collection/bear-pixel-collection" target="_blank" rel="noopener">Pixel Collection</a>
           </div>
         </div>
 
@@ -563,12 +534,9 @@
           <span id="priceUsd">—</span><small>USD</small>
         </div>
         <div class="sub">24h <span id="change24">—</span> · Vol <span id="vol24">—</span></div>
-        <!-- NEW: Market Cap line -->
         <div class="sub">Mkt Cap <span id="mcapUsd">—</span></div>
       </div>
-
-      <!-- Chart card will be injected directly under this price card -->
-
+      <!-- Chart card injected below -->
       <div class="links-grid">
         <a class="tile" href="https://firstledger.net/token/rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW/4245415200000000000000000000000000000000" target="_blank" rel="noopener">
           <div class="face"><img src="https://files.catbox.moe/du61x3.jpg" alt="First Ledger"></div>
@@ -858,15 +826,14 @@
     obs.observe(kickBtn);
   }
 
-  /* ===== Ensure all imgs lazy/async if not set ===== */
+  /* Ensure all imgs lazy/async if not set */
   document.querySelectorAll('img:not([loading])').forEach(img=>{ img.loading='lazy'; img.decoding='async'; });
 
-  /* ===== Drawer + Prices + Dexscreener Chart (consolidated) ===== */
+  /* ===== Drawer + Prices + Dexscreener Chart ===== */
   (function(){
     const PAIR_ID = '4245415200000000000000000000000000000000.rbearguasyu7tuw53rufQzFdWmJHpJEqFW_xrp';
     const DS_URL = `https://api.dexscreener.com/latest/dex/pairs/xrpl/${PAIR_ID}`;
 
-    /* FAB + drawer wiring */
     const fab=document.createElement('button');
     fab.className='fab-buy';
     fab.innerHTML='<span class="txt">$BEAR</span>';
@@ -893,7 +860,6 @@
     const navBuy=document.querySelector('.nav-cta a[href="#network"]');
     if(navBuy){ navBuy.addEventListener('click', (e)=>{ e.preventDefault(); openDrawer(); }); }
 
-    /* Build big duo metric lines (XRP first) */
     const priceCard = document.querySelector('.price-card');
     const metric = priceCard?.querySelector('.metric');
     const legacyUsdEl = document.getElementById('priceUsd');
@@ -935,7 +901,6 @@
         priceNative: Number(p.priceNative),
         priceUsd: p.priceUsd!=null?Number(p.priceUsd):NaN,
         vol24Usd: Number(p.volume?.h24 ?? p.volume24h ?? 0),
-        // NEW: Prefer marketCap; fallback to fdv
         mcapUsd: Number((p.marketCap ?? p.fdv) ?? NaN)
       };
     }
@@ -971,7 +936,6 @@
     setInterval(updatePrices, 60000);
     document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) updatePrices(); });
 
-    /* === Dexscreener chart === */
     const PAIR_PATH = `xrpl/${PAIR_ID}`;
 
     function computeAvailableChartHeight(){
@@ -983,7 +947,7 @@
       const gapY = parseFloat(cs.rowGap || cs.gap || '14') || 14;
       const priceH = body.querySelector('.price-card')?.getBoundingClientRect().height || 0;
       const vh = (window.visualViewport && window.visualViewport.height) ? window.visualViewport.height : (window.innerHeight || document.documentElement.clientHeight || 700);
-      const extra = 24; // fudge
+      const extra = 24;
       return Math.max(560, Math.floor(vh - headH - padY - priceH - gapY - extra));
     }
     function makeChartUrl(h){
@@ -1059,14 +1023,13 @@
 
   /* ===== XRPL NFT METRICS (Ultra + Pixel) ===== */
   (function(){
-    // Utility: robust fetchText with fallback via r.jina.ai mirror (for CORS-hostile sources)
+    // Fetch page HTML with fallback proxy for CORS
     async function fetchText(url){
       try{
         const r = await fetch(url, {cache:'no-store', credentials:'omit', mode:'cors'});
         if(r.ok) return await r.text();
         throw new Error('HTTP '+r.status);
       }catch(_){
-        // Fallback: r.jina.ai proxy (read-only, text scrape)
         try{
           const prox = 'https://r.jina.ai/http/' + url.replace(/^https?:\/\//,'');
           const r2 = await fetch(prox, {cache:'no-store', credentials:'omit', mode:'cors'});
@@ -1076,7 +1039,7 @@
       return '';
     }
 
-    // Parse helpers
+    // Helpers
     const num = s => {
       if(!s) return NaN;
       const m = String(s).trim().toLowerCase();
@@ -1086,7 +1049,7 @@
     };
     const toXrpStr = v => Number.isFinite(v) ? (v>=1000? (v/1000).toFixed(2)+'k' : v.toLocaleString(undefined,{maximumFractionDigits:2})) : '—';
 
-    // XPMarket collection parser (Ultra Rare)
+    // XPMarket collection parser (Ultra Rare & fallback for others)
     function parseXPMarket(html){
       // Floor
       let floor = null;
@@ -1098,52 +1061,25 @@
       const h1 = html.match(/Holders\s*<\/?[^>]*>\s*([\d.,kKmM]+)/i);
       if(h1) holders = num(h1[1]);
 
-      // Items (try to find "NFTs" count or "items")
-      let items = null;
-      const i1 = html.match(/NFTs\s*<\/?[^>]*>\s*Rows:\s*<\/?[^>]*>\s*([\d.,kKmM]+)/i);
-      const i2 = html.match(/Items?\s*<\/?[^>]*>\s*([\d.,kKmM]+)/i);
-      if(i2) items = num(i2[1]);
-
-      // Volume (XPMarket page shows a "Volume" KPI)
+      // Volume
       let volume = null;
       const v1 = html.match(/Volume\s*<\/?[^>]*>\s*([\d.,kKmM]+)\s*XRP/i);
       if(v1) volume = num(v1[1]);
 
-      return { floorXrp: floor, volumeXrp: volume, holders, items };
+      return { floorXrp: floor, volumeXrp: volume, holders };
     }
 
-    // XRP.cafe collection parser (Pixel)
-    function parseXRPCafe(html){
-      // Matches like: "Floor 16.0 xrp", "Total volume 8.0k xrp", "Items 5890", "Holders 3000"
-      const fx = html.match(/Floor\s+([\d.,kKmM]+)\s*xrp/i);
-      const vx = html.match(/Total\s+volume\s+([\d.,kKmM]+)\s*xrp/i);
-      const items = html.match(/Items?\s+([\d.,kKmM]+)/i);
-      const holders = html.match(/Holders?\s+([\d.,kKmM]+)/i);
+    // XRPL.to collection parser (generic patterns)
+    function parseXRPLto(html){
+      // Try to catch common KPI labels on xrpl.to collection pages
+      const fx = html.match(/Floor(?:\s*price)?\s*<\/?[^>]*>\s*([\d.,kKmM]+)\s*XRP/i) || html.match(/Floor[:\s]+([\d.,kKmM]+)\s*XRP/i);
+      const vx = html.match(/Total\s*Volume\s*<\/?[^>]*>\s*([\d.,kKmM]+)\s*XRP/i) || html.match(/Volume[:\s]+([\d.,kKmM]+)\s*XRP/i);
+      const hx = html.match(/Holders?\s*<\/?[^>]*>\s*([\d.,kKmM]+)/i) || html.match(/Holders?[:\s]+([\d.,kKmM]+)/i);
       return {
         floorXrp: fx ? num(fx[1]) : null,
-        totalVolumeXrp: vx ? num(vx[1]) : null,
-        items: items ? num(items[1]) : null,
-        holders: holders ? num(holders[1]) : null
+        volumeXrp: vx ? num(vx[1]) : null,
+        holders: hx ? num(hx[1]) : null
       };
-    }
-
-    // XRP spot (USD)
-    let XRP_USD = null;
-    async function getXrpUsd(){
-      if (XRP_USD && (Date.now() - getXrpUsd.t) < 60_000) return XRP_USD;
-      // Try Coinbase first (good CORS)
-      try{
-        const r = await fetch('https://api.coinbase.com/v2/prices/XRP-USD/spot', {cache:'no-store'});
-        const j = await r.json(); const v = Number(j?.data?.amount);
-        if(Number.isFinite(v)){ XRP_USD = v; getXrpUsd.t = Date.now(); return XRP_USD; }
-      }catch(_){}
-      // Fallback: Coingecko
-      try{
-        const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=ripple&vs_currencies=usd', {cache:'no-store'});
-        const j = await r.json(); const v = Number(j?.ripple?.usd);
-        if(Number.isFinite(v)){ XRP_USD = v; getXrpUsd.t = Date.now(); return XRP_USD; }
-      }catch(_){}
-      return null;
     }
 
     function setMetric(el, key, val){
@@ -1151,7 +1087,6 @@
       if(!node) return;
       node.textContent = val;
     }
-
     function stampNow(el){ setMetric(el,'stamp', new Date().toLocaleTimeString()); }
 
     async function hydrate(el){
@@ -1163,32 +1098,13 @@
         const html = await fetchText(url);
         if(!html) throw new Error('empty');
 
-        if(src === 'xpmarket'){
-          const m = parseXPMarket(html);
-          setMetric(el, 'floorXrp', toXrpStr(m.floorXrp));
-          setMetric(el, 'volumeXrp', toXrpStr(m.volumeXrp));
-          if(m.holders) setMetric(el, 'holders', m.holders.toLocaleString());
-          if(m.items) setMetric(el, 'items', m.items.toLocaleString());
+        let m={floorXrp:null,volumeXrp:null,holders:null};
+        if(src === 'xpmarket'){ m = parseXPMarket(html); }
+        else if(src === 'xrplto'){ m = parseXRPLto(html); }
 
-          const usd = await getXrpUsd();
-          if (usd && m.floorXrp){
-            const tgt = document.getElementById('ultraFloorUsd');
-            if(tgt) tgt.textContent = (m.floorXrp * usd).toLocaleString(undefined,{style:'currency',currency:'USD',maximumFractionDigits:2});
-          }
-        }
-        else if(src === 'xrpcafe'){
-          const m = parseXRPCafe(html);
-          setMetric(el, 'floorXrp', toXrpStr(m.floorXrp));
-          setMetric(el, 'totalVolumeXrp', toXrpStr(m.totalVolumeXrp));
-          if(m.holders) setMetric(el, 'holders', m.holders.toLocaleString());
-          if(m.items) setMetric(el, 'items', m.items.toLocaleString());
-
-          const usd = await getXrpUsd();
-          if (usd && m.floorXrp){
-            const tgt = document.getElementById('pixelFloorUsd');
-            if(tgt) tgt.textContent = (m.floorXrp * usd).toLocaleString(undefined,{style:'currency',currency:'USD',maximumFractionDigits:2});
-          }
-        }
+        setMetric(el, 'floorXrp', toXrpStr(m.floorXrp));
+        setMetric(el, 'volumeXrp', toXrpStr(m.volumeXrp));
+        if(m.holders) setMetric(el, 'holders', m.holders.toLocaleString());
 
         stampNow(el);
       }catch(err){
@@ -1207,14 +1123,6 @@
         });
       },{rootMargin:'150px'});
       obs.observe(el);
-    });
-
-    // Manual refresh buttons
-    document.querySelectorAll('[data-refresh]').forEach(btn=>{
-      btn.addEventListener('click', ()=>{
-        const tgt = document.querySelector(btn.getAttribute('data-refresh'));
-        hydrate(tgt);
-      });
     });
   })();
   </script>
