@@ -302,6 +302,106 @@
   @supports (height: 100dvh){
     #buyDrawer{height:100dvh}
   }
+
+  /* ============================================================
+     APPENDED: BEAR Park viewport tri-color ring + wave moat
+     (no HTML/JS changes; pointer-events: none; safe-area aware)
+  ============================================================ */
+
+  /* Brand tokens + frame settings */
+  :root{
+    --bp-purple:#680cd9;
+    --bp-yellow:#feb501;
+    --bp-green:#08ae08;
+
+    --bp-border:12px;
+    --bp-radius:22px;
+    --bp-wave-h:72px;
+
+    /* convenience safe-area vars */
+    --bp-sa-top: env(safe-area-inset-top, 0px);
+    --bp-sa-right: env(safe-area-inset-right, 0px);
+    --bp-sa-bottom: env(safe-area-inset-bottom, 0px);
+    --bp-sa-left: env(safe-area-inset-left, 0px);
+  }
+
+  /* Tri-color rotating ring (sits above everything, but non-interactive) */
+  body::before{
+    content:"";
+    position:fixed;
+    inset:0;
+    z-index:2147483647; /* higher than waves */
+    pointer-events:none;
+
+    /* draw only the border via background-clip trick */
+    border-radius:var(--bp-radius);
+    border:var(--bp-border) solid transparent;
+    background:
+      linear-gradient(transparent,transparent) padding-box,
+      conic-gradient(
+        from 0deg,
+        var(--bp-purple) 0% 33.33%,
+        var(--bp-yellow) 33.33% 66.66%,
+        var(--bp-green) 66.66% 100%
+      ) border-box;
+
+    /* subtle glow */
+    box-shadow:
+      0 0 0 1px rgba(0,0,0,.35) inset,
+      0 0 18px rgba(104,12,217,.25),
+      0 0 26px rgba(254,181,1,.20),
+      0 0 18px rgba(8,174,8,.20);
+    will-change:transform;
+  }
+
+  /* gentle rotation only when user allows motion */
+  @keyframes bpSpin{ to{ transform:rotate(360deg); } }
+  @media (prefers-reduced-motion: no-preference){
+    body::before{ animation: bpSpin 60s linear infinite; }
+  }
+
+  /* Wave moat that peeks from bottom and scrolls horizontally */
+  body::after{
+    content:"";
+    position:fixed;
+    left:calc(var(--bp-border) * -0.25);
+    right:calc(var(--bp-border) * -0.25);
+    height:var(--bp-wave-h);
+    bottom:calc(var(--bp-border) * -0.6); /* let crests peek */
+    z-index:2147483646; /* just under ring */
+    pointer-events:none;
+
+    background: url("/assets/waves.png") repeat-x bottom center / auto 100%;
+    border-bottom-left-radius: calc(var(--bp-radius) + var(--bp-border));
+    border-bottom-right-radius: calc(var(--bp-radius) + var(--bp-border));
+
+    /* soften the lower edge so it blends out */
+    -webkit-mask-image: linear-gradient(to top, black 60%, transparent 100%);
+            mask-image: linear-gradient(to top, black 60%, transparent 100%);
+
+    /* soft glow above waves */
+    filter:
+      drop-shadow(0 -6px 18px rgba(0,0,0,.45))
+      drop-shadow(0 -2px 10px rgba(255,255,255,.06));
+    will-change:transform, background-position;
+    transform:translateZ(0);
+  }
+
+  @keyframes waveScroll{ to{ background-position-x:-512px; } }
+  @media (prefers-reduced-motion: no-preference){
+    body::after{ animation: waveScroll 12s linear infinite; }
+  }
+
+  /* Respect phone/foldable safe areas so ring doesn't collide with notches */
+  @supports (padding: max(1px, env(safe-area-inset-top))){
+    body::before{
+      /* keep the colorful border clear of notches by shrinking the inner box */
+      padding-top: max(0px, var(--bp-sa-top));
+      padding-right: max(0px, var(--bp-sa-right));
+      padding-bottom: max(0px, var(--bp-sa-bottom));
+      padding-left: max(0px, var(--bp-sa-left));
+    }
+  }
   </style>
 </head>
 <body>
@@ -1028,3 +1128,4 @@
   </script>
 </body>
 </html>
+
