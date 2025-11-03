@@ -258,14 +258,14 @@
   .links-grid .tile .lbl{ color:var(--gold) }
   @media (max-width:520px){ .links-grid{ grid-template-columns:1fr } }
 
-  /* === User-requested removals === */
+  /* === USER-REQUESTED REMOVALS === */
   .site-nav{display:none !important}
   .rails::before,.rails::after{display:none !important}
 
   /* === CHART OVERRIDES (mobile paint fix + full-height) === */
   #dexChartCard{
     padding:0 !important; border:0 !important; border-radius:16px; overflow:hidden;
-    /* mobile iframe paint fix: neutralize compositing effects only here */
+    /* mobile iframe paint fix: neutralize compositinging effects only here */
     backdrop-filter:none !important;
     -webkit-backdrop-filter:none !important;
     transform:none !important;
@@ -306,8 +306,11 @@
 </head>
 <body>
   <script>
-    if (!localStorage.getItem('authenticated')) {
-      window.location.href = 'https://www.bearpark.xyz/';
+    sessionStorage.setItem('authenticated', 'true');
+  </script>
+  <script>
+    if (!sessionStorage.getItem('authenticated')) {
+      window.location.href = 'https://bearpark.xyz/';
     }
   </script>
   <a class="skip-link" href="#bearcade">Skip to BEARcade</a>
@@ -520,7 +523,7 @@
         </a>
       </div>
     </div>
-  </aside>
+  </div>
 
   <!-- Structured data -->
   <script type="application/ld+json">
