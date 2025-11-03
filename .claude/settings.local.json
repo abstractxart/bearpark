@@ -7,7 +7,16 @@
       "Bash(vercel:*)",
       "Bash(copy index.html frontend )",
       "Bash(copy main.html frontend)",
-      "Bash(index.html)"
+      "Bash(index.html)",
+      "Bash(python -m http.server:*)",
+      "Bash(taskkill:*)",
+      "Bash(python3:*)",
+      "Bash(npx http-server:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nAdd Joey wallet support via WalletConnect\n\n- Added WalletConnect integration for Joey wallet authentication\n- Users can now connect with either XAMAN or Joey wallet\n- Added QR code generation for Joey wallet connection\n- Both wallets use same token/NFT verification logic\n- Note: Joey wallet''s WalletConnect scanner may have issues on app side\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git push)",
+      "Bash(cat:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []
