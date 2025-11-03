@@ -737,7 +737,7 @@
       if(zoomGesture && e.touches.length===2){
         e.preventDefault();
         const [a,b]=e.touches; const dist=Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);
-        scale=Math.max(Z_MIN,Math.min(Z_MAX, startScale * (dist/pinchStartDist)));
+        scale=Math.max(Z_MIN, Math.min(Z_MAX, startScale * (dist/pinchStartDist)));
         clampPan(); applyZoom();
       } else if(scale>1 && e.touches.length===1){
         e.preventDefault();
