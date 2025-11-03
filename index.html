@@ -1,0 +1,545 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BEAR Park — Wallet Authentication</title>
+  <meta name="description" content="Connect your XAMAN wallet to access BEAR Park" />
+  <meta name="theme-color" content="#edb723" />
+  <link rel="icon" href="/favicon.ico">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&display=swap" rel="stylesheet" />
+
+  <style>
+  :root{
+    --gold:#edb723;
+    --gold-ink:#231b04;
+    --charcoal:#141619;
+    --accent:#d75c46;
+    --purple:#7a2f8e;
+    --green:#2d8e3f;
+  }
+
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;min-height:100vh;background:var(--charcoal);color:#fff}
+
+  body{
+    font-family:"Luckiest Guy","Arial Black",Impact,system-ui,sans-serif;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    position:relative;
+    overflow-x:hidden;
+  }
+
+  /* Side color bars - purple, green, yellow */
+  body::after {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 60px;
+    background: linear-gradient(to bottom,
+      var(--purple) 0%, var(--purple) 33.33%,
+      var(--green) 33.33%, var(--green) 66.66%,
+      var(--gold) 66.66%, var(--gold) 100%);
+    z-index: 999;
+    pointer-events: none;
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 60px;
+    background: linear-gradient(to bottom,
+      var(--purple) 0%, var(--purple) 33.33%,
+      var(--green) 33.33%, var(--green) 66.66%,
+      var(--gold) 66.66%, var(--gold) 100%);
+    z-index: 999;
+    pointer-events: none;
+  }
+
+  .gate-container{
+    max-width:600px;
+    width:90%;
+    padding:40px;
+    background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+    border:4px solid rgba(255,255,255,.08);
+    border-radius:20px;
+    box-shadow:0 18px 40px rgba(0,0,0,.5);
+    text-align:center;
+    position:relative;
+    z-index:1;
+  }
+
+  .logo{
+    width:120px;
+    height:120px;
+    margin:0 auto 20px;
+    filter:drop-shadow(0 8px 0 rgba(0,0,0,.4));
+  }
+
+  h1{
+    font-size:clamp(36px,6vw,64px);
+    margin:0 0 10px;
+    color:var(--gold);
+    text-shadow:0 4px 0 rgba(0,0,0,.35);
+    line-height:1.1;
+  }
+
+  p{
+    font-size:18px;
+    line-height:1.4;
+    margin:0 0 30px;
+    color:rgba(255,255,255,.9);
+  }
+
+  .requirements{
+    text-align:left;
+    background:rgba(0,0,0,.3);
+    border:3px solid rgba(237,183,35,.3);
+    border-radius:12px;
+    padding:20px;
+    margin:20px 0;
+  }
+
+  .requirements h3{
+    margin:0 0 12px;
+    color:var(--gold);
+    font-size:20px;
+  }
+
+  .requirements ul{
+    margin:0;
+    padding-left:25px;
+    font-size:16px;
+    line-height:1.8;
+  }
+
+  .requirements li{
+    color:rgba(255,255,255,.85);
+  }
+
+  .btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:.6rem;
+    font:900 22px/1 "Luckiest Guy","Arial Black",Impact,system-ui,sans-serif;
+    border-radius:22px;
+    padding:18px 32px;
+    color:#fff;
+    background:var(--accent);
+    border:4px solid #000;
+    box-shadow:0 10px 0 #7b2a20, 0 18px 24px rgba(0,0,0,.35);
+    cursor:pointer;
+    transition:transform .12s ease, filter .2s ease;
+    text-decoration:none;
+  }
+
+  .btn:hover{
+    filter:brightness(1.06);
+  }
+
+  .btn:active{
+    transform:translateY(4px);
+    box-shadow:0 6px 0 #7b2a20, 0 10px 16px rgba(0,0,0,.35);
+  }
+
+  .btn:disabled{
+    opacity:.5;
+    cursor:not-allowed;
+  }
+
+  .btn.gold{
+    background:var(--gold);
+    color:#000;
+    box-shadow:0 10px 0 #9b7a0d,0 18px 24px rgba(0,0,0,.35);
+  }
+
+  .btn.gold:active{
+    box-shadow:0 6px 0 #9b7a0d,0 10px 16px rgba(0,0,0,.35);
+  }
+
+  .status{
+    margin:20px 0;
+    padding:16px;
+    border-radius:12px;
+    font-size:16px;
+    display:none;
+  }
+
+  .status.show{
+    display:block;
+  }
+
+  .status.loading{
+    background:rgba(118,174,255,.15);
+    border:2px solid rgba(118,174,255,.3);
+    color:#76aeff;
+  }
+
+  .status.error{
+    background:rgba(215,92,70,.15);
+    border:2px solid rgba(215,92,70,.3);
+    color:#ff8a75;
+  }
+
+  .status.success{
+    background:rgba(45,142,63,.15);
+    border:2px solid rgba(45,142,63,.3);
+    color:#4eff6e;
+  }
+
+  .spinner{
+    display:inline-block;
+    width:16px;
+    height:16px;
+    border:3px solid rgba(255,255,255,.3);
+    border-top-color:#fff;
+    border-radius:50%;
+    animation:spin 1s linear infinite;
+    margin-right:8px;
+    vertical-align:middle;
+  }
+
+  @keyframes spin{
+    to{transform:rotate(360deg)}
+  }
+
+  .verification-list{
+    list-style:none;
+    padding:0;
+    margin:20px 0;
+  }
+
+  .verification-list li{
+    padding:12px;
+    margin:8px 0;
+    background:rgba(0,0,0,.3);
+    border-radius:8px;
+    border-left:4px solid #555;
+    font-size:15px;
+  }
+
+  .verification-list li.checking{
+    border-left-color:#76aeff;
+    color:#76aeff;
+  }
+
+  .verification-list li.passed{
+    border-left-color:#4eff6e;
+    color:#4eff6e;
+  }
+
+  .verification-list li.failed{
+    border-left-color:#ff8a75;
+    color:#ff8a75;
+  }
+
+  @media (max-width:640px){
+    body::before, body::after{
+      width:30px;
+    }
+    .gate-container{
+      padding:30px 20px;
+    }
+  }
+  </style>
+</head>
+<body>
+  <div class="gate-container">
+    <img class="logo" src="https://files.catbox.moe/25ekkd.png" alt="BEAR Park logo" width="120" height="120">
+    <h1>BEAR PARK</h1>
+    <p>Connect your XAMAN wallet to access BEAR Park</p>
+
+    <div class="requirements">
+      <h3>Access Requirements (need at least 1):</h3>
+      <ul>
+        <li>10,000 $BEAR tokens</li>
+        <li>1 Ultra Rare BEAR NFT</li>
+        <li>1 Pixel BEAR NFT</li>
+      </ul>
+    </div>
+
+    <button id="connectBtn" class="btn gold">
+      Connect XAMAN Wallet
+    </button>
+
+    <div id="status" class="status"></div>
+
+    <ul id="verificationList" class="verification-list" style="display:none"></ul>
+  </div>
+
+  <!-- XRP Ledger JS Library -->
+  <script src="https://unpkg.com/xrpl@3.0.0/build/xrpl-latest-min.js"></script>
+
+  <script>
+  (async function(){
+    // Configuration
+    const BEAR_ISSUER = 'rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW';
+    const BEAR_CURRENCY = '4245415200000000000000000000000000000000'; // BEAR in hex
+    const MIN_BEAR_BALANCE = 10000;
+
+    // NFT issuer - Both Ultra Rare and Pixel BEAR collections use the same issuer
+    const NFT_ISSUER = 'rBEARbo4Prn33894evmvYcAf9yAQjp4VJF'; // BearXRPL2
+
+    const connectBtn = document.getElementById('connectBtn');
+    const statusEl = document.getElementById('status');
+    const verificationList = document.getElementById('verificationList');
+
+    // Check if already authenticated
+    const isAuthenticated = sessionStorage.getItem('bearpark_auth');
+    if(isAuthenticated === 'true'){
+      window.location.href = 'main.html';
+      return;
+    }
+
+    function showStatus(message, type){
+      statusEl.textContent = message;
+      statusEl.className = 'status show ' + type;
+    }
+
+    function addVerificationItem(text, status = 'checking'){
+      const li = document.createElement('li');
+      li.className = status;
+      li.textContent = text;
+      verificationList.appendChild(li);
+      verificationList.style.display = 'block';
+      return li;
+    }
+
+    function updateVerificationItem(item, text, status){
+      item.textContent = text;
+      item.className = status;
+    }
+
+    async function checkWalletRequirements(walletAddress){
+      try{
+        showStatus('Verifying wallet holdings...', 'loading');
+        verificationList.innerHTML = '';
+
+        // Connect to XRP Ledger
+        const client = new xrpl.Client('wss://xrplcluster.com');
+        await client.connect();
+
+        // Check 1: $BEAR Token Balance
+        const tokenItem = addVerificationItem('Checking $BEAR token balance...');
+        let hasTokens = false;
+
+        try{
+          const accountLines = await client.request({
+            command: 'account_lines',
+            account: walletAddress,
+            ledger_index: 'validated'
+          });
+
+          const bearLine = accountLines.result.lines.find(line =>
+            line.account === BEAR_ISSUER &&
+            line.currency === BEAR_CURRENCY
+          );
+
+          if(bearLine && parseFloat(bearLine.balance) >= MIN_BEAR_BALANCE){
+            hasTokens = true;
+            updateVerificationItem(tokenItem,
+              `✓ $BEAR tokens: ${parseFloat(bearLine.balance).toLocaleString()} (Verified!)`,
+              'passed'
+            );
+          } else {
+            const balance = bearLine ? parseFloat(bearLine.balance).toLocaleString() : '0';
+            updateVerificationItem(tokenItem,
+              `✗ $BEAR tokens: ${balance} (Need 10,000)`,
+              'failed'
+            );
+          }
+        }catch(err){
+          updateVerificationItem(tokenItem, '✗ Error checking $BEAR tokens', 'failed');
+        }
+
+        // Check 2: NFTs
+        const nftItem = addVerificationItem('Checking NFT ownership...');
+        let hasNFT = false;
+
+        try{
+          const nfts = await client.request({
+            method: 'account_nfts',
+            account: walletAddress,
+            ledger_index: 'validated'
+          });
+
+          if(nfts.result.account_nfts && nfts.result.account_nfts.length > 0){
+            // Check for BEAR NFTs (Ultra Rare or Pixel BEAR collections)
+            const bearNFTs = nfts.result.account_nfts.filter(nft =>
+              nft.Issuer === NFT_ISSUER
+            );
+
+            if(bearNFTs.length > 0){
+              hasNFT = true;
+              updateVerificationItem(nftItem,
+                `✓ BEAR NFT(s) found: ${bearNFTs.length} (Verified!)`,
+                'passed'
+              );
+            } else {
+              updateVerificationItem(nftItem,
+                `✗ No BEAR NFTs found (Need Ultra Rare or Pixel BEAR)`,
+                'failed'
+              );
+            }
+          } else {
+            updateVerificationItem(nftItem, '✗ No NFTs found in wallet', 'failed');
+          }
+        }catch(err){
+          updateVerificationItem(nftItem, '✗ Error checking NFTs', 'failed');
+        }
+
+        await client.disconnect();
+
+        // Grant access if any requirement is met
+        if(hasTokens || hasNFT){
+          showStatus('✓ Access granted! Redirecting...', 'success');
+          sessionStorage.setItem('bearpark_auth', 'true');
+          sessionStorage.setItem('bearpark_wallet', walletAddress);
+          setTimeout(() => {
+            window.location.href = 'main.html';
+          }, 2000);
+          return true;
+        } else {
+          showStatus('Access denied: Wallet does not meet requirements', 'error');
+          return false;
+        }
+
+      }catch(error){
+        console.error('Verification error:', error);
+        showStatus('Error verifying wallet: ' + error.message, 'error');
+        return false;
+      }
+    }
+
+    // XAMAN API Integration via Production Backend
+    const PROXY_API_URL = 'https://api.bearpark.xyz/api/xaman';
+
+    async function createXAMANPayload(){
+      const response = await fetch(`${PROXY_API_URL}/payload`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if(!response.ok){
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to create XAMAN payload');
+      }
+
+      return await response.json();
+    }
+
+    async function getPayloadStatus(payloadUuid){
+      const response = await fetch(`${PROXY_API_URL}/payload/${payloadUuid}`);
+
+      if(!response.ok){
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to get payload status');
+      }
+
+      return await response.json();
+    }
+
+    // Wallet Connection via XAMAN
+    connectBtn.addEventListener('click', async () => {
+      try{
+        connectBtn.disabled = true;
+        showStatus('Creating XAMAN sign request...', 'loading');
+
+        // Create sign-in payload
+        const payload = await createXAMANPayload();
+
+        if(payload && payload.refs){
+          // Update status with QR code
+          showStatus('Open XAMAN app to sign in', 'loading');
+
+          // Create clickable link and show QR
+          const qrImg = document.createElement('img');
+          qrImg.src = payload.refs.qr_png;
+          qrImg.style.maxWidth = '250px';
+          qrImg.style.margin = '10px auto';
+          qrImg.style.display = 'block';
+          qrImg.style.border = '4px solid #edb723';
+          qrImg.style.borderRadius = '12px';
+
+          statusEl.innerHTML = '';
+          statusEl.appendChild(qrImg);
+
+          const linkText = document.createElement('p');
+          linkText.innerHTML = `<a href="${payload.next.always}" target="_blank" style="color: #edb723; text-decoration: underline;">Or click here to open XAMAN</a>`;
+          statusEl.appendChild(linkText);
+          statusEl.className = 'status show loading';
+
+          // Poll for result
+          let attempts = 0;
+          const maxAttempts = 60; // 5 minutes max
+
+          const pollInterval = setInterval(async () => {
+            attempts++;
+
+            if(attempts > maxAttempts){
+              clearInterval(pollInterval);
+              showStatus('Sign request timed out', 'error');
+              connectBtn.disabled = false;
+              return;
+            }
+
+            try{
+              const status = await getPayloadStatus(payload.uuid);
+
+              if(status.meta && status.meta.resolved){
+                clearInterval(pollInterval);
+
+                if(status.meta.signed){
+                  const walletAddress = status.response.account;
+                  showStatus('Wallet connected! Verifying requirements...', 'success');
+                  await checkWalletRequirements(walletAddress);
+                } else {
+                  showStatus('Sign request was rejected', 'error');
+                  connectBtn.disabled = false;
+                }
+              }
+            }catch(err){
+              console.error('Polling error:', err);
+            }
+          }, 5000); // Poll every 5 seconds
+
+        } else {
+          throw new Error('Invalid payload response');
+        }
+
+      }catch(error){
+        console.error('XAMAN connection error:', error);
+        console.error('Error details:', {
+          message: error.message,
+          stack: error.stack,
+          type: error.constructor.name
+        });
+        showStatus('Error: ' + error.message + ' - Check console (F12) for details', 'error');
+        connectBtn.disabled = false;
+
+        // Fallback for testing
+        setTimeout(() => {
+          const address = prompt('XAMAN unavailable. Enter wallet address for testing:');
+          if(address && address.startsWith('r')){
+            checkWalletRequirements(address);
+          } else {
+            connectBtn.disabled = false;
+          }
+        }, 1000);
+      }
+    });
+
+  })();
+  </script>
+</body>
+</html>

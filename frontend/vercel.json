@@ -1,0 +1,18 @@
+{
+  "version": 2,
+  "name": "bearpark-frontend",
+  "routes": [
+    {
+      "src": "/",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/main.html",
+      "dest": "/main.html"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/$1"
+    }
+  ]
+}

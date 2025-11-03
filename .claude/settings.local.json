@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl:*)",
+      "Bash(npm install:*)",
+      "Bash(vercel login)",
+      "Bash(vercel:*)",
+      "Bash(copy index.html frontend )",
+      "Bash(copy main.html frontend)",
+      "Bash(index.html)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

@@ -1,14 +1,23 @@
-﻿bear-gate-starter/
+# Dependencies
 node_modules/
-.next/
-dist/
-build/
-.vercel/
-.env*
-bear-gate-starter/
-node_modules/
-.next/
-dist/
-build/
-.vercel/
-.env*
+package-lock.json
+
+# Environment variables
+.env
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Backup files
+*.bak
+
+.vercel
