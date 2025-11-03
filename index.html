@@ -255,7 +255,7 @@
   <div class="gate-container">
     <img class="logo" src="https://files.catbox.moe/25ekkd.png" alt="BEAR Park logo" width="120" height="120">
     <h1>BEAR PARK</h1>
-    <p>Connect your XAMAN wallet to access BEAR Park</p>
+    <p>Connect your wallet to access BEAR Park</p>
 
     <div class="requirements">
       <h3>Access Requirements (need at least 1):</h3>
@@ -266,9 +266,15 @@
       </ul>
     </div>
 
-    <button id="connectBtn" class="btn gold">
-      Connect XAMAN Wallet
-    </button>
+    <div style="display: flex; flex-direction: column; gap: 16px; margin-bottom: 20px;">
+      <button id="connectXamanBtn" class="btn gold">
+        Connect XAMAN Wallet
+      </button>
+
+      <button id="connectJoeyBtn" class="btn" style="background: #8b5cf6; box-shadow: 0 10px 0 #5b21b6, 0 18px 24px rgba(0,0,0,.35);">
+        Connect Joey Wallet
+      </button>
+    </div>
 
     <div id="status" class="status"></div>
 
@@ -277,6 +283,16 @@
 
   <!-- XRP Ledger JS Library -->
   <script src="https://unpkg.com/xrpl@3.0.0/build/xrpl-latest-min.js"></script>
+
+  <!-- QR Code Generator -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <script type="module">
+  import SignClient from 'https://esm.sh/@walletconnect/sign-client@2.11.0';
+
+  // Make SignClient available globally
+  window.WalletConnectSignClient = SignClient;
+  </script>
 
   <script>
   (async function(){
@@ -288,9 +304,22 @@
     // NFT issuer - Both Ultra Rare and Pixel BEAR collections use the same issuer
     const NFT_ISSUER = 'rBEARbo4Prn33894evmvYcAf9yAQjp4VJF'; // BearXRPL2
 
-    const connectBtn = document.getElementById('connectBtn');
+    // WalletConnect Configuration
+    const WC_PROJECT_ID = 'da711418529df39d15cc68772619e270';
+
+    const connectXamanBtn = document.getElementById('connectXamanBtn');
+    const connectJoeyBtn = document.getElementById('connectJoeyBtn');
     const statusEl = document.getElementById('status');
     const verificationList = document.getElementById('verificationList');
+
+    // WalletConnect client
+    let wcClient = null;
+    let wcSession = null;
+
+    // Wait for WalletConnect module to load
+    while(!window.WalletConnectSignClient){
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
 
     // Check if already authenticated
     const isAuthenticated = sessionStorage.getItem('bearpark_auth');
@@ -449,10 +478,108 @@
       return await response.json();
     }
 
-    // Wallet Connection via XAMAN
-    connectBtn.addEventListener('click', async () => {
+    // Initialize WalletConnect
+    async function initWalletConnect(){
+      if(wcClient) return wcClient;
+
       try{
-        connectBtn.disabled = true;
+        const SignClient = window.WalletConnectSignClient;
+        if(!SignClient){
+          throw new Error('WalletConnect SignClient not loaded');
+        }
+
+        wcClient = await SignClient.init({
+          projectId: WC_PROJECT_ID,
+          metadata: {
+            name: 'BEAR Park',
+            description: 'BEAR Park - XRPL Community Hub',
+            url: 'https://bearpark.xyz',
+            icons: ['https://files.catbox.moe/25ekkd.png']
+          }
+        });
+        return wcClient;
+      }catch(error){
+        console.error('WalletConnect init error:', error);
+        throw error;
+      }
+    }
+
+    // Joey Wallet Connection via WalletConnect
+    connectJoeyBtn.addEventListener('click', async () => {
+      try{
+        connectJoeyBtn.disabled = true;
+        showStatus('Initializing WalletConnect...', 'loading');
+
+        const client = await initWalletConnect();
+
+        const { uri, approval } = await client.connect({
+          requiredNamespaces: {
+            xrpl: {
+              methods: ['xrpl_signTransaction'],
+              chains: ['xrpl:0'],  // Mainnet
+              events: []
+            }
+          }
+        });
+
+        if(uri){
+          showStatus('Scan QR code with Joey Wallet', 'loading');
+
+          // Generate QR code and deep link
+          const qrContainer = document.createElement('div');
+          const deepLink = `https://link.joeywallet.app/wc?uri=${encodeURIComponent(uri)}`;
+
+          qrContainer.innerHTML = `<p style="font-size: 16px; margin: 10px 0;">Scan this QR code with Joey Wallet:</p>
+                             <p style="font-size: 14px; margin: 10px 0; color: #999;">1. Open Joey Wallet app on your phone</p>
+                             <p style="font-size: 14px; margin: 10px 0; color: #999;">2. Tap the WalletConnect/Scan option</p>
+                             <p style="font-size: 14px; margin: 10px 0; color: #999;">3. Scan this QR code</p>
+                             <div style="margin: 20px auto; padding: 20px; background: white; border-radius: 12px; max-width: 300px; display: inline-block;">
+                               <div id="joeyQR"></div>
+                             </div>
+                             <p style="font-size: 13px; margin: 20px 0; color: #999; font-family: Arial, sans-serif;">Note: If Joey Wallet's scanner isn't working, this may be a temporary issue with the Joey Wallet app. Please try XAMAN wallet instead.</p>`;
+
+          statusEl.innerHTML = '';
+          statusEl.appendChild(qrContainer);
+          statusEl.className = 'status show loading';
+
+          // Generate QR code using QRCode.js
+          setTimeout(() => {
+            new QRCode(document.getElementById('joeyQR'), {
+              text: uri,
+              width: 250,
+              height: 250
+            });
+          }, 100);
+
+          // Wait for approval
+          const session = await approval();
+          wcSession = session;
+
+          // Get wallet address from session
+          const accounts = session.namespaces.xrpl?.accounts || [];
+          if(accounts.length > 0){
+            // Format: "xrpl:0:rXXXXXXXX"
+            const walletAddress = accounts[0].split(':')[2];
+            showStatus('Joey Wallet connected! Verifying requirements...', 'success');
+            await checkWalletRequirements(walletAddress);
+          } else {
+            throw new Error('No accounts found in session');
+          }
+        } else {
+          throw new Error('Failed to generate WalletConnect URI');
+        }
+
+      }catch(error){
+        console.error('Joey wallet connection error:', error);
+        showStatus('Error connecting Joey wallet: ' + error.message, 'error');
+        connectJoeyBtn.disabled = false;
+      }
+    });
+
+    // Wallet Connection via XAMAN
+    connectXamanBtn.addEventListener('click', async () => {
+      try{
+        connectXamanBtn.disabled = true;
         showStatus('Creating XAMAN sign request...', 'loading');
 
         // Create sign-in payload
@@ -489,7 +616,7 @@
             if(attempts > maxAttempts){
               clearInterval(pollInterval);
               showStatus('Sign request timed out', 'error');
-              connectBtn.disabled = false;
+              connectXamanBtn.disabled = false;
               return;
             }
 
@@ -505,7 +632,7 @@
                   await checkWalletRequirements(walletAddress);
                 } else {
                   showStatus('Sign request was rejected', 'error');
-                  connectBtn.disabled = false;
+                  connectXamanBtn.disabled = false;
                 }
               }
             }catch(err){
@@ -525,7 +652,7 @@
           type: error.constructor.name
         });
         showStatus('Error: ' + error.message + ' - Check console (F12) for details', 'error');
-        connectBtn.disabled = false;
+        connectXamanBtn.disabled = false;
 
         // Fallback for testing
         setTimeout(() => {
@@ -533,7 +660,7 @@
           if(address && address.startsWith('r')){
             checkWalletRequirements(address);
           } else {
-            connectBtn.disabled = false;
+            connectXamanBtn.disabled = false;
           }
         }, 1000);
       }
