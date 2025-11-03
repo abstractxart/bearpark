@@ -46,6 +46,16 @@
     --ring: 0 0 0 4px #000, 0 0 0 6px rgba(237,183,35,.66);
     accent-color: var(--gold);
   }
+  .nft-stats-row{
+  margin-top:12px; display:grid; gap:10px;
+  grid-template-columns:repeat(3,1fr); /* stacks nicely on mobile */
+  background:#0b0d0e; border:4px solid #000; border-radius:14px; padding:12px;
+  box-shadow:0 10px 0 #000,0 16px 26px rgba(0,0,0,.35)
+}
+@media (min-width:820px){ .nft-stats-row{ grid-template-columns:repeat(7,1fr) } }
+.nft-stats-row small{display:block;opacity:.75}
+.nft-stats-row strong{font-weight:900;letter-spacing:.2px}
+
 
   /* ==== BASE ============================================================ */
   *{box-sizing:border-box}
@@ -67,10 +77,7 @@
   /* Decorative grain + aurora */
   body::before{
     content:"";
-    position:fixed;
-    inset:-20vmax;
-    pointer-events:none;
-    z-index:-2;
+    position:fixed; inset:-20vmax; pointer-events:none; z-index:-2;
     background:
       radial-gradient(100vmax 60vmax at 10% -10%, rgba(237,183,35,.055), transparent 60%),
       radial-gradient(80vmax 60vmax at 100% 10%, rgba(215,92,70,.055), transparent 60%),
@@ -79,15 +86,11 @@
   }
   body::after{
     content:"";
-    position:fixed;
-    inset:0;
-    pointer-events:none;
-    z-index:-1;
+    position:fixed; inset:0; pointer-events:none; z-index:-1;
     background-image:
       radial-gradient(rgba(255,255,255,.05), transparent 40%),
       repeating-linear-gradient(0deg, rgba(255,255,255,.02) 0 2px, transparent 2px 4px);
-    mix-blend-mode:overlay;
-    opacity:.18;
+    mix-blend-mode:overlay; opacity:.18;
   }
 
   /* Skip link */
@@ -147,9 +150,7 @@
   .card:focus-within{ box-shadow:var(--ring), var(--elev-strong) }
 
   /* Hero */
-  .hero{--hero-bg:url("https://files.catbox.moe/qnd2tx.png");
-    background:radial-gradient(1200px 500px at 50% -10%, rgba(255,255,255,.065), transparent 60%) , var(--hero-bg) center/cover no-repeat;
-    min-height:56vh; display:flex; align-items:center; position:relative; border-bottom:6px solid #000; overflow:hidden}
+  .hero{--hero-bg:url("https://files.catbox.moe/qnd2tx.png"); background:radial-gradient(1200px 500px at 50% -10%, rgba(255,255,255,.065), transparent 60%) , var(--hero-bg) center/cover no-repeat; min-height:56vh; display:flex; align-items:center; position:relative; border-bottom:6px solid #000; overflow:hidden}
   .hero .plate{background:var(--gold); color:var(--ink); border:6px solid #000; border-radius:22px; box-shadow:0 22px 48px rgba(0,0,0,.45), 0 2px 0 rgba(255,255,255,.25) inset; padding:20px 28px; display:inline-block; margin:0 auto; position:relative; transform:perspective(800px) rotateX(0) rotateY(0) translateZ(0); transition:transform .6s var(--ease-spring), box-shadow .4s var(--ease-spring); will-change:transform}
   .hero .logo{position:absolute; left:-72px; top:-40px; width:120px; transform:rotate(-4deg); filter:drop-shadow(0 8px 0 rgba(0,0,0,.4))}
   .hero .subtitle{font:800 clamp(16px,2.4vw,22px)/1.2 "Luckiest Guy"; margin-top:-6px; color:var(--ink)}
@@ -164,16 +165,12 @@
   .arcade img{width:100%;height:auto;display:block;border:4px solid #000;border-radius:20px;box-shadow:0 18px 40px rgba(0,0,0,.45)}
   .arcade a.hotspot{position:absolute;display:block;border-radius:16px;text-indent:-9999px;overflow:hidden;outline:none;background:transparent;transition: box-shadow .25s var(--ease-spring), transform .25s var(--ease-spring)}
   .arcade a.hotspot:focus-visible{outline:6px solid rgba(237,183,35,.7)}
-  .arcade a.hotspot:hover, .arcade a.hotspot:focus-visible{
-    box-shadow: 0 0 0 6px rgba(237,183,35,.35), 0 0 0 10px rgba(0,0,0,.6);
-  }
+  .arcade a.hotspot:hover, .arcade a.hotspot:focus-visible{ box-shadow: 0 0 0 6px rgba(237,183,35,.35), 0 0 0 10px rgba(0,0,0,.6); }
   .arcade a.hotspot::after{
     content:"";
-    position:absolute;
-    left:50%; top:0; width:20px; height:0; transform:translate(-50%,0);
+    position:absolute; left:50%; top:0; width:20px; height:0; transform:translate(-50%,0);
     background: linear-gradient(180deg, #fff6c7 0%, #ffe280 40%, #edb723 70%, #9b7a0d 100%);
-    border:3px solid #000; border-top:none; border-radius:0 0 16px 16px;
-    box-shadow:0 6px 0 #946e00, 0 12px 20px rgba(0,0,0,.4);
+    border:3px solid #000; border-top:none; border-radius:0 0 16px 16px; box-shadow:0 6px 0 #946e00, 0 12px 20px rgba(0,0,0,.4);
     transition:height .35s var(--ease-spring), opacity .25s ease; opacity:0;
   }
   .arcade a.hotspot:hover::after, .arcade a.hotspot:focus-visible::after{ height:36px; opacity:1 }
@@ -195,18 +192,6 @@
   .nft-media img,.nft-media video{display:block;width:100%;height:auto}
   #nfts .card h3,#nfts .card p{color:var(--gold)!important}
 
-  /* NFT metrics strip */
-  .metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
-  @media (max-width:720px){.metrics{grid-template-columns:1fr 1fr}}
-  .metric-box{
-    background:#0b0d0e;border:4px solid #000;border-radius:14px;padding:10px;display:grid;gap:4px;
-    box-shadow:0 12px 22px rgba(0,0,0,.35)
-  }
-  .metric-box .label{font-size:12px;opacity:.9;color:var(--gold)}
-  .metric-box .value{font-size:20px;font-weight:900;color:#fff;line-height:1}
-  .metric-box small{opacity:.75}
-  .metrics .stamp{justify-self:end;font-size:12px;opacity:.7}
-
   /* Community banner */
   .community-banner{position:relative;overflow:hidden;border-radius:22px;border:6px solid #000;background:#000;box-shadow:0 20px 40px rgba(0,0,0,.45)}
   .community-banner img.bg{width:100%;opacity:.45;filter:saturate(1.05) contrast(1.02)}
@@ -227,7 +212,6 @@
   .dots{display:flex;gap:8px;justify-content:center;margin-top:12px}
   .dot{width:10px;height:10px;border-radius:50%;background:#333;border:2px solid #000;opacity:.5;transition:transform .25s var(--ease-spring)}
   .dot.active{background:var(--gold);opacity:1; transform:scale(1.2)}
-
   footer{border-top:6px solid #000}
 
   /* Scroll reveal */
@@ -244,27 +228,42 @@
 
   /* Buy drawer + FAB base styles used by JS */
   .fab-buy{
-    position:fixed; right:22px; bottom:22px; z-index:60; display:inline-flex; align-items:center; justify-content:center; gap:.5rem;
-    font:900 18px/1 "Luckiest Guy","Arial Black",Impact,system-ui,sans-serif; padding:14px 18px; border-radius:999px; color:#000; background:var(--gold); border:4px solid #000;
-    box-shadow:0 10px 0 #9b7a0d, 0 18px 24px rgba(0,0,0,.35); transition:transform .12s var(--ease-spring), filter .15s ease;
+    position:fixed; right:22px; bottom:22px; z-index:60;
+    display:inline-flex; align-items:center; justify-content:center; gap:.5rem;
+    font:900 18px/1 "Luckiest Guy","Arial Black",Impact,system-ui,sans-serif;
+    padding:14px 18px; border-radius:999px; color:#000; background:var(--gold);
+    border:4px solid #000; box-shadow:0 10px 0 #9b7a0d, 0 18px 24px rgba(0,0,0,.35);
+    transition:transform .12s var(--ease-spring), filter .15s ease;
   }
   .fab-buy:hover{filter:brightness(1.05)}
   .fab-buy:active{transform:translateY(2px)}
 
   .drawer{
-    position:fixed; top:0; right:0; bottom:0; width:min(420px, calc(100% - 72px));
-    background:linear-gradient(180deg,#141619 0%, #0e1013 100%); border-left:6px solid #000; z-index:70; transform:translateX(102%); transition:transform .38s var(--ease-spring);
-    box-shadow:-24px 0 40px rgba(0,0,0,.55); display:flex; flex-direction:column;
+    position:fixed; top:0; right:0; bottom:0;
+    width:min(420px, calc(100% - 72px));
+    background:linear-gradient(180deg,#141619 0%, #0e1013 100%);
+    border-left:6px solid #000; z-index:70;
+    transform:translateX(102%); transition:transform .38s var(--ease-spring);
+    box-shadow:-24px 0 40px rgba(0,0,0,.55);
+    display:flex; flex-direction:column;
   }
   .drawer.open{ transform:translateX(0) }
   .drawer-scrim{ position:fixed; inset:0; background:rgba(0,0,0,.55); backdrop-filter:blur(2px); z-index:65 }
   .drawer-head{ position:sticky; top:0; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 18px; border-bottom:4px solid #000; background:#0f1114 }
   .drawer-body{ padding:18px; overflow:auto; display:grid; gap:14px }
+
   .btn.sm{ font-size:16px; padding:.6rem .9rem; border-radius:14px; box-shadow:0 6px 0 #000,0 12px 18px rgba(0,0,0,.35) }
-  .price-card{ display:grid; gap:6px; padding:16px; border:4px solid #000; border-radius:16px; background:radial-gradient(500px 200px at 50% -20%, rgba(237,183,35,.1), transparent 60%), #0b0d0e; box-shadow:0 12px 22px rgba(0,0,0,.35) }
+
+  .price-card{
+    display:grid; gap:6px; padding:16px;
+    border:4px solid #000; border-radius:16px;
+    background:radial-gradient(500px 200px at 50% -20%, rgba(237,183,35,.1), transparent 60%), #0b0d0e;
+    box-shadow:0 12px 22px rgba(0,0,0,.35)
+  }
   .price-card .metric{ font-size:32px; font-weight:900; display:flex; align-items:baseline; gap:8px }
   .price-card .metric small{ opacity:.8; font-size:14px }
   .price-card .sub{ opacity:.9 }
+
   .links-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px }
   .links-grid .tile .lbl{ color:var(--gold) }
   @media (max-width:520px){ .links-grid{ grid-template-columns:1fr } }
@@ -276,17 +275,26 @@
   /* === CHART OVERRIDES (mobile paint fix + full-height) === */
   #dexChartCard{
     padding:0 !important; border:0 !important; border-radius:16px; overflow:hidden;
-    backdrop-filter:none !important; -webkit-backdrop-filter:none !important;
-    transform:none !important; filter:none !important; will-change:auto !important;
-    background:#0b0d0e; box-shadow:var(--elev-strong);
+    /* mobile iframe paint fix: neutralize compositing effects only here */
+    backdrop-filter:none !important;
+    -webkit-backdrop-filter:none !important;
+    transform:none !important;
+    filter:none !important;
+    will-change:auto !important;
+    background:#0b0d0e;
+    box-shadow:var(--elev-strong);
   }
   #dexChartWrap{
-    position:relative; width:100%; min-height:560px; border-radius:16px; overflow:hidden; contain:paint;
+    position:relative; width:100%;
+    min-height:560px;
+    border-radius:16px; overflow:hidden;
+    contain:paint; /* isolate from fancy parents */
   }
   #dexChartWrap iframe{
     position:absolute; inset:0; width:100%; height:100%; border:0; display:block;
   }
 
+  /* Make the drawer full-screen on phones & foldables so width isn't the limiter */
   @media (max-width:1024px){
     #buyDrawer{
       left:0 !important; right:0 !important; top:0 !important; bottom:0 !important;
@@ -295,15 +303,21 @@
     .drawer-scrim{display:none !important;}
     #buyDrawer .drawer-head{padding-top:calc(env(safe-area-inset-top,0px) + 14px)}
     #buyDrawer .drawer-body{padding-bottom:calc(env(safe-area-inset-bottom,0px) + 18px); overscroll-behavior:contain}
+
+    /* ensure a tall chart even before JS resizes */
     #dexChartWrap{ min-height:70vh !important; }
   }
 
-  @supports (height: 100dvh){ #buyDrawer{height:100dvh} }
+  /* Use dynamic viewport height where supported */
+  @supports (height: 100dvh){
+    #buyDrawer{height:100dvh}
+  }
   </style>
 </head>
-
 <body>
   <a class="skip-link" href="#bearcade">Skip to BEARcade</a>
+  
+  
 
   <!-- Sticky nav -->
   <div class="site-nav" role="navigation" aria-label="Primary">
@@ -385,78 +399,57 @@
       <p style="text-align:center;margin:-6px 0 24px;">The BEAR community has collectible NFTs for profile pictures — the <strong>Ultra Rare Collection</strong> and the <strong>Pixel Collection</strong>.</p>
 
       <div class="grid-2">
-
-        <!-- ULTRA RARE -->
-        <div class="card" id="ultraCard">
+        <div class="card">
           <h3 class="h3">ULTRA RARE BEARS</h3>
           <p style="text-align:center;opacity:.95;">The BEAR Ultra Rare collection was the first mint and consists of 667 NFTs.</p>
           <div class="spacer"></div>
-
-          <div class="nft-media">
+          <a class="nft-media" href="https://xrp.cafe/collection/bearxrpl" target="_blank" rel="noopener">
             <img src="https://cdn.xrp.cafe/362e53289fd2-49f8-b070-4a3a6f95617272729975700c-46ba-a056-0aaf34028496f5a507b1d5a4-4adc-ad01-8d8b6ecd631d.webp" alt="Ultra Rare Bear preview" width="1200" height="1200" loading="lazy" decoding="async">
-          </div>
-
-          <!-- Metrics strip (auto-fills) -->
-          <div class="metrics"
-               id="ultraMetrics"
-               data-source="xpmarket"
-               data-url="https://xpmarket.com/nfts/collection/4ef64-bear-ultra-rare-collection?listed=true&view=grid">
-            <div class="metric-box">
-              <div class="label">Floor</div>
-              <div class="value"><span data-k="floorXrp">—</span> <small>XRP</small></div>
-            </div>
-            <div class="metric-box">
-              <div class="label">Volume</div>
-              <div class="value"><span data-k="volumeXrp">—</span> <small>XRP</small></div>
-            </div>
-            <div class="metric-box">
-              <div class="label">Holders</div>
-              <div class="value" data-k="holders">—</div>
-            </div>
-            <small class="stamp" data-k="stamp">—</small>
+          </a>
+          <div class="center" style="margin-top:16px;">
+            <a class="btn gold" href="https://xrp.cafe/collection/bearxrpl" target="_blank" rel="noopener">Ultra Collection</a>
           </div>
         </div>
+        <div class="nft-stats-row" id="ultraStats" aria-live="polite">
+  <div><small>Floor</small><strong><span data-ultra="floorXrp">—</span> XRP <small>≈ $<span data-ultra="floorUsd">—</span></small></strong></div>
+  <div><small>Owners</small><strong><span data-ultra="owners">—</span></strong></div>
+  <div><small>Supply</small><strong><span data-ultra="supply">—</span></strong></div>
+  <div><small>Last Sale</small><strong><span data-ultra="lastSale">—</span></strong></div>
+  <div><small>Vol 24h</small><strong>$<span data-ultra="vol24">—</span></strong></div>
+  <div><small>Vol 7d</small><strong>$<span data-ultra="vol7">—</span></strong></div>
+  <div><small>Vol 30d</small><strong>$<span data-ultra="vol30">—</span></strong></div>
+</div>
 
-        <!-- PIXEL BEARS -->
-        <div class="card" id="pixelCard">
+        <div class="card">
           <h3 class="h3">PIXEL BEARS</h3>
           <p style="text-align:center;opacity:.95;">There are 5880 Pixel BEARS to provide a profile picture for every $BEAR maxi.</p>
           <div class="spacer"></div>
-
-          <div class="nft-media">
+          <a class="nft-media" href="https://xrp.cafe/collection/bear-pixel-collection" target="_blank" rel="noopener">
             <video src="https://files.catbox.moe/babbn1.mp4" playsinline muted autoplay loop poster="https://files.catbox.moe/babbn1.jpg"></video>
-          </div>
-
-          <!-- Metrics strip (auto-fills) -->
-          <div class="metrics"
-               id="pixelMetrics"
-               data-source="xrplto"
-               data-url="https://xrpl.to/nft-collection/bear-pixel-collection">
-            <div class="metric-box">
-              <div class="label">Floor</div>
-              <div class="value"><span data-k="floorXrp">—</span> <small>XRP</small></div>
-            </div>
-            <div class="metric-box">
-              <div class="label">Volume</div>
-              <div class="value"><span data-k="volumeXrp">—</span> <small>XRP</small></div>
-            </div>
-            <div class="metric-box">
-              <div class="label">Holders</div>
-              <div class="value" data-k="holders">—</div>
-            </div>
-            <small class="stamp" data-k="stamp">—</small>
+          </a>
+          <div class="center" style="margin-top:16px;">
+            <a class="btn gold" href="https://xrp.cafe/collection/bear-pixel-collection" target="_blank" rel="noopener">Pixel Collection</a>
           </div>
         </div>
-
       </div>
     </div>
+    <div class="nft-stats-row" id="pixelStats" aria-live="polite">
+  <div><small>Floor</small><strong><span data-pixel="floorXrp">—</span> XRP <small>≈ $<span data-pixel="floorUsd">—</span></small></strong></div>
+  <div><small>Owners</small><strong><span data-pixel="owners">—</span></strong></div>
+  <div><small>Supply</small><strong><span data-pixel="supply">—</span></strong></div>
+  <div><small>Last Sale</small><strong><span data-pixel="lastSale">—</span></strong></div>
+  <div><small>Vol 24h</small><strong>$<span data-pixel="vol24">—</span></strong></div>
+  <div><small>Vol 7d</small><strong>$<span data-pixel="vol7">—</span></strong></div>
+  <div><small>Vol 30d</small><strong>$<span data-pixel="vol30">—</span></strong></div>
+</div>
   </section>
 
   <!-- COMMUNITY -->
   <section class="dark" id="community">
     <div class="wrap reveal">
       <h2 class="h2">COMMUNITY</h2>
-      <div class="community-banner" role="img" aria-label="$BEAR community montage with honey lighting">
+
+    <div class="community-banner" role="img" aria-label="$BEAR community montage with honey lighting">
         <img class="bg" src="https://files.catbox.moe/kgs8as.jpg" alt="" width="2000" height="1000" loading="lazy" decoding="async">
         <div class="overlay">
           <p class="on-dark" style="text-align:center;margin:0 0 8px;">Come meet the $BEAR fam in the official communities!</p>
@@ -500,12 +493,10 @@
           <div class="face"><img src="https://files.catbox.moe/du61x3.jpg" alt="First Ledger" width="300" height="64" loading="lazy" decoding="async"></div>
           <span class="lbl">First Ledger</span>
         </a>
-
         <a class="tile" href="https://xmagnetic.org/dex/BEAR+rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW_XRP+XRP?network=mainnet" target="_blank" rel="noopener">
           <div class="face"><img src="https://files.catbox.moe/m9ck1m.png" alt="Magnetic DEX" width="300" height="64" loading="lazy" decoding="async"></div>
           <span class="lbl">Magnetic DEX</span>
         </a>
-
         <a class="tile" href="https://xpmarket.com/token/BEAR-rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW" target="_blank" rel="noopener">
           <div class="face"><img src="https://files.catbox.moe/1dw0sy.png" alt="XPMarket" width="220" height="64" loading="lazy" decoding="async"></div>
           <span class="lbl">XPMarket</span>
@@ -527,27 +518,27 @@
       <h3 class="h3" style="margin:0;">Buy $BEAR</h3>
       <button class="btn ghost sm" data-close-drawer aria-label="Close buy panel">Close</button>
     </div>
-
     <div class="drawer-body">
       <div class="price-card">
         <div class="metric" aria-live="polite">
           <span id="priceUsd">—</span><small>USD</small>
         </div>
         <div class="sub">24h <span id="change24">—</span> · Vol <span id="vol24">—</span></div>
+        <!-- NEW: Market Cap line -->
         <div class="sub">Mkt Cap <span id="mcapUsd">—</span></div>
       </div>
-      <!-- Chart card injected below -->
+
+      <!-- Chart card will be injected directly under this price card -->
+
       <div class="links-grid">
         <a class="tile" href="https://firstledger.net/token/rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW/4245415200000000000000000000000000000000" target="_blank" rel="noopener">
           <div class="face"><img src="https://files.catbox.moe/du61x3.jpg" alt="First Ledger"></div>
           <span class="lbl">First Ledger</span>
         </a>
-
         <a class="tile" href="https://xmagnetic.org/dex/BEAR+rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW_XRP+XRP?network=mainnet" target="_blank" rel="noopener">
           <div class="face"><img src="https://files.catbox.moe/m9ck1m.png" alt="Magnetic DEX"></div>
           <span class="lbl">Magnetic DEX</span>
         </a>
-
         <a class="tile" href="https://xpmarket.com/token/BEAR-rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW" target="_blank" rel="noopener">
           <div class="face"><img src="https://files.catbox.moe/1dw0sy.png" alt="XPMarket"></div>
           <span class="lbl">XPMarket</span>
@@ -581,8 +572,7 @@
   /* ===== Scroll reveal ===== */
   const io=new IntersectionObserver((entries)=>entries.forEach(e=>{
     if(e.isIntersecting){
-      e.target.classList.add('in');
-      io.unobserve(e.target);
+      e.target.classList.add('in'); io.unobserve(e.target);
     }
   }),{threshold:.15});
   document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
@@ -636,7 +626,9 @@
   /* ===== Magnetic buttons (skip on touch) ===== */
   (function(){
     if (matchMedia('(pointer: coarse)').matches) return;
-    const strength = 14; const maxShift = 10;
+    const strength = 14;
+    const maxShift = 10;
+
     document.querySelectorAll('.btn').forEach(btn=>{
       let raf = null;
       function onMove(e){
@@ -666,8 +658,8 @@
 
     const imgs = slides.querySelectorAll('img');
     const dotsWrap = document.getElementById('dots');
-    const Z_MIN = 1, Z_MAX = 4;
 
+    const Z_MIN = 1, Z_MAX = 4;
     let idx=0, n=imgs.length, timer=null, userPaused=false;
     let isDrag=false, startX=0, deltaX=0, dragged=false;
     let scale=1, panX=0, panY=0, pinchStartDist=0, startScale=1, lastX=0, lastY=0;
@@ -726,15 +718,17 @@
     window.addEventListener('mousemove',e=>{
       if(!isDrag) return;
       if(scale>1){
-        const dx=e.clientX-lastX, dy=e.clientY-lastY; lastX=e.clientX; lastY=e.clientY;
-        panX+=dx; panY+=dy; clampPan(); applyZoom(); dragged=true; return;
+        const dx=e.clientX-lastX, dy=e.clientY-lastY;
+        lastX=e.clientX; lastY=e.clientY; panX+=dx; panY+=dy; clampPan(); applyZoom(); dragged=true; return;
       }
-      deltaX=e.clientX-startX; slides.style.transition='none';
+      deltaX=e.clientX-startX;
+      slides.style.transition='none';
       slides.style.transform=`translateX(${ -idx*100 + (deltaX/viewport.clientWidth)*100 }%)`;
       if(Math.abs(deltaX)>3) dragged=true;
     });
     window.addEventListener('mouseup',()=>{
-      if(!isDrag) return; isDrag=false; viewport.classList.remove('grabbing');
+      if(!isDrag) return;
+      isDrag=false; viewport.classList.remove('grabbing');
       if(scale>1){ if(!userPaused) restart(); return; }
       const threshold = viewport.clientWidth*0.12;
       if(Math.abs(deltaX)>threshold){ go(idx + (deltaX<0?1:-1), true); } else { go(idx,false); }
@@ -746,13 +740,10 @@
       userPaused=!userPaused;
       if(userPaused) clearInterval(timer); else restart();
     });
-
     viewport.addEventListener('keydown',e=>{
       if(e.key==='ArrowRight'){ go(idx+1,true); }
       else if(e.key==='ArrowLeft'){ go(idx-1,true); }
-      else if(e.key===' '){
-        userPaused=!userPaused; if(userPaused) clearInterval(timer); else restart(); e.preventDefault();
-      }
+      else if(e.key===' '){ userPaused=!userPaused; if(userPaused) clearInterval(timer); else restart(); e.preventDefault(); }
     });
 
     viewport.addEventListener('touchstart',e=>{
@@ -772,17 +763,20 @@
         clampPan(); applyZoom();
       } else if(scale>1 && e.touches.length===1){
         e.preventDefault();
-        const t=e.touches[0]; const dx=t.clientX-lastX, dy=t.clientY-lastY; lastX=t.clientX; lastY=t.clientY;
-        panX+=dx; panY+=dy; clampPan(); applyZoom(); dragged=true;
+        const t=e.touches[0]; const dx=t.clientX-lastX, dy=t.clientY-lastY;
+        lastX=t.clientX; lastY=t.clientY; panX+=dx; panY+=dy; clampPan(); applyZoom(); dragged=true;
       } else if(scale===1 && e.touches.length===1){
-        const x=e.touches[0].clientX; deltaX=x-startX; slides.style.transition='none';
+        const x=e.touches[0].clientX; deltaX=x-startX;
+        slides.style.transition='none';
         slides.style.transform=`translateX(${ -idx*100 + (deltaX/viewport.clientWidth)*100 }%)`;
       }
     },{passive:false});
 
     viewport.addEventListener('touchend',e=>{
       if(zoomGesture && e.touches.length<2){
-        zoomGesture=false; if(scale<=1.01){ scale=1; panX=0; panY=0; applyZoom(); } restart(); return;
+        zoomGesture=false;
+        if(scale<=1.01){ scale=1; panX=0; panY=0; applyZoom(); }
+        restart(); return;
       }
       if(scale>1){ restart(); return; }
       const threshold = viewport.clientWidth*0.12;
@@ -801,7 +795,8 @@
       clampPan(); applyZoom();
     },{passive:false});
 
-    go(0,false); restart();
+    go(0,false);
+    restart();
     window.addEventListener('visibilitychange',()=>document.hidden?clearInterval(timer):(!userPaused&&restart()));
   })();
 
@@ -826,14 +821,15 @@
     obs.observe(kickBtn);
   }
 
-  /* Ensure all imgs lazy/async if not set */
+  /* ===== Ensure all imgs lazy/async if not set ===== */
   document.querySelectorAll('img:not([loading])').forEach(img=>{ img.loading='lazy'; img.decoding='async'; });
 
-  /* ===== Drawer + Prices + Dexscreener Chart ===== */
+  /* ===== Drawer + Prices + Dexscreener Chart (consolidated) ===== */
   (function(){
     const PAIR_ID = '4245415200000000000000000000000000000000.rbearguasyu7tuw53rufQzFdWmJHpJEqFW_xrp';
     const DS_URL = `https://api.dexscreener.com/latest/dex/pairs/xrpl/${PAIR_ID}`;
 
+    /* FAB + drawer wiring */
     const fab=document.createElement('button');
     fab.className='fab-buy';
     fab.innerHTML='<span class="txt">$BEAR</span>';
@@ -850,21 +846,34 @@
     const drawer=document.getElementById('buyDrawer');
     const closeBtn=drawer.querySelector('[data-close-drawer]');
 
-    function openDrawer(){ drawer.classList.add('open'); scrim.hidden=false; fab.setAttribute('aria-expanded','true'); drawer.setAttribute('aria-hidden','false'); document.body.style.overflow='hidden'; ensureChart(); sizeChartSoon(); }
-    function closeDrawer(){ drawer.classList.remove('open'); scrim.hidden=true; fab.setAttribute('aria-expanded','false'); drawer.setAttribute('aria-hidden','true'); document.body.style.overflow=''; }
+    function openDrawer(){
+      drawer.classList.add('open'); scrim.hidden=false;
+      fab.setAttribute('aria-expanded','true'); drawer.setAttribute('aria-hidden','false');
+      document.body.style.overflow='hidden';
+      ensureChart(); sizeChartSoon();
+    }
+    function closeDrawer(){
+      drawer.classList.remove('open'); scrim.hidden=true;
+      fab.setAttribute('aria-expanded','false'); drawer.setAttribute('aria-hidden','true');
+      document.body.style.overflow='';
+    }
+
     fab.addEventListener('click', openDrawer);
     closeBtn.addEventListener('click', closeDrawer);
     scrim.addEventListener('click', closeDrawer);
     window.addEventListener('keydown', e=>{ if(e.key==='Escape') closeDrawer(); });
 
     const navBuy=document.querySelector('.nav-cta a[href="#network"]');
-    if(navBuy){ navBuy.addEventListener('click', (e)=>{ e.preventDefault(); openDrawer(); }); }
+    if(navBuy){
+      navBuy.addEventListener('click', (e)=>{ e.preventDefault(); openDrawer(); });
+    }
 
+    /* Build big duo metric lines (XRP first) */
     const priceCard = document.querySelector('.price-card');
     const metric = priceCard?.querySelector('.metric');
     const legacyUsdEl = document.getElementById('priceUsd');
     const volUsdEl = document.getElementById('vol24');
-    const mcapUsdEl = document.getElementById('mcapUsd');
+    const mcapUsdEl = document.getElementById('mcapUsd'); // NEW
 
     if (metric && !document.getElementById('bearXrpBig')) {
       metric.classList.add('duo');
@@ -880,10 +889,10 @@
 
       const st=document.createElement('style');
       st.textContent=
-`.price-card .metric.duo{flex-direction:column;align-items:flex-start;gap:.4rem}
-.price-card .metric .line{display:flex;align-items:baseline;gap:.6rem;flex-wrap:wrap}
-.price-card .metric .label{color:var(--gold);font-weight:900;letter-spacing:.3px}
-.price-card .metric .price{color:#fff;font-weight:900}`;
+        `.price-card .metric.duo{flex-direction:column;align-items:flex-start;gap:.4rem}
+         .price-card .metric .line{display:flex;align-items:baseline;gap:.6rem;flex-wrap:wrap}
+         .price-card .metric .label{color:var(--gold);font-weight:900;letter-spacing:.3px}
+         .price-card .metric .price{color:#fff;font-weight:900}`;
       document.head.appendChild(st);
     }
 
@@ -901,6 +910,7 @@
         priceNative: Number(p.priceNative),
         priceUsd: p.priceUsd!=null?Number(p.priceUsd):NaN,
         vol24Usd: Number(p.volume?.h24 ?? p.volume24h ?? 0),
+        // NEW: Prefer marketCap; fallback to fdv
         mcapUsd: Number((p.marketCap ?? p.fdv) ?? NaN)
       };
     }
@@ -923,21 +933,26 @@
           const vol = Number.isFinite(vol24Usd) ? vol24Usd : NaN;
           if (Number.isFinite(vol)) volUsdEl.textContent = '$' + fmt0(vol);
         }
+        // NEW: Market Cap update
         if (mcapUsdEl && Number.isFinite(mcapUsd)){
           mcapUsdEl.textContent = '$' + fmt0(mcapUsd);
         }
+
         if (legacyUsdEl && legacyUsdEl.textContent.trim()==='—' && Number.isFinite(usdVal)){
           legacyUsdEl.textContent = fmt(usdVal, 5, 8);
         }
-      }catch(err){ console.debug('Price update failed', err); }
+      }catch(err){
+        console.debug('Price update failed', err);
+      }
     }
-
     updatePrices();
     setInterval(updatePrices, 60000);
     document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) updatePrices(); });
 
+    /* === Dexscreener chart === */
     const PAIR_PATH = `xrpl/${PAIR_ID}`;
 
+    // Height based on *actual available space* in the drawer (no clipping)
     function computeAvailableChartHeight(){
       const dr = document.getElementById('buyDrawer');
       const headH = dr.querySelector('.drawer-head')?.getBoundingClientRect().height || 0;
@@ -947,21 +962,27 @@
       const gapY = parseFloat(cs.rowGap || cs.gap || '14') || 14;
       const priceH = body.querySelector('.price-card')?.getBoundingClientRect().height || 0;
       const vh = (window.visualViewport && window.visualViewport.height) ? window.visualViewport.height : (window.innerHeight || document.documentElement.clientHeight || 700);
-      const extra = 24;
+      const extra = 24; // fudge for rounding/borders
       return Math.max(560, Math.floor(vh - headH - padY - priceH - gapY - extra));
     }
+
     function makeChartUrl(h){
       const base = `https://dexscreener.com/${PAIR_PATH}`;
+      // Hide side info & trades; force dark; pass *exact* height to TradingView
       return `${base}?embed=1&theme=dark&info=0&trades=0&chartType=candles&interval=15&chartHeight=${encodeURIComponent(h)}`;
     }
 
     function ensureChart(){
       if (document.getElementById('dexscreenerChart')) return;
-      const body = document.querySelector('#buyDrawer .drawer-body'); if(!body) return;
+      const body = document.querySelector('#buyDrawer .drawer-body');
+      if(!body) return;
 
       const card = document.createElement('div');
-      card.className = 'card'; card.id = 'dexChartCard';
-      card.style.padding = '0'; card.style.borderRadius = '16px'; card.style.overflow = 'hidden';
+      card.className = 'card';
+      card.id = 'dexChartCard';
+      card.style.padding = '0';
+      card.style.borderRadius = '16px';
+      card.style.overflow = 'hidden';
 
       const wrap = document.createElement('div');
       wrap.id = 'dexChartWrap';
@@ -977,13 +998,14 @@
       iframe.title = 'Dexscreener $BEAR/XRP chart';
       iframe.loading = 'eager';
       iframe.allow = 'clipboard-write; encrypted-media';
-      iframe.allowFullscreen = true;
+      iframe.allowFullscreen = true; // <-- added for mobile TradingView friendliness
       iframe.style.position = 'absolute';
       iframe.style.inset = '0';
       iframe.style.width = '100%';
       iframe.style.height = '100%';
       iframe.style.border = '0';
 
+      // Give the wrapper a real pixel height that follows the viewport
       wrap.style.height = initialH + 'px';
       wrap.appendChild(iframe);
       card.appendChild(wrap);
@@ -997,133 +1019,41 @@
     }
 
     function sizeChart(){
-      const wrap = document.getElementById('dexChartWrap'); if(!wrap) return;
-      const iframe = document.getElementById('dexscreenerChart'); if(!iframe) return;
+      const wrap = document.getElementById('dexChartWrap');
+      if(!wrap) return;
+      const iframe = document.getElementById('dexscreenerChart');
+      if(!iframe) return;
+
       const h = computeAvailableChartHeight();
       if (wrap.style.height !== h + 'px') wrap.style.height = h + 'px';
+
+      // Force Dexscreener's internal TradingView height to match wrapper
       try{
         const u = new URL(iframe.src, location.href);
         const old = Number(u.searchParams.get('chartHeight')) || 0;
-        if (Math.abs(old - h) > 20) { u.searchParams.set('chartHeight', String(h)); iframe.src = u.toString(); }
+        if (Math.abs(old - h) > 20) { // avoid reload thrash
+          u.searchParams.set('chartHeight', String(h));
+          iframe.src = u.toString();
+        }
       }catch(_e){}
     }
     const sizeChartSoon = () => setTimeout(sizeChart, 120);
+
     window.addEventListener('resize', sizeChart);
     window.addEventListener('orientationchange', sizeChart);
     if (window.visualViewport) window.visualViewport.addEventListener('resize', sizeChart);
 
+    // Watch drawer open/close to size chart
     const mo=new MutationObserver(()=>{
       const d=document.getElementById('buyDrawer');
       if(d.classList.contains('open')) { ensureChart(); sizeChartSoon(); }
     });
     mo.observe(document.getElementById('buyDrawer'),{attributes:true, attributeFilter:['class']});
 
-    if (document.getElementById('buyDrawer').classList.contains('open')) { ensureChart(); sizeChartSoon(); }
-  })();
-
-  /* ===== XRPL NFT METRICS (Ultra + Pixel) ===== */
-  (function(){
-    // Fetch page HTML with fallback proxy for CORS
-    async function fetchText(url){
-      try{
-        const r = await fetch(url, {cache:'no-store', credentials:'omit', mode:'cors'});
-        if(r.ok) return await r.text();
-        throw new Error('HTTP '+r.status);
-      }catch(_){
-        try{
-          const prox = 'https://r.jina.ai/http/' + url.replace(/^https?:\/\//,'');
-          const r2 = await fetch(prox, {cache:'no-store', credentials:'omit', mode:'cors'});
-          if(r2.ok) return await r2.text();
-        }catch(__){}
-      }
-      return '';
+    if (document.getElementById('buyDrawer').classList.contains('open')) {
+      ensureChart(); sizeChartSoon();
     }
-
-    // Helpers
-    const num = s => {
-      if(!s) return NaN;
-      const m = String(s).trim().toLowerCase();
-      const factor = m.endsWith('k') ? 1e3 : m.endsWith('m') ? 1e6 : 1;
-      const cleaned = m.replace(/[^0-9.\-]/g,'');
-      return Number(cleaned) * factor;
-    };
-    const toXrpStr = v => Number.isFinite(v) ? (v>=1000? (v/1000).toFixed(2)+'k' : v.toLocaleString(undefined,{maximumFractionDigits:2})) : '—';
-
-    // XPMarket collection parser (Ultra Rare & fallback for others)
-    function parseXPMarket(html){
-      // Floor
-      let floor = null;
-      const f1 = html.match(/Floor price\s*<\/?[^>]*>\s*([\d.,]+)\s*XRP/i);
-      if(f1) floor = num(f1[1]);
-
-      // Holders
-      let holders = null;
-      const h1 = html.match(/Holders\s*<\/?[^>]*>\s*([\d.,kKmM]+)/i);
-      if(h1) holders = num(h1[1]);
-
-      // Volume
-      let volume = null;
-      const v1 = html.match(/Volume\s*<\/?[^>]*>\s*([\d.,kKmM]+)\s*XRP/i);
-      if(v1) volume = num(v1[1]);
-
-      return { floorXrp: floor, volumeXrp: volume, holders };
-    }
-
-    // XRPL.to collection parser (generic patterns)
-    function parseXRPLto(html){
-      // Try to catch common KPI labels on xrpl.to collection pages
-      const fx = html.match(/Floor(?:\s*price)?\s*<\/?[^>]*>\s*([\d.,kKmM]+)\s*XRP/i) || html.match(/Floor[:\s]+([\d.,kKmM]+)\s*XRP/i);
-      const vx = html.match(/Total\s*Volume\s*<\/?[^>]*>\s*([\d.,kKmM]+)\s*XRP/i) || html.match(/Volume[:\s]+([\d.,kKmM]+)\s*XRP/i);
-      const hx = html.match(/Holders?\s*<\/?[^>]*>\s*([\d.,kKmM]+)/i) || html.match(/Holders?[:\s]+([\d.,kKmM]+)/i);
-      return {
-        floorXrp: fx ? num(fx[1]) : null,
-        volumeXrp: vx ? num(vx[1]) : null,
-        holders: hx ? num(hx[1]) : null
-      };
-    }
-
-    function setMetric(el, key, val){
-      const node = el.querySelector(`[data-k="${key}"]`);
-      if(!node) return;
-      node.textContent = val;
-    }
-    function stampNow(el){ setMetric(el,'stamp', new Date().toLocaleTimeString()); }
-
-    async function hydrate(el){
-      if(!el) return;
-      const url = el.dataset.url; const src = el.dataset.source || '';
-      if(!url) return;
-
-      try{
-        const html = await fetchText(url);
-        if(!html) throw new Error('empty');
-
-        let m={floorXrp:null,volumeXrp:null,holders:null};
-        if(src === 'xpmarket'){ m = parseXPMarket(html); }
-        else if(src === 'xrplto'){ m = parseXRPLto(html); }
-
-        setMetric(el, 'floorXrp', toXrpStr(m.floorXrp));
-        setMetric(el, 'volumeXrp', toXrpStr(m.volumeXrp));
-        if(m.holders) setMetric(el, 'holders', m.holders.toLocaleString());
-
-        stampNow(el);
-      }catch(err){
-        console.debug('NFT metrics fetch failed for', url, err);
-        stampNow(el);
-      }
-    }
-
-    // Auto-load when visible
-    ['ultraMetrics','pixelMetrics'].forEach(id=>{
-      const el = document.getElementById(id);
-      if(!el) return;
-      const obs = new IntersectionObserver((es,o)=>{
-        es.forEach(e=>{
-          if(e.isIntersecting){ hydrate(el); o.disconnect(); }
-        });
-      },{rootMargin:'150px'});
-      obs.observe(el);
-    });
+    // === END CHART FIX
   })();
   </script>
 </body>
