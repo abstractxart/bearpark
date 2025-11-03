@@ -529,13 +529,11 @@
           const qrContainer = document.createElement('div');
           const deepLink = `https://link.joeywallet.app/wc?uri=${encodeURIComponent(uri)}`;
 
-          qrContainer.innerHTML = `<p style="font-size: 16px; margin: 10px 0;">Scan this QR code with Joey Wallet:</p>
-                             <p style="font-size: 14px; margin: 10px 0; color: #999;">1. Open Joey Wallet app on your phone</p>
-                             <p style="font-size: 14px; margin: 10px 0; color: #999;">2. Tap the WalletConnect/Scan option</p>
-                             <p style="font-size: 14px; margin: 10px 0; color: #999;">3. Scan this QR code</p>
+          qrContainer.innerHTML = `<p style="font-size: 16px; margin: 10px 0;">Open Joey Wallet to connect:</p>
                              <div style="margin: 20px auto; padding: 20px; background: white; border-radius: 12px; max-width: 300px; display: inline-block;">
                                <div id="joeyQR"></div>
                              </div>
+                             <p style="margin: 10px 0;"><a href="${deepLink}" target="_blank" style="color: #8b5cf6; text-decoration: underline; font-size: 16px;">Or click here to open Joey Wallet</a></p>
                              <p style="font-size: 13px; margin: 20px 0; color: #999; font-family: Arial, sans-serif;">Note: If Joey Wallet's scanner isn't working, this may be a temporary issue with the Joey Wallet app. Please try XAMAN wallet instead.</p>`;
 
           statusEl.innerHTML = '';
