@@ -228,6 +228,17 @@
   .fab-buy:hover{filter:brightness(1.05)}
   .fab-buy:active{transform:translateY(2px)}
 
+  .fab-logout{
+    position:fixed; left:22px; bottom:22px; z-index:60;
+    display:inline-flex; align-items:center; justify-content:center; gap:.5rem;
+    font:900 16px/1 "Luckiest Guy","Arial Black",Impact,system-ui,sans-serif;
+    padding:12px 16px; border-radius:999px; color:#fff; background:var(--accent);
+    border:4px solid #000; box-shadow:0 8px 0 #7b2a20, 0 14px 20px rgba(0,0,0,.35);
+    transition:transform .12s var(--ease-spring), filter .15s ease;
+  }
+  .fab-logout:hover{filter:brightness(1.05)}
+  .fab-logout:active{transform:translateY(2px)}
+
   .drawer{
     position:fixed; top:0; right:0; bottom:0;
     width:min(420px, calc(100% - 72px));
@@ -533,6 +544,35 @@
   </script>
 
   <script>
+  // === AUTHENTICATION CHECK - Prevent bypass ===
+  (function checkAuth(){
+    const isAuthenticated = sessionStorage.getItem('bearpark_auth');
+    const authenticatedWallet = sessionStorage.getItem('bearpark_wallet');
+
+    // If not authenticated, redirect to login page
+    if(isAuthenticated !== 'true' || !authenticatedWallet){
+      window.location.href = 'index.html';
+      return;
+    }
+
+    // Optional: Display wallet address in console for debugging
+    console.log('Authenticated wallet:', authenticatedWallet);
+
+    // Add logout button
+    const logoutBtn = document.createElement('button');
+    logoutBtn.className = 'fab-logout';
+    logoutBtn.innerHTML = '<span>Disconnect</span>';
+    logoutBtn.setAttribute('aria-label', 'Disconnect wallet and logout');
+    logoutBtn.addEventListener('click', function(){
+      if(confirm('Are you sure you want to disconnect your wallet?')){
+        sessionStorage.removeItem('bearpark_auth');
+        sessionStorage.removeItem('bearpark_wallet');
+        window.location.href = 'index.html';
+      }
+    });
+    document.body.appendChild(logoutBtn);
+  })();
+
   document.documentElement.classList.remove('no-js');
 
   /* Input modality hint */
