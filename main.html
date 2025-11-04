@@ -530,6 +530,16 @@
       <button class="btn ghost sm" data-close-drawer aria-label="Close dashboard">Close</button>
     </div>
     <div class="drawer-body">
+      <!-- CURRENT PRICE -->
+      <div class="price-card">
+        <h4 style="margin:0 0 8px 0; font-size:14px; color:var(--gold); text-transform:uppercase;">Current Price</h4>
+        <div class="metric" aria-live="polite">
+          <span id="priceUsd">—</span><small>USD</small>
+        </div>
+        <div class="sub">24h <span id="change24">—</span> · Vol <span id="vol24">—</span></div>
+        <div class="sub">Mkt Cap <span id="mcapUsd">—</span></div>
+      </div>
+
       <!-- MY $BEAR PORTFOLIO -->
       <div id="portfolioSection" class="portfolio-card" style="display:none;">
         <h4 style="margin:0 0 8px 0; font-size:14px; color:var(--gold); text-transform:uppercase;">My $BEAR Portfolio</h4>
@@ -617,35 +627,6 @@
         <a href="/leaderboard.html" class="btn gold" style="width:100%; text-decoration:none; display:block; text-align:center; padding:10px; border-radius:10px; font-weight:900; font-size:14px;">
           🏆 View Leaderboard
         </a>
-      </div>
-
-      <!-- CURRENT PRICE -->
-      <div class="price-card">
-        <h4 style="margin:0 0 8px 0; font-size:14px; color:var(--gold); text-transform:uppercase;">Current Price</h4>
-        <div class="metric" aria-live="polite">
-          <span id="priceUsd">—</span><small>USD</small>
-        </div>
-        <div class="sub">24h <span id="change24">—</span> · Vol <span id="vol24">—</span></div>
-        <div class="sub">Mkt Cap <span id="mcapUsd">—</span></div>
-      </div>
-
-      <!-- BUY $BEAR LINKS -->
-      <div>
-        <h4 style="margin:0 0 12px 0; font-size:14px; color:var(--gold); text-transform:uppercase;">Buy $BEAR</h4>
-        <div class="links-grid">
-          <a class="tile" href="https://firstledger.net/token/rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW/4245415200000000000000000000000000000000" target="_blank" rel="noopener">
-            <div class="face"><img src="https://files.catbox.moe/du61x3.jpg" alt="First Ledger"></div>
-            <span class="lbl">First Ledger</span>
-          </a>
-          <a class="tile" href="https://xmagnetic.org/dex/BEAR+rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW_XRP+XRP?network=mainnet" target="_blank" rel="noopener">
-            <div class="face"><img src="https://files.catbox.moe/m9ck1m.png" alt="Magnetic DEX"></div>
-            <span class="lbl">Magnetic DEX</span>
-          </a>
-          <a class="tile" href="https://xpmarket.com/token/BEAR-rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW" target="_blank" rel="noopener">
-            <div class="face"><img src="https://files.catbox.moe/1dw0sy.png" alt="XPMarket"></div>
-            <span class="lbl">XPMarket</span>
-          </a>
-        </div>
       </div>
     </div>
   </aside>
@@ -1256,45 +1237,36 @@
         // Update BEAR amount immediately
         document.getElementById('portfolioBearAmount').textContent = bearBalance.toLocaleString('en-US', { maximumFractionDigits: 2 });
 
-        // Get current prices from existing price data
-        const priceUsdEl = document.getElementById('priceUsd');
-        const priceText = priceUsdEl?.textContent || '';
+        // Fetch fresh price data directly from DexScreener
+        try {
+          const {priceNative, priceUsd} = await fetchDex();
 
-        // Remove any non-numeric characters except decimal point
-        const cleanedPrice = priceText.replace(/[^0-9.]/g, '');
-        const bearUsdPrice = parseFloat(cleanedPrice) || 0;
+          console.log('Portfolio Debug:', {
+            bearBalance,
+            priceUsd,
+            priceNative
+          });
 
-        // Get XRP price to calculate BEAR/XRP value
-        const bearXrpEl = document.getElementById('bearXrpBig');
-        const bearXrpText = bearXrpEl?.textContent || '';
-        const cleanedXrpPrice = bearXrpText.replace(/[^0-9.]/g, '');
-        const bearXrpPrice = parseFloat(cleanedXrpPrice) || 0;
+          // Calculate values
+          const usdValue = bearBalance * priceUsd;
+          const xrpValue = bearBalance * priceNative;
 
-        console.log('Portfolio Debug:', {
-          bearBalance,
-          priceText,
-          cleanedPrice,
-          bearUsdPrice,
-          bearXrpText,
-          cleanedXrpPrice,
-          bearXrpPrice
-        });
+          // Update UI with calculated values
+          if (priceUsd > 0) {
+            document.getElementById('portfolioUsdValue').textContent = '$' + usdValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          } else {
+            document.getElementById('portfolioUsdValue').textContent = 'Loading...';
+          }
 
-        // Calculate values
-        const usdValue = bearBalance * bearUsdPrice;
-        const xrpValue = bearBalance * bearXrpPrice;
-
-        // Update UI with calculated values
-        if (bearUsdPrice > 0) {
-          document.getElementById('portfolioUsdValue').textContent = '$' + usdValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        } else {
-          document.getElementById('portfolioUsdValue').textContent = 'Loading...';
-        }
-
-        if (bearXrpPrice > 0) {
-          document.getElementById('portfolioXrpValue').textContent = xrpValue.toLocaleString('en-US', { maximumFractionDigits: 4 }) + ' XRP';
-        } else {
-          document.getElementById('portfolioXrpValue').textContent = 'Loading...';
+          if (priceNative > 0) {
+            document.getElementById('portfolioXrpValue').textContent = xrpValue.toLocaleString('en-US', { maximumFractionDigits: 4 }) + ' XRP';
+          } else {
+            document.getElementById('portfolioXrpValue').textContent = 'Loading...';
+          }
+        } catch (priceErr) {
+          console.error('Error fetching prices:', priceErr);
+          document.getElementById('portfolioUsdValue').textContent = 'N/A';
+          document.getElementById('portfolioXrpValue').textContent = 'N/A';
         }
 
         await client.disconnect();
