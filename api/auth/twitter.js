@@ -128,6 +128,12 @@ export default async function handler(req, res) {
         const errorText = await userResponse.text();
         console.error('Twitter user fetch error:', errorText);
         console.error('Twitter user response headers:', Object.fromEntries(userResponse.headers.entries()));
+
+        // Handle rate limit specifically
+        if (userResponse.status === 429) {
+          throw new Error('Twitter API rate limit reached. Please wait 15 minutes and try again.');
+        }
+
         throw new Error(`Failed to get Twitter user info: ${userResponse.status} ${errorText}`);
       }
 
