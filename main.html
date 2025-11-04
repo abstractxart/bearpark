@@ -30,6 +30,9 @@
   <link rel="preload" as="image" href="https://files.catbox.moe/qnd2tx.png" fetchpriority="high" />
   <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&display=swap" rel="stylesheet" />
 
+  <!-- XRPL Library -->
+  <script src="https://unpkg.com/xrpl@3.0.0/build/xrpl-latest-min.js"></script>
+
   <style>
   /* ==== THEME =========================================================== */
   :root{
@@ -303,28 +306,6 @@
   .site-nav{display:none !important}
   .rails::before,.rails::after{display:none !important}
 
-  /* === CHART OVERRIDES (mobile paint fix + full-height) === */
-  #dexChartCard{
-    padding:0 !important; border:0 !important; border-radius:16px; overflow:hidden;
-    /* mobile iframe paint fix: neutralize compositing effects only here */
-    backdrop-filter:none !important;
-    -webkit-backdrop-filter:none !important;
-    transform:none !important;
-    filter:none !important;
-    will-change:auto !important;
-    background:#0b0d0e;
-    box-shadow:var(--elev-strong);
-  }
-  #dexChartWrap{
-    position:relative; width:100%;
-    min-height:560px;
-    border-radius:16px; overflow:hidden;
-    contain:paint; /* isolate from fancy parents */
-  }
-  #dexChartWrap iframe{
-    position:absolute; inset:0; width:100%; height:100%; border:0; display:block;
-  }
-
   /* Make the drawer full-screen on phones & foldables so width isn't the limiter */
   @media (max-width:1024px){
     #buyDrawer{
@@ -334,9 +315,6 @@
     .drawer-scrim{display:none !important;}
     #buyDrawer .drawer-head{padding-top:calc(env(safe-area-inset-top,0px) + 14px)}
     #buyDrawer .drawer-body{padding-bottom:calc(env(safe-area-inset-bottom,0px) + 18px); overscroll-behavior:contain}
-
-    /* ensure a tall chart even before JS resizes */
-    #dexChartWrap{ min-height:70vh !important; }
   }
 
   /* Use dynamic viewport height where supported */
@@ -937,7 +915,7 @@
   /* ===== Ensure all imgs lazy/async if not set ===== */
   document.querySelectorAll('img:not([loading])').forEach(img=>{ img.loading='lazy'; img.decoding='async'; });
 
-  /* ===== Drawer + Prices + Dexscreener Chart (consolidated) ===== */
+  /* ===== Drawer + Prices (consolidated) ===== */
   (function(){
     const PAIR_ID = '4245415200000000000000000000000000000000.rbearguasyu7tuw53rufQzFdWmJHpJEqFW_xrp';
     const DS_URL = `https://api.dexscreener.com/latest/dex/pairs/xrpl/${PAIR_ID}`;
@@ -963,8 +941,6 @@
       drawer.classList.add('open'); scrim.hidden=false;
       fab.setAttribute('aria-expanded','true'); drawer.setAttribute('aria-hidden','false');
       document.body.style.overflow='hidden';
-      // CHART REMOVED - Now showing portfolio and points instead
-      // ensureChart(); sizeChartSoon();
       loadPortfolioData(); // Load wallet portfolio data
     }
     function closeDrawer(){
@@ -1017,7 +993,7 @@
 
     async function fetchDex(){
       const r=await fetch(DS_URL,{cache:'no-store'});
-      if(!r.ok) throw new Error('DexScreener HTTP '+r.status);
+      if(!r.ok) throw new Error('Price API HTTP '+r.status);
       const j=await r.json();
       const p=j?.pairs?.[0];
       if(!p) throw new Error('Pair not found');
@@ -1063,112 +1039,6 @@
     updatePrices();
     setInterval(updatePrices, 60000);
     document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) updatePrices(); });
-
-    /* === Dexscreener chart === */
-    const PAIR_PATH = `xrpl/${PAIR_ID}`;
-
-    // Height based on *actual available space* in the drawer (no clipping)
-    function computeAvailableChartHeight(){
-      const dr = document.getElementById('buyDrawer');
-      const headH = dr.querySelector('.drawer-head')?.getBoundingClientRect().height || 0;
-      const body = dr.querySelector('.drawer-body');
-      const cs = getComputedStyle(body);
-      const padY = (parseFloat(cs.paddingTop)||0) + (parseFloat(cs.paddingBottom)||0);
-      const gapY = parseFloat(cs.rowGap || cs.gap || '14') || 14;
-      const priceH = body.querySelector('.price-card')?.getBoundingClientRect().height || 0;
-      const vh = (window.visualViewport && window.visualViewport.height) ? window.visualViewport.height : (window.innerHeight || document.documentElement.clientHeight || 700);
-      const extra = 24; // fudge for rounding/borders
-      return Math.max(560, Math.floor(vh - headH - padY - priceH - gapY - extra));
-    }
-
-    function makeChartUrl(h){
-      const base = `https://dexscreener.com/${PAIR_PATH}`;
-      // Hide side info & trades; force dark; pass *exact* height to TradingView
-      return `${base}?embed=1&theme=dark&info=0&trades=0&chartType=candles&interval=15&chartHeight=${encodeURIComponent(h)}`;
-    }
-
-    function ensureChart(){
-      if (document.getElementById('dexscreenerChart')) return;
-      const body = document.querySelector('#buyDrawer .drawer-body');
-      if(!body) return;
-
-      const card = document.createElement('div');
-      card.className = 'card';
-      card.id = 'dexChartCard';
-      card.style.padding = '0';
-      card.style.borderRadius = '16px';
-      card.style.overflow = 'hidden';
-
-      const wrap = document.createElement('div');
-      wrap.id = 'dexChartWrap';
-      wrap.style.position = 'relative';
-      wrap.style.width = '100%';
-      wrap.style.borderRadius = '16px';
-      wrap.style.overflow = 'hidden';
-
-      const iframe = document.createElement('iframe');
-      iframe.id = 'dexscreenerChart';
-      const initialH = computeAvailableChartHeight();
-      iframe.src = makeChartUrl(initialH);
-      iframe.title = 'Dexscreener $BEAR/XRP chart';
-      iframe.loading = 'eager';
-      iframe.allow = 'clipboard-write; encrypted-media';
-      iframe.allowFullscreen = true; // <-- added for mobile TradingView friendliness
-      iframe.style.position = 'absolute';
-      iframe.style.inset = '0';
-      iframe.style.width = '100%';
-      iframe.style.height = '100%';
-      iframe.style.border = '0';
-
-      // Give the wrapper a real pixel height that follows the viewport
-      wrap.style.height = initialH + 'px';
-      wrap.appendChild(iframe);
-      card.appendChild(wrap);
-
-      const priceCardEl = body.querySelector('.price-card');
-      if (priceCardEl && priceCardEl.nextSibling) {
-        priceCardEl.parentNode.insertBefore(card, priceCardEl.nextSibling);
-      } else {
-        body.prepend(card);
-      }
-    }
-
-    function sizeChart(){
-      const wrap = document.getElementById('dexChartWrap');
-      if(!wrap) return;
-      const iframe = document.getElementById('dexscreenerChart');
-      if(!iframe) return;
-
-      const h = computeAvailableChartHeight();
-      if (wrap.style.height !== h + 'px') wrap.style.height = h + 'px';
-
-      // Force Dexscreener's internal TradingView height to match wrapper
-      try{
-        const u = new URL(iframe.src, location.href);
-        const old = Number(u.searchParams.get('chartHeight')) || 0;
-        if (Math.abs(old - h) > 20) { // avoid reload thrash
-          u.searchParams.set('chartHeight', String(h));
-          iframe.src = u.toString();
-        }
-      }catch(_e){}
-    }
-    const sizeChartSoon = () => setTimeout(sizeChart, 120);
-
-    window.addEventListener('resize', sizeChart);
-    window.addEventListener('orientationchange', sizeChart);
-    if (window.visualViewport) window.visualViewport.addEventListener('resize', sizeChart);
-
-    // Watch drawer open/close to size chart
-    const mo=new MutationObserver(()=>{
-      const d=document.getElementById('buyDrawer');
-      if(d.classList.contains('open')) { ensureChart(); sizeChartSoon(); }
-    });
-    mo.observe(document.getElementById('buyDrawer'),{attributes:true, attributeFilter:['class']});
-
-    if (document.getElementById('buyDrawer').classList.contains('open')) {
-      ensureChart(); sizeChartSoon();
-    }
-    // === END CHART FIX
 
     /* ===== Portfolio & Points Functions ===== */
     async function loadPortfolioData() {
@@ -1237,7 +1107,7 @@
         // Update BEAR amount immediately
         document.getElementById('portfolioBearAmount').textContent = bearBalance.toLocaleString('en-US', { maximumFractionDigits: 2 });
 
-        // Fetch fresh price data directly from DexScreener
+        // Fetch fresh price data from API
         try {
           const {priceNative, priceUsd} = await fetchDex();
 
@@ -1404,11 +1274,26 @@
       }
 
       try {
-        // For now, we'll just refresh the page
-        // In the future, we can add a proper disconnect API endpoint
-        alert('To disconnect Twitter, please contact support. Your points are safely saved!');
+        const response = await fetch('/api/auth/twitter', {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ wallet_address: walletAddress })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          alert(data.message);
+          // Refresh the points/portfolio section to show disconnected state
+          loadPortfolioData();
+        } else {
+          alert('Failed to disconnect Twitter: ' + (data.error || 'Unknown error'));
+        }
       } catch (error) {
         console.error('Error disconnecting Twitter:', error);
+        alert('Failed to disconnect Twitter. Please try again.');
       }
     });
 

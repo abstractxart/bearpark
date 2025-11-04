@@ -28,7 +28,7 @@ async function parseBody(req) {
 export default async function handler(req, res) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, GET, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
@@ -240,6 +240,53 @@ export default async function handler(req, res) {
       console.error('Error connecting Twitter:', error);
       return res.status(500).json({
         error: 'Failed to connect Twitter',
+        details: error.message
+      });
+    }
+  }
+
+  // Step 3: Handle disconnect (DELETE request)
+  if (req.method === 'DELETE') {
+    const body = await parseBody(req);
+    const { wallet_address } = body;
+
+    if (!wallet_address) {
+      return res.status(400).json({ error: 'Wallet address required' });
+    }
+
+    try {
+      console.log('Disconnecting Twitter for wallet:', wallet_address);
+
+      // Update user to remove Twitter connection (keep points!)
+      const { data: user, error: updateError } = await supabase
+        .from('users')
+        .update({
+          twitter_username: null,
+          twitter_user_id: null,
+          twitter_access_token: null,
+          twitter_refresh_token: null
+        })
+        .eq('wallet_address', wallet_address)
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error('Error disconnecting Twitter:', updateError);
+        throw updateError;
+      }
+
+      console.log('Twitter disconnected successfully for:', wallet_address);
+
+      return res.status(200).json({
+        success: true,
+        message: 'Twitter disconnected successfully. Your points are safely saved!',
+        total_points: user.total_points
+      });
+
+    } catch (error) {
+      console.error('Error disconnecting Twitter:', error);
+      return res.status(500).json({
+        error: 'Failed to disconnect Twitter',
         details: error.message
       });
     }
