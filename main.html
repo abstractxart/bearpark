@@ -1432,9 +1432,9 @@
           const checkPopup = setInterval(() => {
             if (popup.closed) {
               clearInterval(checkPopup);
-              console.log('Twitter popup closed, refreshing data...');
-              // Reload portfolio and points data in case Twitter was connected
-              loadPortfolioData();
+              console.log('Twitter popup closed, refreshing page to show Twitter connection...');
+              // Reload entire page to refresh all data and show Twitter connection
+              window.location.reload();
             }
           }, 500);
 

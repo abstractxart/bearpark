@@ -145,6 +145,11 @@
           throw new Error('No wallet address in state');
         }
 
+        // Restore wallet session (in case it was cleared during redirect)
+        console.log('Restoring wallet session for:', walletAddress);
+        sessionStorage.setItem('bearpark_wallet', walletAddress);
+        sessionStorage.setItem('bearpark_auth', 'true');
+
         console.log('Sending POST request to /api/auth/twitter...');
         // Send code to backend API
         const response = await fetch('/api/auth/twitter', {
