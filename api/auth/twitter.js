@@ -110,6 +110,17 @@ export default async function handler(req, res) {
         ? pendingTweets.reduce((sum, tweet) => sum + (tweet.points_pending || 0), 0)
         : 0;
 
+      // Check if user already exists
+      const { data: existingUser } = await supabase
+        .from('users')
+        .select('*')
+        .eq('wallet_address', wallet_address)
+        .single();
+
+      // Calculate new total points
+      const currentPoints = existingUser ? existingUser.total_points : 0;
+      const newTotalPoints = currentPoints + pendingPoints;
+
       // Upsert user in database
       const { data: user, error: upsertError } = await supabase
         .from('users')
@@ -120,7 +131,7 @@ export default async function handler(req, res) {
             twitter_user_id: twitterUser.id,
             twitter_access_token: tokens.access_token,
             twitter_refresh_token: tokens.refresh_token,
-            total_points: supabase.raw(`total_points + ${pendingPoints}`)
+            total_points: newTotalPoints
           },
           { onConflict: 'wallet_address' }
         )
