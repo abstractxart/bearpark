@@ -1,9 +1,10 @@
 // Twitter OAuth 2.0 authentication
 import { createClient } from '@supabase/supabase-js';
 
+// Use service role key for server-side operations (bypasses RLS)
 const supabase = createClient(
   process.env.SUPABASE_URL,
-  process.env.SUPABASE_KEY
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY
 );
 
 // Helper to parse body if needed
