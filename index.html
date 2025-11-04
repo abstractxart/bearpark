@@ -389,22 +389,60 @@
           updateVerificationItem(tokenItem, '✗ Error checking $BEAR tokens', 'failed');
         }
 
-        // Check 2: NFTs
+        // Check 2: NFTs (with pagination support)
         const nftItem = addVerificationItem('Checking NFT ownership...');
         let hasNFT = false;
 
         try{
-          const nfts = await client.request({
-            method: 'account_nfts',
-            account: walletAddress,
-            ledger_index: 'validated'
-          });
+          // Collect ALL NFTs from wallet (handle pagination)
+          let allNFTs = [];
+          let marker = undefined;
+          let pageCount = 0;
+          const maxPages = 10; // Safety limit to prevent infinite loops
 
-          if(nfts.result.account_nfts && nfts.result.account_nfts.length > 0){
+          console.log('Fetching all NFTs from wallet (with pagination)...');
+
+          do {
+            const nftRequest = {
+              method: 'account_nfts',
+              account: walletAddress,
+              ledger_index: 'validated',
+              limit: 400 // Request maximum per page
+            };
+
+            if (marker) {
+              nftRequest.marker = marker;
+            }
+
+            const nfts = await client.request(nftRequest);
+
+            if (nfts.result.account_nfts && nfts.result.account_nfts.length > 0) {
+              allNFTs = allNFTs.concat(nfts.result.account_nfts);
+              console.log(`Page ${pageCount + 1}: Found ${nfts.result.account_nfts.length} NFTs`);
+            }
+
+            marker = nfts.result.marker;
+            pageCount++;
+
+          } while (marker && pageCount < maxPages);
+
+          console.log(`Total NFTs found across ${pageCount} page(s): ${allNFTs.length}`);
+
+          if(allNFTs.length > 0){
+            // Log first NFT structure for debugging
+            console.log('Sample NFT structure:', allNFTs[0]);
+
+            // Log all NFT issuers for debugging
+            const uniqueIssuers = [...new Set(allNFTs.map(nft => nft.Issuer))];
+            console.log('Unique NFT Issuers in wallet:', uniqueIssuers);
+            console.log('Looking for issuer:', NFT_ISSUER);
+
             // Check for BEAR NFTs (Ultra Rare or Pixel BEAR collections)
-            const bearNFTs = nfts.result.account_nfts.filter(nft =>
+            const bearNFTs = allNFTs.filter(nft =>
               nft.Issuer === NFT_ISSUER
             );
+
+            console.log('BEAR NFTs found:', bearNFTs.length);
 
             if(bearNFTs.length > 0){
               hasNFT = true;
@@ -413,8 +451,9 @@
                 'passed'
               );
             } else {
+              // Show helpful debug info
               updateVerificationItem(nftItem,
-                `✗ No BEAR NFTs found (Need Ultra Rare or Pixel BEAR)`,
+                `✗ No BEAR NFTs found. Found ${allNFTs.length} NFT(s), but none from BEAR collection. Check console (F12) for details.`,
                 'failed'
               );
             }
@@ -422,7 +461,8 @@
             updateVerificationItem(nftItem, '✗ No NFTs found in wallet', 'failed');
           }
         }catch(err){
-          updateVerificationItem(nftItem, '✗ Error checking NFTs', 'failed');
+          console.error('NFT check error:', err);
+          updateVerificationItem(nftItem, '✗ Error checking NFTs: ' + err.message, 'failed');
         }
 
         await client.disconnect();

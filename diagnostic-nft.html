@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>BEAR NFT Comprehensive Diagnostic</title>
+  <style>
+    body {
+      font-family: monospace;
+      padding: 20px;
+      background: #1a1a1a;
+      color: #00ff00;
+    }
+    .nft-card {
+      background: #2a2a2a;
+      border: 2px solid #00ff00;
+      padding: 15px;
+      margin: 15px 0;
+      border-radius: 8px;
+    }
+    .highlight {
+      background: #ffff00;
+      color: #000;
+      padding: 2px 5px;
+      font-weight: bold;
+    }
+    .error {
+      color: #ff0000;
+    }
+    .success {
+      color: #00ff00;
+    }
+    h3 {
+      color: #00ffff;
+    }
+    pre {
+      background: #000;
+      padding: 10px;
+      overflow-x: auto;
+      border-left: 3px solid #00ff00;
+    }
+  </style>
+</head>
+<body>
+  <h1>BEAR NFT Comprehensive Diagnostic</h1>
+  <p>Testing wallet: <strong>rU2AviYiGZnWXmgDQ1bpkY8Nak4f3ZQ7Jy</strong></p>
+  <div id="output"></div>
+
+  <script src="https://unpkg.com/xrpl@2.7.0/build/xrpl-latest-min.js"></script>
+  <script>
+    const output = document.getElementById('output');
+
+    // Known BEAR-related addresses
+    const KNOWN_BEAR_ADDRESSES = {
+      'rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW': '$BEAR Token Issuer',
+      'rBEARbo4Prn33894evmvYcAf9yAQjp4VJF': 'BearXRPL2 NFT Issuer',
+      'rBEARxrpITxi9W1qXyPaw6Gb4kvsT8nvn': 'Potential BEAR Issuer 1',
+      'rBEARs6q8VnX9KxQvgkjHWe8kPyGhRzQn': 'Potential BEAR Issuer 2'
+    };
+
+    const WALLET_ADDRESS = 'rU2AviYiGZnWXmgDQ1bpkY8Nak4f3ZQ7Jy';
+
+    function log(message, className = '') {
+      const div = document.createElement('div');
+      div.innerHTML = message;
+      if (className) div.className = className;
+      output.appendChild(div);
+    }
+
+    function logCard(title, content) {
+      const card = document.createElement('div');
+      card.className = 'nft-card';
+      card.innerHTML = `<h3>${title}</h3>${content}`;
+      output.appendChild(card);
+    }
+
+    async function diagnose() {
+      try {
+        log('<h2>Connecting to XRPL...</h2>');
+        const client = new xrpl.Client('wss://xrplcluster.com/');
+        await client.connect();
+        log('<p class="success">✓ Connected to XRPL</p>');
+
+        // Get all NFTs
+        log('<h2>Fetching all NFTs...</h2>');
+        const nfts = await client.request({
+          method: 'account_nfts',
+          account: WALLET_ADDRESS,
+          ledger_index: 'validated'
+        });
+
+        if (!nfts.result.account_nfts || nfts.result.account_nfts.length === 0) {
+          log('<p class="error">✗ No NFTs found in wallet!</p>');
+          await client.disconnect();
+          return;
+        }
+
+        const totalNFTs = nfts.result.account_nfts.length;
+        log(`<p class="success">✓ Found ${totalNFTs} NFTs total</p>`);
+
+        // Analyze all issuers
+        const issuerCounts = {};
+        nfts.result.account_nfts.forEach(nft => {
+          issuerCounts[nft.Issuer] = (issuerCounts[nft.Issuer] || 0) + 1;
+        });
+
+        log('<h2>Issuer Summary:</h2>');
+        Object.entries(issuerCounts).forEach(([issuer, count]) => {
+          const knownName = KNOWN_BEAR_ADDRESSES[issuer];
+          const highlight = knownName ? ' class="highlight"' : '';
+          log(`<p${highlight}>${issuer}: ${count} NFT(s) ${knownName ? `[${knownName}]` : ''}</p>`);
+        });
+
+        // Check for potential BEAR NFTs by URI
+        log('<h2>Searching for BEAR-related NFTs...</h2>');
+        let bearCount = 0;
+
+        for (let i = 0; i < nfts.result.account_nfts.length; i++) {
+          const nft = nfts.result.account_nfts[i];
+          let isBearRelated = false;
+          let bearReason = [];
+
+          // Check issuer
+          if (KNOWN_BEAR_ADDRESSES[nft.Issuer]) {
+            isBearRelated = true;
+            bearReason.push(`Issuer: ${KNOWN_BEAR_ADDRESSES[nft.Issuer]}`);
+          }
+
+          // Check URI if it exists
+          if (nft.URI) {
+            const uriDecoded = Buffer.from(nft.URI, 'hex').toString('utf-8').toLowerCase();
+            if (uriDecoded.includes('bear') || uriDecoded.includes('pixel') || uriDecoded.includes('ultra')) {
+              isBearRelated = true;
+              bearReason.push(`URI contains BEAR keywords`);
+            }
+          }
+
+          if (isBearRelated) {
+            bearCount++;
+
+            let cardContent = `
+              <p><strong>NFT #${bearCount}</strong></p>
+              <p><span class="highlight">Reason: ${bearReason.join(', ')}</span></p>
+              <p><strong>NFTokenID:</strong> ${nft.NFTokenID}</p>
+              <p><strong>Issuer:</strong> ${nft.Issuer}</p>
+              ${KNOWN_BEAR_ADDRESSES[nft.Issuer] ? `<p class="success"><strong>Known as:</strong> ${KNOWN_BEAR_ADDRESSES[nft.Issuer]}</p>` : ''}
+              <p><strong>Taxon:</strong> ${nft.NFTokenTaxon || 'N/A'}</p>
+            `;
+
+            // Decode URI
+            if (nft.URI) {
+              try {
+                const uriDecoded = Buffer.from(nft.URI, 'hex').toString('utf-8');
+                cardContent += `<p><strong>URI (decoded):</strong> ${uriDecoded}</p>`;
+              } catch (e) {
+                cardContent += `<p><strong>URI (hex):</strong> ${nft.URI}</p>`;
+              }
+            }
+
+            cardContent += '<p><strong>Full NFT Object:</strong></p><pre>' + JSON.stringify(nft, null, 2) + '</pre>';
+
+            logCard(`BEAR-Related NFT Found`, cardContent);
+          }
+        }
+
+        if (bearCount === 0) {
+          log('<p class="error">✗ No BEAR-related NFTs found!</p>');
+          log('<h2>Let me check ALL NFTs for any clues...</h2>');
+
+          // Show first 5 NFTs for analysis
+          const sampleSize = Math.min(5, nfts.result.account_nfts.length);
+          log(`<p>Showing first ${sampleSize} NFTs for manual inspection:</p>`);
+
+          for (let i = 0; i < sampleSize; i++) {
+            const nft = nfts.result.account_nfts[i];
+            let cardContent = `
+              <p><strong>NFTokenID:</strong> ${nft.NFTokenID}</p>
+              <p><strong>Issuer:</strong> ${nft.Issuer}</p>
+              <p><strong>Taxon:</strong> ${nft.NFTokenTaxon || 'N/A'}</p>
+            `;
+
+            if (nft.URI) {
+              try {
+                const uriDecoded = Buffer.from(nft.URI, 'hex').toString('utf-8');
+                cardContent += `<p><strong>URI:</strong> ${uriDecoded}</p>`;
+              } catch (e) {
+                cardContent += `<p><strong>URI (hex):</strong> ${nft.URI}</p>`;
+              }
+            }
+
+            cardContent += '<pre>' + JSON.stringify(nft, null, 2) + '</pre>';
+            logCard(`Sample NFT ${i + 1}`, cardContent);
+          }
+        } else {
+          log(`<h2 class="success">✓ Found ${bearCount} BEAR-related NFT(s)!</h2>`);
+        }
+
+        // Final summary
+        log('<h2>Diagnosis Summary:</h2>');
+        log(`<p>Total NFTs in wallet: ${totalNFTs}</p>`);
+        log(`<p>BEAR-related NFTs found: ${bearCount}</p>`);
+        log(`<p>Current NFT_ISSUER in code: rBEARbo4Prn33894evmvYcAf9yAQjp4VJF</p>`);
+
+        const hasExpectedIssuer = issuerCounts['rBEARbo4Prn33894evmvYcAf9yAQjp4VJF'] > 0;
+        if (hasExpectedIssuer) {
+          log(`<p class="success">✓ Wallet HAS NFTs from expected issuer (rBEARbo4Prn33894evmvYcAf9yAQjp4VJF)</p>`);
+        } else {
+          log(`<p class="error">✗ Wallet has NO NFTs from expected issuer (rBEARbo4Prn33894evmvYcAf9yAQjp4VJF)</p>`);
+          log(`<p class="highlight">⚠ This wallet may have BEAR NFTs from a DIFFERENT issuer!</p>`);
+        }
+
+        await client.disconnect();
+
+      } catch (error) {
+        log(`<p class="error">Error: ${error.message}</p>`);
+        console.error(error);
+      }
+    }
+
+    diagnose();
+  </script>
+</body>
+</html>

@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Check NFT Sell Offers</title>
+  <style>
+    body {
+      font-family: monospace;
+      padding: 20px;
+      background: #1a1a1a;
+      color: #00ff00;
+    }
+    .success { color: #00ff00; }
+    .error { color: #ff0000; }
+    .warning { color: #ffaa00; }
+    pre {
+      background: #000;
+      padding: 10px;
+      overflow-x: auto;
+      border-left: 3px solid #00ff00;
+    }
+  </style>
+</head>
+<body>
+  <h1>NFT Sell Offer Check</h1>
+  <p>Checking NFT: <strong>00081388708483251E9600B5E82453CFF39EF1AADD3B5A8D410D76E5052C034A</strong></p>
+  <p>Wallet: <strong>rU2AviYiGZnWXmgDQ1bpkY8Nak4f3ZQ7Jy</strong></p>
+  <div id="output"></div>
+
+  <script src="https://unpkg.com/xrpl@2.7.0/build/xrpl-latest-min.js"></script>
+  <script>
+    const output = document.getElementById('output');
+    const NFT_ID = '00081388708483251E9600B5E82453CFF39EF1AADD3B5A8D410D76E5052C034A';
+    const WALLET = 'rU2AviYiGZnWXmgDQ1bpkY8Nak4f3ZQ7Jy';
+    const ISSUER = 'rBEARbo4Prn33894evmvYcAf9yAQjp4VJF';
+
+    function log(msg, className = '') {
+      const p = document.createElement('p');
+      p.innerHTML = msg;
+      if (className) p.className = className;
+      output.appendChild(p);
+    }
+
+    async function checkNFT() {
+      try {
+        log('<h2>Connecting to XRPL...</h2>');
+        const client = new xrpl.Client('wss://xrplcluster.com/');
+        await client.connect();
+        log('✓ Connected', 'success');
+
+        // Check 1: Get all NFTs from wallet
+        log('<h2>Step 1: Checking all NFTs in wallet...</h2>');
+        const allNFTs = await client.request({
+          method: 'account_nfts',
+          account: WALLET,
+          ledger_index: 'validated'
+        });
+
+        log(`Total NFTs in wallet: ${allNFTs.result.account_nfts?.length || 0}`);
+
+        const targetNFT = allNFTs.result.account_nfts?.find(nft => nft.NFTokenID === NFT_ID);
+
+        if (targetNFT) {
+          log('✓ NFT FOUND in account_nfts query!', 'success');
+          log('<pre>' + JSON.stringify(targetNFT, null, 2) + '</pre>');
+        } else {
+          log('✗ NFT NOT FOUND in account_nfts query', 'error');
+        }
+
+        // Check 2: Check for BEAR issuer NFTs
+        log('<h2>Step 2: Checking BEAR issuer NFTs...</h2>');
+        const bearNFTs = allNFTs.result.account_nfts?.filter(nft => nft.Issuer === ISSUER) || [];
+        log(`BEAR NFTs from issuer ${ISSUER}: ${bearNFTs.length}`, bearNFTs.length > 0 ? 'success' : 'error');
+
+        if (bearNFTs.length > 0) {
+          log('<h3>BEAR NFTs found:</h3>');
+          bearNFTs.forEach((nft, i) => {
+            log(`<p>BEAR NFT ${i + 1}: ${nft.NFTokenID}</p>`);
+            if (nft.NFTokenID === NFT_ID) {
+              log('  ← THIS IS THE TARGET NFT!', 'warning');
+            }
+          });
+        }
+
+        // Check 3: Check for sell offers on the specific NFT
+        log('<h2>Step 3: Checking sell offers...</h2>');
+        try {
+          const sellOffers = await client.request({
+            method: 'nft_sell_offers',
+            nft_id: NFT_ID
+          });
+
+          if (sellOffers.result.offers && sellOffers.result.offers.length > 0) {
+            log(`⚠ FOUND ${sellOffers.result.offers.length} SELL OFFER(S)!`, 'warning');
+            log('<pre>' + JSON.stringify(sellOffers.result.offers, null, 2) + '</pre>');
+            log('<p class="warning">⚠ NFTs with active sell offers may not authenticate properly!</p>');
+          } else {
+            log('✓ No sell offers found', 'success');
+          }
+        } catch (err) {
+          if (err.data?.error === 'objectNotFound') {
+            log('✓ No sell offers found', 'success');
+          } else {
+            log(`Error checking sell offers: ${err.message}`, 'error');
+          }
+        }
+
+        // Check 4: Check for buy offers
+        log('<h2>Step 4: Checking buy offers...</h2>');
+        try {
+          const buyOffers = await client.request({
+            method: 'nft_buy_offers',
+            nft_id: NFT_ID
+          });
+
+          if (buyOffers.result.offers && buyOffers.result.offers.length > 0) {
+            log(`Found ${buyOffers.result.offers.length} buy offer(s)`, 'warning');
+            log('<pre>' + JSON.stringify(buyOffers.result.offers, null, 2) + '</pre>');
+          } else {
+            log('✓ No buy offers found', 'success');
+          }
+        } catch (err) {
+          if (err.data?.error === 'objectNotFound') {
+            log('✓ No buy offers found', 'success');
+          } else {
+            log(`Error checking buy offers: ${err.message}`, 'error');
+          }
+        }
+
+        // Final summary
+        log('<h2>SUMMARY:</h2>');
+        log(`<p>NFT in wallet query: ${targetNFT ? '✓ YES' : '✗ NO'}</p>`);
+        log(`<p>BEAR NFTs from correct issuer: ${bearNFTs.length}</p>`);
+        log(`<p>Issuer: ${ISSUER}</p>`);
+
+        if (!targetNFT && bearNFTs.length === 0) {
+          log('<p class="error">⚠ PROBLEM CONFIRMED: This wallet has the NFT according to Bithomp, but XRPL query returns 0 BEAR NFTs!</p>');
+          log('<p class="warning">Possible causes:</p>');
+          log('<ul>');
+          log('<li>Active sell offer preventing detection</li>');
+          log('<li>NFT locked in escrow</li>');
+          log('<li>Recent transfer not yet reflected</li>');
+          log('<li>XRPL node sync issue</li>');
+          log('</ul>');
+        }
+
+        await client.disconnect();
+
+      } catch (error) {
+        log(`<p class="error">Error: ${error.message}</p>`);
+        console.error(error);
+      }
+    }
+
+    checkNFT();
+  </script>
+</body>
+</html>

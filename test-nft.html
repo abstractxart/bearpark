@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>NFT Debug Test</title>
+</head>
+<body>
+  <h1>Testing NFTs for wallet: rU2AviYiGZnWXmgDQ1bpkY8Nak4f3ZQ7Jy</h1>
+  <button id="testBtn">Check NFTs</button>
+  <pre id="output"></pre>
+
+  <script src="https://unpkg.com/xrpl@3.0.0/build/xrpl-latest-min.js"></script>
+  <script>
+    const NFT_ISSUER = 'rBEARbo4Prn33894evmvYcAf9yAQjp4VJF';
+    const WALLET_ADDRESS = 'rU2AviYiGZnWXmgDQ1bpkY8Nak4f3ZQ7Jy';
+    const SPECIFIC_NFT_ID = '00081388708483251E9600B5E82453CFF39EF1AADD3B5A8D410D76E5052C034A';
+
+    document.getElementById('testBtn').addEventListener('click', async () => {
+      const output = document.getElementById('output');
+      output.textContent = 'Checking...\n';
+
+      try {
+        const client = new xrpl.Client('wss://xrplcluster.com');
+        await client.connect();
+        output.textContent += 'Connected to XRPL\n\n';
+
+        // First, check if the specific NFT exists
+        output.textContent += `Searching for specific NFT: ${SPECIFIC_NFT_ID}\n\n`;
+
+        const nfts = await client.request({
+          method: 'account_nfts',
+          account: WALLET_ADDRESS,
+          ledger_index: 'validated'
+        });
+
+        output.textContent += `Total NFTs found: ${nfts.result.account_nfts?.length || 0}\n\n`;
+
+        if (nfts.result.account_nfts && nfts.result.account_nfts.length > 0) {
+          // Search for the specific NFT
+          const specificNFT = nfts.result.account_nfts.find(nft => nft.NFTokenID === SPECIFIC_NFT_ID);
+
+          if (specificNFT) {
+            output.textContent += '✓ FOUND THE SPECIFIC NFT!\n';
+            output.textContent += JSON.stringify(specificNFT, null, 2) + '\n\n';
+          } else {
+            output.textContent += '✗ Specific NFT NOT found in wallet\n\n';
+          }
+
+          const uniqueIssuers = [...new Set(nfts.result.account_nfts.map(nft => nft.Issuer))];
+          output.textContent += `Unique Issuers: ${JSON.stringify(uniqueIssuers, null, 2)}\n\n`;
+          output.textContent += `Looking for issuer: ${NFT_ISSUER}\n\n`;
+
+          const bearNFTs = nfts.result.account_nfts.filter(nft => nft.Issuer === NFT_ISSUER);
+          output.textContent += `BEAR NFTs found: ${bearNFTs.length}\n`;
+
+          if (bearNFTs.length > 0) {
+            output.textContent += 'BEAR NFTs:\n';
+            output.textContent += JSON.stringify(bearNFTs, null, 2);
+          }
+        } else {
+          output.textContent += 'No NFTs found in wallet\n';
+        }
+
+        await client.disconnect();
+      } catch (error) {
+        output.textContent += `Error: ${error.message}\n`;
+        output.textContent += JSON.stringify(error, null, 2);
+      }
+    });
+  </script>
+</body>
+</html>

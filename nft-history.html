@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>NFT Transaction History</title>
+  <style>
+    body {
+      font-family: monospace;
+      padding: 20px;
+      background: #1a1a1a;
+      color: #00ff00;
+    }
+    .success { color: #00ff00; }
+    .error { color: #ff0000; }
+    .warning { color: #ffaa00; }
+    .highlight { background: #ffff00; color: #000; padding: 2px 5px; }
+    pre {
+      background: #000;
+      padding: 10px;
+      overflow-x: auto;
+      border-left: 3px solid #00ff00;
+    }
+    .tx-card {
+      background: #2a2a2a;
+      border: 2px solid #00ff00;
+      padding: 15px;
+      margin: 15px 0;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <h1>NFT Transaction History Tracker</h1>
+  <p>NFT: <strong>00081388708483251E9600B5E82453CFF39EF1AADD3B5A8D410D76E5052C034A</strong></p>
+  <div id="output"></div>
+
+  <script src="https://unpkg.com/xrpl@2.7.0/build/xrpl-latest-min.js"></script>
+  <script>
+    const output = document.getElementById('output');
+    const NFT_ID = '00081388708483251E9600B5E82453CFF39EF1AADD3B5A8D410D76E5052C034A';
+    const TARGET_WALLET = 'rU2AviYiGZnWXmgDQ1bpkY8Nak4f3ZQ7Jy';
+
+    function log(msg, className = '') {
+      const p = document.createElement('p');
+      p.innerHTML = msg;
+      if (className) p.className = className;
+      output.appendChild(p);
+    }
+
+    function addCard(content) {
+      const card = document.createElement('div');
+      card.className = 'tx-card';
+      card.innerHTML = content;
+      output.appendChild(card);
+    }
+
+    async function trackNFT() {
+      try {
+        log('<h2>Connecting to XRPL...</h2>');
+        const client = new xrpl.Client('wss://xrplcluster.com/');
+        await client.connect();
+        log('✓ Connected', 'success');
+
+        // First, let's extract the account from the NFT ID
+        // NFT Token ID structure: [flags(2)] + [fee(2)] + [issuer(40)] + [taxon(8)] + [sequence(8)]
+        log('<h2>Decoding NFT ID...</h2>');
+        const flags = NFT_ID.substring(0, 4);
+        const transferFee = NFT_ID.substring(4, 8);
+        const issuerHex = NFT_ID.substring(8, 48);
+        const taxon = NFT_ID.substring(48, 56);
+        const sequence = NFT_ID.substring(56, 64);
+
+        log(`Flags: ${flags}`);
+        log(`Transfer Fee: ${parseInt(transferFee, 16) / 1000}%`);
+        log(`Issuer (hex): ${issuerHex}`);
+        log(`Taxon: ${parseInt(taxon, 16)}`);
+        log(`Sequence: ${parseInt(sequence, 16)}`);
+
+        // Convert issuer hex to address
+        // This is complex, so let's just use the known issuer
+        log(`<p>Issuer: rBEARbo4Prn33894evmvYcAf9yAQjp4VJF</p>`);
+
+        // Get account transactions for the target wallet
+        log('<h2>Searching for NFT-related transactions...</h2>');
+        log('<p>Checking transactions for: ' + TARGET_WALLET + '</p>');
+
+        const txResponse = await client.request({
+          command: 'account_tx',
+          account: TARGET_WALLET,
+          ledger_index_min: -1,
+          ledger_index_max: -1,
+          limit: 100,
+          forward: false
+        });
+
+        log(`Found ${txResponse.result.transactions.length} recent transactions`);
+
+        // Filter for NFT-related transactions
+        const nftTxs = txResponse.result.transactions.filter(tx => {
+          const type = tx.tx.TransactionType;
+          return type === 'NFTokenMint' ||
+                 type === 'NFTokenBurn' ||
+                 type === 'NFTokenAcceptOffer' ||
+                 type === 'NFTokenCreateOffer' ||
+                 type === 'NFTokenCancelOffer';
+        });
+
+        log(`<p>NFT-related transactions: ${nftTxs.length}</p>`);
+
+        // Look for our specific NFT
+        let foundTargetNFT = false;
+        nftTxs.forEach((txData, i) => {
+          const tx = txData.tx;
+          const meta = txData.meta;
+
+          if (tx.NFTokenID === NFT_ID ||
+              (meta.nftoken_id && meta.nftoken_id === NFT_ID) ||
+              (tx.NFTokenOffers && tx.NFTokenOffers.includes(NFT_ID))) {
+
+            foundTargetNFT = true;
+
+            let cardContent = `
+              <h3 class="warning">⚠ TRANSACTION FOUND FOR TARGET NFT!</h3>
+              <p><strong>Type:</strong> ${tx.TransactionType}</p>
+              <p><strong>Date:</strong> ${txData.date ? new Date(txData.date * 1000 + 946684800000).toLocaleString() : 'Unknown'}</p>
+              <p><strong>Hash:</strong> ${tx.hash}</p>
+              <p><strong>Account:</strong> ${tx.Account}</p>
+            `;
+
+            if (tx.Destination) {
+              cardContent += `<p><strong>Destination:</strong> ${tx.Destination}</p>`;
+              if (tx.Destination !== TARGET_WALLET) {
+                cardContent += `<p class="error">⚠ NFT was transferred TO: ${tx.Destination}</p>`;
+              }
+            }
+
+            if (meta && meta.TransactionResult) {
+              cardContent += `<p><strong>Result:</strong> ${meta.TransactionResult}</p>`;
+            }
+
+            cardContent += '<details><summary>Full Transaction</summary><pre>' + JSON.stringify(tx, null, 2) + '</pre></details>';
+
+            addCard(cardContent);
+          }
+        });
+
+        if (!foundTargetNFT) {
+          log('<p class="warning">⚠ No transactions found for this NFT in recent history</p>');
+          log('<p>This could mean:</p>');
+          log('<ul>');
+          log('<li>The NFT was acquired more than 100 transactions ago</li>');
+          log('<li>The NFT is listed on a marketplace using a broker model</li>');
+          log('<li>The transaction limit needs to be increased</li>');
+          log('</ul>');
+
+          // Try to find any BEAR NFT transactions
+          log('<h2>Checking for ANY BEAR NFT transactions...</h2>');
+          if (nftTxs.length > 0) {
+            nftTxs.slice(0, 5).forEach((txData, i) => {
+              const tx = txData.tx;
+              addCard(`
+                <h3>NFT Transaction ${i + 1}</h3>
+                <p><strong>Type:</strong> ${tx.TransactionType}</p>
+                <p><strong>NFT ID:</strong> ${tx.NFTokenID || 'N/A'}</p>
+                <p><strong>Date:</strong> ${txData.date ? new Date(txData.date * 1000 + 946684800000).toLocaleString() : 'Unknown'}</p>
+              `);
+            });
+          }
+        }
+
+        // CRITICAL CHECK: Let's see what NFTs are ACTUALLY in the wallet right now
+        log('<h2>CRITICAL: Current NFT holdings in wallet...</h2>');
+        const currentNFTs = await client.request({
+          method: 'account_nfts',
+          account: TARGET_WALLET,
+          ledger_index: 'validated'
+        });
+
+        const bearIssuer = 'rBEARbo4Prn33894evmvYcAf9yAQjp4VJF';
+        const bearNFTs = currentNFTs.result.account_nfts.filter(nft => nft.Issuer === bearIssuer);
+
+        log(`<p>Total NFTs currently in wallet: ${currentNFTs.result.account_nfts.length}</p>`);
+        log(`<p class="${bearNFTs.length > 0 ? 'success' : 'error'}">BEAR NFTs currently in wallet: ${bearNFTs.length}</p>`);
+
+        if (bearNFTs.length > 0) {
+          log('<h3>BEAR NFTs found:</h3>');
+          bearNFTs.forEach((nft, i) => {
+            const isTarget = nft.NFTokenID === NFT_ID;
+            log(`<p${isTarget ? ' class="highlight"' : ''}>${i + 1}. ${nft.NFTokenID} ${isTarget ? '← TARGET NFT!' : ''}</p>`);
+          });
+        }
+
+        log('<h2>🔍 FINAL DIAGNOSIS:</h2>');
+        addCard(`
+          <h3>NFT Status Summary</h3>
+          <p><strong>NFT ID:</strong> ${NFT_ID}</p>
+          <p><strong>Expected Owner:</strong> ${TARGET_WALLET}</p>
+          <p><strong>Bithomp shows:</strong> <span class="success">Owned by wallet</span></p>
+          <p><strong>XRPL ledger shows:</strong> <span class="error">NOT in wallet</span></p>
+          <p><strong>BEAR NFTs in wallet:</strong> ${bearNFTs.length}</p>
+          <hr>
+          <p class="error"><strong>CONCLUSION:</strong> The NFT is NOT currently in this wallet according to the XRPL ledger.</p>
+          <p class="warning">User needs to check:</p>
+          <ul>
+            <li>Is the NFT listed on a marketplace? (onXRP, xrp.cafe, Sologenic, etc.)</li>
+            <li>Was it recently sold or transferred?</li>
+            <li>Is it in a different wallet?</li>
+            <li>Check marketplace history for active listings</li>
+          </ul>
+        `);
+
+        await client.disconnect();
+
+      } catch (error) {
+        log(`<p class="error">Error: ${error.message}</p>`);
+        console.error(error);
+      }
+    }
+
+    trackNFT();
+  </script>
+</body>
+</html>

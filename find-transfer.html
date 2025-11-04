@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Find NFT Transfer</title>
+  <style>
+    body {
+      font-family: monospace;
+      padding: 20px;
+      background: #1a1a1a;
+      color: #00ff00;
+    }
+    .success { color: #00ff00; font-weight: bold; }
+    .error { color: #ff0000; font-weight: bold; }
+    .warning { color: #ffaa00; font-weight: bold; }
+    .highlight { background: #ffff00; color: #000; padding: 5px; }
+    pre {
+      background: #000;
+      padding: 10px;
+      overflow-x: auto;
+      border-left: 3px solid #00ff00;
+      font-size: 12px;
+    }
+    .tx-card {
+      background: #2a2a2a;
+      border: 2px solid #00ff00;
+      padding: 15px;
+      margin: 15px 0;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔍 Where Did The NFT Go?</h1>
+  <p>NFT: <strong>00081388708483251E9600B5E82453CFF39EF1AADD3B5A8D410D76E5052C034A</strong></p>
+  <p>User Wallet: <strong>rU2AviYiGZnWXmgDQ1bpkY8Nak4f3ZQ7Jy</strong></p>
+  <div id="output"></div>
+
+  <script src="https://unpkg.com/xrpl@2.7.0/build/xrpl-latest-min.js"></script>
+  <script>
+    const output = document.getElementById('output');
+    const NFT_ID = '00081388708483251E9600B5E82453CFF39EF1AADD3B5A8D410D76E5052C034A';
+    const USER_WALLET = 'rU2AviYiGZnWXmgDQ1bpkY8Nak4f3ZQ7Jy';
+
+    function log(msg, className = '') {
+      const p = document.createElement('p');
+      p.innerHTML = msg;
+      if (className) p.className = className;
+      output.appendChild(p);
+    }
+
+    function addCard(title, content, className = '') {
+      const card = document.createElement('div');
+      card.className = 'tx-card ' + className;
+      card.innerHTML = `<h3>${title}</h3>${content}`;
+      output.appendChild(card);
+    }
+
+    async function findNFT() {
+      try {
+        log('<h2>Connecting to XRPL...</h2>');
+        const client = new xrpl.Client('wss://xrplcluster.com/');
+        await client.connect();
+        log('✓ Connected', 'success');
+
+        log('<h2>Step 1: Get ALL NFT transactions (up to 400)...</h2>');
+
+        let allTransactions = [];
+        let marker = undefined;
+        let fetchCount = 0;
+        const maxFetches = 4; // Get up to 400 transactions (100 * 4)
+
+        // Fetch transactions in batches
+        while (fetchCount < maxFetches) {
+          const request = {
+            command: 'account_tx',
+            account: USER_WALLET,
+            ledger_index_min: -1,
+            ledger_index_max: -1,
+            limit: 100,
+            forward: false
+          };
+
+          if (marker) {
+            request.marker = marker;
+          }
+
+          const response = await client.request(request);
+          allTransactions = allTransactions.concat(response.result.transactions);
+
+          marker = response.result.marker;
+          fetchCount++;
+
+          if (!marker) {
+            log(`Fetched all ${allTransactions.length} transactions`);
+            break;
+          }
+        }
+
+        log(`<p class="success">Total transactions fetched: ${allTransactions.length}</p>`);
+
+        // Filter for NFT transactions involving our NFT
+        log('<h2>Step 2: Finding transactions for target NFT...</h2>');
+
+        const targetNFTTransactions = [];
+
+        allTransactions.forEach((txData) => {
+          const tx = txData.tx;
+          const meta = txData.meta;
+
+          // Check if this transaction involves our NFT
+          let involvesTargetNFT = false;
+
+          // Check direct NFTokenID field
+          if (tx.NFTokenID === NFT_ID) {
+            involvesTargetNFT = true;
+          }
+
+          // Check NFTokenSellOffer or NFTokenBuyOffer
+          if (tx.NFTokenSellOffer || tx.NFTokenBuyOffer) {
+            involvesTargetNFT = true; // We'll verify this by checking metadata
+          }
+
+          // Check in metadata for NFToken changes
+          if (meta && meta.AffectedNodes) {
+            meta.AffectedNodes.forEach(node => {
+              const nodeData = node.CreatedNode || node.ModifiedNode || node.DeletedNode;
+              if (nodeData && nodeData.LedgerEntryType === 'NFTokenPage') {
+                const finalFields = nodeData.FinalFields || nodeData.NewFields || {};
+                const previousFields = nodeData.PreviousFields || {};
+
+                // Check NFTokens array
+                if (finalFields.NFTokens) {
+                  finalFields.NFTokens.forEach(nft => {
+                    if (nft.NFToken && nft.NFToken.NFTokenID === NFT_ID) {
+                      involvesTargetNFT = true;
+                    }
+                  });
+                }
+                if (previousFields.NFTokens) {
+                  previousFields.NFTokens.forEach(nft => {
+                    if (nft.NFToken && nft.NFToken.NFTokenID === NFT_ID) {
+                      involvesTargetNFT = true;
+                    }
+                  });
+                }
+              }
+
+              // Check NFTokenOffer nodes
+              if (nodeData && nodeData.LedgerEntryType === 'NFTokenOffer') {
+                const finalFields = nodeData.FinalFields || nodeData.NewFields || {};
+                if (finalFields.NFTokenID === NFT_ID) {
+                  involvesTargetNFT = true;
+                }
+              }
+            });
+          }
+
+          if (involvesTargetNFT) {
+            targetNFTTransactions.push(txData);
+          }
+        });
+
+        log(`<p class="warning">Found ${targetNFTTransactions.length} transactions involving this NFT</p>`);
+
+        // Display all transactions in chronological order (most recent first)
+        if (targetNFTTransactions.length > 0) {
+          log('<h2>Step 3: Analyzing each transaction...</h2>');
+
+          targetNFTTransactions.forEach((txData, index) => {
+            const tx = txData.tx;
+            const meta = txData.meta;
+
+            let cardContent = `
+              <p><strong>Transaction #${index + 1}</strong> (Most recent first)</p>
+              <p><strong>Type:</strong> <span class="warning">${tx.TransactionType}</span></p>
+              <p><strong>Hash:</strong> ${tx.hash}</p>
+              <p><strong>From:</strong> ${tx.Account}</p>
+            `;
+
+            if (tx.Destination) {
+              cardContent += `<p><strong>To:</strong> ${tx.Destination}</p>`;
+            }
+
+            if (meta && meta.TransactionResult) {
+              const resultClass = meta.TransactionResult === 'tesSUCCESS' ? 'success' : 'error';
+              cardContent += `<p><strong>Result:</strong> <span class="${resultClass}">${meta.TransactionResult}</span></p>`;
+            }
+
+            // Analyze what happened
+            let analysis = '';
+            if (tx.TransactionType === 'NFTokenAcceptOffer') {
+              if (tx.Account === USER_WALLET) {
+                analysis = '📥 User BOUGHT/RECEIVED this NFT';
+              } else {
+                analysis = '📤 User SOLD this NFT to ' + tx.Account;
+              }
+            } else if (tx.TransactionType === 'NFTokenCreateOffer') {
+              if (tx.Account === USER_WALLET) {
+                analysis = '📋 User LISTED this NFT for sale';
+              } else {
+                analysis = '👀 Someone created an offer for this NFT';
+              }
+            } else if (tx.TransactionType === 'NFTokenCancelOffer') {
+              analysis = '❌ Offer cancelled';
+            }
+
+            if (analysis) {
+              cardContent += `<p class="highlight">${analysis}</p>`;
+            }
+
+            cardContent += '<details><summary>Full Transaction Data</summary><pre>' + JSON.stringify(tx, null, 2) + '</pre></details>';
+
+            addCard(`Transaction ${index + 1}`, cardContent);
+          });
+
+          // Determine where NFT went
+          log('<h2>🎯 FINAL ANALYSIS:</h2>');
+
+          const lastTx = targetNFTTransactions[0]; // Most recent
+          const lastTxType = lastTx.tx.TransactionType;
+          const lastTxAccount = lastTx.tx.Account;
+
+          if (lastTxType === 'NFTokenAcceptOffer' && lastTxAccount !== USER_WALLET) {
+            addCard('💡 ANSWER FOUND', `
+              <p class="error">The NFT was SOLD!</p>
+              <p><strong>Buyer:</strong> ${lastTxAccount}</p>
+              <p><strong>Transaction:</strong> ${lastTx.tx.hash}</p>
+              <p>The user no longer owns this NFT. It was sold to another wallet.</p>
+            `, 'highlight');
+          } else if (lastTxType === 'NFTokenCreateOffer' && lastTxAccount === USER_WALLET) {
+            addCard('💡 POSSIBLE ANSWER', `
+              <p class="warning">The NFT might be listed on a marketplace!</p>
+              <p>The last action was the user creating an offer.</p>
+              <p>Check these marketplaces:</p>
+              <ul>
+                <li>xrp.cafe</li>
+                <li>onXRP.com</li>
+                <li>Sologenic DEX</li>
+                <li>NFT-Master</li>
+              </ul>
+              <p>The user should connect their wallet and check for active listings.</p>
+            `, 'highlight');
+          } else if (lastTxType === 'NFTokenAcceptOffer' && lastTxAccount === USER_WALLET) {
+            addCard('💡 MYSTERY', `
+              <p class="warning">The user accepted an offer (bought the NFT) but it's not in their wallet anymore.</p>
+              <p>This suggests either:</p>
+              <ul>
+                <li>There's a more recent transaction we didn't capture</li>
+                <li>The NFT is in a marketplace escrow</li>
+                <li>Bithomp is showing cached data</li>
+              </ul>
+            `, 'highlight');
+          }
+
+        } else {
+          log('<p class="error">No transactions found for this NFT!</p>');
+        }
+
+        await client.disconnect();
+
+      } catch (error) {
+        log(`<p class="error">Error: ${error.message}</p>`, 'error');
+        console.error(error);
+      }
+    }
+
+    findNFT();
+  </script>
+</body>
+</html>
