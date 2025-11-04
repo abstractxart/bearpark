@@ -91,22 +91,33 @@
       const spinnerEl = document.getElementById('spinner');
       const returnBtn = document.getElementById('returnBtn');
 
+      console.log('Twitter callback page loaded');
+
       // Parse URL parameters
       const urlParams = new URLSearchParams(window.location.search);
       const code = urlParams.get('code');
       const state = urlParams.get('state');
       const error = urlParams.get('error');
 
+      console.log('URL params:', {
+        hasCode: !!code,
+        hasState: !!state,
+        hasError: !!error,
+        fullUrl: window.location.href
+      });
+
       // Check for errors from Twitter
       if (error) {
+        console.error('Twitter OAuth error:', error);
         spinnerEl.style.display = 'none';
         statusEl.className = 'status error';
-        statusEl.textContent = 'Twitter authorization was cancelled or failed.';
+        statusEl.textContent = 'Twitter authorization was cancelled or failed: ' + error;
         returnBtn.style.display = 'block';
         return;
       }
 
       if (!code) {
+        console.error('No code in URL');
         spinnerEl.style.display = 'none';
         statusEl.className = 'status error';
         statusEl.textContent = 'Invalid callback - no authorization code received.';
@@ -114,15 +125,27 @@
         return;
       }
 
+      if (!state) {
+        console.error('No state in URL');
+        spinnerEl.style.display = 'none';
+        statusEl.className = 'status error';
+        statusEl.textContent = 'Invalid callback - no state parameter received.';
+        returnBtn.style.display = 'block';
+        return;
+      }
+
       try {
+        console.log('Decoding state...');
         // Decode state to get wallet address
         const stateData = JSON.parse(atob(state));
+        console.log('State decoded:', stateData);
         const walletAddress = stateData.wallet_address;
 
         if (!walletAddress) {
           throw new Error('No wallet address in state');
         }
 
+        console.log('Sending POST request to /api/auth/twitter...');
         // Send code to backend API
         const response = await fetch('/api/auth/twitter', {
           method: 'POST',
@@ -136,7 +159,9 @@
           })
         });
 
+        console.log('Response status:', response.status);
         const result = await response.json();
+        console.log('Response data:', result);
 
         spinnerEl.style.display = 'none';
 
@@ -161,10 +186,15 @@
         }
 
       } catch (error) {
-        console.error('Error:', error);
+        console.error('Callback error:', error);
+        console.error('Error stack:', error.stack);
         spinnerEl.style.display = 'none';
         statusEl.className = 'status error';
-        statusEl.textContent = '❌ An error occurred: ' + error.message;
+        statusEl.innerHTML = `
+          <div>❌ An error occurred</div>
+          <div style="margin-top:8px; font-size:14px;">${error.message}</div>
+          <div style="margin-top:8px; font-size:12px; opacity:0.8;">Check browser console (F12) for details</div>
+        `;
         returnBtn.style.display = 'block';
       }
     })();
