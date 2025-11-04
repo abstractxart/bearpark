@@ -251,7 +251,7 @@
   .drawer.open{ transform:translateX(0) }
   .drawer-scrim{ position:fixed; inset:0; background:rgba(0,0,0,.55); backdrop-filter:blur(2px); z-index:65 }
   .drawer-head{ position:sticky; top:0; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 18px; border-bottom:4px solid #000; background:#0f1114 }
-  .drawer-body{ padding:12px; overflow:auto; display:grid; gap:10px }
+  .drawer-body{ padding:12px 12px 20px 12px; overflow:auto; display:grid; gap:10px }
 
   .btn.sm{ font-size:16px; padding:.6rem .9rem; border-radius:14px; box-shadow:0 6px 0 #000,0 12px 18px rgba(0,0,0,.35) }
 
@@ -629,7 +629,7 @@
       </div>
 
       <!-- DISCONNECT BUTTONS -->
-      <div id="disconnectButtons" style="display:none; gap:10px; grid-template-columns:1fr 1fr;">
+      <div id="disconnectButtons" style="display:grid; gap:10px; grid-template-columns:1fr 1fr; margin-top:10px;">
         <button id="disconnectTwitterBtn" class="btn ghost sm" style="width:100%; font-size:13px; padding:10px;">
           Disconnect Twitter
         </button>
@@ -1189,6 +1189,18 @@
       portfolioSection.style.display = 'block';
       connectedWalletAddress.textContent = walletAddress;
 
+      // Check if xrpl library is loaded
+      if (typeof xrpl === 'undefined') {
+        console.error('XRPL library not loaded yet, will retry...');
+        document.getElementById('portfolioBearAmount').textContent = 'Loading...';
+        document.getElementById('portfolioUsdValue').textContent = 'Loading...';
+        document.getElementById('portfolioXrpValue').textContent = 'Loading...';
+
+        // Retry after 1 second
+        setTimeout(loadPortfolioData, 1000);
+        return;
+      }
+
       try {
         console.log('Starting XRPL connection...');
         // Connect to XRPL with fallback nodes
@@ -1297,8 +1309,6 @@
     }
 
     async function loadPointsData(walletAddress) {
-      const disconnectButtonsSection = document.getElementById('disconnectButtons');
-
       try {
         const response = await fetch(`/api/points/${walletAddress}`);
         const data = await response.json();
@@ -1309,9 +1319,6 @@
           document.getElementById('pointsNotConnected').style.display = 'none';
           document.getElementById('totalPoints').textContent = data.total_points;
           document.getElementById('connectedTwitter').textContent = data.twitter_username;
-
-          // Show disconnect buttons when Twitter is connected
-          disconnectButtonsSection.style.display = 'grid';
 
           // Load activity
           const activityList = document.getElementById('activityList');
@@ -1337,16 +1344,12 @@
           // Show not connected state
           document.getElementById('pointsConnected').style.display = 'none';
           document.getElementById('pointsNotConnected').style.display = 'block';
-          // Still show disconnect buttons (at least wallet disconnect)
-          disconnectButtonsSection.style.display = 'grid';
         }
       } catch (err) {
         console.error('Error loading points:', err);
         // Show not connected state on error
         document.getElementById('pointsConnected').style.display = 'none';
         document.getElementById('pointsNotConnected').style.display = 'block';
-        // Still show disconnect buttons
-        disconnectButtonsSection.style.display = 'grid';
       }
     }
 
