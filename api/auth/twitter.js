@@ -6,6 +6,24 @@ const supabase = createClient(
   process.env.SUPABASE_KEY
 );
 
+// Helper to parse body if needed
+async function parseBody(req) {
+  if (req.body) return req.body;
+
+  return new Promise((resolve, reject) => {
+    let data = '';
+    req.on('data', chunk => { data += chunk; });
+    req.on('end', () => {
+      try {
+        resolve(JSON.parse(data));
+      } catch (e) {
+        resolve({});
+      }
+    });
+    req.on('error', reject);
+  });
+}
+
 export default async function handler(req, res) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -54,9 +72,14 @@ export default async function handler(req, res) {
 
   // Step 2: Handle OAuth callback (POST request)
   if (req.method === 'POST') {
-    const { code, state, wallet_address } = req.body;
+    // Parse body manually if needed
+    const body = await parseBody(req);
+    console.log('Parsed request body:', body);
+
+    const { code, state, wallet_address } = body;
 
     if (!code || !wallet_address) {
+      console.error('Missing parameters:', { hasCode: !!code, hasWallet: !!wallet_address });
       return res.status(400).json({ error: 'Missing code or wallet_address' });
     }
 
