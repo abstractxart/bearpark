@@ -61,6 +61,8 @@ export default async function handler(req, res) {
     }
 
     try {
+      console.log('Starting Twitter OAuth process for wallet:', wallet_address);
+
       // Exchange code for access token
       const tokenResponse = await fetch('https://api.twitter.com/2/oauth2/token', {
         method: 'POST',
@@ -78,12 +80,16 @@ export default async function handler(req, res) {
         })
       });
 
+      console.log('Twitter token response status:', tokenResponse.status);
+
       if (!tokenResponse.ok) {
         const errorData = await tokenResponse.json();
+        console.error('Twitter OAuth token error:', errorData);
         throw new Error(`Twitter OAuth failed: ${JSON.stringify(errorData)}`);
       }
 
       const tokens = await tokenResponse.json();
+      console.log('Successfully received tokens');
 
       // Get Twitter user info
       const userResponse = await fetch('https://api.twitter.com/2/users/me', {
@@ -92,23 +98,34 @@ export default async function handler(req, res) {
         }
       });
 
+      console.log('Twitter user response status:', userResponse.status);
+
       if (!userResponse.ok) {
+        const errorText = await userResponse.text();
+        console.error('Twitter user fetch error:', errorText);
         throw new Error('Failed to get Twitter user info');
       }
 
       const { data: twitterUser } = await userResponse.json();
+      console.log('Successfully fetched Twitter user:', twitterUser.username);
 
       // Check for pending tweets from this Twitter user
-      const { data: pendingTweets } = await supabase
+      const { data: pendingTweets, error: pendingError } = await supabase
         .from('pending_tweets')
         .select('*')
         .eq('twitter_user_id', twitterUser.id)
         .eq('claimed', false);
 
+      if (pendingError) {
+        console.error('Error fetching pending tweets:', pendingError);
+      }
+
       // Calculate pending points
       const pendingPoints = pendingTweets
         ? pendingTweets.reduce((sum, tweet) => sum + (tweet.points_pending || 0), 0)
         : 0;
+
+      console.log('Found pending points:', pendingPoints);
 
       // Check if user already exists (don't throw error if not found)
       const { data: existingUser, error: existingUserError } = await supabase
@@ -117,9 +134,17 @@ export default async function handler(req, res) {
         .eq('wallet_address', wallet_address)
         .maybeSingle(); // Use maybeSingle() instead of single() to avoid error when user doesn't exist
 
+      if (existingUserError) {
+        console.error('Error fetching existing user:', existingUserError);
+      }
+
+      console.log('Existing user:', existingUser ? 'Found' : 'Not found');
+
       // Calculate new total points
       const currentPoints = existingUser ? (existingUser.total_points || 0) : 0;
       const newTotalPoints = currentPoints + pendingPoints;
+
+      console.log('Updating user points:', { currentPoints, pendingPoints, newTotalPoints });
 
       // Upsert user in database
       const { data: user, error: upsertError } = await supabase
@@ -139,8 +164,11 @@ export default async function handler(req, res) {
         .single();
 
       if (upsertError) {
+        console.error('Upsert error:', upsertError);
         throw upsertError;
       }
+
+      console.log('User upserted successfully:', user.wallet_address);
 
       // Mark pending tweets as claimed
       if (pendingTweets && pendingTweets.length > 0) {
@@ -162,13 +190,15 @@ export default async function handler(req, res) {
         await supabase.from('point_transactions').insert(transactions);
       }
 
+      console.log('Twitter connection complete!');
+
       return res.status(200).json({
         success: true,
         message: 'Twitter connected successfully',
         user: {
           wallet_address,
           twitter_username: twitterUser.username,
-          total_points: user.total_points + pendingPoints,
+          total_points: user.total_points, // Already includes pending points
           claimed_points: pendingPoints
         }
       });
