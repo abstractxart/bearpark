@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Connecting Twitter - BEAR Park</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    .container {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      padding: 40px;
+      max-width: 500px;
+      width: 100%;
+      text-align: center;
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 20px;
+      font-size: 24px;
+    }
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #667eea;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 20px auto;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .status {
+      margin-top: 20px;
+      padding: 12px;
+      border-radius: 8px;
+      font-weight: 600;
+    }
+    .success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    .error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    button {
+      margin-top: 20px;
+      padding: 12px 24px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    button:hover {
+      transform: translateY(-2px);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🐻 Connecting Twitter Account</h1>
+    <div id="spinner" class="spinner"></div>
+    <div id="status"></div>
+    <button id="returnBtn" style="display:none;" onclick="window.location.href='/main.html'">
+      Return to BEAR Park
+    </button>
+  </div>
+
+  <script>
+    (async function() {
+      const statusEl = document.getElementById('status');
+      const spinnerEl = document.getElementById('spinner');
+      const returnBtn = document.getElementById('returnBtn');
+
+      // Parse URL parameters
+      const urlParams = new URLSearchParams(window.location.search);
+      const code = urlParams.get('code');
+      const state = urlParams.get('state');
+      const error = urlParams.get('error');
+
+      // Check for errors from Twitter
+      if (error) {
+        spinnerEl.style.display = 'none';
+        statusEl.className = 'status error';
+        statusEl.textContent = 'Twitter authorization was cancelled or failed.';
+        returnBtn.style.display = 'block';
+        return;
+      }
+
+      if (!code) {
+        spinnerEl.style.display = 'none';
+        statusEl.className = 'status error';
+        statusEl.textContent = 'Invalid callback - no authorization code received.';
+        returnBtn.style.display = 'block';
+        return;
+      }
+
+      try {
+        // Decode state to get wallet address
+        const stateData = JSON.parse(atob(state));
+        const walletAddress = stateData.wallet_address;
+
+        if (!walletAddress) {
+          throw new Error('No wallet address in state');
+        }
+
+        // Send code to backend API
+        const response = await fetch('/api/auth/twitter', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            code,
+            state,
+            wallet_address: walletAddress
+          })
+        });
+
+        const result = await response.json();
+
+        spinnerEl.style.display = 'none';
+
+        if (response.ok && result.success) {
+          statusEl.className = 'status success';
+          statusEl.innerHTML = `
+            <div style="font-size:18px; margin-bottom:8px;">✅ Success!</div>
+            <div>Connected as @${result.user.twitter_username}</div>
+            <div style="margin-top:8px;">Total Points: <strong>${result.user.total_points}</strong></div>
+            ${result.user.claimed_points > 0 ? `<div style="margin-top:4px; font-size:14px;">🎉 Claimed ${result.user.claimed_points} pending points!</div>` : ''}
+          `;
+          returnBtn.style.display = 'block';
+
+          // Auto-redirect after 3 seconds
+          setTimeout(() => {
+            window.location.href = '/main.html';
+          }, 3000);
+        } else {
+          statusEl.className = 'status error';
+          statusEl.textContent = '❌ ' + (result.error || 'Failed to connect Twitter account');
+          returnBtn.style.display = 'block';
+        }
+
+      } catch (error) {
+        console.error('Error:', error);
+        spinnerEl.style.display = 'none';
+        statusEl.className = 'status error';
+        statusEl.textContent = '❌ An error occurred: ' + error.message;
+        returnBtn.style.display = 'block';
+      }
+    })();
+  </script>
+</body>
+</html>

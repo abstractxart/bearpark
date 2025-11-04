@@ -1245,18 +1245,12 @@
     }
 
     async function loadPointsData(walletAddress) {
-      // For now, show "not connected" state
-      // This will be updated when backend API is ready
-      document.getElementById('pointsConnected').style.display = 'none';
-      document.getElementById('pointsNotConnected').style.display = 'block';
-
-      // TODO: Replace with actual API call when backend is ready
-      /*
       try {
         const response = await fetch(`/api/points/${walletAddress}`);
         const data = await response.json();
 
         if (data.twitter_connected) {
+          // Show connected state
           document.getElementById('pointsConnected').style.display = 'block';
           document.getElementById('pointsNotConnected').style.display = 'none';
           document.getElementById('totalPoints').textContent = data.total_points;
@@ -1265,24 +1259,119 @@
           // Load activity
           const activityList = document.getElementById('activityList');
           if (data.recent_activity && data.recent_activity.length > 0) {
-            activityList.innerHTML = data.recent_activity.map(activity => `
-              <div class="activity-item">
-                <span>${activity.description}</span>
-                <span class="points">+${activity.points} pts</span>
-              </div>
-            `).join('');
+            activityList.innerHTML = data.recent_activity.map(activity => {
+              const date = new Date(activity.created_at);
+              const timeAgo = getTimeAgo(date);
+              const points = activity.points_change > 0 ? `+${activity.points_change}` : activity.points_change;
+              return `
+                <div style="display:flex; justify-content:space-between; padding:8px; background:rgba(255,255,255,0.05); border-radius:6px; margin-bottom:6px;">
+                  <span style="font-size:12px;">${activity.description || activity.transaction_type}</span>
+                  <span style="color:var(--gold); font-weight:900; font-size:12px;">${points} pts</span>
+                </div>
+              `;
+            }).join('');
+          } else {
+            activityList.innerHTML = '<div style="opacity:0.6; padding:12px; text-align:center;">No recent activity</div>';
           }
+
+          // Load active raids
+          loadActiveRaids();
+        } else {
+          // Show not connected state
+          document.getElementById('pointsConnected').style.display = 'none';
+          document.getElementById('pointsNotConnected').style.display = 'block';
         }
       } catch (err) {
         console.error('Error loading points:', err);
+        // Show not connected state on error
+        document.getElementById('pointsConnected').style.display = 'none';
+        document.getElementById('pointsNotConnected').style.display = 'block';
       }
-      */
+    }
+
+    async function loadActiveRaids() {
+      try {
+        const response = await fetch('/api/raids/active');
+        const data = await response.json();
+
+        const activeRaidsSection = document.getElementById('activeRaids');
+        const raidInfo = document.getElementById('raidInfo');
+        const viewRaidBtn = document.getElementById('viewRaidBtn');
+
+        if (data.success && data.raids && data.raids.length > 0) {
+          const raid = data.raids[0]; // Show first active raid
+          activeRaidsSection.style.display = 'block';
+
+          raidInfo.innerHTML = `
+            <div style="font-weight:900; margin-bottom:4px;">${raid.raid_title}</div>
+            <div style="opacity:0.8; font-size:12px;">Target: ${raid.target_account}</div>
+            <div style="opacity:0.8; font-size:12px;">Reward: ${raid.points_per_participation} points</div>
+          `;
+
+          viewRaidBtn.onclick = () => {
+            window.open(raid.raid_url, '_blank');
+          };
+        } else {
+          activeRaidsSection.style.display = 'none';
+        }
+      } catch (err) {
+        console.error('Error loading raids:', err);
+        document.getElementById('activeRaids').style.display = 'none';
+      }
+    }
+
+    function getTimeAgo(date) {
+      const seconds = Math.floor((new Date() - date) / 1000);
+      if (seconds < 60) return 'just now';
+      const minutes = Math.floor(seconds / 60);
+      if (minutes < 60) return `${minutes}m ago`;
+      const hours = Math.floor(minutes / 60);
+      if (hours < 24) return `${hours}h ago`;
+      const days = Math.floor(hours / 24);
+      return `${days}d ago`;
     }
 
     // Wire up Twitter connect button
-    document.getElementById('connectTwitterBtn')?.addEventListener('click', () => {
-      alert('Twitter integration coming soon! We need to set up the backend API first.');
-      // TODO: Implement Twitter OAuth flow
+    document.getElementById('connectTwitterBtn')?.addEventListener('click', async () => {
+      const walletAddress = sessionStorage.getItem('bearpark_wallet');
+      if (!walletAddress) {
+        alert('Please connect your wallet first!');
+        return;
+      }
+
+      try {
+        // Get Twitter OAuth URL from backend
+        const response = await fetch(`/api/auth/twitter?wallet_address=${walletAddress}`);
+        const data = await response.json();
+
+        if (data.success && data.auth_url) {
+          // Redirect to Twitter OAuth
+          window.location.href = data.auth_url;
+        } else {
+          alert('Failed to start Twitter authentication. Please try again.');
+        }
+      } catch (error) {
+        console.error('Error connecting Twitter:', error);
+        alert('Failed to connect Twitter. Please try again.');
+      }
+    });
+
+    // Wire up Twitter disconnect button
+    document.getElementById('disconnectTwitterBtn')?.addEventListener('click', async () => {
+      const walletAddress = sessionStorage.getItem('bearpark_wallet');
+      if (!walletAddress) return;
+
+      if (!confirm('Are you sure you want to disconnect your Twitter account? Your points will be saved.')) {
+        return;
+      }
+
+      try {
+        // For now, we'll just refresh the page
+        // In the future, we can add a proper disconnect API endpoint
+        alert('To disconnect Twitter, please contact support. Your points are safely saved!');
+      } catch (error) {
+        console.error('Error disconnecting Twitter:', error);
+      }
     });
 
   })();

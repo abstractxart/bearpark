@@ -32,7 +32,7 @@ export default async function handler(req, res) {
       const authUrl = new URL('https://twitter.com/i/oauth2/authorize');
       authUrl.searchParams.append('response_type', 'code');
       authUrl.searchParams.append('client_id', process.env.TWITTER_CLIENT_ID);
-      authUrl.searchParams.append('redirect_uri', 'https://bearpark.xyz/api/auth/twitter/callback');
+      authUrl.searchParams.append('redirect_uri', 'https://bearpark.xyz/twitter-callback.html');
       authUrl.searchParams.append('scope', 'tweet.read users.read offline.access');
       authUrl.searchParams.append('state', state);
       authUrl.searchParams.append('code_challenge', 'challenge');
@@ -73,7 +73,7 @@ export default async function handler(req, res) {
         body: new URLSearchParams({
           code,
           grant_type: 'authorization_code',
-          redirect_uri: 'https://bearpark.xyz/api/auth/twitter/callback',
+          redirect_uri: 'https://bearpark.xyz/twitter-callback.html',
           code_verifier: 'challenge'
         })
       });
