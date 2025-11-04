@@ -172,13 +172,19 @@
             <div>Connected as @${result.user.twitter_username}</div>
             <div style="margin-top:8px;">Total Points: <strong>${result.user.total_points}</strong></div>
             ${result.user.claimed_points > 0 ? `<div style="margin-top:4px; font-size:14px;">🎉 Claimed ${result.user.claimed_points} pending points!</div>` : ''}
+            <div style="margin-top:12px; font-size:14px; opacity:0.8;">This window will close automatically...</div>
           `;
-          returnBtn.style.display = 'block';
 
-          // Auto-redirect after 3 seconds
+          // Close popup window after 2 seconds, or redirect if not a popup
           setTimeout(() => {
-            window.location.href = '/main.html';
-          }, 3000);
+            if (window.opener && !window.opener.closed) {
+              // This is a popup, close it
+              window.close();
+            } else {
+              // Not a popup, redirect to main.html
+              window.location.href = '/main.html';
+            }
+          }, 2000);
         } else {
           statusEl.className = 'status error';
           statusEl.textContent = '❌ ' + (result.error || 'Failed to connect Twitter account');

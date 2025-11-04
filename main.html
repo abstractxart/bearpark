@@ -1409,8 +1409,35 @@
         const data = await response.json();
 
         if (data.success && data.auth_url) {
-          // Redirect to Twitter OAuth
-          window.location.href = data.auth_url;
+          // Open Twitter OAuth in popup window to preserve session storage
+          const width = 600;
+          const height = 700;
+          const left = window.screen.width / 2 - width / 2;
+          const top = window.screen.height / 2 - height / 2;
+
+          const popup = window.open(
+            data.auth_url,
+            'Twitter Authorization',
+            `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,resizable=yes`
+          );
+
+          if (!popup) {
+            // Popup was blocked, fallback to same window navigation
+            alert('Popup was blocked! Please allow popups for this site, or we will redirect you to Twitter.');
+            window.location.href = data.auth_url;
+            return;
+          }
+
+          // Listen for popup to close (user completed or cancelled)
+          const checkPopup = setInterval(() => {
+            if (popup.closed) {
+              clearInterval(checkPopup);
+              console.log('Twitter popup closed, refreshing data...');
+              // Reload portfolio and points data in case Twitter was connected
+              loadPortfolioData();
+            }
+          }, 500);
+
         } else {
           alert('Failed to start Twitter authentication. Please try again.');
         }
