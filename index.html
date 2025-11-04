@@ -352,22 +352,74 @@
         showStatus('Verifying wallet holdings...', 'loading');
         verificationList.innerHTML = '';
 
-        // Connect to XRP Ledger
-        const client = new xrpl.Client('wss://xrplcluster.com');
-        await client.connect();
+        // Connect to XRP Ledger with fallback nodes
+        const xrplNodes = [
+          'wss://xrplcluster.com',
+          'wss://s1.ripple.com',
+          'wss://s2.ripple.com'
+        ];
 
-        // Check 1: $BEAR Token Balance
+        let client = null;
+        let lastError = null;
+
+        for (const node of xrplNodes) {
+          try {
+            console.log(`Attempting to connect to ${node}...`);
+            client = new xrpl.Client(node);
+            await client.connect();
+            console.log(`✓ Connected to ${node}`);
+            break;
+          } catch (err) {
+            console.warn(`Failed to connect to ${node}:`, err.message);
+            lastError = err;
+            if (client) {
+              try { await client.disconnect(); } catch(e) {}
+            }
+            client = null;
+          }
+        }
+
+        if (!client) {
+          throw new Error('Unable to connect to XRPL. Please check your internet connection and try again.');
+        }
+
+        // Check 1: $BEAR Token Balance (with pagination support)
         const tokenItem = addVerificationItem('Checking $BEAR token balance...');
         let hasTokens = false;
 
         try{
-          const accountLines = await client.request({
-            command: 'account_lines',
-            account: walletAddress,
-            ledger_index: 'validated'
-          });
+          // Collect ALL trustlines from wallet (handle pagination)
+          let allLines = [];
+          let marker = undefined;
+          let pageCount = 0;
+          const maxPages = 10;
 
-          const bearLine = accountLines.result.lines.find(line =>
+          do {
+            const linesRequest = {
+              command: 'account_lines',
+              account: walletAddress,
+              ledger_index: 'validated',
+              limit: 400
+            };
+
+            if (marker) {
+              linesRequest.marker = marker;
+            }
+
+            const accountLines = await client.request(linesRequest);
+
+            if (accountLines.result.lines && accountLines.result.lines.length > 0) {
+              allLines = allLines.concat(accountLines.result.lines);
+            }
+
+            marker = accountLines.result.marker;
+            pageCount++;
+
+          } while (marker && pageCount < maxPages);
+
+          console.log(`Total trustlines found: ${allLines.length}`);
+
+          const bearLine = allLines.find(line =>
             line.account === BEAR_ISSUER &&
             line.currency === BEAR_CURRENCY
           );
@@ -386,6 +438,7 @@
             );
           }
         }catch(err){
+          console.error('Token check error:', err);
           updateVerificationItem(tokenItem, '✗ Error checking $BEAR tokens', 'failed');
         }
 

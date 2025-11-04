@@ -265,6 +265,36 @@
   .price-card .metric small{ opacity:.8; font-size:14px }
   .price-card .sub{ opacity:.9 }
 
+  /* Portfolio Card */
+  .portfolio-card{
+    padding:16px;
+    border:4px solid #000; border-radius:16px;
+    background:radial-gradient(500px 200px at 50% -20%, rgba(118,174,255,.12), transparent 60%), #0b0d0e;
+    box-shadow:0 12px 22px rgba(0,0,0,.35)
+  }
+  .portfolio-stats{ display:grid; gap:10px }
+  .stat-row{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:10px 12px; background:rgba(255,255,255,.03); border-radius:8px;
+    border:2px solid rgba(255,255,255,.08)
+  }
+  .stat-label{ font-size:14px; opacity:.85 }
+  .stat-value{ font-size:16px; font-weight:900; color:var(--gold) }
+
+  /* Points Card */
+  .points-card{
+    padding:16px;
+    border:4px solid #000; border-radius:16px;
+    background:radial-gradient(500px 200px at 50% -20%, rgba(237,183,35,.08), transparent 60%), #0b0d0e;
+    box-shadow:0 12px 22px rgba(0,0,0,.35)
+  }
+  .points-card .activity-item{
+    padding:8px 10px; background:rgba(255,255,255,.03); border-radius:6px;
+    border-left:3px solid var(--gold); margin-bottom:6px; font-size:13px;
+    display:flex; justify-content:space-between; align-items:center
+  }
+  .points-card .activity-item .points{ color:var(--gold); font-weight:900 }
+
   .links-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px }
   .links-grid .tile .lbl{ color:var(--gold) }
   @media (max-width:520px){ .links-grid{ grid-template-columns:1fr } }
@@ -496,34 +526,113 @@
   <!-- Buy Drawer -->
   <aside id="buyDrawer" class="drawer" aria-hidden="true">
     <div class="drawer-head">
-      <h3 class="h3" style="margin:0;">Buy $BEAR</h3>
-      <button class="btn ghost sm" data-close-drawer aria-label="Close buy panel">Close</button>
+      <h3 class="h3" style="margin:0;">$BEAR Dashboard</h3>
+      <button class="btn ghost sm" data-close-drawer aria-label="Close dashboard">Close</button>
     </div>
     <div class="drawer-body">
+      <!-- MY $BEAR PORTFOLIO -->
+      <div id="portfolioSection" class="portfolio-card" style="display:none;">
+        <h4 style="margin:0 0 12px 0; font-size:16px; color:var(--gold); text-transform:uppercase;">My $BEAR Portfolio</h4>
+        <div class="portfolio-stats">
+          <div class="stat-row">
+            <span class="stat-label">💰 Total $BEAR:</span>
+            <span id="portfolioBearAmount" class="stat-value">—</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">💵 USD Value:</span>
+            <span id="portfolioUsdValue" class="stat-value">—</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">🔷 XRP Value:</span>
+            <span id="portfolioXrpValue" class="stat-value">—</span>
+          </div>
+        </div>
+        <div class="wallet-address" style="margin-top:12px; padding:8px; background:rgba(0,0,0,0.3); border-radius:8px; font-size:12px; word-break:break-all; text-align:center;">
+          <span id="connectedWalletAddress">—</span>
+        </div>
+      </div>
+
+      <!-- POINTS & REWARDS -->
+      <div id="pointsSection" class="points-card">
+        <h4 style="margin:0 0 12px 0; font-size:16px; color:var(--gold); text-transform:uppercase;">Points & Rewards</h4>
+
+        <!-- Connected State -->
+        <div id="pointsConnected" style="display:none;">
+          <div class="points-display" style="background:linear-gradient(135deg, rgba(237,183,35,0.15), rgba(215,92,70,0.15)); padding:16px; border-radius:12px; border:3px solid #000; margin-bottom:14px;">
+            <div style="font-size:14px; opacity:0.8; margin-bottom:4px;">Total Points</div>
+            <div style="font-size:36px; font-weight:900; color:var(--gold);">
+              ⭐ <span id="totalPoints">0</span>
+            </div>
+          </div>
+
+          <div class="twitter-info" style="margin-bottom:14px; padding:12px; background:rgba(29,155,240,0.1); border-radius:8px; border:2px solid rgba(29,155,240,0.3);">
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="#1DA1F2"><path d="M23.643 4.937c-.835.37-1.732.62-2.675.733.962-.576 1.7-1.49 2.048-2.578-.9.534-1.897.922-2.958 1.13-.85-.904-2.06-1.47-3.4-1.47-2.572 0-4.658 2.086-4.658 4.66 0 .364.042.718.12 1.06-3.873-.195-7.304-2.05-9.602-4.868-.4.69-.63 1.49-.63 2.342 0 1.616.823 3.043 2.072 3.878-.764-.025-1.482-.234-2.11-.583v.06c0 2.257 1.605 4.14 3.737 4.568-.392.106-.803.162-1.227.162-.3 0-.593-.028-.877-.082.593 1.85 2.313 3.198 4.352 3.234-1.595 1.25-3.604 1.995-5.786 1.995-.376 0-.747-.022-1.112-.065 2.062 1.323 4.51 2.093 7.14 2.093 8.57 0 13.255-7.098 13.255-13.254 0-.2-.005-.402-.014-.602.91-.658 1.7-1.477 2.323-2.41z"/></svg>
+              <span style="font-weight:900;">@<span id="connectedTwitter">—</span></span>
+            </div>
+            <button id="disconnectTwitterBtn" class="btn ghost sm" style="width:100%; margin-top:6px;">Disconnect Twitter</button>
+          </div>
+
+          <div class="recent-activity" style="margin-bottom:14px;">
+            <div style="font-size:14px; font-weight:900; margin-bottom:8px;">Recent Activity</div>
+            <div id="activityList" style="max-height:150px; overflow-y:auto; font-size:13px;">
+              <div style="opacity:0.6; padding:12px; text-align:center;">No recent activity</div>
+            </div>
+          </div>
+
+          <div id="activeRaids" class="raids-section" style="display:none;">
+            <div style="background:rgba(215,92,70,0.2); padding:12px; border-radius:10px; border:2px solid var(--accent);">
+              <div style="font-size:14px; font-weight:900; margin-bottom:8px;">🎯 Active Raid!</div>
+              <div id="raidInfo" style="font-size:13px; opacity:0.9;">
+                Loading raid info...
+              </div>
+              <button id="viewRaidBtn" class="btn gold sm" style="width:100%; margin-top:8px;">View Raid →</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Not Connected State -->
+        <div id="pointsNotConnected">
+          <div style="padding:20px; text-align:center; background:rgba(0,0,0,0.3); border-radius:12px; border:2px dashed rgba(255,255,255,0.2);">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="#1DA1F2" style="margin:0 auto 12px;"><path d="M23.643 4.937c-.835.37-1.732.62-2.675.733.962-.576 1.7-1.49 2.048-2.578-.9.534-1.897.922-2.958 1.13-.85-.904-2.06-1.47-3.4-1.47-2.572 0-4.658 2.086-4.658 4.66 0 .364.042.718.12 1.06-3.873-.195-7.304-2.05-9.602-4.868-.4.69-.63 1.49-.63 2.342 0 1.616.823 3.043 2.072 3.878-.764-.025-1.482-.234-2.11-.583v.06c0 2.257 1.605 4.14 3.737 4.568-.392.106-.803.162-1.227.162-.3 0-.593-.028-.877-.082.593 1.85 2.313 3.198 4.352 3.234-1.595 1.25-3.604 1.995-5.786 1.995-.376 0-.747-.022-1.112-.065 2.062 1.323 4.51 2.093 7.14 2.093 8.57 0 13.255-7.098 13.255-13.254 0-.2-.005-.402-.014-.602.91-.658 1.7-1.477 2.323-2.41z"/></svg>
+            <div style="font-size:16px; margin-bottom:8px; font-weight:900;">Connect Twitter</div>
+            <div style="font-size:13px; opacity:0.8; margin-bottom:14px;">Link your Twitter account to start earning points!</div>
+            <button id="connectTwitterBtn" class="btn gold" style="width:100%;">Connect Twitter Account</button>
+            <div style="margin-top:14px; font-size:12px; opacity:0.6;">
+              Earn 10 points per @bearxrpl mention<br>
+              Earn 20 points per raid participation
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CURRENT PRICE -->
       <div class="price-card">
+        <h4 style="margin:0 0 8px 0; font-size:14px; color:var(--gold); text-transform:uppercase;">Current Price</h4>
         <div class="metric" aria-live="polite">
           <span id="priceUsd">—</span><small>USD</small>
         </div>
         <div class="sub">24h <span id="change24">—</span> · Vol <span id="vol24">—</span></div>
-        <!-- NEW: Market Cap line -->
         <div class="sub">Mkt Cap <span id="mcapUsd">—</span></div>
       </div>
 
-      <!-- Chart card will be injected directly under this price card -->
-
-      <div class="links-grid">
-        <a class="tile" href="https://firstledger.net/token/rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW/4245415200000000000000000000000000000000" target="_blank" rel="noopener">
-          <div class="face"><img src="https://files.catbox.moe/du61x3.jpg" alt="First Ledger"></div>
-          <span class="lbl">First Ledger</span>
-        </a>
-        <a class="tile" href="https://xmagnetic.org/dex/BEAR+rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW_XRP+XRP?network=mainnet" target="_blank" rel="noopener">
-          <div class="face"><img src="https://files.catbox.moe/m9ck1m.png" alt="Magnetic DEX"></div>
-          <span class="lbl">Magnetic DEX</span>
-        </a>
-        <a class="tile" href="https://xpmarket.com/token/BEAR-rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW" target="_blank" rel="noopener">
-          <div class="face"><img src="https://files.catbox.moe/1dw0sy.png" alt="XPMarket"></div>
-          <span class="lbl">XPMarket</span>
-        </a>
+      <!-- BUY $BEAR LINKS -->
+      <div>
+        <h4 style="margin:0 0 12px 0; font-size:14px; color:var(--gold); text-transform:uppercase;">Buy $BEAR</h4>
+        <div class="links-grid">
+          <a class="tile" href="https://firstledger.net/token/rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW/4245415200000000000000000000000000000000" target="_blank" rel="noopener">
+            <div class="face"><img src="https://files.catbox.moe/du61x3.jpg" alt="First Ledger"></div>
+            <span class="lbl">First Ledger</span>
+          </a>
+          <a class="tile" href="https://xmagnetic.org/dex/BEAR+rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW_XRP+XRP?network=mainnet" target="_blank" rel="noopener">
+            <div class="face"><img src="https://files.catbox.moe/m9ck1m.png" alt="Magnetic DEX"></div>
+            <span class="lbl">Magnetic DEX</span>
+          </a>
+          <a class="tile" href="https://xpmarket.com/token/BEAR-rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW" target="_blank" rel="noopener">
+            <div class="face"><img src="https://files.catbox.moe/1dw0sy.png" alt="XPMarket"></div>
+            <span class="lbl">XPMarket</span>
+          </a>
+        </div>
       </div>
     </div>
   </aside>
@@ -860,7 +969,9 @@
       drawer.classList.add('open'); scrim.hidden=false;
       fab.setAttribute('aria-expanded','true'); drawer.setAttribute('aria-hidden','false');
       document.body.style.overflow='hidden';
-      ensureChart(); sizeChartSoon();
+      // CHART REMOVED - Now showing portfolio and points instead
+      // ensureChart(); sizeChartSoon();
+      loadPortfolioData(); // Load wallet portfolio data
     }
     function closeDrawer(){
       drawer.classList.remove('open'); scrim.hidden=true;
@@ -1064,6 +1175,116 @@
       ensureChart(); sizeChartSoon();
     }
     // === END CHART FIX
+
+    /* ===== Portfolio & Points Functions ===== */
+    async function loadPortfolioData() {
+      const walletAddress = sessionStorage.getItem('bearpark_wallet');
+      const isAuthenticated = sessionStorage.getItem('bearpark_auth') === 'true';
+
+      const portfolioSection = document.getElementById('portfolioSection');
+      const connectedWalletAddress = document.getElementById('connectedWalletAddress');
+
+      if (!isAuthenticated || !walletAddress) {
+        portfolioSection.style.display = 'none';
+        return;
+      }
+
+      // Show portfolio section
+      portfolioSection.style.display = 'block';
+      connectedWalletAddress.textContent = walletAddress;
+
+      try {
+        // Load XRPL data
+        const client = new xrpl.Client('wss://xrplcluster.com');
+        await client.connect();
+
+        // Get $BEAR balance
+        const accountLines = await client.request({
+          command: 'account_lines',
+          account: walletAddress,
+          ledger_index: 'validated'
+        });
+
+        const BEAR_ISSUER = 'rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW';
+        const BEAR_CURRENCY = 'BEAR';
+
+        const bearLine = accountLines.result.lines.find(line =>
+          line.account === BEAR_ISSUER &&
+          line.currency === BEAR_CURRENCY
+        );
+
+        const bearBalance = bearLine ? parseFloat(bearLine.balance) : 0;
+
+        // Get current prices from existing price data
+        const bearUsdPrice = parseFloat(document.getElementById('priceUsd')?.textContent?.replace('$', '')) || 0;
+
+        // Calculate values
+        const usdValue = bearBalance * bearUsdPrice;
+
+        // Get XRP price to calculate BEAR/XRP value
+        const bearXrpEl = document.getElementById('bearXrpBig');
+        const bearXrpPrice = bearXrpEl ? parseFloat(bearXrpEl.textContent) : 0;
+        const xrpValue = bearBalance * bearXrpPrice;
+
+        // Update UI
+        document.getElementById('portfolioBearAmount').textContent = bearBalance.toLocaleString('en-US', { maximumFractionDigits: 2 });
+        document.getElementById('portfolioUsdValue').textContent = '$' + usdValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        document.getElementById('portfolioXrpValue').textContent = xrpValue.toLocaleString('en-US', { maximumFractionDigits: 4 }) + ' XRP';
+
+        await client.disconnect();
+
+      } catch (err) {
+        console.error('Error loading portfolio:', err);
+        document.getElementById('portfolioBearAmount').textContent = 'Error loading';
+        document.getElementById('portfolioUsdValue').textContent = '—';
+        document.getElementById('portfolioXrpValue').textContent = '—';
+      }
+
+      // Load points data (will be implemented with backend)
+      loadPointsData(walletAddress);
+    }
+
+    async function loadPointsData(walletAddress) {
+      // For now, show "not connected" state
+      // This will be updated when backend API is ready
+      document.getElementById('pointsConnected').style.display = 'none';
+      document.getElementById('pointsNotConnected').style.display = 'block';
+
+      // TODO: Replace with actual API call when backend is ready
+      /*
+      try {
+        const response = await fetch(`/api/points/${walletAddress}`);
+        const data = await response.json();
+
+        if (data.twitter_connected) {
+          document.getElementById('pointsConnected').style.display = 'block';
+          document.getElementById('pointsNotConnected').style.display = 'none';
+          document.getElementById('totalPoints').textContent = data.total_points;
+          document.getElementById('connectedTwitter').textContent = data.twitter_username;
+
+          // Load activity
+          const activityList = document.getElementById('activityList');
+          if (data.recent_activity && data.recent_activity.length > 0) {
+            activityList.innerHTML = data.recent_activity.map(activity => `
+              <div class="activity-item">
+                <span>${activity.description}</span>
+                <span class="points">+${activity.points} pts</span>
+              </div>
+            `).join('');
+          }
+        }
+      } catch (err) {
+        console.error('Error loading points:', err);
+      }
+      */
+    }
+
+    // Wire up Twitter connect button
+    document.getElementById('connectTwitterBtn')?.addEventListener('click', () => {
+      alert('Twitter integration coming soon! We need to set up the backend API first.');
+      // TODO: Implement Twitter OAuth flow
+    });
+
   })();
   </script>
 </body>

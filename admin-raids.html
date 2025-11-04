@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BEAR Park - Admin Raid Creator</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    .container {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      padding: 40px;
+      max-width: 600px;
+      width: 100%;
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+      font-size: 28px;
+    }
+    .subtitle {
+      color: #666;
+      margin-bottom: 30px;
+      font-size: 14px;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      margin-bottom: 8px;
+      color: #333;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    input, textarea, select {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: border-color 0.3s;
+    }
+    input:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    textarea {
+      resize: vertical;
+      min-height: 100px;
+    }
+    button {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+    }
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .status {
+      margin-top: 20px;
+      padding: 12px;
+      border-radius: 8px;
+      text-align: center;
+      font-weight: 600;
+      display: none;
+    }
+    .status.success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    .status.error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    .wallet-status {
+      background: #e7f3ff;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      text-align: center;
+      font-size: 14px;
+    }
+    .small-text {
+      font-size: 12px;
+      color: #999;
+      margin-top: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎯 Create BEAR Raid</h1>
+    <p class="subtitle">Admin panel for creating Twitter raids</p>
+
+    <div id="walletStatus" class="wallet-status">
+      <strong>Admin Wallet:</strong> Not connected
+    </div>
+
+    <div id="loginSection">
+      <button onclick="connectWallet()">🔐 Connect Admin Wallet</button>
+    </div>
+
+    <form id="raidForm" style="display: none;">
+      <div class="form-group">
+        <label for="raidTitle">Raid Title *</label>
+        <input type="text" id="raidTitle" placeholder="e.g., BEAR Army Raid - Like & RT!" required>
+      </div>
+
+      <div class="form-group">
+        <label for="raidUrl">Tweet URL *</label>
+        <input type="url" id="raidUrl" placeholder="https://twitter.com/username/status/..." required>
+      </div>
+
+      <div class="form-group">
+        <label for="targetAccount">Target Account *</label>
+        <input type="text" id="targetAccount" placeholder="@bearxrpl" required>
+        <div class="small-text">Include the @ symbol</div>
+      </div>
+
+      <div class="form-group">
+        <label for="raidDescription">Description</label>
+        <textarea id="raidDescription" placeholder="Like, retweet, and comment on this post!"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label for="pointsPerParticipation">Points per Participation</label>
+        <input type="number" id="pointsPerParticipation" value="20" min="1" max="100">
+      </div>
+
+      <div class="form-group">
+        <label for="durationHours">Duration (hours)</label>
+        <input type="number" id="durationHours" value="24" min="1" max="168">
+        <div class="small-text">How long the raid will be active</div>
+      </div>
+
+      <button type="submit">🚀 Create Raid</button>
+    </form>
+
+    <div id="status" class="status"></div>
+  </div>
+
+  <script src="https://unpkg.com/xrpl@2.7.0/build/xrpl-latest-min.js"></script>
+  <script>
+    const ADMIN_WALLET = 'rU2AviYiGZnWXmgDQ1bpkY8Nak4f3ZQ7Jy';
+    let currentWallet = null;
+
+    async function connectWallet() {
+      try {
+        const wallet = await xrpl.Wallet.generate();
+        currentWallet = sessionStorage.getItem('bearpark_wallet');
+
+        if (!currentWallet) {
+          showStatus('Please connect your wallet on the main site first', 'error');
+          setTimeout(() => {
+            window.location.href = '/';
+          }, 2000);
+          return;
+        }
+
+        if (currentWallet !== ADMIN_WALLET) {
+          showStatus('❌ Unauthorized: Admin access required', 'error');
+          return;
+        }
+
+        document.getElementById('walletStatus').innerHTML = `<strong>Admin Wallet:</strong> ${currentWallet}`;
+        document.getElementById('loginSection').style.display = 'none';
+        document.getElementById('raidForm').style.display = 'block';
+
+      } catch (error) {
+        showStatus('Error connecting wallet: ' + error.message, 'error');
+      }
+    }
+
+    document.getElementById('raidForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const raidData = {
+        admin_wallet: currentWallet,
+        raid_title: document.getElementById('raidTitle').value,
+        raid_url: document.getElementById('raidUrl').value,
+        target_account: document.getElementById('targetAccount').value,
+        raid_description: document.getElementById('raidDescription').value,
+        points_per_participation: parseInt(document.getElementById('pointsPerParticipation').value),
+        duration_hours: parseInt(document.getElementById('durationHours').value)
+      };
+
+      try {
+        const response = await fetch('/api/raids/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(raidData)
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+          showStatus('✅ Raid created successfully!', 'success');
+          document.getElementById('raidForm').reset();
+          setTimeout(() => {
+            document.getElementById('status').style.display = 'none';
+          }, 3000);
+        } else {
+          showStatus('❌ ' + (result.error || 'Failed to create raid'), 'error');
+        }
+
+      } catch (error) {
+        showStatus('❌ Error: ' + error.message, 'error');
+      }
+    });
+
+    function showStatus(message, type) {
+      const statusEl = document.getElementById('status');
+      statusEl.textContent = message;
+      statusEl.className = 'status ' + type;
+      statusEl.style.display = 'block';
+    }
+
+    // Auto-check if wallet is already connected
+    window.addEventListener('DOMContentLoaded', () => {
+      const wallet = sessionStorage.getItem('bearpark_wallet');
+      if (wallet === ADMIN_WALLET) {
+        currentWallet = wallet;
+        document.getElementById('walletStatus').innerHTML = `<strong>Admin Wallet:</strong> ${wallet}`;
+        document.getElementById('loginSection').style.display = 'none';
+        document.getElementById('raidForm').style.display = 'block';
+      }
+    });
+  </script>
+</body>
+</html>
