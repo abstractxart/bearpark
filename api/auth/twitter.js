@@ -110,15 +110,15 @@ export default async function handler(req, res) {
         ? pendingTweets.reduce((sum, tweet) => sum + (tweet.points_pending || 0), 0)
         : 0;
 
-      // Check if user already exists
-      const { data: existingUser } = await supabase
+      // Check if user already exists (don't throw error if not found)
+      const { data: existingUser, error: existingUserError } = await supabase
         .from('users')
         .select('*')
         .eq('wallet_address', wallet_address)
-        .single();
+        .maybeSingle(); // Use maybeSingle() instead of single() to avoid error when user doesn't exist
 
       // Calculate new total points
-      const currentPoints = existingUser ? existingUser.total_points : 0;
+      const currentPoints = existingUser ? (existingUser.total_points || 0) : 0;
       const newTotalPoints = currentPoints + pendingPoints;
 
       // Upsert user in database

@@ -1253,23 +1253,49 @@
 
         const bearBalance = bearLine ? parseFloat(bearLine.balance) : 0;
 
+        // Update BEAR amount immediately
+        document.getElementById('portfolioBearAmount').textContent = bearBalance.toLocaleString('en-US', { maximumFractionDigits: 2 });
+
         // Get current prices from existing price data
         const priceUsdEl = document.getElementById('priceUsd');
         const priceText = priceUsdEl?.textContent || '';
-        const bearUsdPrice = parseFloat(priceText.replace('$', '').replace(',', '')) || 0;
 
-        // Calculate values
-        const usdValue = bearBalance * bearUsdPrice;
+        // Remove any non-numeric characters except decimal point
+        const cleanedPrice = priceText.replace(/[^0-9.]/g, '');
+        const bearUsdPrice = parseFloat(cleanedPrice) || 0;
 
         // Get XRP price to calculate BEAR/XRP value
         const bearXrpEl = document.getElementById('bearXrpBig');
-        const bearXrpPrice = bearXrpEl ? parseFloat(bearXrpEl.textContent) : 0;
+        const bearXrpText = bearXrpEl?.textContent || '';
+        const cleanedXrpPrice = bearXrpText.replace(/[^0-9.]/g, '');
+        const bearXrpPrice = parseFloat(cleanedXrpPrice) || 0;
+
+        console.log('Portfolio Debug:', {
+          bearBalance,
+          priceText,
+          cleanedPrice,
+          bearUsdPrice,
+          bearXrpText,
+          cleanedXrpPrice,
+          bearXrpPrice
+        });
+
+        // Calculate values
+        const usdValue = bearBalance * bearUsdPrice;
         const xrpValue = bearBalance * bearXrpPrice;
 
-        // Update UI
-        document.getElementById('portfolioBearAmount').textContent = bearBalance.toLocaleString('en-US', { maximumFractionDigits: 2 });
-        document.getElementById('portfolioUsdValue').textContent = '$' + usdValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        document.getElementById('portfolioXrpValue').textContent = xrpValue.toLocaleString('en-US', { maximumFractionDigits: 4 }) + ' XRP';
+        // Update UI with calculated values
+        if (bearUsdPrice > 0) {
+          document.getElementById('portfolioUsdValue').textContent = '$' + usdValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        } else {
+          document.getElementById('portfolioUsdValue').textContent = 'Loading...';
+        }
+
+        if (bearXrpPrice > 0) {
+          document.getElementById('portfolioXrpValue').textContent = xrpValue.toLocaleString('en-US', { maximumFractionDigits: 4 }) + ' XRP';
+        } else {
+          document.getElementById('portfolioXrpValue').textContent = 'Loading...';
+        }
 
         await client.disconnect();
 
