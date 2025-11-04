@@ -251,7 +251,7 @@
   .drawer.open{ transform:translateX(0) }
   .drawer-scrim{ position:fixed; inset:0; background:rgba(0,0,0,.55); backdrop-filter:blur(2px); z-index:65 }
   .drawer-head{ position:sticky; top:0; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 18px; border-bottom:4px solid #000; background:#0f1114 }
-  .drawer-body{ padding:12px 12px 20px 12px; overflow:auto; display:grid; gap:10px }
+  .drawer-body{ padding:12px; overflow:auto; display:grid; gap:10px }
 
   .btn.sm{ font-size:16px; padding:.6rem .9rem; border-radius:14px; box-shadow:0 6px 0 #000,0 12px 18px rgba(0,0,0,.35) }
 
@@ -576,10 +576,11 @@
           </div>
 
           <div class="twitter-info" style="margin-bottom:10px; padding:10px; background:rgba(29,155,240,0.1); border-radius:8px; border:2px solid rgba(29,155,240,0.3);">
-            <div style="display:flex; align-items:center; gap:6px;">
+            <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="#1DA1F2"><path d="M23.643 4.937c-.835.37-1.732.62-2.675.733.962-.576 1.7-1.49 2.048-2.578-.9.534-1.897.922-2.958 1.13-.85-.904-2.06-1.47-3.4-1.47-2.572 0-4.658 2.086-4.658 4.66 0 .364.042.718.12 1.06-3.873-.195-7.304-2.05-9.602-4.868-.4.69-.63 1.49-.63 2.342 0 1.616.823 3.043 2.072 3.878-.764-.025-1.482-.234-2.11-.583v.06c0 2.257 1.605 4.14 3.737 4.568-.392.106-.803.162-1.227.162-.3 0-.593-.028-.877-.082.593 1.85 2.313 3.198 4.352 3.234-1.595 1.25-3.604 1.995-5.786 1.995-.376 0-.747-.022-1.112-.065 2.062 1.323 4.51 2.093 7.14 2.093 8.57 0 13.255-7.098 13.255-13.254 0-.2-.005-.402-.014-.602.91-.658 1.7-1.477 2.323-2.41z"/></svg>
               <span style="font-weight:900; font-size:14px;">@<span id="connectedTwitter">—</span></span>
             </div>
+            <button id="disconnectTwitterBtn" class="btn ghost sm" style="width:100%; margin-top:4px; font-size:13px; padding:6px;">Disconnect</button>
           </div>
 
           <div class="recent-activity" style="margin-bottom:10px;">
@@ -627,16 +628,6 @@
           🏆 View Leaderboard
         </a>
       </div>
-
-      <!-- DISCONNECT BUTTONS -->
-      <div id="disconnectButtons" style="display:grid; gap:10px; grid-template-columns:1fr 1fr; margin-top:10px;">
-        <button id="disconnectTwitterBtn" class="btn ghost sm" style="width:100%; font-size:13px; padding:10px;">
-          Disconnect Twitter
-        </button>
-        <button id="disconnectWalletBtn" class="btn ghost sm" style="width:100%; font-size:13px; padding:10px;">
-          Disconnect Wallet
-        </button>
-      </div>
     </div>
   </aside>
 
@@ -670,7 +661,19 @@
     // Optional: Display wallet address in console for debugging
     console.log('Authenticated wallet:', authenticatedWallet);
 
-    // Logout FAB removed - now using disconnect buttons in drawer
+    // Add logout button
+    const logoutBtn = document.createElement('button');
+    logoutBtn.className = 'fab-logout';
+    logoutBtn.innerHTML = '<span>Disconnect</span>';
+    logoutBtn.setAttribute('aria-label', 'Disconnect wallet and logout');
+    logoutBtn.addEventListener('click', function(){
+      if(confirm('Are you sure you want to disconnect your wallet?')){
+        sessionStorage.removeItem('bearpark_auth');
+        sessionStorage.removeItem('bearpark_wallet');
+        window.location.href = 'index.html';
+      }
+    });
+    document.body.appendChild(logoutBtn);
   })();
 
   document.documentElement.classList.remove('no-js');
@@ -1169,40 +1172,22 @@
 
     /* ===== Portfolio & Points Functions ===== */
     async function loadPortfolioData() {
-      console.log('=== loadPortfolioData called ===');
       const walletAddress = sessionStorage.getItem('bearpark_wallet');
       const isAuthenticated = sessionStorage.getItem('bearpark_auth') === 'true';
-
-      console.log('Auth check:', { walletAddress, isAuthenticated });
 
       const portfolioSection = document.getElementById('portfolioSection');
       const connectedWalletAddress = document.getElementById('connectedWalletAddress');
 
       if (!isAuthenticated || !walletAddress) {
-        console.log('Not authenticated or no wallet, hiding portfolio');
         portfolioSection.style.display = 'none';
         return;
       }
 
       // Show portfolio section
-      console.log('Showing portfolio section for wallet:', walletAddress);
       portfolioSection.style.display = 'block';
       connectedWalletAddress.textContent = walletAddress;
 
-      // Check if xrpl library is loaded
-      if (typeof xrpl === 'undefined') {
-        console.error('XRPL library not loaded yet, will retry...');
-        document.getElementById('portfolioBearAmount').textContent = 'Loading...';
-        document.getElementById('portfolioUsdValue').textContent = 'Loading...';
-        document.getElementById('portfolioXrpValue').textContent = 'Loading...';
-
-        // Retry after 1 second
-        setTimeout(loadPortfolioData, 1000);
-        return;
-      }
-
       try {
-        console.log('Starting XRPL connection...');
         // Connect to XRPL with fallback nodes
         const xrplNodes = [
           'wss://xrplcluster.com',
@@ -1215,10 +1200,8 @@
 
         for (const node of xrplNodes) {
           try {
-            console.log('Attempting to connect to', node);
             client = new xrpl.Client(node);
             await client.connect();
-            console.log('Successfully connected to', node);
             break;
           } catch (err) {
             console.warn(`Failed to connect to ${node}:`, err.message);
@@ -1235,14 +1218,11 @@
         }
 
         // Get $BEAR balance
-        console.log('Fetching account lines for', walletAddress);
         const accountLines = await client.request({
           command: 'account_lines',
           account: walletAddress,
           ledger_index: 'validated'
         });
-
-        console.log('Account lines response:', accountLines);
 
         const BEAR_ISSUER = 'rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW';
         const BEAR_CURRENCY = 'BEAR';
@@ -1253,22 +1233,18 @@
         );
 
         const bearBalance = bearLine ? parseFloat(bearLine.balance) : 0;
-        console.log('BEAR balance found:', bearBalance);
 
         // Update BEAR amount immediately
         document.getElementById('portfolioBearAmount').textContent = bearBalance.toLocaleString('en-US', { maximumFractionDigits: 2 });
 
         // Fetch fresh price data directly from DexScreener
         try {
-          console.log('Fetching price data from DexScreener...');
           const {priceNative, priceUsd} = await fetchDex();
 
-          console.log('Portfolio calculation:', {
+          console.log('Portfolio Debug:', {
             bearBalance,
             priceUsd,
-            priceNative,
-            usdValue: bearBalance * priceUsd,
-            xrpValue: bearBalance * priceNative
+            priceNative
           });
 
           // Calculate values
@@ -1294,14 +1270,12 @@
         }
 
         await client.disconnect();
-        console.log('XRPL client disconnected');
 
       } catch (err) {
         console.error('Error loading portfolio:', err);
-        console.error('Error details:', err.message, err.stack);
-        document.getElementById('portfolioBearAmount').textContent = 'Error';
-        document.getElementById('portfolioUsdValue').textContent = 'Error';
-        document.getElementById('portfolioXrpValue').textContent = 'Error';
+        document.getElementById('portfolioBearAmount').textContent = '0';
+        document.getElementById('portfolioUsdValue').textContent = '$0.00';
+        document.getElementById('portfolioXrpValue').textContent = '0 XRP';
       }
 
       // Load points data (will be implemented with backend)
@@ -1409,35 +1383,8 @@
         const data = await response.json();
 
         if (data.success && data.auth_url) {
-          // Open Twitter OAuth in popup window to preserve session storage
-          const width = 600;
-          const height = 700;
-          const left = window.screen.width / 2 - width / 2;
-          const top = window.screen.height / 2 - height / 2;
-
-          const popup = window.open(
-            data.auth_url,
-            'Twitter Authorization',
-            `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,resizable=yes`
-          );
-
-          if (!popup) {
-            // Popup was blocked, fallback to same window navigation
-            alert('Popup was blocked! Please allow popups for this site, or we will redirect you to Twitter.');
-            window.location.href = data.auth_url;
-            return;
-          }
-
-          // Listen for popup to close (user completed or cancelled)
-          const checkPopup = setInterval(() => {
-            if (popup.closed) {
-              clearInterval(checkPopup);
-              console.log('Twitter popup closed, refreshing page to show Twitter connection...');
-              // Reload entire page to refresh all data and show Twitter connection
-              window.location.reload();
-            }
-          }, 500);
-
+          // Redirect to Twitter OAuth
+          window.location.href = data.auth_url;
         } else {
           alert('Failed to start Twitter authentication. Please try again.');
         }
@@ -1447,7 +1394,7 @@
       }
     });
 
-    // Wire up Twitter disconnect button (now at bottom)
+    // Wire up Twitter disconnect button
     document.getElementById('disconnectTwitterBtn')?.addEventListener('click', async () => {
       const walletAddress = sessionStorage.getItem('bearpark_wallet');
       if (!walletAddress) return;
@@ -1462,15 +1409,6 @@
         alert('To disconnect Twitter, please contact support. Your points are safely saved!');
       } catch (error) {
         console.error('Error disconnecting Twitter:', error);
-      }
-    });
-
-    // Wire up Wallet disconnect button
-    document.getElementById('disconnectWalletBtn')?.addEventListener('click', () => {
-      if (confirm('Are you sure you want to disconnect your wallet?')) {
-        sessionStorage.removeItem('bearpark_auth');
-        sessionStorage.removeItem('bearpark_wallet');
-        window.location.href = 'index.html';
       }
     });
 

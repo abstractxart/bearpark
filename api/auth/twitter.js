@@ -127,10 +127,19 @@ export default async function handler(req, res) {
       if (!userResponse.ok) {
         const errorText = await userResponse.text();
         console.error('Twitter user fetch error:', errorText);
-        throw new Error('Failed to get Twitter user info');
+        console.error('Twitter user response headers:', Object.fromEntries(userResponse.headers.entries()));
+        throw new Error(`Failed to get Twitter user info: ${userResponse.status} ${errorText}`);
       }
 
-      const { data: twitterUser } = await userResponse.json();
+      const userJson = await userResponse.json();
+      console.log('Twitter user response JSON:', userJson);
+
+      const { data: twitterUser } = userJson;
+      if (!twitterUser) {
+        console.error('No user data in response:', userJson);
+        throw new Error('Twitter API returned no user data');
+      }
+
       console.log('Successfully fetched Twitter user:', twitterUser.username);
 
       // Check for pending tweets from this Twitter user
