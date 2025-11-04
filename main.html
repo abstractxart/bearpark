@@ -576,11 +576,10 @@
           </div>
 
           <div class="twitter-info" style="margin-bottom:10px; padding:10px; background:rgba(29,155,240,0.1); border-radius:8px; border:2px solid rgba(29,155,240,0.3);">
-            <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+            <div style="display:flex; align-items:center; gap:6px;">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="#1DA1F2"><path d="M23.643 4.937c-.835.37-1.732.62-2.675.733.962-.576 1.7-1.49 2.048-2.578-.9.534-1.897.922-2.958 1.13-.85-.904-2.06-1.47-3.4-1.47-2.572 0-4.658 2.086-4.658 4.66 0 .364.042.718.12 1.06-3.873-.195-7.304-2.05-9.602-4.868-.4.69-.63 1.49-.63 2.342 0 1.616.823 3.043 2.072 3.878-.764-.025-1.482-.234-2.11-.583v.06c0 2.257 1.605 4.14 3.737 4.568-.392.106-.803.162-1.227.162-.3 0-.593-.028-.877-.082.593 1.85 2.313 3.198 4.352 3.234-1.595 1.25-3.604 1.995-5.786 1.995-.376 0-.747-.022-1.112-.065 2.062 1.323 4.51 2.093 7.14 2.093 8.57 0 13.255-7.098 13.255-13.254 0-.2-.005-.402-.014-.602.91-.658 1.7-1.477 2.323-2.41z"/></svg>
               <span style="font-weight:900; font-size:14px;">@<span id="connectedTwitter">—</span></span>
             </div>
-            <button id="disconnectTwitterBtn" class="btn ghost sm" style="width:100%; margin-top:4px; font-size:13px; padding:6px;">Disconnect</button>
           </div>
 
           <div class="recent-activity" style="margin-bottom:10px;">
@@ -628,6 +627,16 @@
           🏆 View Leaderboard
         </a>
       </div>
+
+      <!-- DISCONNECT BUTTONS -->
+      <div id="disconnectButtons" style="display:none; gap:10px; grid-template-columns:1fr 1fr;">
+        <button id="disconnectTwitterBtn" class="btn ghost sm" style="width:100%; font-size:13px; padding:10px;">
+          Disconnect Twitter
+        </button>
+        <button id="disconnectWalletBtn" class="btn ghost sm" style="width:100%; font-size:13px; padding:10px;">
+          Disconnect Wallet
+        </button>
+      </div>
     </div>
   </aside>
 
@@ -661,19 +670,7 @@
     // Optional: Display wallet address in console for debugging
     console.log('Authenticated wallet:', authenticatedWallet);
 
-    // Add logout button
-    const logoutBtn = document.createElement('button');
-    logoutBtn.className = 'fab-logout';
-    logoutBtn.innerHTML = '<span>Disconnect</span>';
-    logoutBtn.setAttribute('aria-label', 'Disconnect wallet and logout');
-    logoutBtn.addEventListener('click', function(){
-      if(confirm('Are you sure you want to disconnect your wallet?')){
-        sessionStorage.removeItem('bearpark_auth');
-        sessionStorage.removeItem('bearpark_wallet');
-        window.location.href = 'index.html';
-      }
-    });
-    document.body.appendChild(logoutBtn);
+    // Logout FAB removed - now using disconnect buttons in drawer
   })();
 
   document.documentElement.classList.remove('no-js');
@@ -1172,22 +1169,28 @@
 
     /* ===== Portfolio & Points Functions ===== */
     async function loadPortfolioData() {
+      console.log('=== loadPortfolioData called ===');
       const walletAddress = sessionStorage.getItem('bearpark_wallet');
       const isAuthenticated = sessionStorage.getItem('bearpark_auth') === 'true';
+
+      console.log('Auth check:', { walletAddress, isAuthenticated });
 
       const portfolioSection = document.getElementById('portfolioSection');
       const connectedWalletAddress = document.getElementById('connectedWalletAddress');
 
       if (!isAuthenticated || !walletAddress) {
+        console.log('Not authenticated or no wallet, hiding portfolio');
         portfolioSection.style.display = 'none';
         return;
       }
 
       // Show portfolio section
+      console.log('Showing portfolio section for wallet:', walletAddress);
       portfolioSection.style.display = 'block';
       connectedWalletAddress.textContent = walletAddress;
 
       try {
+        console.log('Starting XRPL connection...');
         // Connect to XRPL with fallback nodes
         const xrplNodes = [
           'wss://xrplcluster.com',
@@ -1200,8 +1203,10 @@
 
         for (const node of xrplNodes) {
           try {
+            console.log('Attempting to connect to', node);
             client = new xrpl.Client(node);
             await client.connect();
+            console.log('Successfully connected to', node);
             break;
           } catch (err) {
             console.warn(`Failed to connect to ${node}:`, err.message);
@@ -1218,11 +1223,14 @@
         }
 
         // Get $BEAR balance
+        console.log('Fetching account lines for', walletAddress);
         const accountLines = await client.request({
           command: 'account_lines',
           account: walletAddress,
           ledger_index: 'validated'
         });
+
+        console.log('Account lines response:', accountLines);
 
         const BEAR_ISSUER = 'rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW';
         const BEAR_CURRENCY = 'BEAR';
@@ -1233,18 +1241,22 @@
         );
 
         const bearBalance = bearLine ? parseFloat(bearLine.balance) : 0;
+        console.log('BEAR balance found:', bearBalance);
 
         // Update BEAR amount immediately
         document.getElementById('portfolioBearAmount').textContent = bearBalance.toLocaleString('en-US', { maximumFractionDigits: 2 });
 
         // Fetch fresh price data directly from DexScreener
         try {
+          console.log('Fetching price data from DexScreener...');
           const {priceNative, priceUsd} = await fetchDex();
 
-          console.log('Portfolio Debug:', {
+          console.log('Portfolio calculation:', {
             bearBalance,
             priceUsd,
-            priceNative
+            priceNative,
+            usdValue: bearBalance * priceUsd,
+            xrpValue: bearBalance * priceNative
           });
 
           // Calculate values
@@ -1270,12 +1282,14 @@
         }
 
         await client.disconnect();
+        console.log('XRPL client disconnected');
 
       } catch (err) {
         console.error('Error loading portfolio:', err);
-        document.getElementById('portfolioBearAmount').textContent = '0';
-        document.getElementById('portfolioUsdValue').textContent = '$0.00';
-        document.getElementById('portfolioXrpValue').textContent = '0 XRP';
+        console.error('Error details:', err.message, err.stack);
+        document.getElementById('portfolioBearAmount').textContent = 'Error';
+        document.getElementById('portfolioUsdValue').textContent = 'Error';
+        document.getElementById('portfolioXrpValue').textContent = 'Error';
       }
 
       // Load points data (will be implemented with backend)
@@ -1283,6 +1297,8 @@
     }
 
     async function loadPointsData(walletAddress) {
+      const disconnectButtonsSection = document.getElementById('disconnectButtons');
+
       try {
         const response = await fetch(`/api/points/${walletAddress}`);
         const data = await response.json();
@@ -1293,6 +1309,9 @@
           document.getElementById('pointsNotConnected').style.display = 'none';
           document.getElementById('totalPoints').textContent = data.total_points;
           document.getElementById('connectedTwitter').textContent = data.twitter_username;
+
+          // Show disconnect buttons when Twitter is connected
+          disconnectButtonsSection.style.display = 'grid';
 
           // Load activity
           const activityList = document.getElementById('activityList');
@@ -1318,12 +1337,16 @@
           // Show not connected state
           document.getElementById('pointsConnected').style.display = 'none';
           document.getElementById('pointsNotConnected').style.display = 'block';
+          // Still show disconnect buttons (at least wallet disconnect)
+          disconnectButtonsSection.style.display = 'grid';
         }
       } catch (err) {
         console.error('Error loading points:', err);
         // Show not connected state on error
         document.getElementById('pointsConnected').style.display = 'none';
         document.getElementById('pointsNotConnected').style.display = 'block';
+        // Still show disconnect buttons
+        disconnectButtonsSection.style.display = 'grid';
       }
     }
 
@@ -1394,7 +1417,7 @@
       }
     });
 
-    // Wire up Twitter disconnect button
+    // Wire up Twitter disconnect button (now at bottom)
     document.getElementById('disconnectTwitterBtn')?.addEventListener('click', async () => {
       const walletAddress = sessionStorage.getItem('bearpark_wallet');
       if (!walletAddress) return;
@@ -1409,6 +1432,15 @@
         alert('To disconnect Twitter, please contact support. Your points are safely saved!');
       } catch (error) {
         console.error('Error disconnecting Twitter:', error);
+      }
+    });
+
+    // Wire up Wallet disconnect button
+    document.getElementById('disconnectWalletBtn')?.addEventListener('click', () => {
+      if (confirm('Are you sure you want to disconnect your wallet?')) {
+        sessionStorage.removeItem('bearpark_auth');
+        sessionStorage.removeItem('bearpark_wallet');
+        window.location.href = 'index.html';
       }
     });
 
