@@ -115,38 +115,75 @@ export default async function handler(req, res) {
       const tokens = await tokenResponse.json();
       console.log('Successfully received tokens');
 
-      // Get Twitter user info
-      const userResponse = await fetch('https://api.twitter.com/2/users/me', {
-        headers: {
-          'Authorization': `Bearer ${tokens.access_token}`
+      // Check if this wallet already has Twitter connected (for caching)
+      const { data: existingTwitterUser } = await supabase
+        .from('users')
+        .select('twitter_username, twitter_user_id, updated_at')
+        .eq('wallet_address', wallet_address)
+        .not('twitter_user_id', 'is', null)
+        .maybeSingle();
+
+      let twitterUser;
+
+      // If user already has Twitter connected AND it was updated recently (within 1 hour),
+      // use cached data to avoid API call
+      if (existingTwitterUser?.twitter_user_id) {
+        const lastUpdated = new Date(existingTwitterUser.updated_at);
+        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+
+        if (lastUpdated > oneHourAgo) {
+          console.log('Using cached Twitter data (connected within last hour)');
+          twitterUser = {
+            id: existingTwitterUser.twitter_user_id,
+            username: existingTwitterUser.twitter_username
+          };
         }
-      });
-
-      console.log('Twitter user response status:', userResponse.status);
-
-      if (!userResponse.ok) {
-        const errorText = await userResponse.text();
-        console.error('Twitter user fetch error:', errorText);
-        console.error('Twitter user response headers:', Object.fromEntries(userResponse.headers.entries()));
-
-        // Handle rate limit specifically
-        if (userResponse.status === 429) {
-          throw new Error('Twitter API rate limit reached. Please wait 15 minutes and try again.');
-        }
-
-        throw new Error(`Failed to get Twitter user info: ${userResponse.status} ${errorText}`);
       }
 
-      const userJson = await userResponse.json();
-      console.log('Twitter user response JSON:', userJson);
-
-      const { data: twitterUser } = userJson;
+      // If no cached data available, call Twitter API
       if (!twitterUser) {
-        console.error('No user data in response:', userJson);
-        throw new Error('Twitter API returned no user data');
-      }
+        console.log('Fetching fresh Twitter user data from API');
 
-      console.log('Successfully fetched Twitter user:', twitterUser.username);
+        const userResponse = await fetch('https://api.twitter.com/2/users/me', {
+          headers: {
+            'Authorization': `Bearer ${tokens.access_token}`
+          }
+        });
+
+        console.log('Twitter user response status:', userResponse.status);
+
+        if (!userResponse.ok) {
+          const errorText = await userResponse.text();
+          console.error('Twitter user fetch error:', errorText);
+          console.error('Twitter user response headers:', Object.fromEntries(userResponse.headers.entries()));
+
+          // Handle rate limit specifically - use cached data if available
+          if (userResponse.status === 429) {
+            if (existingTwitterUser?.twitter_user_id) {
+              console.log('Rate limit hit, falling back to cached Twitter data');
+              twitterUser = {
+                id: existingTwitterUser.twitter_user_id,
+                username: existingTwitterUser.twitter_username
+              };
+            } else {
+              throw new Error('Twitter API rate limit reached. Please wait 15 minutes and try again.');
+            }
+          } else {
+            throw new Error(`Failed to get Twitter user info: ${userResponse.status} ${errorText}`);
+          }
+        } else {
+          const userJson = await userResponse.json();
+          console.log('Twitter user response JSON:', userJson);
+
+          twitterUser = userJson.data;
+          if (!twitterUser) {
+            console.error('No user data in response:', userJson);
+            throw new Error('Twitter API returned no user data');
+          }
+
+          console.log('Successfully fetched Twitter user:', twitterUser.username);
+        }
+      }
 
       // Check for pending tweets from this Twitter user
       const { data: pendingTweets, error: pendingError } = await supabase
