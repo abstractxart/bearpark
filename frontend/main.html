@@ -1042,13 +1042,19 @@
 
     /* ===== Portfolio & Points Functions ===== */
     async function loadPortfolioData() {
+      console.log('[Portfolio] Starting loadPortfolioData...');
+
       const walletAddress = sessionStorage.getItem('bearpark_wallet');
       const isAuthenticated = sessionStorage.getItem('bearpark_auth') === 'true';
+
+      console.log('[Portfolio] Wallet:', walletAddress);
+      console.log('[Portfolio] Authenticated:', isAuthenticated);
 
       const portfolioSection = document.getElementById('portfolioSection');
       const connectedWalletAddress = document.getElementById('connectedWalletAddress');
 
       if (!isAuthenticated || !walletAddress) {
+        console.log('[Portfolio] Not authenticated, hiding section');
         portfolioSection.style.display = 'none';
         return;
       }
@@ -1057,7 +1063,21 @@
       portfolioSection.style.display = 'block';
       connectedWalletAddress.textContent = walletAddress;
 
+      // Check if xrpl library is loaded
+      if (typeof xrpl === 'undefined') {
+        console.error('[Portfolio] XRPL library not loaded!');
+        document.getElementById('portfolioBearAmount').textContent = 'Error: Library not loaded';
+        return;
+      }
+
+      console.log('[Portfolio] XRPL library loaded:', typeof xrpl);
+
       try {
+        // Set loading states
+        document.getElementById('portfolioBearAmount').textContent = 'Loading...';
+        document.getElementById('portfolioUsdValue').textContent = 'Loading...';
+        document.getElementById('portfolioXrpValue').textContent = 'Loading...';
+
         // Connect to XRPL with fallback nodes
         const xrplNodes = [
           'wss://xrplcluster.com',
@@ -1068,13 +1088,17 @@
         let client = null;
         let lastError = null;
 
+        console.log('[Portfolio] Attempting to connect to XRPL...');
+
         for (const node of xrplNodes) {
           try {
+            console.log(`[Portfolio] Trying ${node}...`);
             client = new xrpl.Client(node);
             await client.connect();
+            console.log(`[Portfolio] Connected to ${node}!`);
             break;
           } catch (err) {
-            console.warn(`Failed to connect to ${node}:`, err.message);
+            console.warn(`[Portfolio] Failed to connect to ${node}:`, err.message);
             lastError = err;
             if (client) {
               try { await client.disconnect(); } catch(e) {}
@@ -1084,15 +1108,19 @@
         }
 
         if (!client) {
+          console.error('[Portfolio] Unable to connect to any XRPL node');
           throw new Error('Unable to connect to XRPL nodes');
         }
 
         // Get $BEAR balance
+        console.log('[Portfolio] Requesting account_lines...');
         const accountLines = await client.request({
           command: 'account_lines',
           account: walletAddress,
           ledger_index: 'validated'
         });
+
+        console.log('[Portfolio] Received account_lines:', accountLines.result.lines.length, 'trustlines');
 
         const BEAR_ISSUER = 'rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW';
         const BEAR_CURRENCY = 'BEAR';
@@ -1102,16 +1130,23 @@
           line.currency === BEAR_CURRENCY
         );
 
+        console.log('[Portfolio] BEAR trustline found:', !!bearLine);
+        if (bearLine) {
+          console.log('[Portfolio] BEAR balance:', bearLine.balance);
+        }
+
         const bearBalance = bearLine ? parseFloat(bearLine.balance) : 0;
 
         // Update BEAR amount immediately
+        console.log('[Portfolio] Setting BEAR balance in UI:', bearBalance);
         document.getElementById('portfolioBearAmount').textContent = bearBalance.toLocaleString('en-US', { maximumFractionDigits: 2 });
 
         // Fetch fresh price data from API
         try {
+          console.log('[Portfolio] Fetching price data...');
           const {priceNative, priceUsd} = await fetchDex();
 
-          console.log('Portfolio Debug:', {
+          console.log('[Portfolio] Price data received:', {
             bearBalance,
             priceUsd,
             priceNative
@@ -1120,6 +1155,8 @@
           // Calculate values
           const usdValue = bearBalance * priceUsd;
           const xrpValue = bearBalance * priceNative;
+
+          console.log('[Portfolio] Calculated values - USD:', usdValue, 'XRP:', xrpValue);
 
           // Update UI with calculated values
           if (priceUsd > 0) {
@@ -1133,19 +1170,24 @@
           } else {
             document.getElementById('portfolioXrpValue').textContent = 'Loading...';
           }
+
+          console.log('[Portfolio] Price data updated in UI');
         } catch (priceErr) {
-          console.error('Error fetching prices:', priceErr);
+          console.error('[Portfolio] Error fetching prices:', priceErr);
           document.getElementById('portfolioUsdValue').textContent = 'N/A';
           document.getElementById('portfolioXrpValue').textContent = 'N/A';
         }
 
+        console.log('[Portfolio] Disconnecting from XRPL...');
         await client.disconnect();
+        console.log('[Portfolio] Complete!');
 
       } catch (err) {
-        console.error('Error loading portfolio:', err);
-        document.getElementById('portfolioBearAmount').textContent = '0';
-        document.getElementById('portfolioUsdValue').textContent = '$0.00';
-        document.getElementById('portfolioXrpValue').textContent = '0 XRP';
+        console.error('[Portfolio] ERROR loading portfolio:', err);
+        console.error('[Portfolio] Error stack:', err.stack);
+        document.getElementById('portfolioBearAmount').textContent = 'Error: ' + err.message;
+        document.getElementById('portfolioUsdValue').textContent = 'Error';
+        document.getElementById('portfolioXrpValue').textContent = 'Error';
       }
 
       // Load points data (will be implemented with backend)
