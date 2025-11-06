@@ -62,7 +62,7 @@
   /* ==== BASE ============================================================ */
   *{box-sizing:border-box}
   html,body{margin:0;padding:0;background:var(--charcoal);color:#fff}
-  body{padding-bottom:calc(100px + env(safe-area-inset-bottom))}
+  body{padding-bottom:calc(160px + env(safe-area-inset-bottom))}
 
   /* Tri-color border utility for rounded elements */
   .tri-border-rounded {
@@ -313,7 +313,7 @@
   .drawer.open{ transform:translateX(0) }
   .drawer-scrim{ position:fixed; inset:0; background:rgba(0,0,0,.55); backdrop-filter:blur(2px); z-index:65 }
   .drawer-head{ position:sticky; top:0; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 18px; border-bottom:4px solid; border-image: linear-gradient(to right, var(--stripe-purple) 0%, var(--stripe-purple) 33.33%, var(--stripe-yellow) 33.33%, var(--stripe-yellow) 66.66%, var(--stripe-green) 66.66%, var(--stripe-green) 100%) 1; background:#0f1114 }
-  .drawer-body{ padding:16px; overflow:auto; display:grid; gap:14px }
+  .drawer-body{ padding:16px; padding-bottom:calc(120px + env(safe-area-inset-bottom)); overflow:auto; display:grid; gap:14px }
 
   .btn.sm{ font-size:20px; padding:.85rem 1.2rem; border-radius:20px; box-shadow:0 8px 0 #000,0 14px 20px rgba(0,0,0,.35) }
 
@@ -675,7 +675,7 @@
     }
     .drawer-scrim{display:none !important;}
     #buyDrawer .drawer-head{padding-top:calc(env(safe-area-inset-top,0px) + 14px)}
-    #buyDrawer .drawer-body{padding-bottom:calc(env(safe-area-inset-bottom,0px) + 18px); overscroll-behavior:contain}
+    #buyDrawer .drawer-body{padding-bottom:calc(env(safe-area-inset-bottom,0px) + 140px); overscroll-behavior:contain}
   }
 
   /* Use dynamic viewport height where supported */
