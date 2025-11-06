@@ -398,6 +398,21 @@
     transform:translateY(-2px);
     box-shadow:0 16px 32px rgba(0,0,0,.45);
   }
+  .portfolio-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 28px;
+    padding: 4px;
+    background: linear-gradient(135deg, var(--stripe-purple) 0%, var(--stripe-purple) 33.33%, var(--stripe-yellow) 33.33%, var(--stripe-yellow) 66.66%, var(--stripe-green) 66.66%, var(--stripe-green) 100%);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    pointer-events: none;
+    z-index: -1;
+    opacity: 1;
+  }
 
   /* Profile Card */
   .profile-card{
@@ -425,22 +440,9 @@
     mask-composite: exclude;
     pointer-events: none;
     z-index: -1;
+    opacity: 1;
   }
 
-  .portfolio-card::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: 16px;
-    padding: 6px;
-    background: linear-gradient(135deg, var(--stripe-purple) 0%, var(--stripe-purple) 33.33%, var(--stripe-yellow) 33.33%, var(--stripe-yellow) 66.66%, var(--stripe-green) 66.66%, var(--stripe-green) 100%);
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    mask-composite: exclude;
-    pointer-events: none;
-    z-index: -1;
-  }
   .portfolio-stats{ display:grid; gap:12px }
   .stat-row{
     display:flex; justify-content:space-between; align-items:center;
