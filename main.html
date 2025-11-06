@@ -325,14 +325,14 @@
   .drawer.open{ transform:translateX(0) }
   .drawer-scrim{ position:fixed; inset:0; background:rgba(0,0,0,.55); backdrop-filter:blur(2px); z-index:65 }
   .drawer-head{ position:sticky; top:0; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 18px; border-bottom:4px solid; border-image: linear-gradient(to right, var(--stripe-purple) 0%, var(--stripe-purple) 33.33%, var(--stripe-yellow) 33.33%, var(--stripe-yellow) 66.66%, var(--stripe-green) 66.66%, var(--stripe-green) 100%) 1; background:#0f1114 }
-  .drawer-body{ padding:20px; padding-bottom:calc(120px + env(safe-area-inset-bottom)); overflow:auto; display:flex; flex-direction:column; gap:20px }
+  .drawer-body{ padding:20px; padding-bottom:calc(160px + env(safe-area-inset-bottom)); overflow:auto; display:flex; flex-direction:column; gap:20px }
 
   .drawer-close-btn{
-    position:fixed;
-    bottom:calc(24px + env(safe-area-inset-bottom));
-    right:24px;
-    width:60px;
-    height:60px;
+    position:absolute;
+    top:16px;
+    right:20px;
+    width:50px;
+    height:50px;
     border-radius:50%;
     background:linear-gradient(135deg, var(--gold) 0%, #d4a617 100%);
     color:#000;
@@ -341,21 +341,21 @@
     display:flex;
     align-items:center;
     justify-content:center;
-    box-shadow:0 8px 24px rgba(237,183,35,.5), 0 0 0 4px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.3);
+    box-shadow:0 6px 20px rgba(237,183,35,.5), 0 0 0 3px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.3);
     transition:all .25s cubic-bezier(0.4, 0, 0.2, 1);
-    z-index:9999;
+    z-index:100;
     font-weight:900;
-    font-size:32px;
+    font-size:28px;
   }
   .drawer-close-btn:hover{
     background:linear-gradient(135deg, #ffd700 0%, var(--gold) 100%);
     border-color:rgba(255,255,255,.7);
-    transform:scale(1.08) rotate(90deg);
-    box-shadow:0 12px 32px rgba(237,183,35,.7), 0 0 0 5px rgba(237,183,35,.2), inset 0 1px 0 rgba(255,255,255,.4);
+    transform:scale(1.1) rotate(90deg);
+    box-shadow:0 8px 24px rgba(237,183,35,.7), 0 0 0 4px rgba(237,183,35,.2), inset 0 1px 0 rgba(255,255,255,.4);
   }
   .drawer-close-btn:active{
-    transform:scale(0.92) rotate(90deg);
-    box-shadow:0 4px 16px rgba(237,183,35,.6), 0 0 0 4px rgba(237,183,35,.15);
+    transform:scale(0.9) rotate(90deg);
+    box-shadow:0 3px 12px rgba(237,183,35,.6), 0 0 0 3px rgba(237,183,35,.15);
   }
 
   .btn.sm{ font-size:26px; padding:1.2rem 1.8rem; border-radius:28px; box-shadow:0 10px 0 #000,0 16px 24px rgba(0,0,0,.35) }
@@ -1634,9 +1634,9 @@
       </div>
     </div>
 
-    <!-- Floating Close Button (Bottom Right) -->
+    <!-- Close Button (Top Right) -->
     <button class="drawer-close-btn" data-close-drawer aria-label="Close BEAR HUB">
-      <span style="font-size: 28px; line-height: 1;">&times;</span>
+      &times;
     </button>
   </aside>
 
