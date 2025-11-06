@@ -271,7 +271,7 @@ CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON profiles
 CREATE TRIGGER update_game_leaderboards_updated_at BEFORE UPDATE ON game_leaderboards
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- View: Game leaderboard with profile info
+-- View: Game leaderboard with profile info and Twitter username
 CREATE OR REPLACE VIEW game_leaderboard_with_profiles AS
 SELECT
   gl.id,
@@ -283,9 +283,11 @@ SELECT
   gl.updated_at,
   p.display_name,
   p.avatar_nft,
+  u.twitter_username,
   RANK() OVER (PARTITION BY gl.game_id ORDER BY gl.score DESC) as rank
 FROM game_leaderboards gl
 LEFT JOIN profiles p ON gl.wallet_address = p.wallet_address
+LEFT JOIN users u ON gl.wallet_address = u.wallet_address
 ORDER BY gl.game_id, gl.score DESC;
 
 -- =====================================================
