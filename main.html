@@ -3430,9 +3430,13 @@
                 displayName = entry.wallet_address.substring(0, 4) + '...' + entry.wallet_address.substring(entry.wallet_address.length - 4);
               }
 
+              // Avatar display (use avatar_nft if available, otherwise placeholder)
+              const avatarUrl = entry.avatar_nft || 'https://files.catbox.moe/25ekkd.png'; // Default to BEAR logo
+
               return `
                 <div class="leaderboard-entry ${rankClass}">
                   <div class="leaderboard-rank">${medal || `#${index + 1}`}</div>
+                  <img src="${avatarUrl}" alt="${displayName}" class="leaderboard-avatar" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid var(--gold);" onerror="this.src='https://files.catbox.moe/25ekkd.png'">
                   <div class="leaderboard-name">
                     ${displayName}
                     ${entry.wallet_address ? `<div class="leaderboard-wallet">${entry.wallet_address.substring(0, 8)}...</div>` : ''}
