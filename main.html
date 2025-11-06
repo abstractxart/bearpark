@@ -315,12 +315,12 @@
   .drawer-head{ position:sticky; top:0; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 18px; border-bottom:4px solid; border-image: linear-gradient(to right, var(--stripe-purple) 0%, var(--stripe-purple) 33.33%, var(--stripe-yellow) 33.33%, var(--stripe-yellow) 66.66%, var(--stripe-green) 66.66%, var(--stripe-green) 100%) 1; background:#0f1114 }
   .drawer-body{ padding:16px; padding-bottom:calc(120px + env(safe-area-inset-bottom)); overflow:auto; display:grid; gap:14px }
 
-  .btn.sm{ font-size:20px; padding:.85rem 1.2rem; border-radius:20px; box-shadow:0 8px 0 #000,0 14px 20px rgba(0,0,0,.35) }
+  .btn.sm{ font-size:26px; padding:1.2rem 1.8rem; border-radius:28px; box-shadow:0 10px 0 #000,0 16px 24px rgba(0,0,0,.35) }
 
   .price-card{
     position: relative;
-    display:grid; gap:8px; padding:20px;
-    border-radius:20px;
+    display:grid; gap:12px; padding:28px;
+    border-radius:28px;
     background:radial-gradient(500px 200px at 50% -20%, rgba(237,183,35,.1), transparent 60%), #0b0d0e;
     box-shadow:0 12px 22px rgba(0,0,0,.35)
   }
@@ -338,15 +338,15 @@
     pointer-events: none;
     z-index: -1;
   }
-  .price-card .metric{ font-size:40px; font-weight:900; display:flex; align-items:baseline; gap:8px }
-  .price-card .metric small{ opacity:.8; font-size:18px }
-  .price-card .sub{ opacity:.9; font-size:16px }
+  .price-card .metric{ font-size:52px; font-weight:900; display:flex; align-items:baseline; gap:10px }
+  .price-card .metric small{ opacity:.8; font-size:24px }
+  .price-card .sub{ opacity:.9; font-size:20px }
 
   /* Portfolio Card */
   .portfolio-card{
     position: relative;
-    padding:20px;
-    border-radius:20px;
+    padding:28px;
+    border-radius:28px;
     background:radial-gradient(500px 200px at 50% -20%, rgba(118,174,255,.12), transparent 60%), #0b0d0e;
     box-shadow:0 12px 22px rgba(0,0,0,.35)
   }
@@ -370,22 +370,22 @@
     padding:14px 16px; background:rgba(255,255,255,.03); border-radius:12px;
     border:2px solid rgba(255,255,255,.08)
   }
-  .stat-label{ font-size:18px; opacity:.85 }
-  .stat-value{ font-size:26px; font-weight:900; color:var(--gold) }
+  .stat-label{ font-size:22px; opacity:.85 }
+  .stat-value{ font-size:32px; font-weight:900; color:var(--gold) }
 
   /* Points Card */
   .points-card{
-    padding:20px;
-  border:4px solid transparent; border-image: var(--tri-gradient) 1; border-radius:20px;
+    padding:28px;
+  border:4px solid transparent; border-image: var(--tri-gradient) 1; border-radius:28px;
     background:radial-gradient(500px 200px at 50% -20%, rgba(237,183,35,.08), transparent 60%), #0b0d0e;
     box-shadow:0 12px 22px rgba(0,0,0,.35)
   }
   .points-card .activity-item{
-    padding:12px 14px; background:rgba(255,255,255,.03); border-radius:10px;
-    border-left:4px solid var(--gold); margin-bottom:8px; font-size:16px;
+    padding:16px 18px; background:rgba(255,255,255,.03); border-radius:14px;
+    border-left:4px solid var(--gold); margin-bottom:10px; font-size:20px;
     display:flex; justify-content:space-between; align-items:center
   }
-  .points-card .activity-item .points{ color:var(--gold); font-weight:900; font-size:18px }
+  .points-card .activity-item .points{ color:var(--gold); font-weight:900; font-size:24px }
 
   .links-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px }
   .links-grid .tile .lbl{ color:var(--gold) }
@@ -443,12 +443,16 @@
   .menu-btn {
     display: flex;
     align-items: center;
+    position: relative;
     background: none;
-    border: none;
     cursor: pointer;
-    padding: 4px;
-    border-radius: 8px;
+    padding: 0;
+    border-radius: 12px;
     transition: all 0.2s;
+    border: 4px solid transparent;
+    background-image: linear-gradient(#141619, #141619), var(--tri-gradient);
+    background-origin: padding-box, border-box;
+    background-clip: padding-box, border-box;
     filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.8));
   }
 
@@ -461,6 +465,30 @@
     width: 52px;
     height: 52px;
     display: block;
+    border-radius: 8px;
+  }
+
+  /* Hamburger icon overlay */
+  .menu-btn::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    right: -4px;
+    width: 24px;
+    height: 24px;
+    background: #edb723;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+    background-image:
+      linear-gradient(#000 0%, #000 100%),
+      linear-gradient(#000 0%, #000 100%),
+      linear-gradient(#000 0%, #000 100%);
+    background-size: 14px 2px;
+    background-position: center calc(50% - 5px), center 50%, center calc(50% + 5px);
+    background-repeat: no-repeat;
   }
 
   /* Welcome button - points + username display */
@@ -507,8 +535,11 @@
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    border: 3px solid transparent; border-image: var(--tri-gradient) 1;
     object-fit: cover;
+    border: 3px solid transparent;
+    background-image: linear-gradient(#fff, #fff), var(--tri-gradient);
+    background-origin: padding-box, border-box;
+    background-clip: padding-box, border-box;
     margin-left: 8px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.4);
   }
