@@ -3430,8 +3430,19 @@
                 displayName = entry.wallet_address.substring(0, 4) + '...' + entry.wallet_address.substring(entry.wallet_address.length - 4);
               }
 
-              // Avatar display (use avatar_nft if available, otherwise placeholder)
-              const avatarUrl = entry.avatar_nft || 'https://files.catbox.moe/25ekkd.png'; // Default to BEAR logo
+              // Avatar display - parse avatar_nft JSON to get imageUrl
+              let avatarUrl = 'https://files.catbox.moe/25ekkd.png'; // Default to BEAR logo
+              if (entry.avatar_nft) {
+                try {
+                  const avatarData = typeof entry.avatar_nft === 'string' ? JSON.parse(entry.avatar_nft) : entry.avatar_nft;
+                  if (avatarData.imageUrl) {
+                    avatarUrl = avatarData.imageUrl;
+                  }
+                } catch (e) {
+                  // If parsing fails, use default
+                  console.warn('Failed to parse avatar_nft:', e);
+                }
+              }
 
               return `
                 <div class="leaderboard-entry ${rankClass}">
