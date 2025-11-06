@@ -14,7 +14,7 @@
  * - 'bear-jumpventure-alt' for https://bear-jumpventure1.vercel.app/
  */
 
-const BEAR_API_URL = 'https://bearpark.xyz/api'; // Change to your production API URL
+const BEAR_API_URL = 'https://www.bearpark.xyz/api'; // Production API URL
 const GAME_ID = 'flappy-bear'; // CHANGE THIS for each game!
 
 const BEARParkAPI = {
