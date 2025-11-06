@@ -150,12 +150,12 @@
   .spacer{height:12px}
 
   /* Buttons */
-  .btn{display:inline-flex;align-items:center;justify-content:center;gap:.6rem;font:900 clamp(16px,2.2vw,22px)/1 "Luckiest Guy","Arial Black",Impact,system-ui,sans-serif;border-radius:22px;padding:.95rem 1.35rem;color:#fff;background:var(--accent);border:none; box-shadow:0 10px 0 #7b2a20, 0 18px 24px rgba(0,0,0,.35);transition:transform .12s var(--ease-spring), box-shadow .12s var(--ease-spring), filter .2s ease;white-space:nowrap; position:relative; will-change:transform}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:.6rem;font:900 clamp(18px,2.5vw,24px)/1 "Luckiest Guy","Arial Black",Impact,system-ui,sans-serif;border-radius:26px;padding:1.1rem 1.6rem;color:#fff;background:var(--accent);border:none; box-shadow:0 10px 0 #7b2a20, 0 18px 24px rgba(0,0,0,.35);transition:transform .12s var(--ease-spring), box-shadow .12s var(--ease-spring), filter .2s ease;white-space:nowrap; position:relative; will-change:transform}
   .btn::before {
     content: '';
     position: absolute;
     inset: 0;
-    border-radius: 22px;
+    border-radius: 26px;
     padding: 6px;
     background: linear-gradient(135deg, var(--stripe-purple) 0%, var(--stripe-purple) 33.33%, var(--stripe-yellow) 33.33%, var(--stripe-yellow) 66.66%, var(--stripe-green) 66.66%, var(--stripe-green) 100%);
     -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
@@ -269,10 +269,10 @@
 
   /* Buy drawer + FAB base styles used by JS */
   .fab-buy{
-    position:fixed; right:22px; bottom:22px; z-index:60;
-    display:inline-flex; align-items:center; justify-content:center; gap:.5rem;
-    font:900 18px/1 "Luckiest Guy","Arial Black",Impact,system-ui,sans-serif;
-    padding:14px 18px; border-radius:999px; color:#000; background:var(--gold);
+    position:fixed; right:20px; bottom:calc(20px + env(safe-area-inset-bottom)); z-index:60;
+    display:inline-flex; align-items:center; justify-content:center; gap:.6rem;
+    font:900 20px/1 "Luckiest Guy","Arial Black",Impact,system-ui,sans-serif;
+    padding:16px 24px; border-radius:999px; color:#000; background:var(--gold);
     border:none; box-shadow:0 10px 0 #9b7a0d, 0 18px 24px rgba(0,0,0,.35), 0 0 0 4px var(--stripe-purple), 0 0 0 4px var(--stripe-yellow), 0 0 0 4px var(--stripe-green);
     background-image: linear-gradient(var(--gold), var(--gold)), var(--tri-gradient);
     background-origin: padding-box, border-box;
@@ -284,10 +284,10 @@
   .fab-buy:active{transform:translateY(2px)}
 
   .fab-logout{
-    position:fixed; left:22px; bottom:22px; z-index:60;
-    display:inline-flex; align-items:center; justify-content:center; gap:.5rem;
-    font:900 16px/1 "Luckiest Guy","Arial Black",Impact,system-ui,sans-serif;
-    padding:12px 16px; border-radius:999px; color:#fff; background:var(--accent);
+    position:fixed; left:20px; bottom:calc(20px + env(safe-area-inset-bottom)); z-index:60;
+    display:inline-flex; align-items:center; justify-content:center; gap:.6rem;
+    font:900 18px/1 "Luckiest Guy","Arial Black",Impact,system-ui,sans-serif;
+    padding:14px 20px; border-radius:999px; color:#fff; background:var(--accent);
     border:none; box-shadow:0 8px 0 #7b2a20, 0 14px 20px rgba(0,0,0,.35), 0 0 0 4px var(--stripe-purple), 0 0 0 4px var(--stripe-yellow), 0 0 0 4px var(--stripe-green);
     background-image: linear-gradient(var(--accent), var(--accent)), var(--tri-gradient);
     background-origin: padding-box, border-box;
