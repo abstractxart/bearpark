@@ -169,11 +169,20 @@
     pointer-events: none;
     z-index: -1;
   }
-  .btn:hover{filter:brightness(1.06)}
+  .btn{transition:all 0.2s ease;}
+  .btn:hover{filter:brightness(1.12); transform:translateY(-2px);}
   .btn:active{transform:translateY(4px); box-shadow:0 6px 0 #7b2a20, 0 10px 16px rgba(0,0,0,.35)}
   .btn.ghost{background:#1c1f23;color:#fff;box-shadow:0 10px 0 #000,0 18px 24px rgba(0,0,0,.35)}
   .btn.gold{background:var(--gold);color:#000;box-shadow:0 10px 0 #9b7a0d,0 18px 24px rgba(0,0,0,.35)}
+  .btn.gold:hover{box-shadow:0 12px 0 #9b7a0d,0 22px 28px rgba(0,0,0,.4); filter:brightness(1.15);}
   .btn:focus-visible{outline:none; box-shadow:var(--ring)}
+
+  /* Input Styles */
+  input[type="text"]:focus{
+    border-color:var(--gold) !important;
+    box-shadow:0 0 0 3px rgba(237,183,35,0.2);
+    outline:none;
+  }
 
   /* Cards */
   .card{
@@ -315,36 +324,36 @@
   }
   .drawer.open{ transform:translateX(0) }
   .drawer-scrim{ position:fixed; inset:0; background:rgba(0,0,0,.55); backdrop-filter:blur(2px); z-index:65 }
-  .drawer-head{ position:sticky; top:0; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 18px; border-bottom:4px solid; border-image: linear-gradient(to right, var(--stripe-purple) 0%, var(--stripe-purple) 33.33%, var(--stripe-yellow) 33.33%, var(--stripe-yellow) 66.66%, var(--stripe-green) 66.66%, var(--stripe-green) 100%) 1; background:#0f1114 }
-  .drawer-body{ padding:16px; padding-bottom:calc(120px + env(safe-area-inset-bottom)); overflow:auto; display:flex; flex-direction:column; gap:14px }
+  .drawer-head{ position:sticky; top:0; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 18px; border-bottom:4px solid; border-image: linear-gradient(to right, var(--stripe-purple) 0%, var(--stripe-purple) 33.33%, var(--stripe-yellow) 33.33%, var(--stripe-yellow) 66.66%, var(--stripe-green) 66.66%, var(--stripe-green) 100%) 1; background:linear-gradient(180deg, rgba(237,183,35,0.12) 0%, #1a1d22 100%); z-index:10 }
+  .drawer-body{ padding:20px; padding-bottom:calc(160px + env(safe-area-inset-bottom)); overflow:auto; display:flex; flex-direction:column; gap:20px }
 
   .drawer-close-btn{
-    position:fixed;
-    bottom:calc(24px + env(safe-area-inset-bottom));
-    right:24px;
-    width:56px;
-    height:56px;
+    position:relative;
+    width:48px;
+    height:48px;
     border-radius:50%;
-    background:linear-gradient(135deg, var(--accent) 0%, #d75c46 100%);
-    color:#fff;
-    border:3px solid rgba(255,255,255,.3);
+    background:linear-gradient(135deg, var(--gold) 0%, #d4a617 100%);
+    color:#000;
+    border:3px solid rgba(255,255,255,.5);
     cursor:pointer;
     display:flex;
     align-items:center;
     justify-content:center;
-    box-shadow:0 8px 20px rgba(215,92,70,.6), 0 0 0 4px rgba(0,0,0,.3);
-    transition:all .2s ease;
-    z-index:9999;
-    font-weight:bold;
+    box-shadow:0 4px 16px rgba(237,183,35,.5), 0 0 0 2px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.3);
+    transition:all .25s cubic-bezier(0.4, 0, 0.2, 1);
+    font-weight:900;
+    font-size:26px;
+    flex-shrink:0;
   }
   .drawer-close-btn:hover{
-    background:linear-gradient(135deg, #e76d52 0%, #ff6b52 100%);
-    border-color:rgba(255,255,255,.5);
-    transform:scale(1.1);
-    box-shadow:0 10px 24px rgba(215,92,70,.8), 0 0 0 4px rgba(0,0,0,.4);
+    background:linear-gradient(135deg, #ffd700 0%, var(--gold) 100%);
+    border-color:rgba(255,255,255,.7);
+    transform:scale(1.1) rotate(90deg);
+    box-shadow:0 6px 20px rgba(237,183,35,.7), 0 0 0 3px rgba(237,183,35,.2), inset 0 1px 0 rgba(255,255,255,.4);
   }
   .drawer-close-btn:active{
-    transform:scale(0.95);
+    transform:scale(0.9) rotate(90deg);
+    box-shadow:0 2px 10px rgba(237,183,35,.6), 0 0 0 2px rgba(237,183,35,.15);
   }
 
   .btn.sm{ font-size:26px; padding:1.2rem 1.8rem; border-radius:28px; box-shadow:0 10px 0 #000,0 16px 24px rgba(0,0,0,.35) }
@@ -377,25 +386,63 @@
   /* Portfolio Card */
   .portfolio-card{
     position: relative;
-    padding:28px;
+    padding:32px;
     border-radius:28px;
     background:radial-gradient(500px 200px at 50% -20%, rgba(118,174,255,.12), transparent 60%), #0b0d0e;
-    box-shadow:0 12px 22px rgba(0,0,0,.35)
+    box-shadow:0 12px 22px rgba(0,0,0,.35);
+    transition:transform 0.2s ease, box-shadow 0.2s ease;
+    isolation: isolate;
+  }
+  .portfolio-card:hover{
+    transform:translateY(-2px);
+    box-shadow:0 16px 32px rgba(0,0,0,.45);
   }
   .portfolio-card::before {
     content: '';
     position: absolute;
     inset: 0;
-    border-radius: 16px;
-    padding: 6px;
+    border-radius: 28px;
+    padding: 4px;
     background: linear-gradient(135deg, var(--stripe-purple) 0%, var(--stripe-purple) 33.33%, var(--stripe-yellow) 33.33%, var(--stripe-yellow) 66.66%, var(--stripe-green) 66.66%, var(--stripe-green) 100%);
     -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     -webkit-mask-composite: xor;
     mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     mask-composite: exclude;
     pointer-events: none;
-    z-index: -1;
+    z-index: 0;
+    opacity: 1;
   }
+
+  /* Profile Card */
+  .profile-card{
+    position: relative;
+    padding:32px;
+    border-radius:28px;
+    background:radial-gradient(500px 200px at 50% -20%, rgba(237,183,35,.08), transparent 60%), #0b0d0e;
+    box-shadow:0 12px 22px rgba(0,0,0,.35);
+    transition:transform 0.2s ease, box-shadow 0.2s ease;
+    isolation: isolate;
+  }
+  .profile-card:hover{
+    transform:translateY(-2px);
+    box-shadow:0 16px 32px rgba(0,0,0,.45);
+  }
+  .profile-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 28px;
+    padding: 4px;
+    background: linear-gradient(135deg, var(--stripe-purple) 0%, var(--stripe-purple) 33.33%, var(--stripe-yellow) 33.33%, var(--stripe-yellow) 66.66%, var(--stripe-green) 66.66%, var(--stripe-green) 100%);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 1;
+  }
+
   .portfolio-stats{ display:grid; gap:12px }
   .stat-row{
     display:flex; justify-content:space-between; align-items:center;
@@ -1510,26 +1557,31 @@
   <aside id="buyDrawer" class="drawer" aria-hidden="true">
     <div class="drawer-head">
       <h3 class="h3" style="margin:0;"><span style="color:var(--gold);">BEAR</span> <span style="color:#fff;">HUB</span></h3>
+      <button class="drawer-close-btn" data-close-drawer aria-label="Close BEAR HUB">
+        &times;
+      </button>
     </div>
     <div class="drawer-body">
       <!-- MY $BEAR PORTFOLIO -->
       <div id="portfolioSection" class="portfolio-card" style="display:none;">
-        <h4 style="margin:0 0 8px 0; font-size:14px; color:var(--gold); text-transform:uppercase;">My $BEAR Portfolio</h4>
+        <h4 style="margin:0 0 16px 0; font-size:18px; font-weight:900; color:var(--gold); text-transform:uppercase; letter-spacing:0.5px;">💼 My $BEAR Portfolio</h4>
         <div class="portfolio-stats">
-          <div class="stat-row">
-            <span class="stat-label" style="font-size:12px;">💰 Total $BEAR:</span>
-            <span id="portfolioBearAmount" class="stat-value" style="font-size:14px;">—</span>
+          <div class="stat-row" style="margin-bottom:16px;">
+            <span class="stat-label" style="font-size:15px; display:flex; align-items:center; gap:6px;">
+              <img src="/favicon-32x32.png" alt="BEAR" width="20" height="20" style="display:inline-block; vertical-align:middle;"> Total $BEAR:
+            </span>
+            <span id="portfolioBearAmount" class="stat-value" style="font-size:24px; font-weight:900;">—</span>
+          </div>
+          <div class="stat-row" style="margin-bottom:12px;">
+            <span class="stat-label" style="font-size:15px;">💵 USD Value:</span>
+            <span id="portfolioUsdValue" class="stat-value" style="font-size:20px; font-weight:900;">—</span>
           </div>
           <div class="stat-row">
-            <span class="stat-label" style="font-size:12px;">💵 USD Value:</span>
-            <span id="portfolioUsdValue" class="stat-value" style="font-size:14px;">—</span>
-          </div>
-          <div class="stat-row">
-            <span class="stat-label" style="font-size:12px;">🔷 XRP Value:</span>
-            <span id="portfolioXrpValue" class="stat-value" style="font-size:14px;">—</span>
+            <span class="stat-label" style="font-size:15px;">🔷 XRP Value:</span>
+            <span id="portfolioXrpValue" class="stat-value" style="font-size:20px; font-weight:900;">—</span>
           </div>
         </div>
-        <div class="wallet-address" style="margin-top:8px; padding:6px; background:rgba(0,0,0,0.3); border-radius:6px; font-size:11px; word-break:break-all; text-align:center;">
+        <div class="wallet-address" style="margin-top:16px; padding:10px; background:rgba(0,0,0,0.4); border-radius:8px; border:1px solid rgba(237,183,35,0.2); font-size:13px; font-family:monospace; word-break:break-all; text-align:center; color:rgba(255,255,255,0.8);">
           <span id="connectedWalletAddress">—</span>
         </div>
       </div>
@@ -1537,34 +1589,34 @@
       <!-- USER PROFILE CUSTOMIZATION -->
       <div id="profileSection" class="profile-card" style="display:none;">
         <div id="profileSetupSection">
-          <h4 style="margin:0 0 12px 0; font-size:14px; color:var(--gold); text-transform:uppercase;">👤 Your Profile</h4>
+          <h4 style="margin:0 0 16px 0; font-size:18px; font-weight:900; color:var(--gold); text-transform:uppercase; letter-spacing:0.5px;">👤 Your Profile</h4>
 
-        <div style="background:rgba(0,0,0,0.3); padding:14px; border-radius:10px; border:2px solid rgba(237,183,35,0.2); margin-bottom:12px;">
-          <div style="margin-bottom:12px;">
-            <label style="display:block; font-size:12px; font-weight:900; margin-bottom:6px; color:var(--gold);">Display Name</label>
-            <input type="text" id="profileUsername" placeholder="Enter your username" maxlength="20" style="width:100%; padding:8px; background:rgba(0,0,0,0.5); border:2px solid rgba(237,183,35,0.3); border-radius:8px; color:#fff; font-size:14px; font-family:inherit;">
+        <div style="background:rgba(0,0,0,0.3); padding:18px; border-radius:12px; border:2px solid rgba(237,183,35,0.2); margin-bottom:16px;">
+          <div style="margin-bottom:16px;">
+            <label style="display:block; font-size:14px; font-weight:900; margin-bottom:8px; color:var(--gold);">Display Name</label>
+            <input type="text" id="profileUsername" placeholder="Enter your username" maxlength="20" style="width:100%; padding:12px; background:rgba(0,0,0,0.5); border:2px solid rgba(237,183,35,0.3); border-radius:10px; color:#fff; font-size:16px; font-family:inherit; transition:border-color 0.2s;">
           </div>
 
           <div>
-            <label style="display:block; font-size:12px; font-weight:900; margin-bottom:6px; color:var(--gold);">Profile Avatar</label>
-            <div id="profileAvatarSelector" style="background:rgba(0,0,0,0.5); padding:8px; border-radius:8px; border:2px solid rgba(237,183,35,0.3); min-height:60px; display:flex; align-items:center; justify-content:center;">
-              <div style="text-align:center; opacity:0.6; font-size:12px;">Select from your NFTs below</div>
+            <label style="display:block; font-size:14px; font-weight:900; margin-bottom:8px; color:var(--gold);">Profile Avatar</label>
+            <div id="profileAvatarSelector" style="background:rgba(0,0,0,0.5); padding:12px; border-radius:10px; border:2px solid rgba(237,183,35,0.3); min-height:70px; display:flex; align-items:center; justify-content:center;">
+              <div style="text-align:center; opacity:0.6; font-size:13px;">Select from your NFTs below</div>
             </div>
             <input type="hidden" id="profileAvatarNFT" value="">
           </div>
         </div>
 
-        <button id="saveProfileBtn" class="btn gold" style="width:100%; font-size:14px; padding:10px;">Save Profile</button>
+        <button id="saveProfileBtn" class="btn gold" style="width:100%; font-size:18px; padding:16px; font-weight:900; letter-spacing:0.5px;">💾 Save Profile</button>
         </div>
       </div>
 
       <!-- NFT VIEWING SECTION -->
       <div id="nftSection" style="display:none; flex:1; min-height:0; display:flex; flex-direction:column;">
-        <h4 style="margin:0 0 12px 0; font-size:14px; color:var(--gold); text-transform:uppercase;">🖼️ Your NFTs</h4>
+        <h4 style="margin:0 0 16px 0; font-size:18px; font-weight:900; color:var(--gold); text-transform:uppercase; letter-spacing:0.5px;">🖼️ Your NFTs</h4>
 
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px;">
-          <button id="viewPixelBearsBtn" class="btn gold" style="font-size:13px; padding:8px;">View Pixel Bears</button>
-          <button id="viewUltraRaresBtn" class="btn gold" style="font-size:13px; padding:8px;">View Ultra Rares</button>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:18px;">
+          <button id="viewPixelBearsBtn" class="btn gold" style="font-size:15px; padding:14px; font-weight:900;">🐻 Pixel Bears</button>
+          <button id="viewUltraRaresBtn" class="btn gold" style="font-size:15px; padding:14px; font-weight:900;">💎 Ultra Rares</button>
         </div>
 
         <div id="nftGrid" style="display:none; flex:1; min-height:0; overflow-y:auto; background:rgba(0,0,0,0.3); padding:10px; border-radius:10px; border:2px solid rgba(237,183,35,0.2);">
@@ -1582,11 +1634,6 @@
         </div>
       </div>
     </div>
-
-    <!-- Floating Close Button (Bottom Right) -->
-    <button class="drawer-close-btn" data-close-drawer aria-label="Close BEAR HUB">
-      <span style="font-size: 28px; line-height: 1;">&times;</span>
-    </button>
   </aside>
 
   <!-- Structured data -->
