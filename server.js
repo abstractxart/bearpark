@@ -39,7 +39,10 @@ app.use(cors({
     'http://localhost:8080',
     'http://127.0.0.1:8080',
     'https://www.bearpark.xyz',
-    'https://bearpark.xyz'
+    'https://bearpark.xyz',
+    'https://flappy-bear-five.vercel.app',
+    'https://bear-jumpventure1.vercel.app',
+    'https://bear-jumpventure.vercel.app'
   ],
   credentials: true
 }));
