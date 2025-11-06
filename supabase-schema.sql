@@ -205,5 +205,89 @@ ON CONFLICT DO NOTHING;
 -- SELECT COUNT(*) FROM pending_tweets WHERE claimed = FALSE;
 
 -- =====================================================
+-- PROFILES & GAME LEADERBOARDS
+-- =====================================================
+
+-- Table: User Profiles (NFT avatars and display names)
+CREATE TABLE IF NOT EXISTS profiles (
+  id BIGSERIAL PRIMARY KEY,
+  wallet_address VARCHAR(50) UNIQUE NOT NULL,
+  display_name VARCHAR(100) NOT NULL,
+  avatar_nft TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Table: Game Leaderboards (high scores for games)
+CREATE TABLE IF NOT EXISTS game_leaderboards (
+  id BIGSERIAL PRIMARY KEY,
+  wallet_address VARCHAR(50) NOT NULL,
+  game_id VARCHAR(100) NOT NULL,
+  score INTEGER NOT NULL DEFAULT 0,
+  metadata JSONB DEFAULT '{}',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+
+  -- One high score per wallet per game
+  UNIQUE(wallet_address, game_id)
+);
+
+-- Indexes for profiles
+CREATE INDEX IF NOT EXISTS idx_profiles_wallet ON profiles(wallet_address);
+
+-- Indexes for game leaderboards
+CREATE INDEX IF NOT EXISTS idx_game_leaderboards_game ON game_leaderboards(game_id);
+CREATE INDEX IF NOT EXISTS idx_game_leaderboards_score ON game_leaderboards(game_id, score DESC);
+CREATE INDEX IF NOT EXISTS idx_game_leaderboards_wallet ON game_leaderboards(wallet_address);
+
+-- Enable RLS for profiles
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Profiles are viewable by everyone" ON profiles
+  FOR SELECT USING (true);
+
+CREATE POLICY "Users can insert their own profile" ON profiles
+  FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Users can update their own profile" ON profiles
+  FOR UPDATE USING (true);
+
+-- Enable RLS for game leaderboards
+ALTER TABLE game_leaderboards ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Game leaderboards are viewable by everyone" ON game_leaderboards
+  FOR SELECT USING (true);
+
+CREATE POLICY "Users can insert their scores" ON game_leaderboards
+  FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Users can update their scores" ON game_leaderboards
+  FOR UPDATE USING (true);
+
+-- Triggers for automatic timestamp updates
+CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON profiles
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_game_leaderboards_updated_at BEFORE UPDATE ON game_leaderboards
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- View: Game leaderboard with profile info
+CREATE OR REPLACE VIEW game_leaderboard_with_profiles AS
+SELECT
+  gl.id,
+  gl.wallet_address,
+  gl.game_id,
+  gl.score,
+  gl.metadata,
+  gl.created_at,
+  gl.updated_at,
+  p.display_name,
+  p.avatar_nft,
+  RANK() OVER (PARTITION BY gl.game_id ORDER BY gl.score DESC) as rank
+FROM game_leaderboards gl
+LEFT JOIN profiles p ON gl.wallet_address = p.wallet_address
+ORDER BY gl.game_id, gl.score DESC;
+
+-- =====================================================
 -- DONE! Your database is ready.
 -- =====================================================

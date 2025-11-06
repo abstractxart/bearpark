@@ -18,6 +18,10 @@
     --accent:#d75c46;
     --purple:#7a2f8e;
     --green:#2d8e3f;
+    --stripe-purple: #680cd9;
+    --stripe-yellow: #feb501;
+    --stripe-green: #07ae08;
+    --tri-gradient: linear-gradient(to right, var(--stripe-purple) 0%, var(--stripe-purple) 33.33%, var(--stripe-yellow) 33.33%, var(--stripe-yellow) 66.66%, var(--stripe-green) 66.66%, var(--stripe-green) 100%);
   }
 
   *{box-sizing:border-box}
@@ -134,7 +138,8 @@
     padding:18px 32px;
     color:#fff;
     background:var(--accent);
-    border:4px solid #000;
+  border:4px solid transparent;
+  border-image: var(--tri-gradient) 1;
     box-shadow:0 10px 0 #7b2a20, 0 18px 24px rgba(0,0,0,.35);
     cursor:pointer;
     transition:transform .12s ease, filter .2s ease;
@@ -625,7 +630,7 @@
                              <div style="margin: 20px auto; padding: 20px; background: white; border-radius: 12px; max-width: 300px; display: inline-block;">
                                <div id="joeyQR"></div>
                              </div>
-                             <a id="openJoeyBtn" href="${uri}" style="display: inline-block; margin: 15px auto; padding: 12px 24px; background: #8b5cf6; color: white; border: 3px solid #000; border-radius: 12px; font-family: 'Luckiest Guy', Arial; font-size: 16px; cursor: pointer; box-shadow: 0 6px 0 #5b21b6; text-decoration: none;">Open Joey Wallet</a>
+                             <a id="openJoeyBtn" href="${uri}" style="display: inline-block; margin: 15px auto; padding: 12px 24px; background: #8b5cf6; color: white; border: 3px solid transparent; border-image: var(--tri-gradient) 1; border-radius: 12px; font-family: 'Luckiest Guy', Arial; font-size: 16px; cursor: pointer; box-shadow: 0 6px 0 #5b21b6; text-decoration: none;">Open Joey Wallet</a>
                              <p style="font-size: 14px; margin: 15px 0; color: #999; font-family: Arial, sans-serif;">Scan the QR code OR click "Open Joey Wallet" to connect automatically</p>
                              <p style="font-size: 13px; margin: 20px 0; color: #999; font-family: Arial, sans-serif;">Note: If Joey Wallet isn't opening or scanning properly, please try XAMAN wallet instead for a more reliable connection.</p>`;
 

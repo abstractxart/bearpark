@@ -48,6 +48,10 @@
     --ease-spring:cubic-bezier(.18,.9,.2,1);
     --ring: 0 0 0 4px #000, 0 0 0 6px rgba(237,183,35,.66);
     accent-color: var(--gold);
+    --stripe-purple: #680cd9;
+    --stripe-yellow: #feb501;
+    --stripe-green: #07ae08;
+    --tri-gradient: linear-gradient(to right, var(--stripe-purple) 0%, var(--stripe-purple) 33.33%, var(--stripe-yellow) 33.33%, var(--stripe-yellow) 66.66%, var(--stripe-green) 66.66%, var(--stripe-green) 100%);
   }
 
   /* ==== BASE ============================================================ */
@@ -91,7 +95,7 @@
   .skip-link:focus{left:12px;top:12px;width:auto;height:auto;z-index:1000;background:#000;color:#fff;border:3px solid var(--gold);border-radius:10px;padding:10px 14px}
 
   /* Sticky nav + scroll progress */
-  .site-nav{position:sticky;top:0;z-index:50;background:linear-gradient(180deg, #0f1114, rgba(15,17,20,.8));backdrop-filter:saturate(1.05) blur(6px);border-bottom:4px solid #000}
+  .site-nav{position:sticky;top:0;z-index:50;background:linear-gradient(180deg, #0f1114, rgba(15,17,20,.8));backdrop-filter:saturate(1.05) blur(6px);border-bottom:4px solid transparent; border-image: var(--tri-gradient) 1}
   .site-nav .bar{max-width:1100px;margin:0 auto;display:flex;align-items:center;gap:14px;padding:10px 20px}
   .brand{display:flex;align-items:center;gap:10px;font-weight:900}
   .brand img{width:36px;height:36px}
@@ -116,7 +120,7 @@
   .spacer{height:12px}
 
   /* Buttons */
-  .btn{display:inline-flex;align-items:center;justify-content:center;gap:.6rem;font:900 clamp(16px,2.2vw,22px)/1 "Luckiest Guy","Arial Black",Impact,system-ui,sans-serif;border-radius:22px;padding:.95rem 1.35rem;color:#fff;background:var(--accent);border:4px solid #000; box-shadow:0 10px 0 #7b2a20, 0 18px 24px rgba(0,0,0,.35);transition:transform .12s var(--ease-spring), box-shadow .12s var(--ease-spring), filter .2s ease;white-space:nowrap; position:relative; will-change:transform}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:.6rem;font:900 clamp(16px,2.2vw,22px)/1 "Luckiest Guy","Arial Black",Impact,system-ui,sans-serif;border-radius:22px;padding:.95rem 1.35rem;color:#fff;background:var(--accent);border:4px solid transparent; border-image: var(--tri-gradient) 1; box-shadow:0 10px 0 #7b2a20, 0 18px 24px rgba(0,0,0,.35);transition:transform .12s var(--ease-spring), box-shadow .12s var(--ease-spring), filter .2s ease;white-space:nowrap; position:relative; will-change:transform}
   .btn:hover{filter:brightness(1.06)}
   .btn:active{transform:translateY(4px); box-shadow:0 6px 0 #7b2a20, 0 10px 16px rgba(0,0,0,.35)}
   .btn.ghost{background:#1c1f23;color:#fff;box-shadow:0 10px 0 #000,0 18px 24px rgba(0,0,0,.35)}
@@ -143,27 +147,27 @@
   .card:focus-within{ box-shadow:var(--ring), var(--elev-strong) }
 
   /* Hero */
-  .hero{--hero-bg:url("https://files.catbox.moe/qnd2tx.png"); background:radial-gradient(1200px 500px at 50% -10%, rgba(255,255,255,.065), transparent 60%) , var(--hero-bg) center/cover no-repeat; min-height:56vh; display:flex; align-items:center; position:relative; border-bottom:6px solid #000; overflow:hidden}
-  .hero .plate{background:var(--gold); color:var(--ink); border:6px solid #000; border-radius:22px; box-shadow:0 22px 48px rgba(0,0,0,.45), 0 2px 0 rgba(255,255,255,.25) inset; padding:20px 28px; display:inline-block; margin:0 auto; position:relative; transform:perspective(800px) rotateX(0) rotateY(0) translateZ(0); transition:transform .6s var(--ease-spring), box-shadow .4s var(--ease-spring); will-change:transform}
+  .hero{--hero-bg:url("https://files.catbox.moe/qnd2tx.png"); background:radial-gradient(1200px 500px at 50% -10%, rgba(255,255,255,.065), transparent 60%) , var(--hero-bg) center/cover no-repeat; min-height:56vh; display:flex; align-items:center; position:relative; border-bottom:6px solid transparent; border-image: var(--tri-gradient) 1; overflow:hidden}
+  .hero .plate{background:var(--gold); color:var(--ink); border:6px solid transparent; border-image: var(--tri-gradient) 1; border-radius:22px; box-shadow:0 22px 48px rgba(0,0,0,.45), 0 2px 0 rgba(255,255,255,.25) inset; padding:20px 28px; display:inline-block; margin:0 auto; position:relative; transform:perspective(800px) rotateX(0) rotateY(0) translateZ(0); transition:transform .6s var(--ease-spring), box-shadow .4s var(--ease-spring); will-change:transform}
   .hero .logo{position:absolute; left:-72px; top:-40px; width:120px; transform:rotate(-4deg); filter:drop-shadow(0 8px 0 rgba(0,0,0,.4))}
   .hero .subtitle{font:800 clamp(16px,2.4vw,22px)/1.2 "Luckiest Guy"; margin-top:-6px; color:var(--ink)}
 
   /* Side honey rails */
   .rails::before,.rails::after{content:"";position:fixed;top:0;bottom:0;width:18px;z-index:1;pointer-events:none;opacity:.65}
-  .rails::before{left:6px;background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,0)), repeating-linear-gradient(180deg, rgba(0,0,0,.8) 0 3px, rgba(0,0,0,0) 3px 6px), linear-gradient(180deg, var(--gold) 0%, #946e00 100%);border:3px solid #000;border-radius:999px}
-  .rails::after{right:6px;background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,0)), repeating-linear-gradient(180deg, rgba(0,0,0,.8) 0 3px, rgba(0,0,0,0) 3px 6px), linear-gradient(180deg, var(--gold) 0%, #946e00 100%);border:3px solid #000;border-radius:999px}
+  .rails::before{left:6px;background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,0)), repeating-linear-gradient(180deg, rgba(0,0,0,.8) 0 3px, rgba(0,0,0,0) 3px 6px), linear-gradient(180deg, var(--gold) 0%, #946e00 100%);border:3px solid transparent;border-image: var(--tri-gradient) 1;border-radius:999px}
+  .rails::after{right:6px;background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,0)), repeating-linear-gradient(180deg, rgba(0,0,0,.8) 0 3px, rgba(0,0,0,0) 3px 6px), linear-gradient(180deg, var(--gold) 0%, #946e00 100%);border:3px solid transparent;border-image: var(--tri-gradient) 1;border-radius:999px}
 
   /* Arcade image */
   .arcade{position:relative;width:100%;max-width:1100px;margin:0 auto}
-  .arcade img{width:100%;height:auto;display:block;border:4px solid #000;border-radius:20px;box-shadow:0 18px 40px rgba(0,0,0,.45)}
+  .arcade img{width:100%;height:auto;display:block;border:4px solid transparent;border-image: var(--tri-gradient) 1;border-radius:20px;box-shadow:0 18px 40px rgba(0,0,0,.45)}
   .arcade a.hotspot{position:absolute;display:block;border-radius:16px;text-indent:-9999px;overflow:hidden;outline:none;background:transparent;transition: box-shadow .25s var(--ease-spring), transform .25s var(--ease-spring)}
   .arcade a.hotspot:focus-visible{outline:6px solid rgba(237,183,35,.7)}
   .arcade a.hotspot:hover, .arcade a.hotspot:focus-visible{ box-shadow: 0 0 0 6px rgba(237,183,35,.35), 0 0 0 10px rgba(0,0,0,.6); }
   .arcade a.hotspot::after{
     content:"";
     position:absolute; left:50%; top:0; width:20px; height:0; transform:translate(-50%,0);
-    background: linear-gradient(180deg, #fff6c7 0%, #ffe280 40%, #edb723 70%, #9b7a0d 100%);
-    border:3px solid #000; border-top:none; border-radius:0 0 16px 16px; box-shadow:0 6px 0 #946e00, 0 12px 20px rgba(0,0,0,.4);
+  background: linear-gradient(180deg, #fff6c7 0%, #ffe280 40%, #edb723 70%, #9b7a0d 100%);
+  border:3px solid transparent; border-top:none; border-image: var(--tri-gradient) 1; border-radius:0 0 16px 16px; box-shadow:0 6px 0 #946e00, 0 12px 20px rgba(0,0,0,.4);
     transition:height .35s var(--ease-spring), opacity .25s ease; opacity:0;
   }
   .arcade a.hotspot:hover::after, .arcade a.hotspot:focus-visible::after{ height:36px; opacity:1 }
@@ -172,7 +176,7 @@
   .grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:22px}
   @media (max-width:820px){.grid-2{grid-template-columns:1fr}}
   .tile{text-decoration:none;display:flex;flex-direction:column;align-items:center;gap:14px}
-  .tile .face{width:100%;min-height:140px;padding:22px;background:var(--card);border:4px solid #000;border-radius:18px;box-shadow:0 12px 0 #000,0 18px 28px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;transition:transform .35s var(--ease-spring), box-shadow .35s var(--ease-spring);transform-style:preserve-3d; will-change:transform}
+  .tile .face{width:100%;min-height:140px;padding:22px;background:var(--card);border:4px solid transparent;border-image: var(--tri-gradient) 1;border-radius:18px;box-shadow:0 12px 0 #000,0 18px 28px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;transition:transform .35s var(--ease-spring), box-shadow .35s var(--ease-spring);transform-style:preserve-3d; will-change:transform}
   .tile:hover .face{ transform:translateY(-4px); box-shadow:0 16px 0 #000,0 26px 40px rgba(0,0,0,.45) }
   .tile img{max-width:220px;max-height:64px;object-fit:contain;filter:drop-shadow(0 2px 0 rgba(0,0,0,.4))}
   .tile .lbl{font-weight:800;font-size:18px;line-height:1.2;color:var(--ink);opacity:.9}
@@ -180,13 +184,13 @@
 
   /* NFTs */
   #nfts .card{padding:26px}
-  #nfts .card{background:linear-gradient(180deg,#141619 0%, #101215 100%) !important; border:4px solid #000 !important}
-  .nft-media{display:block;border:6px solid #000;border-radius:16px;overflow:hidden}
+  #nfts .card{background:linear-gradient(180deg,#141619 0%, #101215 100%) !important; border:4px solid transparent !important; border-image: var(--tri-gradient) 1 !important}
+  .nft-media{display:block;border:6px solid transparent;border-image: var(--tri-gradient) 1;border-radius:16px;overflow:hidden}
   .nft-media img,.nft-media video{display:block;width:100%;height:auto}
   #nfts .card h3,#nfts .card p{color:var(--gold)!important}
 
   /* Community banner */
-  .community-banner{position:relative;overflow:hidden;border-radius:22px;border:6px solid #000;background:#000;box-shadow:0 20px 40px rgba(0,0,0,.45)}
+  .community-banner{position:relative;overflow:hidden;border-radius:22px;border:6px solid transparent;border-image: var(--tri-gradient) 1;background:#000;box-shadow:0 20px 40px rgba(0,0,0,.45)}
   .community-banner img.bg{width:100%;opacity:.45;filter:saturate(1.05) contrast(1.02)}
   .community-banner .overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px}
   .pair{display:flex;gap:16px;flex-wrap:wrap;justify-content:center}
@@ -197,15 +201,15 @@
   .square .placeholder{display:grid;place-items:center;background:#0b0d0e;border:0}
 
   /* Carousel */
-  .carousel{position:relative;overflow:visible;border:6px solid #000;border-radius:16px}
+  .carousel{position:relative;overflow:visible;border:6px solid transparent;border-image: var(--tri-gradient) 1;border-radius:16px}
   .carousel .viewport{position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;touch-action:none;cursor:grab;background:#0b0d0e}
   .carousel .viewport.grabbing{cursor:grabbing}
   .slides{display:flex;will-change:transform;transition:transform .7s var(--ease-spring)}
   .slides img{width:100%;height:100%;flex:0 0 100%;object-fit:contain; user-select:none;-webkit-user-drag:none;pointer-events:none;background:#0b0d0e; transform-origin:center center}
   .dots{display:flex;gap:8px;justify-content:center;margin-top:12px}
-  .dot{width:10px;height:10px;border-radius:50%;background:#333;border:2px solid #000;opacity:.5;transition:transform .25s var(--ease-spring)}
+  .dot{width:10px;height:10px;border-radius:50%;background:#333;border:2px solid transparent;border-image: var(--tri-gradient) 1;opacity:.5;transition:transform .25s var(--ease-spring)}
   .dot.active{background:var(--gold);opacity:1; transform:scale(1.2)}
-  footer{border-top:6px solid #000}
+  footer{border-top:6px solid transparent; border-image: var(--tri-gradient) 1}
 
   /* Scroll reveal */
   .reveal{opacity:0; transform:translateY(18px) scale(.98); filter:blur(.5px)}
@@ -225,7 +229,7 @@
     display:inline-flex; align-items:center; justify-content:center; gap:.5rem;
     font:900 18px/1 "Luckiest Guy","Arial Black",Impact,system-ui,sans-serif;
     padding:14px 18px; border-radius:999px; color:#000; background:var(--gold);
-    border:4px solid #000; box-shadow:0 10px 0 #9b7a0d, 0 18px 24px rgba(0,0,0,.35);
+    border:4px solid transparent; border-image: var(--tri-gradient) 1; box-shadow:0 10px 0 #9b7a0d, 0 18px 24px rgba(0,0,0,.35);
     transition:transform .12s var(--ease-spring), filter .15s ease;
   }
   .fab-buy:hover{filter:brightness(1.05)}
@@ -236,7 +240,7 @@
     display:inline-flex; align-items:center; justify-content:center; gap:.5rem;
     font:900 16px/1 "Luckiest Guy","Arial Black",Impact,system-ui,sans-serif;
     padding:12px 16px; border-radius:999px; color:#fff; background:var(--accent);
-    border:4px solid #000; box-shadow:0 8px 0 #7b2a20, 0 14px 20px rgba(0,0,0,.35);
+    border:4px solid transparent; border-image: var(--tri-gradient) 1; box-shadow:0 8px 0 #7b2a20, 0 14px 20px rgba(0,0,0,.35);
     transition:transform .12s var(--ease-spring), filter .15s ease;
   }
   .fab-logout:hover{filter:brightness(1.05)}
@@ -246,21 +250,21 @@
     position:fixed; top:0; right:0; bottom:0;
     width:min(420px, calc(100% - 72px));
     background:linear-gradient(180deg,#141619 0%, #0e1013 100%);
-    border-left:6px solid #000; z-index:70;
+  border-left:6px solid transparent; border-image: linear-gradient(to bottom, var(--stripe-purple) 0%, var(--stripe-purple) 33.33%, var(--stripe-yellow) 33.33%, var(--stripe-yellow) 66.66%, var(--stripe-green) 66.66%, var(--stripe-green) 100%) 1; z-index:70;
     transform:translateX(102%); transition:transform .38s var(--ease-spring);
     box-shadow:-24px 0 40px rgba(0,0,0,.55);
     display:flex; flex-direction:column;
   }
   .drawer.open{ transform:translateX(0) }
   .drawer-scrim{ position:fixed; inset:0; background:rgba(0,0,0,.55); backdrop-filter:blur(2px); z-index:65 }
-  .drawer-head{ position:sticky; top:0; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 18px; border-bottom:4px solid #000; background:#0f1114 }
+  .drawer-head{ position:sticky; top:0; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 18px; border-bottom:4px solid transparent; border-image: var(--tri-gradient) 1; background:#0f1114 }
   .drawer-body{ padding:12px; overflow:auto; display:grid; gap:10px }
 
   .btn.sm{ font-size:16px; padding:.6rem .9rem; border-radius:14px; box-shadow:0 6px 0 #000,0 12px 18px rgba(0,0,0,.35) }
 
   .price-card{
     display:grid; gap:6px; padding:16px;
-    border:4px solid #000; border-radius:16px;
+    border:4px solid transparent; border-image: var(--tri-gradient) 1; border-radius:16px;
     background:radial-gradient(500px 200px at 50% -20%, rgba(237,183,35,.1), transparent 60%), #0b0d0e;
     box-shadow:0 12px 22px rgba(0,0,0,.35)
   }
@@ -271,7 +275,7 @@
   /* Portfolio Card */
   .portfolio-card{
     padding:16px;
-    border:4px solid #000; border-radius:16px;
+    border:4px solid transparent; border-image: var(--tri-gradient) 1; border-radius:16px;
     background:radial-gradient(500px 200px at 50% -20%, rgba(118,174,255,.12), transparent 60%), #0b0d0e;
     box-shadow:0 12px 22px rgba(0,0,0,.35)
   }
@@ -287,7 +291,7 @@
   /* Points Card */
   .points-card{
     padding:16px;
-    border:4px solid #000; border-radius:16px;
+    border:4px solid transparent; border-image: var(--tri-gradient) 1; border-radius:16px;
     background:radial-gradient(500px 200px at 50% -20%, rgba(237,183,35,.08), transparent 60%), #0b0d0e;
     box-shadow:0 12px 22px rgba(0,0,0,.35)
   }
@@ -546,7 +550,7 @@
 
         <!-- Connected State -->
         <div id="pointsConnected" style="display:none;">
-          <div class="points-display" style="background:linear-gradient(135deg, rgba(237,183,35,0.15), rgba(215,92,70,0.15)); padding:12px; border-radius:10px; border:3px solid #000; margin-bottom:10px;">
+          <div class="points-display" style="background:linear-gradient(135deg, rgba(237,183,35,0.15), rgba(215,92,70,0.15)); padding:12px; border-radius:10px; border:3px solid transparent; border-image: var(--tri-gradient) 1; margin-bottom:10px;">
             <div style="font-size:13px; opacity:0.8; margin-bottom:2px;">Total Points</div>
             <div style="font-size:28px; font-weight:900; color:var(--gold);">
               ⭐ <span id="totalPoints">0</span>

@@ -1,6 +1,74 @@
-# Twitter Integration Setup Guide
+# BEAR Park Setup Guide
 
-## ✅ What's Been Completed:
+## 🎮 NEW: User Profiles & Game Leaderboards Setup
+
+### What's Been Added:
+- ✅ **User Profiles**: Display name + NFT avatar selection
+- ✅ **Game Leaderboards**: Track high scores for all games
+- ✅ **API Endpoints**: Full REST API for profiles and leaderboards
+- ✅ **Database Schema**: PostgreSQL tables with Supabase
+
+### Quick Setup (10 minutes):
+
+#### 1. Create Supabase Account (if you haven't already)
+1. Go to https://supabase.com
+2. Click "Start your project"
+3. Sign in with GitHub
+4. Create a new project:
+   - Name: `bearpark`
+   - Database Password: (save this somewhere safe!)
+   - Region: Choose closest to you
+   - Wait 2-3 minutes for project to initialize
+
+#### 2. Run Database Schema
+1. Open your Supabase project dashboard
+2. Click "SQL Editor" in the left sidebar
+3. Click "New Query"
+4. Open [supabase-schema.sql](supabase-schema.sql) and copy ALL contents
+5. Paste into SQL Editor
+6. Click "Run" (or press Ctrl+Enter)
+7. You should see "Success. No rows returned" - that's perfect!
+
+#### 3. Get Your Supabase Credentials
+1. In Supabase, go to: Settings → API
+2. Copy these two values:
+   - **Project URL** (looks like: `https://xxxxx.supabase.co`)
+   - **anon public** key (long string starting with `eyJ...`)
+
+#### 4. Update Your .env File
+1. Open `.env` file in your project
+2. Add these lines (replace with your actual values):
+```env
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your_anon_key_here
+```
+
+#### 5. Start Your Server
+```bash
+node server.js
+```
+
+You should see:
+```
+🚀 BEAR Park API Server running on http://localhost:3000
+✅ XAMAN authentication: ENABLED
+✅ Database (Supabase): CONNECTED
+```
+
+#### 6. Test It!
+1. Open your website
+2. Connect your wallet
+3. Click "VIEW ULTRA RARES" or "VIEW PIXEL BEARS"
+4. Select an NFT avatar
+5. Enter a display name
+6. Click "SAVE PROFILE"
+7. It should work! 🎉
+
+---
+
+## ✅ Previous Setup - Twitter Integration:
+
+## What's Been Completed:
 
 ### 1. **Database Schema** ✅
 - Created [supabase-schema.sql](supabase-schema.sql) with all necessary tables:
