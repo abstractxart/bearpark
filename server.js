@@ -34,7 +34,13 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY
 
 // Middleware
 app.use(cors({
-  origin: [FRONTEND_URL, 'http://localhost:8080', 'http://127.0.0.1:8080'],
+  origin: [
+    FRONTEND_URL,
+    'http://localhost:8080',
+    'http://127.0.0.1:8080',
+    'https://www.bearpark.xyz',
+    'https://bearpark.xyz'
+  ],
   credentials: true
 }));
 app.use(express.json());

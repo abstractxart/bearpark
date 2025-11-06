@@ -1,7 +1,31 @@
 {
   "version": 2,
-  "rewrites": [
-    { "source": "/", "destination": "/index.html" },
-    { "source": "/main.html", "destination": "/main.html" }
+  "builds": [
+    {
+      "src": "server.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "server.js"
+    },
+    {
+      "src": "/health",
+      "dest": "server.js"
+    },
+    {
+      "src": "/",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/main.html",
+      "dest": "/main.html"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/$1"
+    }
   ]
 }
