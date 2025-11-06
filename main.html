@@ -2930,6 +2930,11 @@
         nftLoading.style.display = 'none';
         nftGrid.style.display = 'block';
 
+        // Auto-scroll to NFT grid after loading
+        setTimeout(() => {
+          nftGrid.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+
       } catch (err) {
         console.error('Error loading NFTs:', err);
         nftLoading.style.display = 'none';
