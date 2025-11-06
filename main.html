@@ -393,6 +393,7 @@
     background:radial-gradient(500px 200px at 50% -20%, rgba(118,174,255,.12), transparent 60%), #0b0d0e;
     box-shadow:0 12px 22px rgba(0,0,0,.35);
     transition:transform 0.2s ease, box-shadow 0.2s ease;
+    isolation: isolate;
   }
   .portfolio-card:hover{
     transform:translateY(-2px);
@@ -410,7 +411,7 @@
     mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     mask-composite: exclude;
     pointer-events: none;
-    z-index: -1;
+    z-index: 0;
     opacity: 1;
   }
 
@@ -422,6 +423,7 @@
     background:radial-gradient(500px 200px at 50% -20%, rgba(237,183,35,.08), transparent 60%), #0b0d0e;
     box-shadow:0 12px 22px rgba(0,0,0,.35);
     transition:transform 0.2s ease, box-shadow 0.2s ease;
+    isolation: isolate;
   }
   .profile-card:hover{
     transform:translateY(-2px);
@@ -439,7 +441,7 @@
     mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     mask-composite: exclude;
     pointer-events: none;
-    z-index: -1;
+    z-index: 0;
     opacity: 1;
   }
 
