@@ -69,6 +69,73 @@
       text-shadow: 2px 2px 0px #000;
     }
 
+    #access-denied {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(135deg, #141619 0%, #0b0d0e 100%);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      font-family: 'Luckiest Guy', Arial, sans-serif;
+      padding: 20px;
+    }
+
+    #access-denied.show {
+      display: flex;
+    }
+
+    .denied-icon {
+      font-size: 80px;
+      margin-bottom: 20px;
+    }
+
+    .denied-title {
+      font-size: 36px;
+      color: #edb723;
+      text-shadow: 2px 2px 0px #000;
+      margin-bottom: 10px;
+      text-align: center;
+    }
+
+    .denied-text {
+      font-size: 18px;
+      color: rgba(255, 255, 255, 0.8);
+      text-shadow: 1px 1px 0px #000;
+      margin-bottom: 30px;
+      text-align: center;
+      max-width: 500px;
+      line-height: 1.4;
+    }
+
+    .connect-button {
+      padding: 16px 32px;
+      background: linear-gradient(135deg, #edb723 0%, #d19e1e 100%);
+      color: #000;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-radius: 12px;
+      font-family: 'Luckiest Guy', Arial, sans-serif;
+      font-size: 20px;
+      cursor: pointer;
+      text-decoration: none;
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+      transition: all 0.2s ease;
+      display: inline-block;
+    }
+
+    .connect-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
+    }
+
+    .connect-button:active {
+      transform: translateY(0);
+    }
+
     .back-button {
       position: fixed;
       top: 20px;
@@ -117,6 +184,16 @@
     <div class="loading-text">Loading Flappy BEAR...</div>
   </div>
 
+  <div id="access-denied">
+    <div class="denied-icon">🔒</div>
+    <div class="denied-title">ACCESS RESTRICTED</div>
+    <div class="denied-text">
+      You must connect your XAMAN or Joey wallet to play Flappy BEAR!<br>
+      Connect your wallet to unlock access to all BEAR Park games.
+    </div>
+    <a href="/" class="connect-button">Connect Wallet</a>
+  </div>
+
   <a href="/main.html" class="back-button">← Back to BEAR Park</a>
 
   <iframe id="game-frame" allow="autoplay; fullscreen"></iframe>
@@ -128,16 +205,23 @@
       const displayName = localStorage.getItem('display_name');
       const twitterUsername = localStorage.getItem('twitter_username');
 
+      // CHECK AUTHENTICATION - Block access if no wallet connected
+      if (!walletAddress) {
+        console.log('🔒 Access denied - No wallet connected');
+        document.getElementById('loading').classList.add('hidden');
+        document.getElementById('access-denied').classList.add('show');
+        return; // Don't load the game
+      }
+
+      console.log('✅ Wallet authenticated - Loading game');
+
       // Build game URL with authentication parameters
       let gameUrl = 'https://flappy-bear-five.vercel.app/';
-
-      if (walletAddress) {
-        const params = new URLSearchParams();
-        params.set('wallet', walletAddress);
-        if (displayName) params.set('display_name', displayName);
-        if (twitterUsername) params.set('twitter_username', twitterUsername);
-        gameUrl += '?' + params.toString();
-      }
+      const params = new URLSearchParams();
+      params.set('wallet', walletAddress);
+      if (displayName) params.set('display_name', displayName);
+      if (twitterUsername) params.set('twitter_username', twitterUsername);
+      gameUrl += '?' + params.toString();
 
       // Set iframe source
       const iframe = document.getElementById('game-frame');
