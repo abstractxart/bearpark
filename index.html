@@ -530,6 +530,32 @@
           showStatus('✓ Access granted! Redirecting...', 'success');
           sessionStorage.setItem('bearpark_auth', 'true');
           sessionStorage.setItem('bearpark_wallet', walletAddress);
+
+          // SYNC TO LOCALSTORAGE FOR GAME INTEGRATION
+          localStorage.setItem('xaman_wallet_address', walletAddress);
+
+          // Fetch user profile to get display name and Twitter username
+          try {
+            const profileResponse = await fetch(`/api/profile/${walletAddress}`);
+            if (profileResponse.ok) {
+              const profileData = await profileResponse.json();
+              if (profileData.display_name) {
+                localStorage.setItem('display_name', profileData.display_name);
+              }
+            }
+
+            // Fetch user points data to get Twitter username
+            const pointsResponse = await fetch(`/api/points/${walletAddress}`);
+            if (pointsResponse.ok) {
+              const pointsData = await pointsResponse.json();
+              if (pointsData.user?.twitter_username) {
+                localStorage.setItem('twitter_username', pointsData.user.twitter_username);
+              }
+            }
+          } catch (err) {
+            console.log('Could not fetch user profile data:', err);
+          }
+
           setTimeout(() => {
             window.location.href = 'main.html';
           }, 2000);
