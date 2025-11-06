@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Flappy BEAR - BEAR Park</title>
+  <meta name="description" content="Play Flappy BEAR and compete on the leaderboard!" />
+  <meta name="theme-color" content="#edb723" />
+  <link rel="icon" href="/favicon.ico">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000;
+    }
+
+    #game-frame {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+    }
+
+    #loading {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: #141619;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      font-family: 'Luckiest Guy', Arial, sans-serif;
+      color: #edb723;
+    }
+
+    #loading.hidden {
+      display: none;
+    }
+
+    .spinner {
+      width: 60px;
+      height: 60px;
+      border: 6px solid rgba(237, 183, 35, 0.2);
+      border-top-color: #edb723;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 20px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+      font-size: 24px;
+      text-shadow: 2px 2px 0px #000;
+    }
+
+    .back-button {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      z-index: 10000;
+      padding: 12px 20px;
+      background: linear-gradient(135deg, #edb723 0%, #d19e1e 100%);
+      color: #000;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-radius: 12px;
+      font-family: 'Luckiest Guy', Arial, sans-serif;
+      font-size: 16px;
+      cursor: pointer;
+      text-decoration: none;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      transition: all 0.2s ease;
+    }
+
+    .back-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6);
+    }
+
+    .back-button:active {
+      transform: translateY(0);
+    }
+
+    @media (max-width: 640px) {
+      .back-button {
+        top: 10px;
+        left: 10px;
+        padding: 10px 16px;
+        font-size: 14px;
+      }
+    }
+  </style>
+
+  <!-- BEAR Park Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <div id="loading">
+    <div class="spinner"></div>
+    <div class="loading-text">Loading Flappy BEAR...</div>
+  </div>
+
+  <a href="/main.html" class="back-button">← Back to BEAR Park</a>
+
+  <iframe id="game-frame" allow="autoplay; fullscreen"></iframe>
+
+  <script>
+    (function() {
+      // Get wallet data from localStorage
+      const walletAddress = localStorage.getItem('xaman_wallet_address');
+      const displayName = localStorage.getItem('display_name');
+      const twitterUsername = localStorage.getItem('twitter_username');
+
+      // Build game URL with authentication parameters
+      let gameUrl = 'https://flappy-bear-five.vercel.app/';
+
+      if (walletAddress) {
+        const params = new URLSearchParams();
+        params.set('wallet', walletAddress);
+        if (displayName) params.set('display_name', displayName);
+        if (twitterUsername) params.set('twitter_username', twitterUsername);
+        gameUrl += '?' + params.toString();
+      }
+
+      // Set iframe source
+      const iframe = document.getElementById('game-frame');
+      iframe.src = gameUrl;
+
+      // Hide loading screen when iframe loads
+      iframe.addEventListener('load', function() {
+        setTimeout(function() {
+          document.getElementById('loading').classList.add('hidden');
+        }, 500);
+      });
+
+      // Hide loading screen after timeout (in case load event doesn't fire)
+      setTimeout(function() {
+        document.getElementById('loading').classList.add('hidden');
+      }, 5000);
+    })();
+  </script>
+</body>
+</html>
