@@ -3,6 +3,9 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <title>BEAR Park — BEARcade</title>
   <meta name="description" content="Welcome to BEAR Park — play BEARcade games, explore the lore of Bearableguy123, view BEAR NFTs, watch the live stream, and join the $BEAR community." />
   <meta name="theme-color" content="#edb723" />
@@ -313,7 +316,36 @@
   .drawer.open{ transform:translateX(0) }
   .drawer-scrim{ position:fixed; inset:0; background:rgba(0,0,0,.55); backdrop-filter:blur(2px); z-index:65 }
   .drawer-head{ position:sticky; top:0; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 18px; border-bottom:4px solid; border-image: linear-gradient(to right, var(--stripe-purple) 0%, var(--stripe-purple) 33.33%, var(--stripe-yellow) 33.33%, var(--stripe-yellow) 66.66%, var(--stripe-green) 66.66%, var(--stripe-green) 100%) 1; background:#0f1114 }
-  .drawer-body{ padding:16px; padding-bottom:calc(120px + env(safe-area-inset-bottom)); overflow:auto; display:grid; gap:14px }
+  .drawer-body{ padding:16px; padding-bottom:calc(120px + env(safe-area-inset-bottom)); overflow:auto; display:flex; flex-direction:column; gap:14px }
+
+  .drawer-close-btn{
+    position:fixed;
+    bottom:calc(24px + env(safe-area-inset-bottom));
+    right:24px;
+    width:56px;
+    height:56px;
+    border-radius:50%;
+    background:linear-gradient(135deg, var(--accent) 0%, #d75c46 100%);
+    color:#fff;
+    border:3px solid rgba(255,255,255,.3);
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    box-shadow:0 8px 20px rgba(215,92,70,.6), 0 0 0 4px rgba(0,0,0,.3);
+    transition:all .2s ease;
+    z-index:9999;
+    font-weight:bold;
+  }
+  .drawer-close-btn:hover{
+    background:linear-gradient(135deg, #e76d52 0%, #ff6b52 100%);
+    border-color:rgba(255,255,255,.5);
+    transform:scale(1.1);
+    box-shadow:0 10px 24px rgba(215,92,70,.8), 0 0 0 4px rgba(0,0,0,.4);
+  }
+  .drawer-close-btn:active{
+    transform:scale(0.95);
+  }
 
   .btn.sm{ font-size:26px; padding:1.2rem 1.8rem; border-radius:28px; box-shadow:0 10px 0 #000,0 16px 24px rgba(0,0,0,.35) }
 
@@ -1298,8 +1330,25 @@
             <div id="myPointsGuest">
               <div class="points-cta">
                 <div style="font-size:48px;margin-bottom:12px;">🍯</div>
-                <p style="margin:0 0 16px 0;opacity:0.8;">Connect your XAMAN or Joey wallet and link Twitter to start earning Honey Points!</p>
-                <button class="btn gold" data-open-drawer>Connect Wallet</button>
+                <p style="margin:0 0 16px 0;opacity:0.8;">Connect your wallet and link Twitter to start earning Honey Points!</p>
+                <button class="btn gold" data-open-drawer style="margin-bottom:12px;">Connect Wallet</button>
+
+                <div style="margin-top:20px;padding:16px;background:rgba(29,155,240,0.1);border-radius:12px;border:2px solid rgba(29,155,240,0.3);">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="#1DA1F2" style="margin:0 auto 8px;display:block;"><path d="M23.643 4.937c-.835.37-1.732.62-2.675.733.962-.576 1.7-1.49 2.048-2.578-.9.534-1.897.922-2.958 1.13-.85-.904-2.06-1.47-3.4-1.47-2.572 0-4.658 2.086-4.658 4.66 0 .364.042.718.12 1.06-3.873-.195-7.304-2.05-9.602-4.868-.4.69-.63 1.49-.63 2.342 0 1.616.823 3.043 2.072 3.878-.764-.025-1.482-.234-2.11-.583v.06c0 2.257 1.605 4.14 3.737 4.568-.392.106-.803.162-1.227.162-.3 0-.593-.028-.877-.082.593 1.85 2.313 3.198 4.352 3.234-1.595 1.25-3.604 1.995-5.786 1.995-.376 0-.747-.022-1.112-.065 2.062 1.323 4.51 2.093 7.14 2.093 8.57 0 13.255-7.098 13.255-13.254 0-.2-.005-.402-.014-.602.91-.658 1.7-1.477 2.323-2.41z"/></svg>
+                  <div style="font-size:15px;font-weight:900;margin-bottom:8px;text-align:center;">Connect Twitter to Earn Honey Points 🍯</div>
+                  <div style="font-size:12px;opacity:0.8;margin-bottom:10px;line-height:1.4;text-align:center;">
+                    Link your Twitter username to track @bearxrpl activity
+                  </div>
+                  <div style="font-size:10px;opacity:0.6;margin-bottom:12px;padding:10px;background:rgba(255,255,255,0.05);border-radius:6px;line-height:1.5;text-align:left;">
+                    <strong>What we access:</strong> Username & public @bearxrpl tweets<br>
+                    <strong>What we DON'T do:</strong> Post, see DMs, or access private data
+                  </div>
+                  <button id="connectTwitterBtnMain" class="btn gold" style="width:100%;font-size:14px;padding:10px;">Connect Twitter Username</button>
+                  <div style="margin-top:10px;font-size:11px;opacity:0.7;line-height:1.4;text-align:center;">
+                    🍯 10 honey points per @bearxrpl mention<br>
+                    🍯 20 honey points per raid participation
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -1461,19 +1510,8 @@
   <aside id="buyDrawer" class="drawer" aria-hidden="true">
     <div class="drawer-head">
       <h3 class="h3" style="margin:0;"><span style="color:var(--gold);">BEAR</span> <span style="color:#fff;">HUB</span></h3>
-      <button class="btn ghost sm" data-close-drawer aria-label="Close BEAR HUB">Close</button>
     </div>
     <div class="drawer-body">
-      <!-- CURRENT PRICE -->
-      <div class="price-card">
-        <h4 style="margin:0 0 8px 0; font-size:14px; color:var(--gold); text-transform:uppercase;">Current Price</h4>
-        <div class="metric" aria-live="polite">
-          <span id="priceUsd">—</span><small>USD</small>
-        </div>
-        <div class="sub">24h <span id="change24">—</span> · Vol <span id="vol24">—</span></div>
-        <div class="sub">Mkt Cap <span id="mcapUsd">—</span></div>
-      </div>
-
       <!-- MY $BEAR PORTFOLIO -->
       <div id="portfolioSection" class="portfolio-card" style="display:none;">
         <h4 style="margin:0 0 8px 0; font-size:14px; color:var(--gold); text-transform:uppercase;">My $BEAR Portfolio</h4>
@@ -1493,66 +1531,6 @@
         </div>
         <div class="wallet-address" style="margin-top:8px; padding:6px; background:rgba(0,0,0,0.3); border-radius:6px; font-size:11px; word-break:break-all; text-align:center;">
           <span id="connectedWalletAddress">—</span>
-        </div>
-      </div>
-
-      <!-- HONEY POINTS & REWARDS -->
-      <div id="pointsSection" class="points-card">
-        <h4 style="margin:0 0 8px 0; font-size:14px; color:var(--gold); text-transform:uppercase;">🍯 Honey Points & Rewards</h4>
-
-        <!-- Connected State -->
-        <div id="pointsConnected" style="display:none;">
-          <div class="points-display" style="background:linear-gradient(135deg, rgba(237,183,35,0.15), rgba(215,92,70,0.15)); padding:12px; border-radius:10px; border:3px solid transparent; border-image: var(--tri-gradient) 1; margin-bottom:10px;">
-            <div style="font-size:13px; opacity:0.8; margin-bottom:2px;">Total Honey Points</div>
-            <div style="font-size:28px; font-weight:900; color:var(--gold);">
-              🍯 <span id="totalPoints">0</span>
-            </div>
-          </div>
-
-          <div class="twitter-info" style="margin-bottom:10px; padding:10px; background:rgba(29,155,240,0.1); border-radius:8px; border:2px solid rgba(29,155,240,0.3);">
-            <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="#1DA1F2"><path d="M23.643 4.937c-.835.37-1.732.62-2.675.733.962-.576 1.7-1.49 2.048-2.578-.9.534-1.897.922-2.958 1.13-.85-.904-2.06-1.47-3.4-1.47-2.572 0-4.658 2.086-4.658 4.66 0 .364.042.718.12 1.06-3.873-.195-7.304-2.05-9.602-4.868-.4.69-.63 1.49-.63 2.342 0 1.616.823 3.043 2.072 3.878-.764-.025-1.482-.234-2.11-.583v.06c0 2.257 1.605 4.14 3.737 4.568-.392.106-.803.162-1.227.162-.3 0-.593-.028-.877-.082.593 1.85 2.313 3.198 4.352 3.234-1.595 1.25-3.604 1.995-5.786 1.995-.376 0-.747-.022-1.112-.065 2.062 1.323 4.51 2.093 7.14 2.093 8.57 0 13.255-7.098 13.255-13.254 0-.2-.005-.402-.014-.602.91-.658 1.7-1.477 2.323-2.41z"/></svg>
-              <span style="font-weight:900; font-size:14px;">@<span id="connectedTwitter">—</span></span>
-            </div>
-            <button id="disconnectTwitterBtn" class="btn ghost sm" style="width:100%; margin-top:4px; font-size:13px; padding:6px;">Disconnect</button>
-          </div>
-
-          <div class="recent-activity" style="margin-bottom:10px;">
-            <div style="font-size:13px; font-weight:900; margin-bottom:6px;">Recent Activity</div>
-            <div id="activityList" style="max-height:100px; overflow-y:auto; font-size:12px;">
-              <div style="opacity:0.6; padding:8px; text-align:center;">No recent activity</div>
-            </div>
-          </div>
-
-          <div id="activeRaids" class="raids-section" style="display:none;">
-            <div style="background:rgba(215,92,70,0.2); padding:10px; border-radius:8px; border:2px solid var(--accent);">
-              <div style="font-size:13px; font-weight:900; margin-bottom:6px;">🎯 Active Raid!</div>
-              <div id="raidInfo" style="font-size:12px; opacity:0.9;">
-                Loading raid info...
-              </div>
-              <button id="viewRaidBtn" class="btn gold sm" style="width:100%; margin-top:6px; font-size:13px; padding:8px;">View Raid →</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Not Connected State -->
-        <div id="pointsNotConnected">
-          <div style="padding:14px; text-align:center; background:rgba(0,0,0,0.3); border-radius:10px; border:2px dashed rgba(255,255,255,0.2);">
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="#1DA1F2" style="margin:0 auto 8px;"><path d="M23.643 4.937c-.835.37-1.732.62-2.675.733.962-.576 1.7-1.49 2.048-2.578-.9.534-1.897.922-2.958 1.13-.85-.904-2.06-1.47-3.4-1.47-2.572 0-4.658 2.086-4.658 4.66 0 .364.042.718.12 1.06-3.873-.195-7.304-2.05-9.602-4.868-.4.69-.63 1.49-.63 2.342 0 1.616.823 3.043 2.072 3.878-.764-.025-1.482-.234-2.11-.583v.06c0 2.257 1.605 4.14 3.737 4.568-.392.106-.803.162-1.227.162-.3 0-.593-.028-.877-.082.593 1.85 2.313 3.198 4.352 3.234-1.595 1.25-3.604 1.995-5.786 1.995-.376 0-.747-.022-1.112-.065 2.062 1.323 4.51 2.093 7.14 2.093 8.57 0 13.255-7.098 13.255-13.254 0-.2-.005-.402-.014-.602.91-.658 1.7-1.477 2.323-2.41z"/></svg>
-            <div style="font-size:14px; margin-bottom:6px; font-weight:900;">Connect Twitter to Earn Honey Points 🍯</div>
-            <div style="font-size:12px; opacity:0.8; margin-bottom:8px; line-height:1.3;">
-              Link your Twitter username to track @bearxrpl activity
-            </div>
-            <div style="font-size:10px; opacity:0.6; margin-bottom:10px; padding:8px; background:rgba(255,255,255,0.05); border-radius:4px; line-height:1.4;">
-              <strong>What we access:</strong> Username & public @bearxrpl tweets<br>
-              <strong>What we DON'T do:</strong> Post, see DMs, or access private data
-            </div>
-            <button id="connectTwitterBtn" class="btn gold" style="width:100%; font-size:14px; padding:10px;">Connect Twitter Username</button>
-            <div style="margin-top:10px; font-size:11px; opacity:0.6; line-height:1.4;">
-              🍯 10 honey points per @bearxrpl mention<br>
-              🍯 20 honey points per raid participation
-            </div>
-          </div>
         </div>
       </div>
 
@@ -1581,7 +1559,7 @@
       </div>
 
       <!-- NFT VIEWING SECTION -->
-      <div id="nftSection" style="display:none;">
+      <div id="nftSection" style="display:none; flex:1; min-height:0; display:flex; flex-direction:column;">
         <h4 style="margin:0 0 12px 0; font-size:14px; color:var(--gold); text-transform:uppercase;">🖼️ Your NFTs</h4>
 
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px;">
@@ -1589,7 +1567,7 @@
           <button id="viewUltraRaresBtn" class="btn gold" style="font-size:13px; padding:8px;">View Ultra Rares</button>
         </div>
 
-        <div id="nftGrid" style="display:none; max-height:400px; overflow-y:auto; background:rgba(0,0,0,0.3); padding:10px; border-radius:10px; border:2px solid rgba(237,183,35,0.2);">
+        <div id="nftGrid" style="display:none; flex:1; min-height:0; overflow-y:auto; background:rgba(0,0,0,0.3); padding:10px; border-radius:10px; border:2px solid rgba(237,183,35,0.2);">
           <div id="nftGridContent" style="display:grid; grid-template-columns:repeat(2, 1fr); gap:10px;">
             <!-- NFTs will be loaded here -->
           </div>
@@ -1604,6 +1582,11 @@
         </div>
       </div>
     </div>
+
+    <!-- Floating Close Button (Bottom Right) -->
+    <button class="drawer-close-btn" data-close-drawer aria-label="Close BEAR HUB">
+      <span style="font-size: 28px; line-height: 1;">&times;</span>
+    </button>
   </aside>
 
   <!-- Structured data -->
@@ -2458,8 +2441,8 @@
       return `${days}d ago`;
     }
 
-    // Wire up Twitter connect button
-    document.getElementById('connectTwitterBtn')?.addEventListener('click', async () => {
+    // Function to connect Twitter
+    async function connectTwitter() {
       const walletAddress = sessionStorage.getItem('bearpark_wallet');
       if (!walletAddress) {
         alert('Please connect your wallet first!');
@@ -2481,7 +2464,11 @@
         console.error('Error connecting Twitter:', error);
         alert('Failed to connect Twitter. Please try again.');
       }
-    });
+    }
+
+    // Wire up Twitter connect buttons (both in drawer and main page)
+    document.getElementById('connectTwitterBtn')?.addEventListener('click', connectTwitter);
+    document.getElementById('connectTwitterBtnMain')?.addEventListener('click', connectTwitter);
 
     // Wire up Twitter disconnect button
     document.getElementById('disconnectTwitterBtn')?.addEventListener('click', async () => {
