@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BEAR Park Game Integration Example</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #0f1114;
+      color: #fff;
+      padding: 40px;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    .code-block {
+      background: #1a1d22;
+      border: 2px solid #edb723;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 20px 0;
+      overflow-x: auto;
+    }
+    pre {
+      margin: 0;
+      color: #76aeff;
+    }
+    h1 { color: #edb723; }
+    h2 { color: #2ed573; margin-top: 30px; }
+    button {
+      background: #edb723;
+      color: #000;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      margin: 5px;
+    }
+    button:hover {
+      background: #d4a617;
+    }
+    .status {
+      padding: 12px;
+      border-radius: 8px;
+      margin: 10px 0;
+      background: #1a1d22;
+      border-left: 4px solid #2ed573;
+    }
+  </style>
+</head>
+<body>
+  <h1>🐻 BEAR Park Game Integration Example</h1>
+
+  <div class="status" id="authStatus">
+    Checking authentication...
+  </div>
+
+  <h2>Step 1: Add Script to Your Game</h2>
+  <p>Add this line to your game's HTML (before your game code):</p>
+  <div class="code-block">
+    <pre>&lt;script&gt;
+// Set your game ID
+const GAME_ID = 'flappy-bear'; // Change to: bear-jumpventure, bear-jumpventure-alt, etc.
+
+// Copy the entire content of game-integration.js here
+// OR host it and include: &lt;script src="https://bearpark.xyz/game-integration.js"&gt;&lt;/script&gt;
+&lt;/script&gt;</pre>
+  </div>
+
+  <h2>Step 2: Submit Scores</h2>
+  <p>When your game ends, call:</p>
+  <div class="code-block">
+    <pre>// Simple
+BEARParkAPI.submitScore(finalScore);
+
+// With metadata (recommended)
+BEARParkAPI.submitScore(finalScore, {
+  level: currentLevel,
+  time: elapsedTime
+});</pre>
+  </div>
+
+  <h2>Step 3: Test It</h2>
+  <button onclick="testSubmitScore()">Submit Test Score</button>
+  <button onclick="testGetLeaderboard()">Get Leaderboard</button>
+  <button onclick="testGetMyScore()">Get My Score</button>
+
+  <div id="output" style="margin-top: 20px;"></div>
+
+  <!-- Include the integration script -->
+  <script>
+    // BEAR Park Game Integration (inline version)
+    const BEAR_API_URL = 'http://localhost:3000/api'; // Change to production: https://bearpark.xyz/api
+    const GAME_ID = 'test-game'; // Change this for each game!
+
+    const BEARParkAPI = {
+      getWalletAddress() {
+        return localStorage.getItem('xaman_wallet_address');
+      },
+
+      getDisplayName() {
+        return localStorage.getItem('display_name') || 'Anonymous';
+      },
+
+      isAuthenticated() {
+        return !!this.getWalletAddress();
+      },
+
+      async submitScore(score, metadata = {}) {
+        const walletAddress = this.getWalletAddress();
+
+        if (!walletAddress) {
+          return {
+            success: false,
+            error: 'Not authenticated',
+            message: 'Please connect your XAMAN wallet at bearpark.xyz first'
+          };
+        }
+
+        try {
+          const response = await fetch(`${BEAR_API_URL}/leaderboard`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              wallet_address: walletAddress,
+              game_id: GAME_ID,
+              score: score,
+              metadata: {
+                ...metadata,
+                timestamp: new Date().toISOString(),
+                display_name: this.getDisplayName()
+              }
+            })
+          });
+
+          return await response.json();
+        } catch (error) {
+          return { success: false, error: error.message };
+        }
+      },
+
+      async getLeaderboard(limit = 10) {
+        try {
+          const response = await fetch(`${BEAR_API_URL}/leaderboard/${GAME_ID}?limit=${limit}`);
+          const data = await response.json();
+          return data.leaderboard || [];
+        } catch (error) {
+          console.error('Error fetching leaderboard:', error);
+          return [];
+        }
+      },
+
+      async getMyScore() {
+        const walletAddress = this.getWalletAddress();
+        if (!walletAddress) return null;
+
+        try {
+          const response = await fetch(`${BEAR_API_URL}/leaderboard/${GAME_ID}/${walletAddress}`);
+          const data = await response.json();
+          return data.entry || null;
+        } catch (error) {
+          return null;
+        }
+      }
+    };
+
+    window.BEARParkAPI = BEARParkAPI;
+
+    // Update auth status
+    const authStatus = document.getElementById('authStatus');
+    if (BEARParkAPI.isAuthenticated()) {
+      authStatus.innerHTML = `✅ <strong>Authenticated!</strong><br>
+        Wallet: ${BEARParkAPI.getWalletAddress()}<br>
+        Name: ${BEARParkAPI.getDisplayName()}`;
+      authStatus.style.borderColor = '#2ed573';
+    } else {
+      authStatus.innerHTML = `❌ <strong>Not Authenticated</strong><br>
+        Visit <a href="https://bearpark.xyz" style="color: #edb723;">bearpark.xyz</a> to connect your XAMAN wallet.<br>
+        <small>For testing, you can manually set localStorage:</small><br>
+        <code style="background: #0f1114; padding: 4px; border-radius: 4px;">
+          localStorage.setItem('xaman_wallet_address', 'rYourWalletAddress')
+        </code>`;
+      authStatus.style.borderColor = '#ff4757';
+    }
+
+    // Test functions
+    async function testSubmitScore() {
+      const randomScore = Math.floor(Math.random() * 1000);
+      const output = document.getElementById('output');
+      output.innerHTML = '<p>Submitting score...</p>';
+
+      const result = await BEARParkAPI.submitScore(randomScore, {
+        level: Math.floor(Math.random() * 10) + 1,
+        time: Math.floor(Math.random() * 300)
+      });
+
+      output.innerHTML = `
+        <div class="code-block">
+          <strong>Submit Score Result:</strong>
+          <pre>${JSON.stringify(result, null, 2)}</pre>
+        </div>
+      `;
+    }
+
+    async function testGetLeaderboard() {
+      const output = document.getElementById('output');
+      output.innerHTML = '<p>Loading leaderboard...</p>';
+
+      const leaderboard = await BEARParkAPI.getLeaderboard(10);
+
+      if (leaderboard.length === 0) {
+        output.innerHTML = '<p>No scores yet! Submit a score first.</p>';
+      } else {
+        let html = '<div class="code-block"><strong>Top 10 Leaderboard:</strong><br><br>';
+        leaderboard.forEach((entry, index) => {
+          html += `${index + 1}. ${entry.display_name || 'Anonymous'}: <strong>${entry.score}</strong><br>`;
+        });
+        html += '</div>';
+        output.innerHTML = html;
+      }
+    }
+
+    async function testGetMyScore() {
+      const output = document.getElementById('output');
+      output.innerHTML = '<p>Loading your score...</p>';
+
+      const myScore = await BEARParkAPI.getMyScore();
+
+      output.innerHTML = `
+        <div class="code-block">
+          <strong>Your Best Score:</strong>
+          <pre>${JSON.stringify(myScore, null, 2)}</pre>
+        </div>
+      `;
+    }
+  </script>
+</body>
+</html>
