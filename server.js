@@ -44,9 +44,14 @@ app.use(cors({
     'https://bear-jumpventure1.vercel.app',
     'https://bear-jumpventure.vercel.app'
   ],
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());
+
+// Handle preflight OPTIONS requests for all routes
+app.options('*', cors());
 
 // Create XAMAN Payload
 app.post('/api/xaman/payload', async (req, res) => {
