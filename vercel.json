@@ -46,6 +46,10 @@
       "dest": "server.js"
     },
     {
+      "src": "/flappybear",
+      "dest": "/flappybear.html"
+    },
+    {
       "src": "/(.*\\.(html|css|js|png|jpg|jpeg|gif|svg|ico))",
       "dest": "/$1"
     },
