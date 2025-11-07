@@ -54,6 +54,10 @@
       "dest": "/frontend/bear-jumpventure/index.html"
     },
     {
+      "src": "/bear-jumpventure/(.*)",
+      "dest": "/frontend/bear-jumpventure/$1"
+    },
+    {
       "src": "/(.*\\.(html|css|js|png|jpg|jpeg|gif|svg|ico))",
       "dest": "/$1"
     },
