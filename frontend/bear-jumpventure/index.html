@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>BEAR Jumpventure</title>
+
+    <!-- BEAR Park Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&display=swap" rel="stylesheet" />
+
+    <!-- BEAR Park Authentication - Read URL params and store to localStorage -->
+    <script>
+      (function() {
+        try {
+          // Read URL parameters
+          const urlParams = new URLSearchParams(window.location.search);
+          const wallet = urlParams.get('wallet');
+          const displayName = urlParams.get('display_name');
+          const twitterUsername = urlParams.get('twitter_username');
+
+          // Store to localStorage if provided
+          if (wallet) {
+            localStorage.setItem('xaman_wallet_address', wallet);
+            console.log('✅ Wallet address synced from BEAR Park:', wallet);
+          }
+
+          if (displayName) {
+            localStorage.setItem('display_name', displayName);
+            console.log('✅ Display name synced from BEAR Park:', displayName);
+          }
+
+          if (twitterUsername) {
+            localStorage.setItem('twitter_username', twitterUsername);
+            console.log('✅ Twitter username synced from BEAR Park:', twitterUsername);
+          }
+
+          // Clean URL after reading params (optional - removes params from address bar)
+          if (wallet || displayName || twitterUsername) {
+            const cleanUrl = window.location.origin + window.location.pathname;
+            window.history.replaceState({}, document.title, cleanUrl);
+          }
+        } catch (error) {
+          console.error('Error reading BEAR Park authentication data:', error);
+        }
+      })();
+    </script>
+
+
+    <script
+      async
+      data-adbreak-test="on"
+      crossorigin="anonymous"
+      src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=pub-3086347538258327"
+    ></script>
+    <script>
+      window.adsbygoogle = window.adsbygoogle || []
+      var adBreak = (adConfig = function (o) {
+        adsbygoogle.push(o)
+      })
+      adConfig({ sound: "on", preloadAdBreaks: "on" })
+    </script>
+
+    <style>
+      body {
+        background: black;
+        margin: 0;
+        padding: 0;
+      }
+    </style>
+    <script type="module" crossorigin src="/assets/index-BSefFi0o.js"></script>
+  </head>
+  <body></body>
+</html>
