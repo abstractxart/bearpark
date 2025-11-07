@@ -28,6 +28,10 @@
     {
       "src": "*.ico",
       "use": "@vercel/static"
+    },
+    {
+      "src": "frontend/**",
+      "use": "@vercel/static"
     }
   ],
   "routes": [
