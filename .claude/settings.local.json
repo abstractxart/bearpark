@@ -31,7 +31,15 @@
       "Bash(pm2 restart:*)",
       "Bash(copy \"c:\\Users\\Oz\\Desktop\\BEARpark\\main.html\" \"c:\\Users\\Oz\\Desktop\\BEARpark\\frontend\\main.html\")",
       "Bash(del nul 2)",
-      "Bash(nul)"
+      "Bash(nul)",
+      "Bash(npm run dev:*)",
+      "Bash(find:*)",
+      "Bash(dir:*)",
+      "Bash(test:*)",
+      "Bash(npm run build:*)",
+      "Bash(npx vite build)",
+      "Bash(gh api:*)",
+      "Bash(git remote:*)"
     ],
     "deny": [],
     "ask": []

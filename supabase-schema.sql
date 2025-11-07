@@ -272,7 +272,10 @@ CREATE TRIGGER update_game_leaderboards_updated_at BEFORE UPDATE ON game_leaderb
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- View: Game leaderboard with profile info and Twitter username
-CREATE OR REPLACE VIEW game_leaderboard_with_profiles AS
+-- Drop the existing view first to allow column structure changes
+DROP VIEW IF EXISTS game_leaderboard_with_profiles;
+
+CREATE VIEW game_leaderboard_with_profiles AS
 SELECT
   gl.id,
   gl.wallet_address,
