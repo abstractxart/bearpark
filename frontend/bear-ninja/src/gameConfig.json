@@ -1,0 +1,281 @@
+{
+  "screenSize": {
+    "width": {
+      "value": 960,
+      "type": "number",
+      "description": "Screen width (16:9 aspect ratio)"
+    },
+    "height": {
+      "value": 540,
+      "type": "number",
+      "description": "Screen height (16:9 aspect ratio)"
+    }
+  },
+  "debugConfig": {
+    "debug": {
+      "value": false,
+      "type": "boolean",
+      "description": "Enable debug mode"
+    }
+  },
+  "renderConfig": {
+    "pixelArt": {
+      "value": false,
+      "type": "boolean",
+      "description": "Whether to enable pixel art rendering"
+    }
+  },
+  "gameplayConfig": {
+    "lives": {
+      "value": 3,
+      "type": "number",
+      "description": "Number of lives player starts with"
+    },
+    "fruitSpawnRate": {
+      "value": 2000,
+      "type": "number",
+      "description": "Base fruit spawn interval in milliseconds"
+    },
+    "bombSpawnChance": {
+      "value": 0.1,
+      "type": "number",
+      "description": "Chance of spawning a bomb (0.0 to 1.0)"
+    },
+    "goldenFruitChance": {
+      "value": 0.05,
+      "type": "number",
+      "description": "Chance of spawning a golden fruit (0.0 to 1.0)"
+    },
+    "fruitGravity": {
+      "value": 800,
+      "type": "number",
+      "description": "Gravity force applied to fruits (balanced for 16:9 aspect ratio)"
+    },
+    "fruitLaunchSpeed": {
+      "value": 750,
+      "type": "number",
+      "description": "Base upward launch speed for fruits (optimized for 16:9 aspect ratio)"
+    },
+    "comboTimeWindow": {
+      "value": 1000,
+      "type": "number",
+      "description": "Time window for combo detection in milliseconds"
+    },
+    "sliceTrailDuration": {
+      "value": 500,
+      "type": "number",
+      "description": "Duration of slice trail visibility in milliseconds"
+    },
+
+    "multiFruitSpawnChance": {
+      "value": 0.25,
+      "type": "number",
+      "description": "Chance of spawning multiple fruits at once (0.0 to 1.0)"
+    },
+    "maxMultiFruitCount": {
+      "value": 4,
+      "type": "number",
+      "description": "Maximum number of fruits to spawn in a multi-fruit spawn"
+    },
+    "fruitSize": {
+      "value": 80,
+      "type": "number",
+      "description": "Display height for fruits and bombs (optimized for 16:9 aspect ratio)"
+    },
+    "difficultyIncreaseInterval": {
+      "value": 80,
+      "type": "number",
+      "description": "Score interval for gradual difficulty increases"
+    },
+    "minSpawnRate": {
+      "value": 600,
+      "type": "number",
+      "description": "Minimum spawn rate at highest difficulty"
+    },
+    "maxSpawnRate": {
+      "value": 2800,
+      "type": "number",
+      "description": "Starting spawn rate for beginners"
+    },
+    "maxBombChance": {
+      "value": 0.15,
+      "type": "number",
+      "description": "Maximum bomb chance at highest difficulty"
+    },
+    "minBombChance": {
+      "value": 0.03,
+      "type": "number",
+      "description": "Starting bomb chance for beginners"
+    },
+    "maxMultiFruitChance": {
+      "value": 0.6,
+      "type": "number",
+      "description": "Maximum multi-fruit chance at higher difficulties"
+    },
+    "minMultiFruitChance": {
+      "value": 0.15,
+      "type": "number",
+      "description": "Starting multi-fruit chance for beginners"
+    },
+    "goldenFruitMaxSlices": {
+      "value": 20,
+      "type": "number",
+      "description": "Maximum number of slices possible on a single golden fruit"
+    },
+    "goldenFruitSliceWindow": {
+      "value": 400,
+      "type": "number",
+      "description": "Time window in milliseconds for each slice opportunity"
+    },
+    "goldenFruitHoverDuration": {
+      "value": 10500,
+      "type": "number",
+      "description": "How long golden fruit hovers on screen for slicing"
+    },
+    
+    "perfectSliceWindow": {
+      "value": 150,
+      "type": "number",
+      "description": "Time window in milliseconds for perfect slice timing"
+    },
+
+    "frenzyModeThreshold": {
+      "value": 10,
+      "type": "number",
+      "description": "Combo count needed to trigger frenzy mode"
+    },
+    "frenzyModeDuration": {
+      "value": 8000,
+      "type": "number",
+      "description": "Duration of frenzy mode in milliseconds"
+    },
+    "achievementPopupDuration": {
+      "value": 3000,
+      "type": "number",
+      "description": "How long achievement popups stay visible"
+    },
+    "screenShakeIntensity": {
+      "value": 10,
+      "type": "number",
+      "description": "Intensity of screen shake effects"
+    },
+    "particleExplosionCount": {
+      "value": 15,
+      "type": "number",
+      "description": "Number of particles per fruit explosion"
+    },
+    "challengingPatternChance": {
+      "value": 0.3,
+      "type": "number",
+      "description": "Chance of spawning challenging bomb-fruit patterns at high difficulty"
+    },
+    "sideThrowStartLevel": {
+      "value": 2,
+      "type": "number",
+      "description": "Difficulty level when side throws start appearing"
+    },
+    "crissTrajectoryStartLevel": {
+      "value": 5,
+      "type": "number",
+      "description": "Difficulty level when criss-cross trajectories start appearing"
+    },
+    "maxChaosLevel": {
+      "value": 8,
+      "type": "number",
+      "description": "Difficulty level when maximum chaos patterns are reached"
+    },
+    "perfectStreakThreshold": {
+      "value": 5,
+      "type": "number",
+      "description": "Number of consecutive perfect slices needed to trigger streak effects"
+    },
+    "onFireThreshold": {
+      "value": 5,
+      "type": "number",
+      "description": "Number of perfect slices needed to activate on-fire mode"
+    },
+    "onFireDuration": {
+      "value": 5000,
+      "type": "number",
+      "description": "Duration of on-fire mode in milliseconds"
+    },
+    "spectacularSliceThreshold": {
+      "value": 3,
+      "type": "number",
+      "description": "Minimum fruits sliced in one swipe to trigger spectacular effect"
+    },
+    "sliceChainBaseProgress": {
+      "value": 10,
+      "type": "number",
+      "description": "Base progress needed for first chain level up"
+    },
+    "timeBasedDifficultyInterval": {
+      "value": 30000,
+      "type": "number",
+      "description": "Time interval in milliseconds for automatic difficulty increase"
+    },
+    "maxTimeBasedDifficulty": {
+      "value": 10,
+      "type": "number",
+      "description": "Maximum time-based difficulty level"
+    },
+    "fruitSpeedIncrease": {
+      "value": 0.05,
+      "type": "number",
+      "description": "Speed increase multiplier per difficulty level (reduced to prevent excessive speeds)"
+    },
+    "gravityIncrease": {
+      "value": 0.03,
+      "type": "number",
+      "description": "Gravity increase multiplier per difficulty level (reduced for balance)"
+    },
+    "chaosSpawnChance": {
+      "value": 0.2,
+      "type": "number",
+      "description": "Chance of chaos spawn patterns at high difficulty"
+    },
+    "rapidFireChance": {
+      "value": 0.15,
+      "type": "number",
+      "description": "Chance of rapid fire spawning at high difficulty"
+    },
+    "decoyBombChance": {
+      "value": 0.1,
+      "type": "number",
+      "description": "Chance of spawning decoy bombs that look like fruits"
+    },
+    "speedBoostChance": {
+      "value": 0.05,
+      "type": "number",
+      "description": "Chance of spawning speed-boosted fruits (reduced to prevent excessive speeds)"
+    }
+  },
+  "scoreConfig": {
+    "basePoints": {
+      "value": 10,
+      "type": "number",
+      "description": "Base points for slicing a fruit"
+    },
+    "comboMultiplier": {
+      "value": 2,
+      "type": "number",
+      "description": "Score multiplier for combo hits"
+    },
+    "goldenFruitPoints": {
+      "value": 25,
+      "type": "number",
+      "description": "Points for slicing a golden fruit"
+    },
+    "perfectSliceMultiplier": {
+      "value": 1.5,
+      "type": "number",
+      "description": "Score multiplier for perfect slices"
+    },
+
+    "frenzyModeMultiplier": {
+      "value": 2.0,
+      "type": "number",
+      "description": "Score multiplier during frenzy mode"
+    }
+  }
+}
