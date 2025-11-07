@@ -357,11 +357,11 @@
         showStatus('Verifying wallet holdings...', 'loading');
         verificationList.innerHTML = '';
 
-        // Connect to XRP Ledger with fallback nodes
+        // Connect to XRP Ledger with fallback nodes (reordered to avoid rate limits)
         const xrplNodes = [
-          'wss://xrplcluster.com',
           'wss://s1.ripple.com',
-          'wss://s2.ripple.com'
+          'wss://s2.ripple.com',
+          'wss://xrplcluster.com'
         ];
 
         let client = null;
@@ -388,6 +388,31 @@
           throw new Error('Unable to connect to XRPL. Please check your internet connection and try again.');
         }
 
+        // Helper function to retry requests with exponential backoff
+        async function retryRequest(requestFn, maxRetries = 3) {
+          for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+              // Check if still connected before making request
+              if (!client.isConnected()) {
+                console.log('Client disconnected, attempting to reconnect...');
+                await client.connect();
+              }
+              return await requestFn();
+            } catch (err) {
+              console.warn(`Request attempt ${attempt} failed:`, err.message);
+
+              if (attempt === maxRetries) {
+                throw err;
+              }
+
+              // Exponential backoff: 1s, 2s, 4s
+              const delay = Math.pow(2, attempt - 1) * 1000;
+              console.log(`Waiting ${delay}ms before retry...`);
+              await new Promise(resolve => setTimeout(resolve, delay));
+            }
+          }
+        }
+
         // Check 1: $BEAR Token Balance (with pagination support)
         const tokenItem = addVerificationItem('Checking $BEAR token balance...');
         let hasTokens = false;
@@ -411,7 +436,7 @@
               linesRequest.marker = marker;
             }
 
-            const accountLines = await client.request(linesRequest);
+            const accountLines = await retryRequest(() => client.request(linesRequest));
 
             if (accountLines.result.lines && accountLines.result.lines.length > 0) {
               allLines = allLines.concat(accountLines.result.lines);
@@ -472,7 +497,7 @@
               nftRequest.marker = marker;
             }
 
-            const nfts = await client.request(nftRequest);
+            const nfts = await retryRequest(() => client.request(nftRequest));
 
             if (nfts.result.account_nfts && nfts.result.account_nfts.length > 0) {
               allNFTs = allNFTs.concat(nfts.result.account_nfts);
