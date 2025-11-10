@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const fetch = require('node-fetch');
 const { createClient } = require('@supabase/supabase-js');
 
@@ -49,6 +50,9 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());
+
+// Serve static files from current directory
+app.use(express.static(__dirname));
 
 // Handle preflight OPTIONS requests for all routes
 app.options('*', cors());
@@ -180,6 +184,295 @@ app.post('/api/profile', async (req, res) => {
 });
 
 // ============================================
+// HONEY POINTS API ENDPOINTS
+// ============================================
+
+// Get user's honey points
+app.get('/api/points/:wallet_address', async (req, res) => {
+  if (!supabase) {
+    return res.status(503).json({ error: 'Database not configured' });
+  }
+
+  try {
+    const { wallet_address } = req.params;
+
+    const { data, error } = await supabase
+      .from('honey_points')
+      .select('*')
+      .eq('wallet_address', wallet_address)
+      .single();
+
+    if (error && error.code !== 'PGRST116') { // PGRST116 = not found
+      throw error;
+    }
+
+    if (!data) {
+      return res.json({ success: true, total_points: 0, raiding_points: 0, games_points: 0 });
+    }
+
+    res.json({
+      success: true,
+      total_points: data.total_points,
+      raiding_points: data.raiding_points,
+      games_points: data.games_points,
+      updated_at: data.updated_at
+    });
+  } catch (error) {
+    console.error('Error fetching points:', error);
+    res.status(500).json({ error: 'Failed to fetch points', details: error.message });
+  }
+});
+
+// Update/sync user's honey points
+app.post('/api/points', async (req, res) => {
+  if (!supabase) {
+    return res.status(503).json({ error: 'Database not configured' });
+  }
+
+  try {
+    const { wallet_address, total_points, raiding_points, games_points } = req.body;
+
+    if (!wallet_address) {
+      return res.status(400).json({ error: 'wallet_address is required' });
+    }
+
+    // Upsert points (insert or update if exists)
+    const { data, error } = await supabase
+      .from('honey_points')
+      .upsert({
+        wallet_address,
+        total_points: total_points || 0,
+        raiding_points: raiding_points || 0,
+        games_points: games_points || 0,
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'wallet_address'
+      })
+      .select()
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    res.json({ success: true, points: data });
+  } catch (error) {
+    console.error('Error syncing points:', error);
+    res.status(500).json({ error: 'Failed to sync points', details: error.message });
+  }
+});
+
+// Complete a raid and award points
+// SECURITY: Check if user already completed a raid
+app.post('/api/raids/check-completion', async (req, res) => {
+  if (!supabase) {
+    return res.status(503).json({ error: 'Database not configured' });
+  }
+
+  try {
+    const { wallet_address, raid_id } = req.body;
+
+    if (!wallet_address || !raid_id) {
+      return res.status(400).json({ error: 'wallet_address and raid_id are required' });
+    }
+
+    // Check if already completed
+    const { data, error } = await supabase
+      .from('raid_completions')
+      .select('*')
+      .eq('wallet_address', wallet_address)
+      .eq('raid_id', raid_id)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error checking raid completion:', error);
+      // If table doesn't exist yet, assume not completed
+      return res.json({ alreadyCompleted: false });
+    }
+
+    res.json({ alreadyCompleted: !!data });
+  } catch (error) {
+    console.error('Error checking raid completion:', error);
+    // On error, be safe and say not completed (better UX than blocking)
+    res.json({ alreadyCompleted: false });
+  }
+});
+
+// SECURITY: Get all completed raids for a wallet
+app.get('/api/raids/completed/:wallet_address', async (req, res) => {
+  if (!supabase) {
+    return res.status(503).json({ error: 'Database not configured' });
+  }
+
+  try {
+    const { wallet_address } = req.params;
+
+    if (!wallet_address) {
+      return res.status(400).json({ error: 'wallet_address is required' });
+    }
+
+    // Get all completed raids
+    const { data, error } = await supabase
+      .from('raid_completions')
+      .select('raid_id, completed_at, points_awarded')
+      .eq('wallet_address', wallet_address)
+      .order('completed_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching completed raids:', error);
+      // If table doesn't exist yet, return empty array
+      return res.json({ success: true, completedRaids: [] });
+    }
+
+    res.json({ success: true, completedRaids: data || [] });
+  } catch (error) {
+    console.error('Error fetching completed raids:', error);
+    res.json({ success: true, completedRaids: [] });
+  }
+});
+
+// SECURITY: Updated raid completion with duplicate protection
+app.post('/api/raids/complete', async (req, res) => {
+  if (!supabase) {
+    return res.status(503).json({ error: 'Database not configured' });
+  }
+
+  try {
+    const { wallet_address, raid_id, points_awarded, completed_at } = req.body;
+
+    if (!wallet_address || !raid_id) {
+      return res.status(400).json({ error: 'wallet_address and raid_id are required' });
+    }
+
+    // CRITICAL: Check if already completed (prevent exploit)
+    const { data: existingCompletion } = await supabase
+      .from('raid_completions')
+      .select('*')
+      .eq('wallet_address', wallet_address)
+      .eq('raid_id', raid_id)
+      .maybeSingle();
+
+    if (existingCompletion) {
+      console.log(`❌ EXPLOIT BLOCKED: User ${wallet_address} attempted to complete raid ${raid_id} twice!`);
+      return res.json({
+        success: true,
+        alreadyCompleted: true,
+        message: 'Raid already completed - no points awarded'
+      });
+    }
+
+    const pointsToAdd = points_awarded || 20;
+
+    // Record completion in raid_completions table
+    const { error: completionError } = await supabase
+      .from('raid_completions')
+      .insert({
+        wallet_address,
+        raid_id,
+        points_awarded: pointsToAdd,
+        completed_at: completed_at || new Date().toISOString()
+      });
+
+    if (completionError) {
+      // Check if it's a duplicate key error
+      if (completionError.code === '23505') { // PostgreSQL unique violation
+        console.log(`❌ EXPLOIT BLOCKED: Duplicate raid completion detected for ${wallet_address}, raid ${raid_id}`);
+        return res.json({
+          success: true,
+          alreadyCompleted: true,
+          message: 'Raid already completed - no points awarded'
+        });
+      }
+      throw completionError;
+    }
+
+    // Get current points
+    const { data: currentData } = await supabase
+      .from('honey_points')
+      .select('*')
+      .eq('wallet_address', wallet_address)
+      .maybeSingle();
+
+    const currentTotal = currentData?.total_points || 0;
+    const currentRaiding = currentData?.raiding_points || 0;
+
+    // Update points
+    const { data, error } = await supabase
+      .from('honey_points')
+      .upsert({
+        wallet_address,
+        total_points: currentTotal + pointsToAdd,
+        raiding_points: currentRaiding + pointsToAdd,
+        games_points: currentData?.games_points || 0,
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'wallet_address'
+      })
+      .select()
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    console.log(`✅ Raid completed: User ${wallet_address} earned ${pointsToAdd} points for raid ${raid_id}`);
+
+    res.json({
+      success: true,
+      alreadyCompleted: false,
+      points: data,
+      points_awarded: pointsToAdd
+    });
+  } catch (error) {
+    console.error('Error completing raid:', error);
+    res.status(500).json({ error: 'Failed to complete raid', details: error.message });
+  }
+});
+
+// Get honey points leaderboard
+app.get('/api/leaderboard', async (req, res) => {
+  if (!supabase) {
+    return res.status(503).json({ error: 'Database not configured' });
+  }
+
+  try {
+    const limit = parseInt(req.query.limit) || 15;
+    const walletAddress = req.query.wallet;
+
+    // Get leaderboard
+    const { data, error } = await supabase
+      .from('honey_points_leaderboard')
+      .select('*')
+      .limit(limit);
+
+    if (error) {
+      throw error;
+    }
+
+    // If wallet address provided, calculate their rank
+    let userRank = null;
+    if (walletAddress) {
+      const { data: allData, error: rankError } = await supabase
+        .from('honey_points')
+        .select('wallet_address, total_points')
+        .order('total_points', { ascending: false });
+
+      if (!rankError && allData) {
+        const userIndex = allData.findIndex(entry => entry.wallet_address === walletAddress);
+        if (userIndex !== -1) {
+          userRank = userIndex + 1;
+        }
+      }
+    }
+
+    res.json({ success: true, leaderboard: data || [], userRank });
+  } catch (error) {
+    console.error('Error fetching honey points leaderboard:', error);
+    res.status(500).json({ error: 'Failed to fetch leaderboard', details: error.message });
+  }
+});
+
+// ============================================
 // GAME LEADERBOARD API ENDPOINTS
 // ============================================
 
@@ -286,6 +579,162 @@ app.get('/api/leaderboard/:game_id/:wallet_address', async (req, res) => {
     console.error('Error fetching user score:', error);
     res.status(500).json({ error: 'Failed to fetch user score', details: error.message });
   }
+});
+
+// ============================================
+// RAIDS API ENDPOINTS
+// ============================================
+
+// Get current active raids
+app.get('/api/raids/current', async (req, res) => {
+  if (!supabase) {
+    return res.status(503).json({ error: 'Database not configured' });
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('raids')
+      .select('*')
+      .eq('is_active', true)
+      .gt('expires_at', new Date().toISOString())
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      throw error;
+    }
+
+    res.json({ success: true, raids: data || [] });
+  } catch (error) {
+    console.error('Error fetching raids:', error);
+    res.status(500).json({ error: 'Failed to fetch raids', details: error.message });
+  }
+});
+
+// Create new raid
+app.post('/api/raids', async (req, res) => {
+  if (!supabase) {
+    return res.status(503).json({ error: 'Database not configured' });
+  }
+
+  try {
+    const { description, twitter_url, reward, profile_name, profile_handle, profile_emoji, expires_at } = req.body;
+
+    if (!description || !twitter_url || !expires_at) {
+      return res.status(400).json({ error: 'Missing required fields: description, twitter_url, expires_at' });
+    }
+
+    const { data, error } = await supabase
+      .from('raids')
+      .insert({
+        description,
+        twitter_url,
+        reward: reward || 20,
+        profile_name: profile_name || 'BearXRPL',
+        profile_handle: profile_handle || '@BearXRPL',
+        profile_emoji: profile_emoji || '🐻',
+        expires_at,
+        is_active: true
+      })
+      .select()
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    console.log(`✅ Created raid: ${description.substring(0, 50)}...`);
+    res.json({ success: true, raid: data });
+  } catch (error) {
+    console.error('Error creating raid:', error);
+    res.status(500).json({ error: 'Failed to create raid', details: error.message });
+  }
+});
+
+// Delete raid
+app.delete('/api/raids/:id', async (req, res) => {
+  if (!supabase) {
+    return res.status(503).json({ error: 'Database not configured' });
+  }
+
+  try {
+    const { id } = req.params;
+
+    const { error } = await supabase
+      .from('raids')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      throw error;
+    }
+
+    console.log(`✅ Deleted raid ID: ${id}`);
+    res.json({ success: true, message: 'Raid deleted' });
+  } catch (error) {
+    console.error('Error deleting raid:', error);
+    res.status(500).json({ error: 'Failed to delete raid', details: error.message });
+  }
+});
+
+// Clear all raids (admin only - be careful!)
+app.post('/api/raids/clear', async (req, res) => {
+  if (!supabase) {
+    return res.status(503).json({ error: 'Database not configured' });
+  }
+
+  try {
+    const { error } = await supabase
+      .from('raids')
+      .delete()
+      .neq('id', 0); // Delete all rows
+
+    if (error) {
+      throw error;
+    }
+
+    console.log('⚠️  All raids cleared from database');
+    res.json({ success: true, message: 'All raids cleared' });
+  } catch (error) {
+    console.error('Error clearing raids:', error);
+    res.status(500).json({ error: 'Failed to clear raids', details: error.message });
+  }
+});
+
+// ============================================
+// TWITTER EMBED API
+// ============================================
+
+// Get Twitter embed data (oEmbed) - converts x.com to twitter.com
+app.get('/api/twitter/oembed', async (req, res) => {
+  try {
+    let { url } = req.query;
+
+    if (!url) {
+      return res.status(400).json({ error: 'URL parameter required' });
+    }
+
+    // Convert x.com URLs to twitter.com for oEmbed API compatibility
+    url = url.replace('https://x.com/', 'https://twitter.com/');
+
+    // Fetch from Twitter's public oEmbed API
+    const oembedUrl = `https://publish.twitter.com/oembed?url=${encodeURIComponent(url)}&omit_script=true&dnt=true`;
+    const response = await fetch(oembedUrl);
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch Twitter embed');
+    }
+
+    const data = await response.json();
+    res.json({ success: true, embed: data });
+  } catch (error) {
+    console.error('Error fetching Twitter embed:', error);
+    res.status(500).json({ error: 'Failed to fetch Twitter embed', details: error.message });
+  }
+});
+
+// Serve main.html at root
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'main.html'));
 });
 
 // Health check
