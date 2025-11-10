@@ -26,19 +26,36 @@ const supabase = createClient(
 console.log('✅ Supabase initialized:', process.env.SUPABASE_URL);
 
 // Initialize Direct PostgreSQL Pool (for reactions to bypass PostgREST cache)
-const pgPool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
-});
-console.log('✅ Direct PostgreSQL pool initialized');
+let pgPool;
+try {
+  if (process.env.DATABASE_URL) {
+    pgPool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: { rejectUnauthorized: false }
+    });
+    console.log('✅ Direct PostgreSQL pool initialized');
+  } else {
+    console.warn('⚠️ DATABASE_URL not set - PostgreSQL pool not initialized');
+  }
+} catch (error) {
+  console.error('❌ Failed to initialize PostgreSQL pool:', error.message);
+}
 
 // Configure web-push with VAPID keys for push notifications
-webpush.setVapidDetails(
-  process.env.VAPID_SUBJECT || 'mailto:admin@bearpark.xyz',
-  process.env.VAPID_PUBLIC_KEY,
-  process.env.VAPID_PRIVATE_KEY
-);
-console.log('✅ Push notifications configured');
+try {
+  if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+    webpush.setVapidDetails(
+      process.env.VAPID_SUBJECT || 'mailto:admin@bearpark.xyz',
+      process.env.VAPID_PUBLIC_KEY,
+      process.env.VAPID_PRIVATE_KEY
+    );
+    console.log('✅ Push notifications configured');
+  } else {
+    console.warn('⚠️ VAPID keys not set - Push notifications not configured');
+  }
+} catch (error) {
+  console.error('❌ Failed to configure push notifications:', error.message);
+}
 
 // Initialize XAMAN SDK (with validation)
 let xumm;
