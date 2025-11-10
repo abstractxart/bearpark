@@ -36,6 +36,18 @@
     overflow-x:hidden;
   }
 
+  /* Background video */
+  .bg-video {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 0;
+    opacity: 0.6;
+  }
+
   /* Side color bars - purple, green, yellow */
   body::after {
     content: "";
@@ -45,9 +57,9 @@
     bottom: 0;
     width: 60px;
     background: linear-gradient(to bottom,
-      var(--purple) 0%, var(--purple) 33.33%,
-      var(--green) 33.33%, var(--green) 66.66%,
-      var(--gold) 66.66%, var(--gold) 100%);
+      var(--stripe-purple) 0%, var(--stripe-purple) 33.33%,
+      var(--stripe-green) 33.33%, var(--stripe-green) 66.66%,
+      var(--stripe-yellow) 66.66%, var(--stripe-yellow) 100%);
     z-index: 999;
     pointer-events: none;
   }
@@ -60,9 +72,9 @@
     bottom: 0;
     width: 60px;
     background: linear-gradient(to bottom,
-      var(--purple) 0%, var(--purple) 33.33%,
-      var(--green) 33.33%, var(--green) 66.66%,
-      var(--gold) 66.66%, var(--gold) 100%);
+      var(--stripe-purple) 0%, var(--stripe-purple) 33.33%,
+      var(--stripe-green) 33.33%, var(--stripe-green) 66.66%,
+      var(--stripe-yellow) 66.66%, var(--stripe-yellow) 100%);
     z-index: 999;
     pointer-events: none;
   }
@@ -257,6 +269,9 @@
   </style>
 </head>
 <body>
+  <video class="bg-video" autoplay loop muted playsinline>
+    <source src="https://files.catbox.moe/484o39.mp4" type="video/mp4">
+  </video>
   <div class="gate-container">
     <img class="logo" src="https://files.catbox.moe/25ekkd.png" alt="BEAR Park logo" width="120" height="120">
     <h1>BEAR PARK</h1>
@@ -327,7 +342,7 @@
     }
 
     // Check if already authenticated
-    const isAuthenticated = sessionStorage.getItem('bearpark_auth');
+    const isAuthenticated = localStorage.getItem('bearpark_auth');
     if(isAuthenticated === 'true'){
       window.location.href = 'main.html';
       return;
@@ -553,8 +568,8 @@
         // Grant access if any requirement is met
         if(hasTokens || hasNFT){
           showStatus('✓ Access granted! Redirecting...', 'success');
-          sessionStorage.setItem('bearpark_auth', 'true');
-          sessionStorage.setItem('bearpark_wallet', walletAddress);
+          localStorage.setItem('bearpark_auth', 'true');
+          localStorage.setItem('bearpark_wallet', walletAddress);
 
           // SYNC TO LOCALSTORAGE FOR GAME INTEGRATION
           localStorage.setItem('xaman_wallet_address', walletAddress);

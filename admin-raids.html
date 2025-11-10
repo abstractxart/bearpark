@@ -4,119 +4,386 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>BEAR Park - Admin Raid Creator</title>
+  <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&display=swap" rel="stylesheet" />
   <style>
+    /* ==== BEAR PARK THEME =========================================================== */
+    :root {
+      --gold: #edb723;
+      --charcoal: #141619;
+      --card: #1e2226;
+      --stripe-purple: #680cd9;
+      --stripe-yellow: #feb501;
+      --stripe-green: #07ae08;
+      --tri-gradient: linear-gradient(135deg, var(--stripe-purple) 0%, var(--stripe-purple) 33.33%, var(--stripe-yellow) 33.33%, var(--stripe-yellow) 66.66%, var(--stripe-green) 66.66%, var(--stripe-green) 100%);
+      --elev-strong: 0 10px 28px rgba(0,0,0,.45), 0 1px 0 rgba(255,255,255,.03) inset;
+    }
+
     * { margin: 0; padding: 0; box-sizing: border-box; }
+
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      font-family: "Luckiest Guy", "Arial Black", Impact, system-ui, -apple-system, sans-serif;
+      background: var(--charcoal);
+      background-image:
+        radial-gradient(100vmax 60vmax at 10% -10%, rgba(237,183,35,.055), transparent 60%),
+        radial-gradient(80vmax 60vmax at 100% 10%, rgba(215,92,70,.055), transparent 60%),
+        radial-gradient(80vmax 60vmax at 50% 110%, rgba(118,174,255,.045), transparent 60%);
       min-height: 100vh;
       display: flex;
       justify-content: center;
       align-items: center;
       padding: 20px;
+      color: #fff;
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
     }
+
     .container {
-      background: white;
-      border-radius: 16px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-      padding: 40px;
-      max-width: 600px;
+      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      border-radius: 24px;
+      border: 4px solid transparent;
+      box-shadow: var(--elev-strong);
+      padding: 48px;
+      max-width: 700px;
       width: 100%;
+      position: relative;
+      overflow: visible;
+      backdrop-filter: saturate(1.1) blur(2px);
     }
+
+    /* Tri-color border for container */
+    .container::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 24px;
+      padding: 6px;
+      background: var(--tri-gradient);
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      mask-composite: exclude;
+      pointer-events: none;
+      z-index: 0;
+    }
+
     h1 {
-      color: #333;
-      margin-bottom: 10px;
-      font-size: 28px;
+      color: var(--gold);
+      margin-bottom: 8px;
+      font-size: clamp(32px, 5vw, 48px);
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      text-shadow: 0 4px 0 rgba(0,0,0,.35), 0 1px 0 rgba(0,0,0,.25);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      justify-content: center;
+      position: relative;
+      z-index: 1;
     }
+
     .subtitle {
-      color: #666;
-      margin-bottom: 30px;
-      font-size: 14px;
+      color: rgba(255,255,255,0.7);
+      margin-bottom: 32px;
+      font-size: 16px;
+      font-weight: 600;
+      text-align: center;
+      position: relative;
+      z-index: 1;
     }
+
     .form-group {
-      margin-bottom: 20px;
+      margin-bottom: 24px;
+      position: relative;
+      z-index: 1;
     }
+
     label {
       display: block;
-      margin-bottom: 8px;
-      color: #333;
-      font-weight: 600;
-      font-size: 14px;
+      margin-bottom: 10px;
+      color: var(--stripe-yellow);
+      font-weight: 900;
+      font-size: 15px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
     }
+
     input, textarea, select {
       width: 100%;
-      padding: 12px;
-      border: 2px solid #e0e0e0;
-      border-radius: 8px;
-      font-size: 14px;
-      transition: border-color 0.3s;
+      padding: 14px 16px;
+      background: rgba(0, 0, 0, 0.4);
+      border: 3px solid rgba(104, 12, 217, 0.3);
+      border-radius: 12px;
+      font-size: 18px;
+      color: #fff;
+      transition: all 0.3s ease;
+      font-family: "Luckiest Guy", "Arial Black", Impact, system-ui, sans-serif;
+      font-weight: 600;
     }
+
     input:focus, textarea:focus, select:focus {
       outline: none;
-      border-color: #667eea;
+      border-color: var(--stripe-purple);
+      background: rgba(0, 0, 0, 0.6);
+      box-shadow: 0 0 0 4px rgba(104, 12, 217, 0.2);
     }
+
+    input::placeholder, textarea::placeholder {
+      color: rgba(255,255,255,0.7);
+      opacity: 1;
+    }
+
     textarea {
       resize: vertical;
       min-height: 100px;
     }
-    button {
-      width: 100%;
-      padding: 14px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      border: none;
-      border-radius: 8px;
-      font-size: 16px;
-      font-weight: 700;
-      cursor: pointer;
-      transition: transform 0.2s, box-shadow 0.2s;
-    }
-    button:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
-    }
-    button:disabled {
-      background: #ccc;
-      cursor: not-allowed;
-      transform: none;
-    }
-    .status {
-      margin-top: 20px;
-      padding: 12px;
-      border-radius: 8px;
-      text-align: center;
-      font-weight: 600;
-      display: none;
-    }
-    .status.success {
-      background: #d4edda;
-      color: #155724;
-      border: 1px solid #c3e6cb;
-    }
-    .status.error {
-      background: #f8d7da;
-      color: #721c24;
-      border: 1px solid #f5c6cb;
-    }
-    .wallet-status {
-      background: #e7f3ff;
-      padding: 12px;
-      border-radius: 8px;
-      margin-bottom: 20px;
-      text-align: center;
-      font-size: 14px;
-    }
+
     .small-text {
       font-size: 12px;
-      color: #999;
-      margin-top: 5px;
+      color: rgba(255,255,255,0.5);
+      margin-top: 6px;
+      font-weight: 600;
+    }
+
+    button {
+      width: 100%;
+      padding: 18px;
+      background: linear-gradient(135deg, var(--stripe-purple), var(--stripe-yellow));
+      color: white;
+      border: none;
+      border-radius: 20px;
+      font-size: 18px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 10px 28px rgba(0,0,0,.45);
+      position: relative;
+      overflow: visible;
+      z-index: 1;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.4);
+    }
+
+    /* Tri-color border for button */
+    button::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 20px;
+      padding: 6px;
+      background: var(--tri-gradient);
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      mask-composite: exclude;
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    /* Shine effect */
+    button::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+      transition: left 0.5s;
+      pointer-events: none;
+    }
+
+    button:hover::after {
+      left: 100%;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      filter: brightness(1.15);
+      box-shadow: 0 12px 35px rgba(0,0,0,.5);
+    }
+
+    button:active {
+      transform: translateY(0);
+      box-shadow: 0 6px 20px rgba(0,0,0,.4);
+    }
+
+    button:disabled {
+      background: rgba(100, 100, 100, 0.3);
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+      filter: grayscale(1);
+    }
+
+    .status {
+      margin-top: 24px;
+      padding: 18px;
+      border-radius: 16px;
+      text-align: center;
+      font-weight: 900;
+      display: none;
+      animation: slideIn 0.3s ease;
+      font-size: 16px;
+      position: relative;
+      z-index: 1;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .status.success {
+      background: linear-gradient(135deg, rgba(7, 174, 8, 0.3), rgba(7, 174, 8, 0.2));
+      color: var(--stripe-green);
+      border: 4px solid var(--stripe-green);
+      box-shadow: 0 0 20px rgba(7, 174, 8, 0.4);
+    }
+
+    .status.error {
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.3), rgba(239, 68, 68, 0.2));
+      color: #ff6b6b;
+      border: 4px solid #ef4444;
+      box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+    }
+
+    .wallet-status {
+      background: linear-gradient(135deg, rgba(104, 12, 217, 0.2), rgba(254, 181, 1, 0.1));
+      padding: 18px;
+      border-radius: 16px;
+      border: 4px solid rgba(104, 12, 217, 0.5);
+      margin-bottom: 24px;
+      text-align: center;
+      font-size: 16px;
+      font-weight: 900;
+      position: relative;
+      z-index: 1;
+      color: var(--stripe-yellow);
+      text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .back-button {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      padding: 12px 24px;
+      background: linear-gradient(135deg, var(--stripe-green), var(--stripe-yellow));
+      color: white;
+      border: none;
+      border-radius: 16px;
+      font-size: 16px;
+      font-weight: 900;
+      cursor: pointer;
+      z-index: 100;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.4);
+      box-shadow: 0 4px 12px rgba(0,0,0,.4);
+      transition: all 0.3s ease;
+    }
+
+    .back-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(0,0,0,.5);
+    }
+
+    .section-title {
+      color: var(--gold);
+      font-size: clamp(24px, 4vw, 32px);
+      margin: 40px 0 20px;
+      text-align: center;
+      text-shadow: 0 4px 0 rgba(0,0,0,.35);
+      position: relative;
+      z-index: 1;
+    }
+
+    .raid-item, .user-item {
+      background: rgba(0, 0, 0, 0.3);
+      border: 3px solid rgba(104, 12, 217, 0.4);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 16px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .raid-item h3, .user-item h3 {
+      color: var(--stripe-yellow);
+      font-size: 18px;
+      margin-bottom: 8px;
+    }
+
+    .raid-item p, .user-item p {
+      color: rgba(255,255,255,0.8);
+      font-size: 14px;
+      margin: 4px 0;
+      font-weight: 600;
+    }
+
+    .delete-btn {
+      padding: 8px 16px;
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 900;
+      cursor: pointer;
+      margin-top: 10px;
+      transition: all 0.3s ease;
+    }
+
+    .delete-btn:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.2);
+    }
+
+    .edit-btn {
+      padding: 8px 16px;
+      background: linear-gradient(135deg, var(--stripe-yellow), var(--stripe-green));
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 900;
+      cursor: pointer;
+      margin-top: 10px;
+      margin-right: 8px;
+      transition: all 0.3s ease;
+    }
+
+    .edit-btn:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.2);
+    }
+
+    .user-name-input {
+      width: auto;
+      display: inline-block;
+      margin-right: 8px;
+      padding: 8px 12px;
+      font-size: 14px;
+    }
+
+    .admin-section {
+      display: none;
+    }
+
+    .no-raids, .no-users {
+      text-align: center;
+      color: rgba(255,255,255,0.5);
+      padding: 30px;
+      font-size: 16px;
     }
   </style>
 </head>
 <body>
+  <button class="back-button" onclick="window.location.href='/main.html'">← Back to BEAR Park</button>
+
   <div class="container">
-    <h1>🎯 Create BEAR Raid</h1>
-    <p class="subtitle">Admin panel for creating Twitter raids</p>
+    <h1>🎯 BEAR Admin Panel</h1>
+    <p class="subtitle">Manage raids and moderate user names</p>
 
     <div id="walletStatus" class="wallet-status">
       <strong>Admin Wallet:</strong> Not connected
@@ -126,54 +393,193 @@
       <button onclick="connectWallet()">🔐 Connect Admin Wallet</button>
     </div>
 
-    <form id="raidForm" style="display: none;">
-      <div class="form-group">
-        <label for="raidTitle">Raid Title *</label>
-        <input type="text" id="raidTitle" placeholder="e.g., BEAR Army Raid - Like & RT!" required>
+    <div class="admin-section" id="adminContent">
+      <!-- CREATE NEW RAID -->
+      <h2 class="section-title">Create New Raid</h2>
+      <form id="raidForm">
+        <div class="form-group">
+          <label for="raidTitle">Raid Title *</label>
+          <input type="text" id="raidTitle" value="RAID IT BEAR ARMY 🐻🪖" placeholder="e.g., BEAR Army Raid - Like & RT!" required>
+        </div>
+
+        <div class="form-group">
+          <label for="raidUrl">X/Twitter URL *</label>
+          <input type="url" id="raidUrl" placeholder="" required>
+        </div>
+
+        <div class="form-group">
+          <label for="targetAccount">Target Account *</label>
+          <input type="text" id="targetAccount" value="@BearXRPL" placeholder="@bearxrpl" required>
+          <div class="small-text">Include the @ symbol</div>
+        </div>
+
+        <div class="form-group">
+          <label for="raidDescription">Description</label>
+          <textarea id="raidDescription" placeholder="Like, retweet, and comment on this post!">Post a meme and tag @BearXRPL</textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="pointsPerParticipation">Points per Participation</label>
+          <input type="number" id="pointsPerParticipation" value="15" min="1" max="100">
+        </div>
+
+        <div class="form-group">
+          <label for="durationHours">Duration (hours)</label>
+          <input type="number" id="durationHours" value="24" min="1" max="168">
+          <div class="small-text">How long the raid will be active</div>
+        </div>
+
+        <button type="submit">🚀 Create Raid</button>
+      </form>
+
+      <!-- CURRENT RAIDS MANAGEMENT -->
+      <h2 class="section-title">Current Raids</h2>
+      <div id="raidsList"></div>
+
+      <!-- ROLE MANAGEMENT (MASTER ONLY) -->
+      <div id="roleManagementSection" style="display: none;">
+        <h2 class="section-title">👑 Role Management (MASTER ONLY)</h2>
+
+        <!-- Current Roles List -->
+        <div id="currentRolesList"></div>
+
+        <!-- Assign New Role Form -->
+        <h3 style="color: var(--stripe-yellow); margin-top: 30px; margin-bottom: 15px;">Assign New Role</h3>
+        <form id="assignRoleForm">
+          <div class="form-group">
+            <label for="roleWallet">Wallet Address *</label>
+            <input type="text" id="roleWallet" placeholder="rXXXXXXXXXXXXXXXXXXXXXX" required>
+          </div>
+          <div class="form-group">
+            <label for="roleType">Role *</label>
+            <select id="roleType" required style="background: var(--charcoal); border: 2px solid var(--stripe-yellow); color: white; padding: 12px; border-radius: 8px; width: 100%; font-family: 'Luckiest Guy', cursive; font-size: 16px;">
+              <option value="">Select a role...</option>
+              <option value="admin">🛡️ ADMIN - Full management access</option>
+              <option value="moderator">⚔️ MODERATOR - Limited moderation access</option>
+            </select>
+            <div class="small-text" style="margin-top: 8px;">
+              <strong>Admin:</strong> Can manage users, ban, adjust points, manage raids, view analytics, update settings<br>
+              <strong>Moderator:</strong> Can only edit user names and view analytics (read-only)
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="roleNotes">Notes (optional)</label>
+            <textarea id="roleNotes" placeholder="Why are you assigning this role?"></textarea>
+          </div>
+          <button type="submit">👑 Assign Role</button>
+        </form>
       </div>
 
+      <!-- USER NAME MODERATION -->
+      <h2 class="section-title">User Name Moderation</h2>
       <div class="form-group">
-        <label for="raidUrl">Tweet URL *</label>
-        <input type="url" id="raidUrl" placeholder="https://twitter.com/username/status/..." required>
+        <label for="userSearch">Search Users</label>
+        <input type="text" id="userSearch" placeholder="Search by wallet or name..." oninput="filterUsers()">
       </div>
+      <div id="usersList"></div>
 
+      <!-- MANUAL POINT ADJUSTMENTS -->
+      <h2 class="section-title">Manual Point Adjustments</h2>
+      <form id="pointsForm">
+        <div class="form-group">
+          <label for="pointsWallet">Wallet Address *</label>
+          <input type="text" id="pointsWallet" placeholder="rXXXXXXXXXXXXXXXXXXXXXX" required>
+        </div>
+        <div class="form-group">
+          <label for="pointsAmount">Points Amount *</label>
+          <input type="number" id="pointsAmount" placeholder="100 (positive to add, negative to subtract)" required>
+        </div>
+        <div class="form-group">
+          <label for="pointsReason">Reason</label>
+          <textarea id="pointsReason" placeholder="Why are you adjusting these points?"></textarea>
+        </div>
+        <button type="submit">💰 Adjust Points</button>
+      </form>
+
+      <!-- BAN/UNBAN USERS -->
+      <h2 class="section-title">Ban Management</h2>
+      <form id="banForm">
+        <div class="form-group">
+          <label for="banWallet">Wallet Address *</label>
+          <input type="text" id="banWallet" placeholder="rXXXXXXXXXXXXXXXXXXXXXX" required>
+        </div>
+        <div class="form-group">
+          <label for="banReason">Reason</label>
+          <textarea id="banReason" placeholder="Why are you banning this user?"></textarea>
+        </div>
+        <button type="submit" class="delete-btn" style="width: 100%;">🚫 Ban User</button>
+      </form>
+      <div id="bannedUsersList"></div>
+
+      <!-- ANALYTICS DASHBOARD -->
+      <h2 class="section-title">Analytics Dashboard</h2>
+      <div id="analyticsData"></div>
+
+      <!-- GAME SETTINGS -->
+      <h2 class="section-title">Game Settings</h2>
+      <form id="settingsForm">
+        <div class="form-group">
+          <label for="maxMinutes">Max Daily Minutes</label>
+          <input type="number" id="maxMinutes" value="20" min="1" max="120">
+        </div>
+        <div class="form-group">
+          <label for="pointsPerMinute">Points Per Minute</label>
+          <input type="number" id="pointsPerMinute" value="1" min="0.1" max="10" step="0.1">
+        </div>
+        <button type="submit">⚙️ Update Settings</button>
+      </form>
+
+      <!-- RAID ANALYTICS -->
+      <h2 class="section-title">Raid Analytics</h2>
+      <div id="raidAnalytics"></div>
+
+      <!-- POINT TRANSACTION HISTORY -->
+      <h2 class="section-title">Point Transaction History</h2>
       <div class="form-group">
-        <label for="targetAccount">Target Account *</label>
-        <input type="text" id="targetAccount" placeholder="@bearxrpl" required>
-        <div class="small-text">Include the @ symbol</div>
+        <label for="transactionWallet">Filter by Wallet (optional)</label>
+        <input type="text" id="transactionWallet" placeholder="Leave empty for all transactions">
+        <button class="edit-btn" onclick="loadTransactions()" style="width: auto; margin-top: 10px;">🔍 Load Transactions</button>
       </div>
+      <div id="transactionsList"></div>
 
-      <div class="form-group">
-        <label for="raidDescription">Description</label>
-        <textarea id="raidDescription" placeholder="Like, retweet, and comment on this post!"></textarea>
-      </div>
+      <!-- BULK POINT OPERATIONS -->
+      <h2 class="section-title">Bulk Point Operations</h2>
+      <form id="bulkForm">
+        <div class="form-group">
+          <label for="bulkWallets">Wallet Addresses *</label>
+          <textarea id="bulkWallets" placeholder="Enter one wallet address per line&#10;rXXXXXXXXXXXXXXXXXXXXXX&#10;rYYYYYYYYYYYYYYYYYYYYYY" style="min-height: 150px;"></textarea>
+          <div class="small-text">One wallet address per line</div>
+        </div>
+        <div class="form-group">
+          <label for="bulkAmount">Points Amount *</label>
+          <input type="number" id="bulkAmount" placeholder="100" required>
+        </div>
+        <div class="form-group">
+          <label for="bulkReason">Reason</label>
+          <textarea id="bulkReason" placeholder="Why are you awarding these points?"></textarea>
+        </div>
+        <button type="submit">🎁 Award Points to All</button>
+      </form>
 
-      <div class="form-group">
-        <label for="pointsPerParticipation">Points per Participation</label>
-        <input type="number" id="pointsPerParticipation" value="20" min="1" max="100">
-      </div>
-
-      <div class="form-group">
-        <label for="durationHours">Duration (hours)</label>
-        <input type="number" id="durationHours" value="24" min="1" max="168">
-        <div class="small-text">How long the raid will be active</div>
-      </div>
-
-      <button type="submit">🚀 Create Raid</button>
-    </form>
+      <!-- ACTIVITY LOGS -->
+      <h2 class="section-title">Admin Activity Logs</h2>
+      <div id="activityLogs"></div>
+    </div>
 
     <div id="status" class="status"></div>
   </div>
 
   <script src="https://unpkg.com/xrpl@2.7.0/build/xrpl-latest-min.js"></script>
   <script>
-    const ADMIN_WALLET = 'rU2AviYiGZnWXmgDQ1bpkY8Nak4f3ZQ7Jy';
+    const ADMIN_WALLET = 'rKkkYMCvC63HEgxjQHmayKADaxYqnsMUkT';
     let currentWallet = null;
+    let userRole = null; // Stores the user's role data (master, admin, moderator)
+    let userPermissions = {}; // Stores the user's permission flags
 
     async function connectWallet() {
       try {
         const wallet = await xrpl.Wallet.generate();
-        currentWallet = sessionStorage.getItem('bearpark_wallet');
+        currentWallet = localStorage.getItem('bearpark_wallet');
 
         if (!currentWallet) {
           showStatus('Please connect your wallet on the main site first', 'error');
@@ -183,35 +589,229 @@
           return;
         }
 
-        if (currentWallet !== ADMIN_WALLET) {
-          showStatus('❌ Unauthorized: Admin access required', 'error');
+        // Check if user has any admin role
+        const roleResponse = await fetch(`/api/admin/check-role/${currentWallet}`);
+        const roleResult = await roleResponse.json();
+
+        if (!roleResult.has_role) {
+          showStatus(`❌ Unauthorized: You do not have admin/moderator access. Wallet: ${currentWallet}`, 'error');
           return;
         }
 
-        document.getElementById('walletStatus').innerHTML = `<strong>Admin Wallet:</strong> ${currentWallet}`;
+        // Store role info
+        userRole = roleResult.role?.role;
+        userPermissions = {
+          is_master: roleResult.is_master,
+          is_admin: roleResult.is_admin,
+          is_moderator: roleResult.is_moderator
+        };
+
+        const roleBadge = userRole === 'master' ? '👑 MASTER' :
+                         userRole === 'admin' ? '🛡️ ADMIN' :
+                         '⚔️ MODERATOR';
+
+        document.getElementById('walletStatus').innerHTML = `<strong>${roleBadge}:</strong> ${currentWallet}`;
         document.getElementById('loginSection').style.display = 'none';
-        document.getElementById('raidForm').style.display = 'block';
+        document.getElementById('adminContent').style.display = 'block';
+
+        // Apply role-based UI restrictions
+        applyRoleRestrictions();
+
+        // Check role and load role management if master
+        await checkUserRole();
+
+        // Load data
+        await loadCurrentRaids();
+        await loadUsers();
 
       } catch (error) {
         showStatus('Error connecting wallet: ' + error.message, 'error');
       }
     }
 
+    // Apply role-based UI restrictions
+    function applyRoleRestrictions() {
+      if (!userRole) return;
+
+      // MODERATOR restrictions (most restrictive)
+      if (userRole === 'moderator') {
+        // Hide sections moderators cannot access
+        hideSection('raidForm'); // Cannot create raids
+        hideSection('pointsForm'); // Cannot adjust points
+        hideSection('banForm'); // Cannot ban users
+        hideSection('settingsForm'); // Cannot update game settings
+        hideSection('bulkForm'); // Cannot do bulk operations
+
+        // Hide delete buttons in raids
+        document.querySelectorAll('.delete-btn').forEach(btn => {
+          if (btn.onclick && btn.onclick.toString().includes('deleteRaid')) {
+            btn.style.display = 'none';
+          }
+        });
+
+        showStatus('⚔️ Logged in as MODERATOR - Limited access (view analytics, edit user names)', 'success');
+      }
+
+      // ADMIN has access to everything except role management
+      if (userRole === 'admin') {
+        showStatus('🛡️ Logged in as ADMIN - Full management access', 'success');
+      }
+
+      // MASTER has access to everything
+      if (userRole === 'master') {
+        showStatus('👑 Logged in as MASTER - Complete system access', 'success');
+      }
+    }
+
+    function hideSection(elementId) {
+      const element = document.getElementById(elementId);
+      if (element) {
+        element.style.display = 'none';
+        // Also hide the section title above it
+        let sibling = element.previousElementSibling;
+        while (sibling) {
+          if (sibling.classList.contains('section-title')) {
+            sibling.style.display = 'none';
+            break;
+          }
+          sibling = sibling.previousElementSibling;
+        }
+      }
+    }
+
+    async function loadCurrentRaids() {
+      try {
+        const response = await fetch('/api/raids/all');
+        const result = await response.json();
+
+        const raidsList = document.getElementById('raidsList');
+
+        if (!result.raids || result.raids.length === 0) {
+          raidsList.innerHTML = '<div class="no-raids">No raids found</div>';
+          return;
+        }
+
+        raidsList.innerHTML = result.raids.map(raid => `
+          <div class="raid-item">
+            <h3>${raid.description}</h3>
+            <p><strong>URL:</strong> ${raid.twitter_url}</p>
+            <p><strong>Reward:</strong> ${raid.reward} points</p>
+            <p><strong>Handle:</strong> ${raid.profile_handle}</p>
+            <p><strong>Expires:</strong> ${new Date(raid.expires_at).toLocaleString()}</p>
+            <p><strong>Active:</strong> ${raid.is_active ? '✅ Yes' : '❌ No'}</p>
+            <button class="delete-btn" onclick="deleteRaid(${raid.id})">🗑️ Delete</button>
+          </div>
+        `).join('');
+      } catch (error) {
+        console.error('Error loading raids:', error);
+        document.getElementById('raidsList').innerHTML = '<div class="no-raids">Error loading raids</div>';
+      }
+    }
+
+    async function deleteRaid(raidId) {
+      if (!confirm('Are you sure you want to delete this raid?')) return;
+
+      try {
+        const response = await fetch(`/api/raids/${raidId}`, {
+          method: 'DELETE'
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+          showStatus('✅ Raid deleted successfully!', 'success');
+          await loadCurrentRaids();
+        } else {
+          showStatus('❌ ' + (result.error || 'Failed to delete raid'), 'error');
+        }
+      } catch (error) {
+        showStatus('❌ Error: ' + error.message, 'error');
+      }
+    }
+
+    async function loadUsers() {
+      try {
+        const response = await fetch('/api/users');
+        const result = await response.json();
+
+        const usersList = document.getElementById('usersList');
+
+        if (!result.users || result.users.length === 0) {
+          usersList.innerHTML = '<div class="no-users">No users found</div>';
+          return;
+        }
+
+        usersList.innerHTML = result.users.map(user => `
+          <div class="user-item" id="user-${user.wallet_address}">
+            <h3>👤 ${user.display_name || 'Unnamed User'}</h3>
+            <p><strong>Wallet:</strong> ${user.wallet_address}</p>
+            <p><strong>Honey Points:</strong> ${user.honey_points || 0}</p>
+            <div id="edit-${user.wallet_address}">
+              <button class="edit-btn" onclick="showEditName('${user.wallet_address}', '${user.display_name || ''}')">✏️ Edit Name</button>
+            </div>
+          </div>
+        `).join('');
+      } catch (error) {
+        console.error('Error loading users:', error);
+        document.getElementById('usersList').innerHTML = '<div class="no-users">Error loading users</div>';
+      }
+    }
+
+    function showEditName(walletAddress, currentName) {
+      const editDiv = document.getElementById(`edit-${walletAddress}`);
+      editDiv.innerHTML = `
+        <input type="text" class="user-name-input" id="name-${walletAddress}" value="${currentName}" placeholder="New name">
+        <button class="edit-btn" onclick="updateUserName('${walletAddress}')">💾 Save</button>
+        <button class="delete-btn" onclick="loadUsers()">❌ Cancel</button>
+      `;
+    }
+
+    async function updateUserName(walletAddress) {
+      const newName = document.getElementById(`name-${walletAddress}`).value.trim();
+
+      if (!newName) {
+        showStatus('❌ Name cannot be empty', 'error');
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/users/${walletAddress}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ display_name: newName })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+          showStatus('✅ User name updated successfully!', 'success');
+          await loadUsers();
+        } else {
+          showStatus('❌ ' + (result.error || 'Failed to update name'), 'error');
+        }
+      } catch (error) {
+        showStatus('❌ Error: ' + error.message, 'error');
+      }
+    }
+
     document.getElementById('raidForm').addEventListener('submit', async (e) => {
       e.preventDefault();
 
+      const durationHours = parseInt(document.getElementById('durationHours').value);
+      const expiresAt = new Date(Date.now() + durationHours * 60 * 60 * 1000).toISOString();
+
       const raidData = {
-        admin_wallet: currentWallet,
-        raid_title: document.getElementById('raidTitle').value,
-        raid_url: document.getElementById('raidUrl').value,
-        target_account: document.getElementById('targetAccount').value,
-        raid_description: document.getElementById('raidDescription').value,
-        points_per_participation: parseInt(document.getElementById('pointsPerParticipation').value),
-        duration_hours: parseInt(document.getElementById('durationHours').value)
+        description: document.getElementById('raidTitle').value,
+        twitter_url: document.getElementById('raidUrl').value,
+        reward: parseInt(document.getElementById('pointsPerParticipation').value),
+        profile_name: 'BearXRPL',
+        profile_handle: document.getElementById('targetAccount').value,
+        profile_emoji: '🐻',
+        expires_at: expiresAt
       };
 
       try {
-        const response = await fetch('/api/raids/create', {
+        const response = await fetch('/api/raids', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(raidData)
@@ -222,6 +822,8 @@
         if (response.ok) {
           showStatus('✅ Raid created successfully!', 'success');
           document.getElementById('raidForm').reset();
+          // Reload raids list
+          await loadCurrentRaids();
           setTimeout(() => {
             document.getElementById('status').style.display = 'none';
           }, 3000);
@@ -241,14 +843,541 @@
       statusEl.style.display = 'block';
     }
 
+    // User Search Filter
+    let allUsers = [];
+
+    function filterUsers() {
+      const searchTerm = document.getElementById('userSearch').value.toLowerCase();
+      const filtered = allUsers.filter(user =>
+        (user.wallet_address && user.wallet_address.toLowerCase().includes(searchTerm)) ||
+        (user.display_name && user.display_name.toLowerCase().includes(searchTerm))
+      );
+
+      const usersList = document.getElementById('usersList');
+      usersList.innerHTML = filtered.map(user => `
+        <div class="user-item" id="user-${user.wallet_address}">
+          <h3>👤 ${user.display_name || 'Unnamed User'}</h3>
+          <p><strong>Wallet:</strong> ${user.wallet_address}</p>
+          <p><strong>Honey Points:</strong> ${user.honey_points || 0}</p>
+          <div id="edit-${user.wallet_address}">
+            <button class="edit-btn" onclick="showEditName('${user.wallet_address}', '${user.display_name || ''}')">✏️ Edit Name</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Manual Point Adjustments
+    document.getElementById('pointsForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const pointsData = {
+        wallet_address: document.getElementById('pointsWallet').value,
+        amount: parseFloat(document.getElementById('pointsAmount').value),
+        reason: document.getElementById('pointsReason').value,
+        admin_wallet: currentWallet
+      };
+
+      try {
+        const response = await fetch('/api/admin/adjust-points', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(pointsData)
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+          showStatus(`✅ Points adjusted successfully! (${pointsData.amount > 0 ? '+' : ''}${pointsData.amount})`, 'success');
+          document.getElementById('pointsForm').reset();
+        } else {
+          showStatus('❌ ' + (result.error || 'Failed to adjust points'), 'error');
+        }
+      } catch (error) {
+        showStatus('❌ Error: ' + error.message, 'error');
+      }
+    });
+
+    // Ban User
+    document.getElementById('banForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const banData = {
+        wallet_address: document.getElementById('banWallet').value,
+        reason: document.getElementById('banReason').value,
+        admin_wallet: currentWallet
+      };
+
+      try {
+        const response = await fetch('/api/admin/ban-user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(banData)
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+          showStatus('✅ User banned successfully!', 'success');
+          document.getElementById('banForm').reset();
+          await loadBannedUsers();
+        } else {
+          showStatus('❌ ' + (result.error || 'Failed to ban user'), 'error');
+        }
+      } catch (error) {
+        showStatus('❌ Error: ' + error.message, 'error');
+      }
+    });
+
+    // Load Banned Users
+    async function loadBannedUsers() {
+      try {
+        const response = await fetch('/api/admin/banned-users');
+        const result = await response.json();
+
+        const bannedList = document.getElementById('bannedUsersList');
+
+        if (!result.banned_users || result.banned_users.length === 0) {
+          bannedList.innerHTML = '<div class="no-users">No banned users</div>';
+          return;
+        }
+
+        bannedList.innerHTML = result.banned_users.map(user => `
+          <div class="user-item">
+            <h3>🚫 ${user.wallet_address}</h3>
+            <p><strong>Banned At:</strong> ${new Date(user.banned_at).toLocaleString()}</p>
+            <p><strong>Reason:</strong> ${user.reason}</p>
+            <p><strong>Banned By:</strong> ${user.banned_by}</p>
+            <button class="edit-btn" onclick="unbanUser('${user.wallet_address}')">✅ Unban</button>
+          </div>
+        `).join('');
+      } catch (error) {
+        console.error('Error loading banned users:', error);
+      }
+    }
+
+    async function unbanUser(walletAddress) {
+      if (!confirm(`Are you sure you want to unban ${walletAddress}?`)) return;
+
+      try {
+        const response = await fetch('/api/admin/unban-user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            wallet_address: walletAddress,
+            admin_wallet: currentWallet
+          })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+          showStatus('✅ User unbanned successfully!', 'success');
+          await loadBannedUsers();
+        } else {
+          showStatus('❌ ' + (result.error || 'Failed to unban user'), 'error');
+        }
+      } catch (error) {
+        showStatus('❌ Error: ' + error.message, 'error');
+      }
+    }
+
+    // Load Analytics
+    async function loadAnalytics() {
+      try {
+        const response = await fetch('/api/admin/analytics');
+        const result = await response.json();
+
+        const analyticsDiv = document.getElementById('analyticsData');
+
+        if (!response.ok) {
+          analyticsDiv.innerHTML = '<div class="no-raids">Error loading analytics</div>';
+          return;
+        }
+
+        const { analytics } = result;
+
+        analyticsDiv.innerHTML = `
+          <div class="raid-item" style="background: linear-gradient(135deg, rgba(104, 12, 217, 0.2), rgba(254, 181, 1, 0.1));">
+            <h3>📊 Overview</h3>
+            <p><strong>Total Users:</strong> ${analytics.total_users}</p>
+            <p><strong>Total Points Distributed:</strong> ${analytics.total_points_distributed}</p>
+          </div>
+          <div class="raid-item" style="background: linear-gradient(135deg, rgba(7, 174, 8, 0.2), rgba(104, 12, 217, 0.1));">
+            <h3>👥 Active Users</h3>
+            <p><strong>Last 24 Hours:</strong> ${analytics.active_users.last_24h}</p>
+            <p><strong>Last 7 Days:</strong> ${analytics.active_users.last_7d}</p>
+            <p><strong>Last 30 Days:</strong> ${analytics.active_users.last_30d}</p>
+          </div>
+          <div class="raid-item">
+            <h3>🎮 Game Statistics</h3>
+            ${Object.entries(analytics.game_stats).map(([gameId, stats]) => `
+              <p><strong>${gameId}:</strong> ${stats.total_sessions} sessions, ${Math.round(stats.total_minutes)} min, ${Math.round(stats.total_points)} pts</p>
+            `).join('')}
+          </div>
+        `;
+      } catch (error) {
+        console.error('Error loading analytics:', error);
+      }
+    }
+
+    // Game Settings
+    document.getElementById('settingsForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const settings = {
+        max_daily_minutes: document.getElementById('maxMinutes').value,
+        points_per_minute: document.getElementById('pointsPerMinute').value
+      };
+
+      try {
+        const response = await fetch('/api/admin/game-settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            settings,
+            admin_wallet: currentWallet
+          })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+          showStatus('✅ Game settings updated successfully!', 'success');
+        } else {
+          showStatus('❌ ' + (result.error || 'Failed to update settings'), 'error');
+        }
+      } catch (error) {
+        showStatus('❌ Error: ' + error.message, 'error');
+      }
+    });
+
+    async function loadGameSettings() {
+      try {
+        const response = await fetch('/api/admin/game-settings');
+        const result = await response.json();
+
+        if (result.success && result.settings) {
+          document.getElementById('maxMinutes').value = result.settings.max_daily_minutes || 20;
+          document.getElementById('pointsPerMinute').value = result.settings.points_per_minute || 1;
+        }
+      } catch (error) {
+        console.error('Error loading game settings:', error);
+      }
+    }
+
+    // Load Raid Analytics
+    async function loadRaidAnalytics() {
+      try {
+        const response = await fetch('/api/admin/raid-analytics');
+        const result = await response.json();
+
+        const analyticsDiv = document.getElementById('raidAnalytics');
+
+        if (!result.raid_analytics || result.raid_analytics.length === 0) {
+          analyticsDiv.innerHTML = '<div class="no-raids">No raid data available</div>';
+          return;
+        }
+
+        analyticsDiv.innerHTML = result.raid_analytics.map(raid => `
+          <div class="raid-item">
+            <h3>${raid.description}</h3>
+            <p><strong>Created:</strong> ${new Date(raid.created_at).toLocaleString()}</p>
+            <p><strong>Expires:</strong> ${new Date(raid.expires_at).toLocaleString()}</p>
+            <p><strong>Reward:</strong> ${raid.reward} points</p>
+            <p><strong>Active:</strong> ${raid.is_active ? '✅ Yes' : '❌ No'}</p>
+          </div>
+        `).join('');
+      } catch (error) {
+        console.error('Error loading raid analytics:', error);
+      }
+    }
+
+    // Load Transactions
+    async function loadTransactions() {
+      const wallet = document.getElementById('transactionWallet').value;
+
+      try {
+        const url = wallet
+          ? `/api/admin/point-transactions?wallet=${wallet}&limit=50`
+          : '/api/admin/point-transactions?limit=50';
+
+        const response = await fetch(url);
+        const result = await response.json();
+
+        const transactionsList = document.getElementById('transactionsList');
+
+        if (!result.transactions || result.transactions.length === 0) {
+          transactionsList.innerHTML = '<div class="no-raids">No transactions found</div>';
+          return;
+        }
+
+        transactionsList.innerHTML = result.transactions.map(tx => `
+          <div class="raid-item">
+            <h3>${tx.transaction_type.toUpperCase()}</h3>
+            <p><strong>Wallet:</strong> ${tx.wallet_address}</p>
+            <p><strong>Amount:</strong> ${tx.amount > 0 ? '+' : ''}${tx.amount} points</p>
+            <p><strong>Reason:</strong> ${tx.reason || 'N/A'}</p>
+            <p><strong>Time:</strong> ${new Date(tx.timestamp).toLocaleString()}</p>
+            ${tx.admin_wallet ? `<p><strong>Admin:</strong> ${tx.admin_wallet}</p>` : ''}
+          </div>
+        `).join('');
+      } catch (error) {
+        console.error('Error loading transactions:', error);
+        showStatus('❌ Error loading transactions', 'error');
+      }
+    }
+
+    // =====================================================
+    // ROLE MANAGEMENT FUNCTIONS
+    // =====================================================
+
+    // Check if current user is master and show role management section
+    async function checkUserRole() {
+      if (!currentWallet) return;
+
+      try {
+        const response = await fetch(`/api/admin/check-role/${currentWallet}`);
+        const result = await response.json();
+
+        if (result.is_master) {
+          document.getElementById('roleManagementSection').style.display = 'block';
+          await loadCurrentRoles();
+        }
+      } catch (error) {
+        console.error('Error checking role:', error);
+      }
+    }
+
+    // Load and display all current roles
+    async function loadCurrentRoles() {
+      try {
+        const response = await fetch('/api/admin/roles');
+        const result = await response.json();
+
+        const rolesDiv = document.getElementById('currentRolesList');
+
+        if (!result.roles || result.roles.length === 0) {
+          rolesDiv.innerHTML = '<div class="no-raids">No roles assigned yet</div>';
+          return;
+        }
+
+        rolesDiv.innerHTML = result.roles.map(role => {
+          const roleBadge = role.role === 'master' ? '👑 MASTER' :
+                           role.role === 'admin' ? '🛡️ ADMIN' :
+                           '⚔️ MODERATOR';
+          const badgeColor = role.role === 'master' ? 'var(--stripe-purple)' :
+                            role.role === 'admin' ? 'var(--stripe-yellow)' :
+                            'var(--stripe-green)';
+
+          const isMasterAccount = role.wallet_address === 'rKkkYMCvC63HEgxjQHmayKADaxYqnsMUkT';
+
+          return `
+            <div class="raid-item" style="position: relative; padding-top: 50px;">
+              <div style="position: absolute; top: 15px; right: 15px; background: ${badgeColor}; color: black; padding: 8px 16px; border-radius: 8px; font-weight: bold; font-size: 14px;">
+                ${roleBadge}
+              </div>
+              <h3>👤 ${role.wallet_address.substring(0, 15)}...${role.wallet_address.substring(role.wallet_address.length - 10)}</h3>
+              <p><strong>Full Wallet:</strong> ${role.wallet_address}</p>
+              <p><strong>Assigned By:</strong> ${role.assigned_by}</p>
+              <p><strong>Assigned On:</strong> ${new Date(role.assigned_at).toLocaleString()}</p>
+              ${role.notes ? `<p><strong>Notes:</strong> ${role.notes}</p>` : ''}
+              ${!isMasterAccount ? `<button class="delete-btn" onclick="removeRole('${role.wallet_address}')">🗑️ Remove Role</button>` : '<p style="color: var(--stripe-purple); font-weight: bold;">⚠️ Master account cannot be removed</p>'}
+            </div>
+          `;
+        }).join('');
+      } catch (error) {
+        console.error('Error loading roles:', error);
+        document.getElementById('currentRolesList').innerHTML = '<div class="no-raids">Error loading roles</div>';
+      }
+    }
+
+    // Remove role from wallet
+    async function removeRole(wallet) {
+      if (!confirm(`Are you sure you want to remove role from ${wallet}?`)) return;
+
+      try {
+        const response = await fetch(`/api/admin/roles/${wallet}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            removed_by: currentWallet
+          })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+          showStatus('✅ Role removed successfully!', 'success');
+          await loadCurrentRoles();
+          await loadActivityLogs();
+        } else {
+          showStatus('❌ ' + (result.error || 'Failed to remove role'), 'error');
+        }
+      } catch (error) {
+        showStatus('❌ Error: ' + error.message, 'error');
+      }
+    }
+
+    // Assign Role Form Handler
+    document.getElementById('assignRoleForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const wallet_address = document.getElementById('roleWallet').value.trim();
+      const role = document.getElementById('roleType').value;
+      const notes = document.getElementById('roleNotes').value.trim();
+
+      if (!wallet_address || !role) {
+        showStatus('❌ Please fill in all required fields', 'error');
+        return;
+      }
+
+      if (!confirm(`Assign ${role.toUpperCase()} role to ${wallet_address}?`)) return;
+
+      try {
+        const response = await fetch('/api/admin/roles/assign', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            wallet_address,
+            role,
+            assigned_by: currentWallet,
+            notes
+          })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+          showStatus(`✅ Successfully assigned ${role.toUpperCase()} role to ${wallet_address}!`, 'success');
+          document.getElementById('assignRoleForm').reset();
+          await loadCurrentRoles();
+          await loadActivityLogs();
+        } else {
+          showStatus('❌ ' + (result.error || 'Failed to assign role'), 'error');
+        }
+      } catch (error) {
+        showStatus('❌ Error: ' + error.message, 'error');
+      }
+    });
+
+    // Bulk Points
+    document.getElementById('bulkForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const walletsText = document.getElementById('bulkWallets').value;
+      const wallets = walletsText.split('\n').map(w => w.trim()).filter(w => w.length > 0);
+      const amount = parseFloat(document.getElementById('bulkAmount').value);
+      const reason = document.getElementById('bulkReason').value;
+
+      if (wallets.length === 0) {
+        showStatus('❌ Please enter at least one wallet address', 'error');
+        return;
+      }
+
+      if (!confirm(`Award ${amount} points to ${wallets.length} wallets?`)) return;
+
+      try {
+        const response = await fetch('/api/admin/bulk-points', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            wallets,
+            amount,
+            reason,
+            admin_wallet: currentWallet
+          })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+          const successCount = result.results.filter(r => r.success).length;
+          showStatus(`✅ Successfully awarded points to ${successCount}/${wallets.length} wallets!`, 'success');
+          document.getElementById('bulkForm').reset();
+        } else {
+          showStatus('❌ ' + (result.error || 'Failed to award bulk points'), 'error');
+        }
+      } catch (error) {
+        showStatus('❌ Error: ' + error.message, 'error');
+      }
+    });
+
+    // Load Activity Logs
+    async function loadActivityLogs() {
+      try {
+        const response = await fetch('/api/admin/activity-logs?limit=50');
+        const result = await response.json();
+
+        const logsDiv = document.getElementById('activityLogs');
+
+        if (!result.logs || result.logs.length === 0) {
+          logsDiv.innerHTML = '<div class="no-raids">No activity logs found</div>';
+          return;
+        }
+
+        logsDiv.innerHTML = result.logs.map(log => `
+          <div class="raid-item">
+            <h3>${log.action_type.replace(/_/g, ' ').toUpperCase()}</h3>
+            <p><strong>Admin:</strong> ${log.admin_wallet}</p>
+            <p><strong>Time:</strong> ${new Date(log.timestamp).toLocaleString()}</p>
+            ${log.target_wallet ? `<p><strong>Target:</strong> ${log.target_wallet}</p>` : ''}
+            <p><strong>Details:</strong> ${JSON.stringify(log.details)}</p>
+          </div>
+        `).join('');
+      } catch (error) {
+        console.error('Error loading activity logs:', error);
+      }
+    }
+
     // Auto-check if wallet is already connected
-    window.addEventListener('DOMContentLoaded', () => {
-      const wallet = sessionStorage.getItem('bearpark_wallet');
-      if (wallet === ADMIN_WALLET) {
-        currentWallet = wallet;
-        document.getElementById('walletStatus').innerHTML = `<strong>Admin Wallet:</strong> ${wallet}`;
-        document.getElementById('loginSection').style.display = 'none';
-        document.getElementById('raidForm').style.display = 'block';
+    window.addEventListener('DOMContentLoaded', async () => {
+      const wallet = localStorage.getItem('bearpark_wallet');
+      if (wallet) {
+        // Check if user has any admin role
+        try {
+          const roleResponse = await fetch(`/api/admin/check-role/${wallet}`);
+          const roleResult = await roleResponse.json();
+
+          if (roleResult.has_role) {
+            currentWallet = wallet;
+
+            // Store role info
+            userRole = roleResult.role?.role;
+            userPermissions = {
+              is_master: roleResult.is_master,
+              is_admin: roleResult.is_admin,
+              is_moderator: roleResult.is_moderator
+            };
+
+            const roleBadge = userRole === 'master' ? '👑 MASTER' :
+                             userRole === 'admin' ? '🛡️ ADMIN' :
+                             '⚔️ MODERATOR';
+
+            document.getElementById('walletStatus').innerHTML = `<strong>${roleBadge}:</strong> ${wallet}`;
+            document.getElementById('loginSection').style.display = 'none';
+            document.getElementById('adminContent').style.display = 'block';
+
+            // Apply role-based UI restrictions
+            applyRoleRestrictions();
+
+            // Check role and load role management if master
+            await checkUserRole();
+
+            // Load all data
+            await loadCurrentRaids();
+            const usersResponse = await fetch('/api/users');
+            const usersResult = await usersResponse.json();
+            allUsers = usersResult.users || [];
+            filterUsers();
+            await loadBannedUsers();
+            await loadAnalytics();
+            await loadGameSettings();
+            await loadRaidAnalytics();
+            await loadActivityLogs();
+          }
+        } catch (error) {
+          console.error('Error checking role on page load:', error);
+        }
       }
     });
   </script>

@@ -6836,8 +6836,6 @@ return new `+this.key+`();
             background: radial-gradient(500px 200px at 50% -20%, rgba(118,174,255,.08), transparent 60%), ${V.ink};
             border-radius: 12px;
             padding: 10px;
-            max-height: 320px;
-            overflow-y: auto;
           ">
             ${Y}
           </div>
@@ -6847,55 +6845,101 @@ return new `+this.key+`();
             id="restart-button"
             style="
               width: 100%;
-              padding: 12px;
-              font-size: 24px;
+              padding: 16px 24px;
+              font-size: 22px;
               font-family: 'Luckiest Guy', cursive;
               background: linear-gradient(135deg, #ff3333 0%, #cc0000 100%);
               color: #fff;
-              border: 3px solid rgba(255,255,255,.3);
-              border-radius: 12px;
+              border: none;
+              border-radius: 26px;
               cursor: pointer;
-              box-shadow: 0 4px 16px rgba(255,51,51,.5);
-              transition: all 0.2s ease;
+              box-shadow: 0 10px 0 #7b2a20, 0 18px 24px rgba(0,0,0,.35);
+              transition: transform 0.12s cubic-bezier(0.68, -0.55, 0.265, 1.55), box-shadow 0.12s cubic-bezier(0.68, -0.55, 0.265, 1.55);
               text-shadow: 2px 2px 0px #000;
               animation: blink 1s ease-in-out infinite alternate;
               pointer-events: auto;
               touch-action: manipulation;
+              position: relative;
+              will-change: transform;
             "
-            onmouseover="this.style.transform='scale(1.03)'; this.style.boxShadow='0 5px 20px rgba(255,51,51,.7)';"
-            onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 4px 16px rgba(255,51,51,.5)';"
-            onmousedown="this.style.transform='scale(0.97)';"
-            onmouseup="this.style.transform='scale(1.03)';"
-            ontouchstart="this.style.transform='scale(0.97)';"
-            ontouchend="this.style.transform='scale(1)';"
+            onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 12px 0 #7b2a20, 0 20px 28px rgba(0,0,0,.4)';"
+            onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 10px 0 #7b2a20, 0 18px 24px rgba(0,0,0,.35)';"
+            onmousedown="this.style.transform='translateY(5px)'; this.style.boxShadow='0 5px 0 #7b2a20, 0 10px 18px rgba(0,0,0,.25)';"
+            onmouseup="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 12px 0 #7b2a20, 0 20px 28px rgba(0,0,0,.4)';"
+            ontouchstart="this.style.transform='translateY(5px)'; this.style.boxShadow='0 5px 0 #7b2a20, 0 10px 18px rgba(0,0,0,.25)';"
+            ontouchend="this.style.transform='translateY(0)'; this.style.boxShadow='0 10px 0 #7b2a20, 0 18px 24px rgba(0,0,0,.35)';"
           >
             TAP TO RETRY
           </button>
 
-          <!-- Main Menu Button -->
+          <!-- Main Menu Button with Tri-Gradient Border -->
           <button
             id="menu-button"
             style="
               width: 100%;
-              padding: 10px;
-              font-size: 18px;
+              padding: 16px 24px;
+              margin-top: 20px;
+              font-size: 20px;
               font-family: 'Luckiest Guy', cursive;
-              background: rgba(255,255,255,0.1);
+              background: #1c1f23;
               color: #fff;
-              border: 2px solid rgba(255,255,255,.3);
-              border-radius: 10px;
+              border: 4px solid transparent;
+              background-image: linear-gradient(#1c1f23, #1c1f23), linear-gradient(135deg, ${V.purple} 0%, ${V.purple} 33.33%, ${V.yellow} 33.33%, ${V.yellow} 66.66%, ${V.green} 66.66%, ${V.green} 100%);
+              background-origin: padding-box, border-box;
+              background-clip: padding-box, border-box;
+              border-radius: 26px;
               cursor: pointer;
-              transition: all 0.2s ease;
+              box-shadow: 0 10px 0 #000, 0 18px 24px rgba(0,0,0,.35);
+              transition: transform 0.12s cubic-bezier(0.68, -0.55, 0.265, 1.55), box-shadow 0.12s cubic-bezier(0.68, -0.55, 0.265, 1.55);
               text-shadow: 2px 2px 0px #000;
               pointer-events: auto;
               touch-action: manipulation;
+              position: relative;
+              will-change: transform;
             "
-            onmouseover="this.style.background='rgba(255,255,255,0.2)'; this.style.borderColor='${V.gold}';"
-            onmouseout="this.style.background='rgba(255,255,255,0.1)'; this.style.borderColor='rgba(255,255,255,.3)';"
-            ontouchstart="this.style.background='rgba(255,255,255,0.2)'; this.style.borderColor='${V.gold}';"
-            ontouchend="this.style.background='rgba(255,255,255,0.1)'; this.style.borderColor='rgba(255,255,255,.3)';"
+            onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 12px 0 #000, 0 20px 28px rgba(0,0,0,.4)';"
+            onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 10px 0 #000, 0 18px 24px rgba(0,0,0,.35)';"
+            onmousedown="this.style.transform='translateY(5px)'; this.style.boxShadow='0 5px 0 #000, 0 10px 18px rgba(0,0,0,.25)';"
+            onmouseup="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 12px 0 #000, 0 20px 28px rgba(0,0,0,.4)';"
+            ontouchstart="this.style.transform='translateY(5px)'; this.style.boxShadow='0 5px 0 #000, 0 10px 18px rgba(0,0,0,.25)';"
+            ontouchend="this.style.transform='translateY(0)'; this.style.boxShadow='0 10px 0 #000, 0 18px 24px rgba(0,0,0,.35)';"
           >
-            MAIN MENU
+            BACK TO GAME MENU
+          </button>
+
+          <!-- Back to BEAR Park Button -->
+          <button
+            id="bearpark-button"
+            style="
+              width: 100%;
+              padding: 16px 24px;
+              margin-top: 20px;
+              font-size: 18px;
+              font-family: 'Luckiest Guy', cursive;
+              background: #1c1f23;
+              color: #fff;
+              border: 4px solid transparent;
+              background-image: linear-gradient(#1c1f23, #1c1f23), linear-gradient(135deg, ${V.purple} 0%, ${V.purple} 33.33%, ${V.yellow} 33.33%, ${V.yellow} 66.66%, ${V.green} 66.66%, ${V.green} 100%);
+              background-origin: padding-box, border-box;
+              background-clip: padding-box, border-box;
+              border-radius: 26px;
+              cursor: pointer;
+              box-shadow: 0 10px 0 #000, 0 18px 24px rgba(0,0,0,.35);
+              transition: transform 0.12s cubic-bezier(0.68, -0.55, 0.265, 1.55), box-shadow 0.12s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+              text-shadow: 2px 2px 0px #000;
+              pointer-events: auto;
+              touch-action: manipulation;
+              position: relative;
+              will-change: transform;
+            "
+            onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 12px 0 #000, 0 20px 28px rgba(0,0,0,.4)';"
+            onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 10px 0 #000, 0 18px 24px rgba(0,0,0,.35)';"
+            onmousedown="this.style.transform='translateY(5px)'; this.style.boxShadow='0 5px 0 #000, 0 10px 18px rgba(0,0,0,.25)';"
+            onmouseup="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 12px 0 #000, 0 20px 28px rgba(0,0,0,.4)';"
+            ontouchstart="this.style.transform='translateY(5px)'; this.style.boxShadow='0 5px 0 #000, 0 10px 18px rgba(0,0,0,.25)';"
+            ontouchend="this.style.transform='translateY(0)'; this.style.boxShadow='0 10px 0 #000, 0 18px 24px rgba(0,0,0,.35)';"
+          >
+            BACK TO BEAR PARK
           </button>
 
         </div>
@@ -6924,7 +6968,7 @@ return new `+this.key+`();
           }
         </style>
       </div>
-    `,Z=document.createElement("div");Z.innerHTML=H,document.body.appendChild(Z.firstElementChild),this.gameOverContainer=document.getElementById("game-over-container"),this.setupNameSubmission()}setupInputs(){const V=document.getElementById("restart-button"),Y=document.getElementById("menu-button");V&&V.addEventListener("click",H=>{H.preventDefault(),H.stopPropagation(),this.restartGame()}),Y&&Y.addEventListener("click",H=>{H.preventDefault(),H.stopPropagation(),this.goToMainMenu()}),this.enterKey=this.input.keyboard.addKey(rt.Input.Keyboard.KeyCodes.ENTER),this.spaceKey=this.input.keyboard.addKey(rt.Input.Keyboard.KeyCodes.SPACE),this.escKey=this.input.keyboard.addKey(rt.Input.Keyboard.KeyCodes.ESC),this.enterKey.on("down",()=>{const H=document.getElementById("player-name-input");H&&document.activeElement===H||this.restartGame()}),this.spaceKey.on("down",()=>{const H=document.getElementById("player-name-input");H&&document.activeElement===H||this.restartGame()}),this.escKey.on("down",()=>{this.goToMainMenu()})}setupNameSubmission(){const V=document.getElementById("submit-name-btn"),Y=document.getElementById("player-name-input");V&&Y&&(V.addEventListener("click",H=>{H.preventDefault(),H.stopPropagation();const Z=Y.value.trim();Z.length>0&&this.submitScore(Z)}),Y.addEventListener("keydown",H=>{H.stopPropagation()}),Y.addEventListener("keypress",H=>{if(H.stopPropagation(),H.key==="Enter"){H.preventDefault();const Z=Y.value.trim();Z.length>0&&this.submitScore(Z)}}),Y.addEventListener("keyup",H=>{H.stopPropagation()}))}async submitScore(V){if(this.nameSubmitted)return;console.log("🔍 submitScore called with name:",V),this.nameSubmitted=!0;try{console.log("🔍 Submitting score to BEAR Park API...");const H=await Rt.submitScore(this.finalScore,{player_name:V});console.log("🔍 Submit score result:",H),H.success&&H.is_high_score?(console.log("🎉 New BEAR Park high score!"),this.showSuccessMessage("🎉 NEW HIGH SCORE! Score saved to BEAR Park!")):H.success?(console.log("✅ Score submitted successfully"),this.showSuccessMessage("✅ Score submitted to BEAR Park!")):H.error&&(console.error("❌ Error from API:",H.error),this.showSuccessMessage(`⚠️ Error: ${H.message||H.error}`)),console.log("🔍 Reloading leaderboard after submission..."),await this.loadLeaderboard(),console.log("🔍 Recreating UI..."),this.gameOverContainer&&this.gameOverContainer.parentNode&&this.gameOverContainer.parentNode.removeChild(this.gameOverContainer),this.createDOMUI(),this.setupInputs(),console.log("🔍 UI recreated successfully")}catch(H){console.error("❌ Error submitting to BEAR Park:",H)}const Y=document.getElementById("name-entry-container");Y&&(Y.style.display="none")}showSuccessMessage(V){const Y=document.createElement("div");Y.textContent=V,Y.style.cssText=`
+    `,Z=document.createElement("div");Z.innerHTML=H,document.body.appendChild(Z.firstElementChild),this.gameOverContainer=document.getElementById("game-over-container"),this.setupNameSubmission()}setupInputs(){const V=document.getElementById("restart-button"),Y=document.getElementById("menu-button"),tt=document.getElementById("bearpark-button");V&&V.addEventListener("click",H=>{H.preventDefault(),H.stopPropagation(),this.restartGame()}),Y&&Y.addEventListener("click",H=>{H.preventDefault(),H.stopPropagation(),this.goToMainMenu()}),tt&&tt.addEventListener("click",H=>{H.preventDefault(),H.stopPropagation(),window.location.href="/"}),this.enterKey=this.input.keyboard.addKey(rt.Input.Keyboard.KeyCodes.ENTER),this.spaceKey=this.input.keyboard.addKey(rt.Input.Keyboard.KeyCodes.SPACE),this.escKey=this.input.keyboard.addKey(rt.Input.Keyboard.KeyCodes.ESC),this.enterKey.on("down",()=>{const H=document.getElementById("player-name-input");H&&document.activeElement===H||this.restartGame()}),this.spaceKey.on("down",()=>{const H=document.getElementById("player-name-input");H&&document.activeElement===H||this.restartGame()}),this.escKey.on("down",()=>{this.goToMainMenu()})}setupNameSubmission(){const V=document.getElementById("submit-name-btn"),Y=document.getElementById("player-name-input");V&&Y&&(V.addEventListener("click",H=>{H.preventDefault(),H.stopPropagation();const Z=Y.value.trim();Z.length>0&&this.submitScore(Z)}),Y.addEventListener("keydown",H=>{H.stopPropagation()}),Y.addEventListener("keypress",H=>{if(H.stopPropagation(),H.key==="Enter"){H.preventDefault();const Z=Y.value.trim();Z.length>0&&this.submitScore(Z)}}),Y.addEventListener("keyup",H=>{H.stopPropagation()}))}async submitScore(V){if(this.nameSubmitted)return;console.log("🔍 submitScore called with name:",V),this.nameSubmitted=!0;try{console.log("🔍 Submitting score to BEAR Park API...");const H=await Rt.submitScore(this.finalScore,{player_name:V});console.log("🔍 Submit score result:",H),H.success&&H.is_high_score?(console.log("🎉 New BEAR Park high score!"),this.showSuccessMessage("🎉 NEW HIGH SCORE! Score saved to BEAR Park!")):H.success?(console.log("✅ Score submitted successfully"),this.showSuccessMessage("✅ Score submitted to BEAR Park!")):H.error&&(console.error("❌ Error from API:",H.error),this.showSuccessMessage(`⚠️ Error: ${H.message||H.error}`)),console.log("🔍 Reloading leaderboard after submission..."),await this.loadLeaderboard(),console.log("🔍 Recreating UI..."),this.gameOverContainer&&this.gameOverContainer.parentNode&&this.gameOverContainer.parentNode.removeChild(this.gameOverContainer),this.createDOMUI(),this.setupInputs(),console.log("🔍 UI recreated successfully")}catch(H){console.error("❌ Error submitting to BEAR Park:",H)}const Y=document.getElementById("name-entry-container");Y&&(Y.style.display="none")}showSuccessMessage(V){const Y=document.createElement("div");Y.textContent=V,Y.style.cssText=`
       position: fixed;
       top: 20px;
       left: 50%;
