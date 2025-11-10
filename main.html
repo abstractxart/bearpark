@@ -344,7 +344,8 @@
 
   /* Community banner */
   .community-banner{position:relative;overflow:hidden;border-radius:22px;border:6px solid transparent;background:#000;box-shadow:0 20px 40px rgba(0,0,0,.45); background-image: linear-gradient(#000, #000), var(--tri-gradient); background-origin: padding-box, border-box; background-clip: padding-box, border-box; min-height:500px;}
-  .community-banner img.bg{width:100%;height:100%;object-fit:cover;opacity:.5;filter:saturate(1.15) contrast(1.1) blur(1px)}
+  .community-banner img.bg{position:absolute;top:0;left:0;width:120%;height:100%;object-fit:cover;opacity:.5;filter:saturate(1.15) contrast(1.1) blur(1px);animation:slow-pan 60s linear infinite;will-change:transform;transition:transform 0.3s ease-out}
+  @keyframes slow-pan{0%{transform:translateX(0)}50%{transform:translateX(-16.67%)}100%{transform:translateX(0)}}
   .community-banner .overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;background:radial-gradient(circle at center, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.7) 100%)}
   .community-content{display:flex;flex-direction:column;align-items:center;max-width:700px;position:relative;z-index:2}
   .community-badge{width:160px;height:160px;background:var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 12px 32px rgba(237,183,35,0.5), 0 0 0 8px rgba(237,183,35,0.3), 0 0 0 16px rgba(0,0,0,0.4);animation:badge-float 3s ease-in-out infinite}
@@ -5309,8 +5310,8 @@
     <div class="wrap reveal">
       <h2 class="h2">COMMUNITY</h2>
 
-    <div class="community-banner" role="img" aria-label="$BEAR community montage with honey lighting">
-        <img class="bg" src="https://files.catbox.moe/98rugn.png" alt="" width="2000" height="1000" loading="lazy" decoding="async">
+    <div class="community-banner" id="communityBanner" role="img" aria-label="$BEAR community montage with honey lighting">
+        <img class="bg" id="communityBannerBg" src="https://files.catbox.moe/kgs8as.jpg" alt="" width="2000" height="1000" loading="lazy" decoding="async">
 
         <!-- Animated bear paw prints -->
         <div class="paw-prints">
@@ -10179,6 +10180,71 @@
 
     // Refresh leaderboards every 30 seconds
     setInterval(loadLeaderboards, 30000);
+
+    // ===== COMMUNITY BANNER PARALLAX =====
+    (function initCommunityParallax() {
+      const banner = document.getElementById('communityBanner');
+      const bg = document.getElementById('communityBannerBg');
+
+      if (!banner || !bg) return;
+
+      let mouseX = 0;
+      let mouseY = 0;
+      let currentX = 0;
+      let currentY = 0;
+
+      // Mouse parallax
+      banner.addEventListener('mousemove', (e) => {
+        const rect = banner.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+
+        // Calculate offset from center (-1 to 1)
+        mouseX = (e.clientX - centerX) / (rect.width / 2);
+        mouseY = (e.clientY - centerY) / (rect.height / 2);
+      });
+
+      banner.addEventListener('mouseleave', () => {
+        mouseX = 0;
+        mouseY = 0;
+      });
+
+      // Touch parallax
+      let touchActive = false;
+      banner.addEventListener('touchmove', (e) => {
+        touchActive = true;
+        const rect = banner.getBoundingClientRect();
+        const touch = e.touches[0];
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+
+        mouseX = (touch.clientX - centerX) / (rect.width / 2);
+        mouseY = (touch.clientY - centerY) / (rect.height / 2);
+      });
+
+      banner.addEventListener('touchend', () => {
+        touchActive = false;
+        mouseX = 0;
+        mouseY = 0;
+      });
+
+      // Smooth animation loop
+      function animate() {
+        // Smoothly interpolate towards target
+        currentX += (mouseX - currentX) * 0.05;
+        currentY += (mouseY - currentY) * 0.05;
+
+        // Apply parallax transform (subtle movement)
+        const offsetX = currentX * 15; // Max 15px movement
+        const offsetY = currentY * 10; // Max 10px movement
+
+        bg.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
+
+        requestAnimationFrame(animate);
+      }
+
+      animate();
+    })();
 
     // ===== BEAR COMMUNITY =====
     let allCommunityUsers = [];
