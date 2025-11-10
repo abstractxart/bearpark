@@ -972,6 +972,54 @@ app.post('/api/comments/:id/react', async (req, res) => {
         'INSERT INTO comment_reactions (comment_id, wallet_address, reaction_type) VALUES ($1, $2, $3)',
         [id, wallet_address, reaction_type]
       );
+
+      // Get comment author and reactor display name for notification
+      const commentResult = await pgPool.query(
+        'SELECT wallet_address, comment FROM profile_comments WHERE id = $1',
+        [id]
+      );
+
+      if (commentResult.rows.length > 0) {
+        const commentAuthor = commentResult.rows[0].wallet_address;
+        const commentText = commentResult.rows[0].comment;
+
+        // Only send notification if someone else reacted to your comment
+        if (commentAuthor !== wallet_address) {
+          const reactorProfile = await pgPool.query(
+            'SELECT display_name FROM user_profiles WHERE wallet_address = $1',
+            [wallet_address]
+          );
+
+          const reactorDisplayName = reactorProfile.rows[0]?.display_name || null;
+
+          // Get all current reactions for this comment to show in notification
+          const allReactions = await pgPool.query(
+            'SELECT DISTINCT reaction_type FROM comment_reactions WHERE comment_id = $1 AND wallet_address = $2',
+            [id, wallet_address]
+          );
+
+          const reactions = allReactions.rows.map(r => {
+            const emojiMap = {
+              'like': '👍',
+              'laugh': '😂',
+              'heart': '❤️',
+              'cry': '😢',
+              'thumbs_down': '👎',
+              'troll': '🤡'
+            };
+            return emojiMap[r.reaction_type] || r.reaction_type;
+          });
+
+          // Send notification to comment author
+          addNotification(commentAuthor, 'reaction', {
+            wallet: wallet_address,
+            displayName: reactorDisplayName,
+            reactions,
+            commentText: commentText?.substring(0, 100) // Truncate for notification
+          });
+        }
+      }
+
       res.json({ success: true, action: 'added' });
     }
   } catch (error) {
@@ -1064,6 +1112,21 @@ app.post('/api/follow', async (req, res) => {
         'INSERT INTO follows (follower_wallet, following_wallet) VALUES ($1, $2)',
         [follower_wallet, following_wallet]
       );
+
+      // Get follower's display name for notification
+      const followerProfile = await pgPool.query(
+        'SELECT display_name FROM user_profiles WHERE wallet_address = $1',
+        [follower_wallet]
+      );
+
+      const followerDisplayName = followerProfile.rows[0]?.display_name || null;
+
+      // Send notification to the person being followed
+      addNotification(following_wallet, 'follower', {
+        wallet: follower_wallet,
+        displayName: followerDisplayName
+      });
+
       res.json({ success: true, action: 'followed' });
     }
   } catch (error) {
@@ -2066,13 +2129,75 @@ app.post('/api/push/test', async (req, res) => {
   }
 });
 
+// ===== NOTIFICATION SYSTEM =====
+// In-memory notification storage (for quick MVP - could be moved to database later)
+const notificationStore = new Map(); // wallet => notifications[]
+
+// Get notifications for a user
+app.get('/api/notifications/:wallet', async (req, res) => {
+  try {
+    const { wallet } = req.params;
+
+    if (!wallet) {
+      return res.status(400).json({ error: 'Wallet address required' });
+    }
+
+    const notifications = notificationStore.get(wallet) || [];
+
+    // Clean old notifications (older than 7 days)
+    const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+    const validNotifications = notifications.filter(n =>
+      new Date(n.created_at).getTime() > sevenDaysAgo
+    );
+
+    // Update store if we filtered any
+    if (validNotifications.length !== notifications.length) {
+      notificationStore.set(wallet, validNotifications);
+    }
+
+    res.json({ success: true, notifications: validNotifications });
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Helper function to add a notification
+function addNotification(targetWallet, type, data) {
+  try {
+    const notifications = notificationStore.get(targetWallet) || [];
+
+    const notification = {
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+      type,
+      data,
+      read: false,
+      created_at: new Date().toISOString()
+    };
+
+    notifications.unshift(notification);
+
+    // Limit to 50 notifications per user
+    if (notifications.length > 50) {
+      notifications.splice(50);
+    }
+
+    notificationStore.set(targetWallet, notifications);
+
+    console.log(`📬 Notification added for ${targetWallet}: ${type}`);
+  } catch (error) {
+    console.error('Error adding notification:', error);
+  }
+}
+
 // Start server for local development
 if (require.main === module) {
   app.listen(PORT, () => {
     console.log(`\n🚀 BEAR Park API Server running on http://localhost:${PORT}`);
     console.log(`✅ Ready to handle XAMAN authentication`);
     console.log(`✅ Ready to handle honey points & leaderboard`);
-    console.log(`✅ Ready to handle admin features\n`);
+    console.log(`✅ Ready to handle admin features`);
+    console.log(`✅ Ready to handle notifications\n`);
   });
 }
 

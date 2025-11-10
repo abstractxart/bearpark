@@ -960,6 +960,288 @@
     box-shadow: 0 2px 4px rgba(0,0,0,0.4);
   }
 
+  /* ===== NOTIFICATION BELL ===== */
+  .notification-bell-btn {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    background: #1a1a1a;
+    border: 3px solid transparent;
+    border-radius: 50%;
+    font-size: 20px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.18, 0.9, 0.2, 1);
+    box-shadow: 0 4px 0 #000, 0 4px 12px rgba(0,0,0,0.8);
+    filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.8));
+    background-image: linear-gradient(#1a1a1a, #1a1a1a), var(--tri-gradient);
+    background-origin: padding-box, border-box;
+    background-clip: padding-box, border-box;
+  }
+
+  .notification-bell-btn:hover {
+    transform: translateY(-2px) scale(1.05);
+    box-shadow: 0 6px 0 #000, 0 6px 18px rgba(0,0,0,0.9);
+    filter: drop-shadow(3px 3px 6px rgba(0,0,0,0.9));
+    background: #252525;
+  }
+
+  .notification-bell-btn:active {
+    transform: translateY(0) scale(0.95);
+    box-shadow: 0 2px 0 #000, 0 2px 8px rgba(0,0,0,0.6);
+  }
+
+  .notification-bell-btn.has-notifications {
+    animation: bellBounce 0.8s cubic-bezier(0.18, 0.9, 0.2, 1) infinite;
+  }
+
+  @keyframes bellBounce {
+    0%, 100% {
+      transform: translateY(0) rotate(0deg);
+    }
+    10%, 30% {
+      transform: translateY(-4px) rotate(-10deg);
+    }
+    20%, 40% {
+      transform: translateY(-4px) rotate(10deg);
+    }
+    50% {
+      transform: translateY(0) rotate(0deg);
+    }
+  }
+
+  .notification-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    background: linear-gradient(135deg, #ff6b9d 0%, #ff4757 100%);
+    color: #fff;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 900;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #000;
+    box-shadow: 0 2px 6px rgba(255, 71, 87, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.2) inset;
+    animation: badgePulse 2s ease-in-out infinite;
+  }
+
+  @keyframes badgePulse {
+    0%, 100% {
+      transform: scale(1);
+      box-shadow: 0 2px 6px rgba(255, 71, 87, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.2) inset;
+    }
+    50% {
+      transform: scale(1.1);
+      box-shadow: 0 3px 10px rgba(255, 71, 87, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.3) inset;
+    }
+  }
+
+  /* Notification Panel */
+  .notification-panel {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    width: 380px;
+    max-height: 500px;
+    background: linear-gradient(135deg, #1e2226 0%, #141619 100%);
+    border: 3px solid transparent;
+    border-radius: 16px;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.05) inset;
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+    z-index: 10000;
+    background-image: linear-gradient(135deg, #1e2226 0%, #141619 100%), var(--tri-gradient);
+    background-origin: padding-box, border-box;
+    background-clip: padding-box, border-box;
+    animation: notificationSlideIn 0.3s cubic-bezier(0.18, 0.9, 0.2, 1);
+  }
+
+  @keyframes notificationSlideIn {
+    from {
+      opacity: 0;
+      transform: translateY(20px) translateX(-20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) translateX(0);
+    }
+  }
+
+  .notification-panel.visible {
+    display: flex;
+  }
+
+  .notification-panel-header {
+    padding: 16px 20px;
+    background: rgba(0,0,0,0.3);
+    border-bottom: 2px solid rgba(237, 183, 35, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .notification-panel-header h3 {
+    margin: 0;
+    font-family: 'Luckiest Guy', Arial, sans-serif;
+    font-size: 18px;
+    color: var(--gold);
+    text-shadow: 2px 2px 0 #000;
+  }
+
+  .notification-close-btn {
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.6);
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s;
+  }
+
+  .notification-close-btn:hover {
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+  }
+
+  .notification-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0;
+    margin: 0;
+  }
+
+  .notification-item {
+    padding: 16px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+
+  .notification-item:hover {
+    background: rgba(237, 183, 35, 0.1);
+  }
+
+  .notification-item.unread {
+    background: rgba(93, 63, 211, 0.1);
+  }
+
+  .notification-item.unread::before {
+    content: '';
+    position: absolute;
+    left: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 6px;
+    height: 6px;
+    background: linear-gradient(135deg, #ff6b9d 0%, #ff4757 100%);
+    border-radius: 50%;
+    box-shadow: 0 0 8px rgba(255, 71, 87, 0.8);
+  }
+
+  .notification-icon {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    background: rgba(0,0,0,0.3);
+    border-radius: 50%;
+    border: 2px solid rgba(237, 183, 35, 0.3);
+  }
+
+  .notification-content {
+    flex: 1;
+  }
+
+  .notification-text {
+    margin: 0 0 4px 0;
+    font-size: 14px;
+    color: #fff;
+    line-height: 1.4;
+  }
+
+  .notification-text strong {
+    color: var(--gold);
+    font-weight: 900;
+  }
+
+  .notification-time {
+    font-size: 11px;
+    color: rgba(255,255,255,0.5);
+    margin: 0;
+  }
+
+  .notification-reactions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 6px;
+  }
+
+  .notification-reaction-emoji {
+    font-size: 18px;
+    padding: 4px 8px;
+    background: rgba(0,0,0,0.4);
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+
+  .notification-empty {
+    padding: 60px 20px;
+    text-align: center;
+    color: rgba(255,255,255,0.5);
+  }
+
+  .notification-empty-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+    opacity: 0.3;
+  }
+
+  @media (max-width: 640px) {
+    .notification-panel {
+      left: 10px;
+      right: 10px;
+      width: auto;
+      max-width: calc(100vw - 20px);
+      bottom: 10px;
+      max-height: 70vh;
+    }
+
+    .notification-bell-btn {
+      width: 40px;
+      height: 40px;
+      font-size: 18px;
+    }
+
+    .notification-badge {
+      min-width: 18px;
+      height: 18px;
+      font-size: 10px;
+    }
+  }
+
   /* Hamburger menu overlay */
   .menu-overlay {
     position: fixed;
@@ -4245,6 +4527,10 @@
         <img src="https://files.catbox.moe/1z14d9.jpg" alt="BEAR Park" width="52" height="52">
       </button>
       <div class="nav-buttons-container">
+        <button class="notification-bell-btn" id="notificationBellBtn" onclick="toggleNotificationPanel()" aria-label="Notifications">
+          <span id="bellIcon">🔔</span>
+          <span class="notification-badge" id="notificationBadge" style="display: none;">0</span>
+        </button>
         <button class="honey-points-btn" onclick="window.scrollTo({top: document.getElementById('honey-points').offsetTop - 80, behavior: 'smooth'})">
           <span id="welcomePoints">HONEY <img src="https://files.catbox.moe/j89mri.png" alt="honey" style="height:1em; width:auto; vertical-align:middle; display:inline-block;">: 0 PTS</span>
         </button>
@@ -4294,6 +4580,20 @@
       <a href="#network" class="menu-item" onclick="toggleMenu()">
         <span class="menu-item-icon"><img src="https://files.catbox.moe/esp426.png" alt="BEAR" style="height:1.2em; width:auto; display:inline-block;"></span>BUY $BEAR
       </a>
+    </div>
+  </div>
+
+  <!-- Notification Panel -->
+  <div class="notification-panel" id="notificationPanel">
+    <div class="notification-panel-header">
+      <h3>🔔 NOTIFICATIONS</h3>
+      <button class="notification-close-btn" onclick="toggleNotificationPanel()" aria-label="Close notifications">&times;</button>
+    </div>
+    <div class="notification-list" id="notificationList">
+      <div class="notification-empty">
+        <div class="notification-empty-icon">🔕</div>
+        <p>No notifications yet!</p>
+      </div>
     </div>
   </div>
 
@@ -10552,6 +10852,277 @@
       document.getElementById('pwaControls').style.display = 'block';
     }
   });
+
+  // ===== NOTIFICATION SYSTEM =====
+  (function initNotificationSystem() {
+    const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:3000' : 'https://bearpark-production.up.railway.app';
+    let notifications = [];
+    let unreadCount = 0;
+
+    // Toggle notification panel
+    window.toggleNotificationPanel = function() {
+      const panel = document.getElementById('notificationPanel');
+      const isVisible = panel.classList.contains('visible');
+
+      if (isVisible) {
+        panel.classList.remove('visible');
+        setTimeout(() => panel.style.display = 'none', 300);
+      } else {
+        panel.style.display = 'flex';
+        setTimeout(() => panel.classList.add('visible'), 10);
+        // Mark all as read when opening panel
+        markAllNotificationsAsRead();
+      }
+    };
+
+    // Format relative time
+    function formatRelativeTime(timestamp) {
+      const now = Date.now();
+      const diff = now - new Date(timestamp).getTime();
+      const seconds = Math.floor(diff / 1000);
+      const minutes = Math.floor(seconds / 60);
+      const hours = Math.floor(minutes / 60);
+      const days = Math.floor(hours / 24);
+
+      if (days > 0) return `${days}d ago`;
+      if (hours > 0) return `${hours}h ago`;
+      if (minutes > 0) return `${minutes}m ago`;
+      return 'Just now';
+    }
+
+    // Render notifications
+    function renderNotifications() {
+      const list = document.getElementById('notificationList');
+
+      if (notifications.length === 0) {
+        list.innerHTML = `
+          <div class="notification-empty">
+            <div class="notification-empty-icon">🔕</div>
+            <p>No notifications yet!</p>
+          </div>
+        `;
+        return;
+      }
+
+      list.innerHTML = notifications.map(notif => {
+        const unreadClass = notif.read ? '' : 'unread';
+
+        if (notif.type === 'follower') {
+          return `
+            <div class="notification-item ${unreadClass}" onclick="handleNotificationClick('${notif.id}')">
+              <div class="notification-icon">👤</div>
+              <div class="notification-content">
+                <p class="notification-text"><strong>${notif.data.displayName || notif.data.wallet}</strong> followed you!</p>
+                <p class="notification-time">${formatRelativeTime(notif.created_at)}</p>
+              </div>
+            </div>
+          `;
+        } else if (notif.type === 'reaction') {
+          const emojis = notif.data.reactions || [];
+          return `
+            <div class="notification-item ${unreadClass}" onclick="handleNotificationClick('${notif.id}')">
+              <div class="notification-icon">💬</div>
+              <div class="notification-content">
+                <p class="notification-text"><strong>${notif.data.displayName || notif.data.wallet}</strong> reacted to your comment</p>
+                <div class="notification-reactions">
+                  ${emojis.map(emoji => `<span class="notification-reaction-emoji">${emoji}</span>`).join('')}
+                </div>
+                <p class="notification-time">${formatRelativeTime(notif.created_at)}</p>
+              </div>
+            </div>
+          `;
+        }
+        return '';
+      }).join('');
+    }
+
+    // Update badge
+    function updateBadge() {
+      const badge = document.getElementById('notificationBadge');
+      const bellBtn = document.getElementById('notificationBellBtn');
+
+      if (unreadCount > 0) {
+        badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+        badge.style.display = 'flex';
+        bellBtn.classList.add('has-notifications');
+      } else {
+        badge.style.display = 'none';
+        bellBtn.classList.remove('has-notifications');
+      }
+    }
+
+    // Handle notification click
+    window.handleNotificationClick = function(notificationId) {
+      const notif = notifications.find(n => n.id === notificationId);
+      if (!notif) return;
+
+      // Mark as read
+      notif.read = true;
+      saveNotificationsToLocalStorage();
+      recalculateUnreadCount();
+      renderNotifications();
+      updateBadge();
+
+      // Navigate based on type
+      if (notif.type === 'follower' && notif.data.wallet) {
+        toggleNotificationPanel();
+        setTimeout(() => openProfileModal(notif.data.wallet), 300);
+      } else if (notif.type === 'reaction') {
+        toggleNotificationPanel();
+        // Could scroll to the comment if we have the comment ID
+      }
+    };
+
+    // Mark all as read
+    function markAllNotificationsAsRead() {
+      let changed = false;
+      notifications.forEach(notif => {
+        if (!notif.read) {
+          notif.read = true;
+          changed = true;
+        }
+      });
+
+      if (changed) {
+        saveNotificationsToLocalStorage();
+        recalculateUnreadCount();
+        renderNotifications();
+        updateBadge();
+      }
+    }
+
+    // Recalculate unread count
+    function recalculateUnreadCount() {
+      unreadCount = notifications.filter(n => !n.read).length;
+    }
+
+    // Save to localStorage
+    function saveNotificationsToLocalStorage() {
+      try {
+        localStorage.setItem('bearpark_notifications', JSON.stringify(notifications));
+      } catch (e) {
+        console.error('Failed to save notifications:', e);
+      }
+    }
+
+    // Load from localStorage
+    function loadNotificationsFromLocalStorage() {
+      try {
+        const stored = localStorage.getItem('bearpark_notifications');
+        if (stored) {
+          notifications = JSON.parse(stored);
+          // Clean old notifications (older than 7 days)
+          const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+          notifications = notifications.filter(n => new Date(n.created_at).getTime() > sevenDaysAgo);
+          saveNotificationsToLocalStorage();
+        }
+      } catch (e) {
+        console.error('Failed to load notifications:', e);
+        notifications = [];
+      }
+      recalculateUnreadCount();
+    }
+
+    // Add notification
+    window.addNotification = function(type, data) {
+      const notification = {
+        id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+        type,
+        data,
+        read: false,
+        created_at: new Date().toISOString()
+      };
+
+      notifications.unshift(notification);
+
+      // Limit to 50 notifications
+      if (notifications.length > 50) {
+        notifications = notifications.slice(0, 50);
+      }
+
+      saveNotificationsToLocalStorage();
+      recalculateUnreadCount();
+      renderNotifications();
+      updateBadge();
+
+      // Show brief animation
+      const bellBtn = document.getElementById('notificationBellBtn');
+      bellBtn.style.animation = 'none';
+      setTimeout(() => bellBtn.style.animation = '', 10);
+    };
+
+    // Fetch notifications from backend
+    async function fetchNotifications() {
+      const wallet = localStorage.getItem('bearpark_wallet');
+      if (!wallet) return;
+
+      try {
+        const response = await fetch(`${API_BASE}/api/notifications/${wallet}`);
+        if (!response.ok) return;
+
+        const data = await response.json();
+        if (data.notifications && Array.isArray(data.notifications)) {
+          // Merge with existing notifications (avoid duplicates)
+          const existingIds = new Set(notifications.map(n => n.id));
+          const newNotifications = data.notifications.filter(n => !existingIds.has(n.id));
+
+          if (newNotifications.length > 0) {
+            notifications = [...newNotifications, ...notifications];
+            saveNotificationsToLocalStorage();
+            recalculateUnreadCount();
+            renderNotifications();
+            updateBadge();
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch notifications:', error);
+      }
+    }
+
+    // Initialize
+    loadNotificationsFromLocalStorage();
+    renderNotifications();
+    updateBadge();
+
+    // Poll for new notifications every 30 seconds
+    setInterval(fetchNotifications, 30000);
+
+    // Fetch immediately on load
+    setTimeout(fetchNotifications, 2000);
+
+    console.log('✅ Notification system initialized');
+  })();
+
+  // Helper: Add follower notification when someone follows you
+  window.addEventListener('followerAdded', (e) => {
+    if (e.detail && e.detail.followerWallet && e.detail.targetWallet) {
+      const currentWallet = localStorage.getItem('bearpark_wallet');
+      // Only show notification if someone followed YOU
+      if (currentWallet === e.detail.targetWallet) {
+        window.addNotification('follower', {
+          wallet: e.detail.followerWallet,
+          displayName: e.detail.displayName || null
+        });
+      }
+    }
+  });
+
+  // Helper: Add reaction notification when someone reacts to your comment
+  window.addEventListener('reactionAdded', (e) => {
+    if (e.detail && e.detail.commentAuthor && e.detail.reactorWallet) {
+      const currentWallet = localStorage.getItem('bearpark_wallet');
+      // Only show notification if someone reacted to YOUR comment
+      if (currentWallet === e.detail.commentAuthor && currentWallet !== e.detail.reactorWallet) {
+        window.addNotification('reaction', {
+          wallet: e.detail.reactorWallet,
+          displayName: e.detail.displayName || null,
+          reactions: e.detail.reactions || [],
+          commentText: e.detail.commentText || null
+        });
+      }
+    }
+  });
+
   </script>
 </body>
 </html>
