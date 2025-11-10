@@ -4553,6 +4553,20 @@
           <span id="welcomeUsername">WELCOME BEAR (click me!)</span>
           <img class="welcome-avatar" id="welcomeAvatar" style="display: none;" alt="Profile Avatar" width="40" height="40">
         </button>
+
+        <!-- Notification Panel -->
+        <div class="notification-panel" id="notificationPanel">
+          <div class="notification-panel-header">
+            <h3>🔔 NOTIFICATIONS</h3>
+            <button class="notification-close-btn" onclick="toggleNotificationPanel()" aria-label="Close notifications">&times;</button>
+          </div>
+          <div class="notification-list" id="notificationList">
+            <div class="notification-empty">
+              <div class="notification-empty-icon">🔕</div>
+              <p>No notifications yet!</p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -4595,20 +4609,6 @@
       <a href="#network" class="menu-item" onclick="toggleMenu()">
         <span class="menu-item-icon"><img src="https://files.catbox.moe/esp426.png" alt="BEAR" style="height:1.2em; width:auto; display:inline-block;"></span>BUY $BEAR
       </a>
-    </div>
-  </div>
-
-  <!-- Notification Panel -->
-  <div class="notification-panel" id="notificationPanel">
-    <div class="notification-panel-header">
-      <h3>🔔 NOTIFICATIONS</h3>
-      <button class="notification-close-btn" onclick="toggleNotificationPanel()" aria-label="Close notifications">&times;</button>
-    </div>
-    <div class="notification-list" id="notificationList">
-      <div class="notification-empty">
-        <div class="notification-empty-icon">🔕</div>
-        <p>No notifications yet!</p>
-      </div>
     </div>
   </div>
 
