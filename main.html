@@ -2443,6 +2443,21 @@
     content: "Un";
   }
 
+  .follow-btn:disabled {
+    opacity: 0.7 !important;
+    cursor: not-allowed !important;
+    pointer-events: none;
+  }
+
+  .follow-btn-icon {
+    font-size: 20px;
+    transition: transform 0.3s ease;
+  }
+
+  .follow-btn-text {
+    transition: color 0.3s ease;
+  }
+
   /* Mobile Responsive Follow Section */
   @media (max-width: 768px) {
     .profile-follow-section {
@@ -10816,6 +10831,19 @@
       const isFollowing = followBtn.classList.contains('following');
       console.log('🔵 [Follow] Current state - isFollowing:', isFollowing);
 
+      // Disable button and show loading state
+      followBtn.disabled = true;
+      const btnText = followBtn.querySelector('.follow-btn-text');
+      const btnIcon = followBtn.querySelector('.follow-btn-icon');
+      const originalText = btnText.textContent;
+      const originalIcon = btnIcon.textContent;
+
+      // Show loading animation
+      btnText.textContent = 'Loading';
+      btnIcon.textContent = '⏳';
+      followBtn.style.opacity = '0.7';
+      followBtn.style.transform = 'scale(0.95)';
+
       try {
         const response = await fetch(`${API_BASE_URL}/api/follow`, {
           method: 'POST',
@@ -10837,31 +10865,96 @@
 
             if (data.action === 'followed') {
               console.log('✅ [Follow] Successfully followed user');
+
+              // Animate success with scale bounce
+              followBtn.style.transform = 'scale(1.1)';
               followBtn.classList.add('following');
-              followBtn.querySelector('.follow-btn-text').textContent = 'Following';
-              followBtn.querySelector('.follow-btn-icon').textContent = '✓';
+              btnText.textContent = 'Following';
+              btnIcon.textContent = '✓';
+
+              // Add success ripple effect
+              const ripple = document.createElement('div');
+              ripple.style.cssText = 'position:absolute;top:50%;left:50%;width:100%;height:100%;border-radius:50px;background:rgba(7,174,8,0.4);transform:translate(-50%,-50%) scale(0);pointer-events:none;';
+              followBtn.style.position = 'relative';
+              followBtn.appendChild(ripple);
+
+              // Animate ripple
+              ripple.animate([
+                { transform: 'translate(-50%, -50%) scale(0)', opacity: 1 },
+                { transform: 'translate(-50%, -50%) scale(2.5)', opacity: 0 }
+              ], {
+                duration: 600,
+                easing: 'ease-out'
+              }).onfinish = () => ripple.remove();
 
               // Update counts - only increment if we weren't already following
               if (!isFollowing) {
                 followersCountEl.textContent = currentCount + 1;
+                // Animate count change
+                followersCountEl.style.transform = 'scale(1.3)';
+                followersCountEl.style.color = 'var(--gold)';
+                setTimeout(() => {
+                  followersCountEl.style.transform = '';
+                  followersCountEl.style.color = '';
+                }, 300);
               }
             } else if (data.action === 'unfollowed') {
               console.log('✅ [Follow] Successfully unfollowed user');
+
+              // Animate unfollow
+              followBtn.style.transform = 'scale(1.05)';
               followBtn.classList.remove('following');
-              followBtn.querySelector('.follow-btn-text').textContent = 'Follow';
-              followBtn.querySelector('.follow-btn-icon').textContent = '+';
+              btnText.textContent = 'Follow';
+              btnIcon.textContent = '+';
 
               // Update counts - only decrement if we were following
               if (isFollowing) {
                 followersCountEl.textContent = Math.max(0, currentCount - 1);
+                // Animate count change
+                followersCountEl.style.transform = 'scale(0.9)';
+                setTimeout(() => {
+                  followersCountEl.style.transform = '';
+                }, 300);
               }
             }
+
+            // Reset transform after animation
+            setTimeout(() => {
+              followBtn.style.transform = '';
+            }, 200);
+
+          } else {
+            // Restore original state on failure
+            btnText.textContent = originalText;
+            btnIcon.textContent = originalIcon;
           }
         } else {
           console.error('❌ [Follow] Response not OK:', response.status, response.statusText);
+          // Restore original state on error
+          btnText.textContent = originalText;
+          btnIcon.textContent = originalIcon;
+
+          // Show error feedback
+          followBtn.style.backgroundColor = '#ff0000';
+          setTimeout(() => {
+            followBtn.style.backgroundColor = '';
+          }, 300);
         }
       } catch (error) {
         console.error('❌ [Follow] Error toggling follow:', error);
+        // Restore original state on error
+        btnText.textContent = originalText;
+        btnIcon.textContent = originalIcon;
+
+        // Show error feedback
+        followBtn.style.backgroundColor = '#ff0000';
+        setTimeout(() => {
+          followBtn.style.backgroundColor = '';
+        }, 300);
+      } finally {
+        // Re-enable button and reset opacity
+        followBtn.disabled = false;
+        followBtn.style.opacity = '';
       }
     };
 
