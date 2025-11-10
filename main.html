@@ -9737,38 +9737,66 @@
 
     // Open profile setup - opens drawer and scrolls to profile section
     window.openProfileSetup = function() {
+      console.log('🔥 [openProfileSetup] Function called!');
       const walletAddress = localStorage.getItem('bearpark_wallet');
+      console.log('🔥 [openProfileSetup] Wallet:', walletAddress);
 
       if (!walletAddress) {
-        // If not authenticated, open drawer to connect wallet first
-        document.getElementById('buyDrawer').style.display = 'flex';
-        setTimeout(() => {
-          document.getElementById('buyDrawer').classList.add('visible');
-        }, 10);
+        console.log('🔥 [openProfileSetup] No wallet, opening drawer');
+        // Use the correct openDrawer function
+        if (typeof openDrawer === 'function') {
+          openDrawer();
+        } else {
+          // Fallback to direct DOM manipulation
+          const drawer = document.getElementById('buyDrawer');
+          if (drawer) {
+            drawer.style.display = 'flex';
+            setTimeout(() => drawer.classList.add('visible'), 10);
+          }
+        }
         return;
       }
 
-      // Open the drawer
-      document.getElementById('buyDrawer').style.display = 'flex';
+      console.log('🐻 Opening profile setup for new user...');
+      // Use the correct openDrawer function
+      if (typeof openDrawer === 'function') {
+        openDrawer();
+      } else {
+        // Fallback to direct DOM manipulation
+        const drawer = document.getElementById('buyDrawer');
+        if (drawer) {
+          drawer.style.display = 'flex';
+          setTimeout(() => drawer.classList.add('visible'), 10);
+        }
+      }
+
+      // Wait for drawer to open, then scroll to profile section
       setTimeout(() => {
-        document.getElementById('buyDrawer').classList.add('visible');
+        const profileSection = document.getElementById('profileSection');
+        const drawer = document.getElementById('buyDrawer');
+        const drawerBody = drawer ? drawer.querySelector('.drawer-body') : null;
 
-        // Wait for drawer animation, then scroll to profile section
-        setTimeout(() => {
-          const profileSection = document.getElementById('profileSetupSection');
-          if (profileSection) {
-            profileSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        console.log('🐻 Drawer opened, scrolling to profile section...', { profileSection, drawerBody });
 
-            // Highlight the profile section briefly
-            profileSection.style.background = 'rgba(237,183,35,0.15)';
-            profileSection.style.transition = 'background 0.3s';
+        if (profileSection && drawerBody) {
+          drawerBody.scrollTo({
+            top: profileSection.offsetTop - 20,
+            behavior: 'smooth'
+          });
 
-            setTimeout(() => {
-              profileSection.style.background = '';
-            }, 2000);
-          }
-        }, 400);
-      }, 10);
+          // Add pulsing highlight effect to make it obvious
+          profileSection.classList.add('profile-highlight-pulse');
+
+          // Remove highlight after 5 seconds
+          setTimeout(() => {
+            profileSection.classList.remove('profile-highlight-pulse');
+          }, 5000);
+
+          console.log('✅ Profile section highlighted and scrolled into view!');
+        } else {
+          console.error('❌ Could not find profileSection or drawerBody elements!', { profileSection, drawerBody });
+        }
+      }, 600);
     };
 
     // Update welcome button with points and username
