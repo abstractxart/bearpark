@@ -7503,26 +7503,31 @@
         const allTransactions = [];
         let marker = undefined;
         let pageCount = 0;
-        const maxPages = 50; // Limit for safety
+        const maxPages = 20; // Limit for performance (20 pages = ~4000 transactions)
 
         while (pageCount < maxPages) {
-          const txRequest = {
-            command: 'account_tx',
-            account: walletAddress,
-            ledger_index_min: -1,
-            ledger_index_max: -1,
-            limit: 200
-          };
-          if (marker) txRequest.marker = marker;
+          try {
+            const txRequest = {
+              command: 'account_tx',
+              account: walletAddress,
+              ledger_index_min: -1,
+              ledger_index_max: -1,
+              limit: 200
+            };
+            if (marker) txRequest.marker = marker;
 
-          console.log(`📊 [P&L] Fetching page ${pageCount + 1}...`);
-          const txResponse = await client.request(txRequest);
-          allTransactions.push(...txResponse.result.transactions);
+            console.log(`📊 [P&L] Fetching page ${pageCount + 1}...`);
+            const txResponse = await client.request(txRequest);
+            allTransactions.push(...txResponse.result.transactions);
 
-          marker = txResponse.result.marker;
-          pageCount++;
+            marker = txResponse.result.marker;
+            pageCount++;
 
-          if (!marker) break;
+            if (!marker) break;
+          } catch (pageErr) {
+            console.error(`📊 [P&L] Error fetching page ${pageCount + 1}:`, pageErr);
+            break; // Stop pagination on error
+          }
         }
 
         console.log(`📊 [P&L] Fetched ${allTransactions.length} total transactions across ${pageCount} pages`);
