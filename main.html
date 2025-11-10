@@ -9751,8 +9751,11 @@
       selectedAvatarNFT = nftId;
       document.getElementById('profileAvatarNFT').value = nftId;
       displaySelectedAvatar(nftId);
-      // Scroll to top of drawer to see avatar
-      document.querySelector('#buyDrawer .drawer-body').scrollTop = 0;
+      // Scroll to profile setup section to see avatar
+      const profileSection = document.getElementById('profileSetupSection');
+      if (profileSection) {
+        profileSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     }
 
     function saveNFTImage(nftId) {
