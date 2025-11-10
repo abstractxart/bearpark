@@ -10637,24 +10637,30 @@
           const data = await response.json();
           console.log('🔵 [Follow] Response data:', data);
           if (data.success) {
+            // Get fresh follower count from backend response if available
+            const followersCountEl = document.getElementById('followersCount');
+            const currentCount = parseInt(followersCountEl.textContent) || 0;
+
             if (data.action === 'followed') {
               console.log('✅ [Follow] Successfully followed user');
               followBtn.classList.add('following');
               followBtn.querySelector('.follow-btn-text').textContent = 'Following';
               followBtn.querySelector('.follow-btn-icon').textContent = '✓';
 
-              // Update counts
-              const followersCountEl = document.getElementById('followersCount');
-              followersCountEl.textContent = parseInt(followersCountEl.textContent) + 1;
-            } else {
+              // Update counts - only increment if we weren't already following
+              if (!isFollowing) {
+                followersCountEl.textContent = currentCount + 1;
+              }
+            } else if (data.action === 'unfollowed') {
               console.log('✅ [Follow] Successfully unfollowed user');
               followBtn.classList.remove('following');
               followBtn.querySelector('.follow-btn-text').textContent = 'Follow';
               followBtn.querySelector('.follow-btn-icon').textContent = '+';
 
-              // Update counts
-              const followersCountEl = document.getElementById('followersCount');
-              followersCountEl.textContent = Math.max(0, parseInt(followersCountEl.textContent) - 1);
+              // Update counts - only decrement if we were following
+              if (isFollowing) {
+                followersCountEl.textContent = Math.max(0, currentCount - 1);
+              }
             }
           }
         } else {
