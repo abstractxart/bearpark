@@ -8,7 +8,10 @@
 const GAME_POINTS_CONFIG = {
   POINTS_PER_MINUTE: 1,
   MAX_DAILY_MINUTES: 20,
-  API_BASE_URL: window.location.origin // Auto-detects if local or production
+  // Auto-detect: localhost uses local API, production uses Railway API
+  API_BASE_URL: (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? 'http://localhost:3000'
+    : 'https://bearpark-production.up.railway.app'
 };
 
 /**
