@@ -6773,8 +6773,11 @@
     }
 
     function openProfileSetup(){
+      console.log('🔥 [openProfileSetup] Function called!');
       const walletAddress = localStorage.getItem('bearpark_wallet');
+      console.log('🔥 [openProfileSetup] Wallet:', walletAddress);
       if (!walletAddress) {
+        console.log('🔥 [openProfileSetup] No wallet, opening drawer');
         openDrawer();
         return;
       }
