@@ -10605,11 +10605,22 @@
 
     // Make follow functions global
     window.toggleFollow = async function() {
-      if (!currentUserWallet || !currentProfileWallet) return;
-      if (currentUserWallet === currentProfileWallet) return;
+      console.log('🔵 [Follow] toggleFollow called');
+      console.log('🔵 [Follow] currentUserWallet:', currentUserWallet);
+      console.log('🔵 [Follow] currentProfileWallet:', currentProfileWallet);
+
+      if (!currentUserWallet || !currentProfileWallet) {
+        console.log('❌ [Follow] Missing wallet addresses');
+        return;
+      }
+      if (currentUserWallet === currentProfileWallet) {
+        console.log('❌ [Follow] Cannot follow yourself');
+        return;
+      }
 
       const followBtn = document.getElementById('followBtn');
       const isFollowing = followBtn.classList.contains('following');
+      console.log('🔵 [Follow] Current state - isFollowing:', isFollowing);
 
       try {
         const response = await fetch(`${API_BASE_URL}/api/follow`, {
@@ -10621,10 +10632,13 @@
           })
         });
 
+        console.log('🔵 [Follow] Response status:', response.status);
         if (response.ok) {
           const data = await response.json();
+          console.log('🔵 [Follow] Response data:', data);
           if (data.success) {
             if (data.action === 'followed') {
+              console.log('✅ [Follow] Successfully followed user');
               followBtn.classList.add('following');
               followBtn.querySelector('.follow-btn-text').textContent = 'Following';
               followBtn.querySelector('.follow-btn-icon').textContent = '✓';
@@ -10633,6 +10647,7 @@
               const followersCountEl = document.getElementById('followersCount');
               followersCountEl.textContent = parseInt(followersCountEl.textContent) + 1;
             } else {
+              console.log('✅ [Follow] Successfully unfollowed user');
               followBtn.classList.remove('following');
               followBtn.querySelector('.follow-btn-text').textContent = 'Follow';
               followBtn.querySelector('.follow-btn-icon').textContent = '+';
@@ -10642,9 +10657,11 @@
               followersCountEl.textContent = Math.max(0, parseInt(followersCountEl.textContent) - 1);
             }
           }
+        } else {
+          console.error('❌ [Follow] Response not OK:', response.status, response.statusText);
         }
       } catch (error) {
-        console.error('Error toggling follow:', error);
+        console.error('❌ [Follow] Error toggling follow:', error);
       }
     };
 
