@@ -11942,24 +11942,55 @@
     btn.disabled = true;
     btn.textContent = '⏳ Requesting permission...';
 
+    // Mark that we asked the user
+    localStorage.setItem('bearpark_push_asked', 'true');
+
     const granted = await window.bearPushNotifications.requestPermission();
 
     if (granted) {
       btn.textContent = '✅ Notifications Enabled!';
-      setTimeout(() => btn.style.display = 'none', 2000);
+      setTimeout(() => {
+        btn.style.display = 'none';
+        document.getElementById('pwaControls').style.display = 'none';
+      }, 2000);
     } else {
       btn.textContent = '🔔 Enable Raid Alerts';
       btn.disabled = false;
+      // Still hide the popup after user made a choice
+      setTimeout(() => {
+        document.getElementById('pwaControls').style.display = 'none';
+      }, 3000);
     }
   });
 
   window.addEventListener('load', async () => {
+    // Check if user already accepted push notifications
+    const pushEnabled = localStorage.getItem('bearpark_push_enabled') === 'true';
     const subscribed = await window.bearPushNotifications.isSubscribed();
-    if (subscribed) {
+
+    // Check if user was already asked and denied/dismissed
+    const wasAsked = localStorage.getItem('bearpark_push_asked') === 'true';
+    const notificationPermission = Notification.permission;
+
+    console.log('🔔 [Push] Status check:', {
+      pushEnabled,
+      subscribed,
+      wasAsked,
+      notificationPermission
+    });
+
+    // Hide the popup if:
+    // 1. User is subscribed/enabled, OR
+    // 2. User explicitly denied permission, OR
+    // 3. User was already asked before
+    if (subscribed || pushEnabled || notificationPermission === 'denied' || wasAsked) {
       const btn = document.getElementById('enableNotificationsBtn');
       if (btn) btn.style.display = 'none';
+      console.log('🔔 [Push] Hiding notification prompt');
     } else {
+      // Only show if user has never been asked
       document.getElementById('pwaControls').style.display = 'block';
+      console.log('🔔 [Push] Showing notification prompt');
     }
   });
 
