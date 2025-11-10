@@ -7557,10 +7557,13 @@
         console.log(`📊 [P&L] Found ${bearTxs.length} BEAR transactions`);
 
         if (bearTxs.length === 0) {
+          console.log('📊 [P&L] No BEAR transactions found - hiding P&L section');
           plSection.style.display = 'none';
           await client.disconnect();
           return;
         }
+
+        console.log('📊 [P&L] Showing P&L section and starting analysis...');
 
         // Show section
         plSection.style.display = 'block';
@@ -7723,7 +7726,8 @@
         console.log('📊 [P&L] Analysis complete!', plData);
 
       } catch (err) {
-        console.error('[P&L] Error:', err);
+        console.error('[P&L] Error loading P&L chart:', err);
+        console.error('[P&L] Error stack:', err.stack);
         plSection.style.display = 'none';
       }
     }
