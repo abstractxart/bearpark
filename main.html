@@ -11732,17 +11732,23 @@
 
   (function wireUpWelcomeButton() {
     const welcomeBtn = document.getElementById('welcomeBtn');
+    console.log('🔍 [Welcome Button] Found button:', welcomeBtn);
     if (welcomeBtn) {
       welcomeBtn.addEventListener('click', () => {
+        console.log('🐻 Welcome button clicked!');
         const wallet = localStorage.getItem('bearpark_wallet');
+        console.log('🔍 [Welcome Button] Wallet:', wallet);
         if (!wallet) {
           // No wallet - shouldn't happen since user needs wallet to access site
+          console.log('⚠️ [Welcome Button] No wallet found');
           return;
         }
 
         // Check if user has completed profile setup
         const profileKey = `bearpark_profile_${wallet}`;
         const localProfile = localStorage.getItem(profileKey);
+        console.log('🔍 [Welcome Button] Profile key:', profileKey);
+        console.log('🔍 [Welcome Button] Local profile:', localProfile);
 
         let hasProfile = false;
         if (localProfile) {
@@ -11750,20 +11756,26 @@
             const profile = JSON.parse(localProfile);
             // Profile is considered "set" if it has both display_name and avatar
             hasProfile = profile.display_name && (profile.avatar_nft || profile.avatar_url);
+            console.log('🔍 [Welcome Button] Has profile:', hasProfile, profile);
           } catch (e) {
             hasProfile = false;
+            console.log('❌ [Welcome Button] Error parsing profile:', e);
           }
         }
 
         if (hasProfile) {
           // User has profile - open profile modal
+          console.log('✅ [Welcome Button] Opening profile modal');
           openProfileModal();
         } else {
           // New user without profile - open drawer and scroll to profile setup
+          console.log('✅ [Welcome Button] Opening profile setup');
           openProfileSetup();
         }
       });
       console.log('✅ Welcome button wired to open profile modal');
+    } else {
+      console.error('❌ Welcome button not found!');
     }
   })();
 
