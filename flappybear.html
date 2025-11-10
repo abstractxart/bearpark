@@ -215,8 +215,8 @@
 
       console.log('✅ Wallet authenticated - Loading game');
 
-      // Build game URL with authentication parameters
-      let gameUrl = 'https://flappy-bear-five.vercel.app/';
+      // Build game URL with authentication parameters (use local game build)
+      let gameUrl = '/frontend/flappy-bear/index.html';
       const params = new URLSearchParams();
       params.set('wallet', walletAddress);
       if (displayName) params.set('display_name', displayName);
