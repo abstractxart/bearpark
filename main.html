@@ -7569,23 +7569,24 @@
         return fullData;
       }
 
-      const now = Date.now();
+      // Calculate cutoff from the LAST transaction, not from "now"
+      // This ensures timeframes work even if transactions are old
+      const lastTransactionTime = fullData.dataPoints[fullData.dataPoints.length - 1].timestamp;
       let cutoffTime;
 
       switch(timeframe) {
-        case '6m': cutoffTime = now - (6 * 30 * 24 * 60 * 60 * 1000); break;
-        case '3m': cutoffTime = now - (3 * 30 * 24 * 60 * 60 * 1000); break;
-        case '1m': cutoffTime = now - (30 * 24 * 60 * 60 * 1000); break;
-        case '2w': cutoffTime = now - (14 * 24 * 60 * 60 * 1000); break;
-        case '1w': cutoffTime = now - (7 * 24 * 60 * 60 * 1000); break;
-        case '3d': cutoffTime = now - (3 * 24 * 60 * 60 * 1000); break;
-        case '1d': cutoffTime = now - (24 * 60 * 60 * 1000); break;
+        case '6m': cutoffTime = lastTransactionTime - (6 * 30 * 24 * 60 * 60 * 1000); break;
+        case '3m': cutoffTime = lastTransactionTime - (3 * 30 * 24 * 60 * 60 * 1000); break;
+        case '1m': cutoffTime = lastTransactionTime - (30 * 24 * 60 * 60 * 1000); break;
+        case '2w': cutoffTime = lastTransactionTime - (14 * 24 * 60 * 60 * 1000); break;
+        case '1w': cutoffTime = lastTransactionTime - (7 * 24 * 60 * 60 * 1000); break;
+        case '3d': cutoffTime = lastTransactionTime - (3 * 24 * 60 * 60 * 1000); break;
+        case '1d': cutoffTime = lastTransactionTime - (24 * 60 * 60 * 1000); break;
         default: return fullData;
       }
 
+      console.log('📊 [Timeframe] Filtering from last transaction:', new Date(lastTransactionTime).toISOString());
       console.log('📊 [Timeframe] Cutoff time:', new Date(cutoffTime).toISOString());
-      console.log('📊 [Timeframe] First data point:', new Date(fullData.dataPoints[0].timestamp).toISOString());
-      console.log('📊 [Timeframe] Last data point:', new Date(fullData.dataPoints[fullData.dataPoints.length - 1].timestamp).toISOString());
 
       const filteredPoints = fullData.dataPoints.filter(d => d.timestamp >= cutoffTime);
 
@@ -7593,17 +7594,11 @@
 
       if (filteredPoints.length === 0) {
         console.warn('📊 [Timeframe] No data points in this timeframe, showing all data');
-        return fullData; // Return full data if no points in timeframe
+        return fullData;
       }
 
-      if (filteredPoints.length < 2) {
-        console.warn('📊 [Timeframe] Only', filteredPoints.length, 'point(s) in timeframe, might not show much variation');
-      }
-
-      // Use the latest point's actual values (not the change)
+      // Use the latest point's actual values
       const latestPoint = filteredPoints[filteredPoints.length - 1];
-
-      console.log('📊 [Timeframe] Latest P&L in timeframe:', latestPoint.totalPLXRP, 'XRP');
 
       return {
         dataPoints: filteredPoints,
@@ -7613,7 +7608,7 @@
         unrealizedUSD: latestPoint.unrealizedUSD,
         realizedXRP: latestPoint.realizedXRP,
         realizedUSD: latestPoint.realizedUSD,
-        roiPercent: fullData.roiPercent, // Use overall ROI
+        roiPercent: fullData.roiPercent,
         totalBought: fullData.totalBought,
         totalSold: fullData.totalSold
       };
