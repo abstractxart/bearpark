@@ -47,6 +47,9 @@
   <!-- XRPL Library -->
   <script src="https://unpkg.com/xrpl@3.0.0/build/xrpl-latest-min.js"></script>
 
+  <!-- Chart.js for P&L Graph -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
   <style>
   /* ==== THEME =========================================================== */
   :root{
@@ -722,6 +725,97 @@
     pointer-events: none;
     z-index: 0;
     opacity: 1;
+  }
+
+  /* P&L Card */
+  .pl-card{
+    position: relative;
+    padding:32px;
+    border-radius:28px;
+    background:radial-gradient(500px 200px at 50% -20%, rgba(93, 63, 211,.12), transparent 60%), #0b0d0e;
+    box-shadow:0 12px 22px rgba(0,0,0,.35);
+    transition:transform 0.2s ease, box-shadow 0.2s ease;
+    isolation: isolate;
+    margin-bottom: 20px;
+  }
+  .pl-card:hover{
+    transform:translateY(-2px);
+    box-shadow:0 16px 32px rgba(0,0,0,.45);
+  }
+  .pl-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 28px;
+    padding: 4px;
+    background: linear-gradient(135deg, var(--stripe-purple) 0%, var(--stripe-purple) 33.33%, var(--stripe-yellow) 33.33%, var(--stripe-yellow) 66.66%, var(--stripe-green) 66.66%, var(--stripe-green) 100%);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 1;
+  }
+
+  /* P&L Toggle Buttons */
+  .pl-toggle-group {
+    display: flex;
+    gap: 8px;
+    background: rgba(0,0,0,0.4);
+    padding: 4px;
+    border-radius: 12px;
+    border: 2px solid rgba(255,255,255,0.1);
+  }
+  .pl-toggle-btn {
+    padding: 8px 20px;
+    background: transparent;
+    color: rgba(255,255,255,0.6);
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 900;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .pl-toggle-btn:hover {
+    background: rgba(255,255,255,0.05);
+    color: rgba(255,255,255,0.8);
+  }
+  .pl-toggle-btn.active {
+    background: linear-gradient(135deg, var(--gold) 0%, #d4a017 100%);
+    color: #000;
+    box-shadow: 0 4px 12px rgba(237,183,35,0.4);
+  }
+
+  /* P&L Stat Boxes */
+  .pl-stat-box {
+    background: rgba(0,0,0,0.3);
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: 2px solid rgba(255,255,255,0.08);
+    text-align: center;
+  }
+  .pl-stat-label {
+    font-size: 12px;
+    color: rgba(255,255,255,0.6);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+  .pl-stat-value {
+    font-size: 20px;
+    font-weight: 900;
+    color: var(--gold);
+  }
+  .pl-stat-value.positive {
+    color: #4CAF50;
+  }
+  .pl-stat-value.negative {
+    color: #f44336;
   }
 
   /* Profile Card */
@@ -5252,6 +5346,47 @@
         </div>
       </div>
 
+      <!-- PROFIT & LOSS CHART -->
+      <div id="plSection" class="pl-card" style="display:none;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:12px;">
+          <h4 style="margin:0; font-size:18px; font-weight:900; color:var(--gold); text-transform:uppercase; letter-spacing:0.5px;">📈 Profit & Loss</h4>
+          <div class="pl-toggle-group">
+            <button id="plToggleXRP" class="pl-toggle-btn active" onclick="switchPLCurrency('XRP')">XRP</button>
+            <button id="plToggleUSD" class="pl-toggle-btn" onclick="switchPLCurrency('USD')">USD</button>
+          </div>
+        </div>
+
+        <!-- Summary Stats -->
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:12px; margin-bottom:20px;">
+          <div class="pl-stat-box">
+            <div class="pl-stat-label">Total P&L</div>
+            <div id="plTotalValue" class="pl-stat-value">—</div>
+          </div>
+          <div class="pl-stat-box">
+            <div class="pl-stat-label">Unrealized</div>
+            <div id="plUnrealizedValue" class="pl-stat-value">—</div>
+          </div>
+          <div class="pl-stat-box">
+            <div class="pl-stat-label">Realized</div>
+            <div id="plRealizedValue" class="pl-stat-value">—</div>
+          </div>
+          <div class="pl-stat-box">
+            <div class="pl-stat-label">ROI</div>
+            <div id="plROIValue" class="pl-stat-value">—</div>
+          </div>
+        </div>
+
+        <!-- Chart Canvas -->
+        <div style="position:relative; height:300px; background:rgba(0,0,0,0.3); border-radius:12px; padding:16px;">
+          <canvas id="plChart"></canvas>
+        </div>
+
+        <!-- Transaction Summary -->
+        <div style="margin-top:16px; padding:12px; background:rgba(0,0,0,0.2); border-radius:8px; font-size:13px; opacity:0.8;">
+          <span id="plTransactionSummary">Analyzing transaction history...</span>
+        </div>
+      </div>
+
       <!-- USER PROFILE CUSTOMIZATION -->
       <div id="profileSection" class="profile-card" style="display:none;">
         <div id="profileSetupSection">
@@ -7230,6 +7365,9 @@
 
       // Load LP position data
       loadLPData(walletAddress);
+
+      // Load P&L chart
+      loadPLChart(walletAddress);
     }
 
     async function loadLPData(walletAddress) {
@@ -7328,6 +7466,422 @@
         console.error('[LP] Error loading LP data:', err);
         lpSection.style.display = 'none';
       }
+    }
+
+    // Global P&L state
+    let plChartInstance = null;
+    let plData = null;
+    let currentPLCurrency = 'XRP';
+
+    // Switch P&L currency display
+    window.switchPLCurrency = function(currency) {
+      currentPLCurrency = currency;
+      document.getElementById('plToggleXRP').classList.toggle('active', currency === 'XRP');
+      document.getElementById('plToggleUSD').classList.toggle('active', currency === 'USD');
+      if (plData) {
+        updatePLDisplay(plData);
+      }
+    };
+
+    async function loadPLChart(walletAddress) {
+      const plSection = document.getElementById('plSection');
+      if (!plSection) return;
+
+      const BEAR_ISSUER = 'rKkkYMCvC63HEgxjQHmayKADaxYqnsMUkT';
+      const BEAR_CURRENCY = '4245415200000000000000000000000000000000';
+
+      try {
+        console.log('📊 [P&L] Starting genius-level P&L analysis...');
+
+        // Connect to XRPL
+        const client = new xrpl.Client('wss://xrplcluster.com');
+        await client.disconnect();
+        await client.connect();
+
+        // Fetch ALL account transactions
+        const allTransactions = [];
+        let marker = undefined;
+        let pageCount = 0;
+        const maxPages = 50; // Limit for safety
+
+        while (pageCount < maxPages) {
+          const txRequest = {
+            command: 'account_tx',
+            account: walletAddress,
+            ledger_index_min: -1,
+            ledger_index_max: -1,
+            limit: 200
+          };
+          if (marker) txRequest.marker = marker;
+
+          const txResponse = await client.request(txRequest);
+          allTransactions.push(...txResponse.result.transactions);
+
+          marker = txResponse.result.marker;
+          pageCount++;
+
+          if (!marker) break;
+        }
+
+        console.log(`📊 [P&L] Fetched ${allTransactions.length} total transactions`);
+
+        // Filter for BEAR token transactions
+        const bearTxs = allTransactions.filter(item => {
+          const tx = item.tx;
+          const meta = item.meta;
+
+          // Check if transaction involves BEAR token
+          if (tx.TransactionType === 'Payment') {
+            const amount = tx.Amount;
+            if (typeof amount === 'object' &&
+                amount.currency === BEAR_CURRENCY &&
+                amount.issuer === BEAR_ISSUER) {
+              return true;
+            }
+          }
+
+          // Check balance changes in metadata
+          if (meta && meta.AffectedNodes) {
+            for (const node of meta.AffectedNodes) {
+              const fields = node.ModifiedNode?.FinalFields || node.CreatedNode?.NewFields;
+              if (fields && fields.Balance && typeof fields.Balance === 'object' &&
+                  fields.Balance.currency === BEAR_CURRENCY) {
+                return true;
+              }
+            }
+          }
+
+          return false;
+        });
+
+        console.log(`📊 [P&L] Found ${bearTxs.length} BEAR transactions`);
+
+        if (bearTxs.length === 0) {
+          plSection.style.display = 'none';
+          await client.disconnect();
+          return;
+        }
+
+        // Show section
+        plSection.style.display = 'block';
+
+        // Get current prices
+        const {priceNative, priceUsd} = await fetchDex();
+        const xrpUsdPrice = 2.50; // Should fetch real XRP price
+
+        // Analyze transactions with FIFO cost basis
+        const costBasis = []; // Queue for FIFO
+        const dataPoints = [];
+        let totalBought = 0;
+        let totalSold = 0;
+        let realizedGainXRP = 0;
+        let realizedGainUSD = 0;
+
+        // Sort transactions by date
+        bearTxs.sort((a, b) => a.tx.date - b.tx.date);
+
+        for (const item of bearTxs) {
+          const tx = item.tx;
+          const meta = item.meta;
+          const timestamp = (tx.date + 946684800) * 1000; // Ripple epoch to Unix
+          const date = new Date(timestamp);
+
+          // Determine if this is a buy or sell
+          let bearAmount = 0;
+          let xrpCost = 0;
+          let isBuy = false;
+
+          if (tx.TransactionType === 'Payment') {
+            const amount = tx.Amount;
+            const deliveredAmount = meta.delivered_amount || amount;
+
+            if (typeof deliveredAmount === 'object' && deliveredAmount.currency === BEAR_CURRENCY) {
+              // Received BEAR (BUY)
+              if (tx.Destination === walletAddress) {
+                bearAmount = parseFloat(deliveredAmount.value);
+                isBuy = true;
+
+                // Calculate XRP cost (from SendMax or Amount)
+                if (typeof tx.SendMax === 'string') {
+                  xrpCost = parseInt(tx.SendMax) / 1000000;
+                } else if (typeof tx.Amount === 'string') {
+                  xrpCost = parseInt(tx.Amount) / 1000000;
+                }
+              }
+              // Sent BEAR (SELL)
+              else if (tx.Account === walletAddress) {
+                bearAmount = parseFloat(deliveredAmount.value);
+                isBuy = false;
+
+                // Calculate XRP received
+                if (typeof meta.delivered_amount === 'string') {
+                  xrpCost = parseInt(meta.delivered_amount) / 1000000;
+                } else if (typeof tx.SendMax === 'object' && !tx.SendMax.currency) {
+                  xrpCost = parseInt(tx.SendMax) / 1000000;
+                }
+              }
+            }
+          }
+
+          if (bearAmount === 0) continue;
+
+          const costPerToken = xrpCost / bearAmount;
+
+          if (isBuy) {
+            // Add to cost basis queue
+            costBasis.push({
+              amount: bearAmount,
+              costPerToken: costPerToken,
+              timestamp: timestamp
+            });
+            totalBought += bearAmount;
+          } else {
+            // SELL - Calculate realized gain using FIFO
+            let remainingToSell = bearAmount;
+            let sellGainXRP = 0;
+
+            while (remainingToSell > 0 && costBasis.length > 0) {
+              const lot = costBasis[0];
+              const sellFromThisLot = Math.min(remainingToSell, lot.amount);
+
+              const soldForXRP = sellFromThisLot * costPerToken;
+              const boughtForXRP = sellFromThisLot * lot.costPerToken;
+              sellGainXRP += (soldForXRP - boughtForXRP);
+
+              lot.amount -= sellFromThisLot;
+              remainingToSell -= sellFromThisLot;
+
+              if (lot.amount <= 0.0001) {
+                costBasis.shift();
+              }
+            }
+
+            realizedGainXRP += sellGainXRP;
+            realizedGainUSD += sellGainXRP * xrpUsdPrice;
+            totalSold += bearAmount;
+          }
+
+          // Calculate unrealized gain on remaining tokens
+          const currentHoldings = costBasis.reduce((sum, lot) => sum + lot.amount, 0);
+          const avgCostBasis = costBasis.length > 0
+            ? costBasis.reduce((sum, lot) => sum + (lot.amount * lot.costPerToken), 0) / currentHoldings
+            : 0;
+
+          const unrealizedXRP = currentHoldings * (priceNative - avgCostBasis);
+          const unrealizedUSD = unrealizedXRP * xrpUsdPrice;
+
+          const totalPLXRP = realizedGainXRP + unrealizedXRP;
+          const totalPLUSD = realizedGainUSD + unrealizedUSD;
+
+          dataPoints.push({
+            date: date,
+            timestamp: timestamp,
+            totalPLXRP: totalPLXRP,
+            totalPLUSD: totalPLUSD,
+            unrealizedXRP: unrealizedXRP,
+            unrealizedUSD: unrealizedUSD,
+            realizedXRP: realizedGainXRP,
+            realizedUSD: realizedGainUSD,
+            holdings: currentHoldings
+          });
+        }
+
+        await client.disconnect();
+
+        // Calculate final stats
+        const currentHoldings = costBasis.reduce((sum, lot) => sum + lot.amount, 0);
+        const avgCostBasis = costBasis.length > 0
+          ? costBasis.reduce((sum, lot) => sum + (lot.amount * lot.costPerToken), 0) / currentHoldings
+          : 0;
+
+        const unrealizedXRP = currentHoldings * (priceNative - avgCostBasis);
+        const unrealizedUSD = unrealizedXRP * xrpUsdPrice;
+        const totalPLXRP = realizedGainXRP + unrealizedXRP;
+        const totalPLUSD = realizedGainUSD + unrealizedUSD;
+        const totalInvestedXRP = costBasis.reduce((sum, lot) => sum + (lot.amount * lot.costPerToken), 0);
+        const roiPercent = totalInvestedXRP > 0 ? (totalPLXRP / totalInvestedXRP) * 100 : 0;
+
+        plData = {
+          dataPoints,
+          totalPLXRP,
+          totalPLUSD,
+          unrealizedXRP,
+          unrealizedUSD,
+          realizedXRP: realizedGainXRP,
+          realizedUSD: realizedGainUSD,
+          roiPercent,
+          totalBought,
+          totalSold
+        };
+
+        // Update display
+        updatePLDisplay(plData);
+
+        // Create chart
+        createPLChart(dataPoints);
+
+        console.log('📊 [P&L] Analysis complete!', plData);
+
+      } catch (err) {
+        console.error('[P&L] Error:', err);
+        plSection.style.display = 'none';
+      }
+    }
+
+    function updatePLDisplay(data) {
+      const isXRP = currentPLCurrency === 'XRP';
+      const symbol = isXRP ? ' XRP' : ' USD';
+      const prefix = isXRP ? '' : '$';
+
+      const total = isXRP ? data.totalPLXRP : data.totalPLUSD;
+      const unrealized = isXRP ? data.unrealizedXRP : data.unrealizedUSD;
+      const realized = isXRP ? data.realizedXRP : data.realizedUSD;
+
+      // Update stat boxes
+      const totalEl = document.getElementById('plTotalValue');
+      const unrealizedEl = document.getElementById('plUnrealizedValue');
+      const realizedEl = document.getElementById('plRealizedValue');
+      const roiEl = document.getElementById('plROIValue');
+
+      totalEl.textContent = prefix + total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + symbol;
+      totalEl.className = 'pl-stat-value ' + (total >= 0 ? 'positive' : 'negative');
+
+      unrealizedEl.textContent = prefix + unrealized.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + symbol;
+      unrealizedEl.className = 'pl-stat-value ' + (unrealized >= 0 ? 'positive' : 'negative');
+
+      realizedEl.textContent = prefix + realized.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + symbol;
+      realizedEl.className = 'pl-stat-value ' + (realized >= 0 ? 'positive' : 'negative');
+
+      roiEl.textContent = (data.roiPercent >= 0 ? '+' : '') + data.roiPercent.toFixed(2) + '%';
+      roiEl.className = 'pl-stat-value ' + (data.roiPercent >= 0 ? 'positive' : 'negative');
+
+      // Update summary
+      document.getElementById('plTransactionSummary').textContent =
+        `${data.totalBought.toLocaleString()} BEAR bought • ${data.totalSold.toLocaleString()} BEAR sold • ${data.dataPoints.length} transactions analyzed`;
+
+      // Update chart if it exists
+      if (plChartInstance) {
+        plChartInstance.data.datasets[0].data = data.dataPoints.map(d => ({
+          x: d.date,
+          y: isXRP ? d.totalPLXRP : d.totalPLUSD
+        }));
+        plChartInstance.options.plugins.tooltip.callbacks.label = function(context) {
+          const value = context.parsed.y;
+          return prefix + value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + symbol;
+        };
+        plChartInstance.update();
+      }
+    }
+
+    function createPLChart(dataPoints) {
+      const ctx = document.getElementById('plChart');
+      if (!ctx) return;
+
+      if (plChartInstance) {
+        plChartInstance.destroy();
+      }
+
+      const isXRP = currentPLCurrency === 'XRP';
+
+      plChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          datasets: [{
+            label: 'P&L Over Time',
+            data: dataPoints.map(d => ({
+              x: d.date,
+              y: isXRP ? d.totalPLXRP : d.totalPLUSD
+            })),
+            borderColor: function(context) {
+              const value = context.parsed.y;
+              return value >= 0 ? '#4CAF50' : '#f44336';
+            },
+            backgroundColor: function(context) {
+              const chart = context.chart;
+              const {ctx, chartArea} = chart;
+              if (!chartArea) return;
+
+              const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+              gradient.addColorStop(0, 'rgba(76, 175, 80, 0.3)');
+              gradient.addColorStop(1, 'rgba(76, 175, 80, 0.0)');
+              return gradient;
+            },
+            borderWidth: 3,
+            fill: true,
+            tension: 0.4,
+            pointRadius: 0,
+            pointHoverRadius: 6,
+            pointHoverBackgroundColor: '#edb723',
+            pointHoverBorderColor: '#fff',
+            pointHoverBorderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false
+            },
+            tooltip: {
+              backgroundColor: 'rgba(0,0,0,0.8)',
+              titleColor: '#edb723',
+              bodyColor: '#fff',
+              borderColor: '#edb723',
+              borderWidth: 2,
+              padding: 12,
+              displayColors: false,
+              callbacks: {
+                title: function(context) {
+                  return new Date(context[0].parsed.x).toLocaleDateString();
+                },
+                label: function(context) {
+                  const value = context.parsed.y;
+                  const prefix = isXRP ? '' : '$';
+                  const symbol = isXRP ? ' XRP' : '';
+                  return 'P&L: ' + prefix + value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + symbol;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              type: 'time',
+              time: {
+                unit: 'day',
+                displayFormats: {
+                  day: 'MMM d'
+                }
+              },
+              grid: {
+                color: 'rgba(255,255,255,0.05)',
+                drawBorder: false
+              },
+              ticks: {
+                color: 'rgba(255,255,255,0.6)',
+                maxRotation: 0
+              }
+            },
+            y: {
+              grid: {
+                color: 'rgba(255,255,255,0.05)',
+                drawBorder: false
+              },
+              ticks: {
+                color: 'rgba(255,255,255,0.6)',
+                callback: function(value) {
+                  const prefix = isXRP ? '' : '$';
+                  return prefix + value.toFixed(0);
+                }
+              }
+            }
+          },
+          interaction: {
+            intersect: false,
+            mode: 'index'
+          }
+        }
+      });
     }
 
     async function loadPointsData(walletAddress) {
