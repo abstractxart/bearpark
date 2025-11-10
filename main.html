@@ -12131,15 +12131,107 @@
       const isVisible = panel.classList.contains('visible');
 
       if (isVisible) {
-        panel.classList.remove('visible');
-        setTimeout(() => panel.style.display = 'none', 300);
+        closeNotificationPanel();
       } else {
-        panel.style.display = 'flex';
-        setTimeout(() => panel.classList.add('visible'), 10);
-        // Mark all as read when opening panel
-        markAllNotificationsAsRead();
+        openNotificationPanel();
       }
     };
+
+    function closeNotificationPanel() {
+      const panel = document.getElementById('notificationPanel');
+      panel.classList.remove('visible');
+      setTimeout(() => panel.style.display = 'none', 300);
+      // Remove click-outside listener
+      document.removeEventListener('click', handleClickOutside);
+      // Remove touch listeners
+      panel.removeEventListener('touchstart', handleTouchStart);
+      panel.removeEventListener('touchmove', handleTouchMove);
+      panel.removeEventListener('touchend', handleTouchEnd);
+    }
+
+    function openNotificationPanel() {
+      const panel = document.getElementById('notificationPanel');
+      panel.style.display = 'flex';
+      setTimeout(() => panel.classList.add('visible'), 10);
+      // Mark all as read when opening panel
+      markAllNotificationsAsRead();
+
+      // Add click-outside listener after a short delay to prevent immediate close
+      setTimeout(() => {
+        document.addEventListener('click', handleClickOutside);
+      }, 100);
+
+      // Add touch/swipe listeners for mobile
+      panel.addEventListener('touchstart', handleTouchStart, { passive: true });
+      panel.addEventListener('touchmove', handleTouchMove, { passive: false });
+      panel.addEventListener('touchend', handleTouchEnd);
+    }
+
+    // Click outside to close
+    function handleClickOutside(event) {
+      const panel = document.getElementById('notificationPanel');
+      const bellBtn = document.getElementById('notificationBellBtn');
+
+      // Don't close if clicking the bell button or inside the panel
+      if (!panel.contains(event.target) && !bellBtn.contains(event.target)) {
+        closeNotificationPanel();
+      }
+    }
+
+    // Touch/swipe handling for mobile
+    let touchStartY = 0;
+    let touchStartX = 0;
+    let currentTranslateY = 0;
+
+    function handleTouchStart(event) {
+      const touch = event.touches[0];
+      touchStartY = touch.clientY;
+      touchStartX = touch.clientX;
+      currentTranslateY = 0;
+    }
+
+    function handleTouchMove(event) {
+      const panel = document.getElementById('notificationPanel');
+      const touch = event.touches[0];
+      const deltaY = touch.clientY - touchStartY;
+      const deltaX = Math.abs(touch.clientX - touchStartX);
+
+      // Only handle vertical swipes (down)
+      if (deltaY > 0 && deltaX < 50) {
+        currentTranslateY = deltaY;
+        panel.style.transform = `translateY(${deltaY}px)`;
+        // Prevent page scroll while swiping
+        if (deltaY > 10) {
+          event.preventDefault();
+        }
+      }
+    }
+
+    function handleTouchEnd(event) {
+      const panel = document.getElementById('notificationPanel');
+
+      // If swiped down more than 80px, close the panel
+      if (currentTranslateY > 80) {
+        panel.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
+        panel.style.transform = 'translateY(100%)';
+        panel.style.opacity = '0';
+        setTimeout(() => {
+          closeNotificationPanel();
+          panel.style.transform = '';
+          panel.style.opacity = '';
+          panel.style.transition = '';
+        }, 300);
+      } else {
+        // Snap back
+        panel.style.transition = 'transform 0.3s ease';
+        panel.style.transform = 'translateY(0)';
+        setTimeout(() => {
+          panel.style.transition = '';
+        }, 300);
+      }
+
+      currentTranslateY = 0;
+    }
 
     // Format relative time
     function formatRelativeTime(timestamp) {
