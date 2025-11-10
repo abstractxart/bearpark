@@ -5384,17 +5384,6 @@
           </div>
         </div>
 
-        <!-- Timeframe Filter -->
-        <div style="display:flex; gap:6px; margin-bottom:16px; overflow-x:auto; padding:2px; flex-wrap:wrap;">
-          <button class="pl-timeframe-btn" data-timeframe="all" onclick="switchPLTimeframe('all')">All Time</button>
-          <button class="pl-timeframe-btn" data-timeframe="6m" onclick="switchPLTimeframe('6m')">6M</button>
-          <button class="pl-timeframe-btn" data-timeframe="3m" onclick="switchPLTimeframe('3m')">3M</button>
-          <button class="pl-timeframe-btn active" data-timeframe="1m" onclick="switchPLTimeframe('1m')">1M</button>
-          <button class="pl-timeframe-btn" data-timeframe="2w" onclick="switchPLTimeframe('2w')">2W</button>
-          <button class="pl-timeframe-btn" data-timeframe="1w" onclick="switchPLTimeframe('1w')">1W</button>
-          <button class="pl-timeframe-btn" data-timeframe="3d" onclick="switchPLTimeframe('3d')">3D</button>
-          <button class="pl-timeframe-btn" data-timeframe="1d" onclick="switchPLTimeframe('1d')">24H</button>
-        </div>
 
         <!-- Summary Stats -->
         <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:12px; margin-bottom:20px;">
@@ -7536,7 +7525,6 @@
     let plData = null;
     let plFullData = null; // Store full unfiltered data
     let currentPLCurrency = 'XRP';
-    let currentPLTimeframe = '1m'; // Default to 1 month view
 
     // Switch P&L currency display
     window.switchPLCurrency = function(currency) {
@@ -7548,88 +7536,7 @@
       }
     };
 
-    // Switch P&L timeframe
-    window.switchPLTimeframe = function(timeframe) {
-      console.log('📊 [Timeframe] Switching to:', timeframe);
-      currentPLTimeframe = timeframe;
 
-      // Update button states
-      document.querySelectorAll('.pl-timeframe-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.timeframe === timeframe);
-      });
-
-      // Filter data based on timeframe
-      if (plFullData) {
-        const filteredData = filterPLDataByTimeframe(plFullData, timeframe);
-        console.log('📊 [Timeframe] Filtered data points:', filteredData.dataPoints.length);
-        plData = filteredData;
-        updatePLDisplay(filteredData);
-        createPLChart(filteredData.dataPoints);
-      }
-    };
-
-    // Filter P&L data by timeframe
-    function filterPLDataByTimeframe(fullData, timeframe) {
-      if (timeframe === 'all') {
-        return fullData;
-      }
-
-      // Calculate cutoff from the LAST transaction, not from "now"
-      // This ensures timeframes work even if transactions are old
-      const lastTransactionTime = fullData.dataPoints[fullData.dataPoints.length - 1].timestamp;
-      let cutoffTime;
-
-      switch(timeframe) {
-        case '6m': cutoffTime = lastTransactionTime - (6 * 30 * 24 * 60 * 60 * 1000); break;
-        case '3m': cutoffTime = lastTransactionTime - (3 * 30 * 24 * 60 * 60 * 1000); break;
-        case '1m': cutoffTime = lastTransactionTime - (30 * 24 * 60 * 60 * 1000); break;
-        case '2w': cutoffTime = lastTransactionTime - (14 * 24 * 60 * 60 * 1000); break;
-        case '1w': cutoffTime = lastTransactionTime - (7 * 24 * 60 * 60 * 1000); break;
-        case '3d': cutoffTime = lastTransactionTime - (3 * 24 * 60 * 60 * 1000); break;
-        case '1d': cutoffTime = lastTransactionTime - (24 * 60 * 60 * 1000); break;
-        default: return fullData;
-      }
-
-      console.log('📊 [Timeframe] Filtering from last transaction:', new Date(lastTransactionTime).toISOString());
-      console.log('📊 [Timeframe] Cutoff time:', new Date(cutoffTime).toISOString());
-
-      const filteredPoints = fullData.dataPoints.filter(d => d.timestamp >= cutoffTime);
-
-      console.log('📊 [Timeframe] Filtered points count:', filteredPoints.length, 'of', fullData.dataPoints.length);
-
-      if (filteredPoints.length > 0) {
-        console.log('📊 [Timeframe] Date range:',
-          new Date(filteredPoints[0].timestamp).toISOString().split('T')[0],
-          'to',
-          new Date(filteredPoints[filteredPoints.length - 1].timestamp).toISOString().split('T')[0]
-        );
-      }
-
-      if (filteredPoints.length === 0) {
-        console.warn('📊 [Timeframe] No data points in this timeframe, showing all data');
-        return fullData;
-      }
-
-      if (filteredPoints.length === 1) {
-        console.warn('📊 [Timeframe] Only 1 point - cannot draw line chart');
-      }
-
-      // Use the latest point's actual values
-      const latestPoint = filteredPoints[filteredPoints.length - 1];
-
-      return {
-        dataPoints: filteredPoints,
-        totalPLXRP: latestPoint.totalPLXRP,
-        totalPLUSD: latestPoint.totalPLUSD,
-        unrealizedXRP: latestPoint.unrealizedXRP,
-        unrealizedUSD: latestPoint.unrealizedUSD,
-        realizedXRP: latestPoint.realizedXRP,
-        realizedUSD: latestPoint.realizedUSD,
-        roiPercent: fullData.roiPercent,
-        totalBought: fullData.totalBought,
-        totalSold: fullData.totalSold
-      };
-    }
 
     async function loadPLChart(walletAddress) {
       const plSection = document.getElementById('plSection');
@@ -7951,17 +7858,16 @@
 
         if (loadingProgress) loadingProgress.textContent = 'Creating chart...';
 
-        // Apply default 1M timeframe filter
-        const filteredData = filterPLDataByTimeframe(plFullData, currentPLTimeframe);
-        plData = filteredData;
+        // Use all data (no timeframe filtering)
+        plData = plFullData;
 
         // Update display
         console.log('📊 [P&L] Updating display...');
-        updatePLDisplay(filteredData);
+        updatePLDisplay(plFullData);
 
         // Create chart
-        console.log('📊 [P&L] Creating chart with', filteredData.dataPoints.length, 'data points...');
-        createPLChart(filteredData.dataPoints);
+        console.log('📊 [P&L] Creating chart with', plFullData.dataPoints.length, 'data points...');
+        createPLChart(plFullData.dataPoints);
 
         // Hide loading indicator
         if (loadingIndicator) loadingIndicator.style.display = 'none';
