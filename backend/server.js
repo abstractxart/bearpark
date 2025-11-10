@@ -18,6 +18,14 @@ const XAMAN_API_KEY = process.env.XAMAN_API_KEY?.trim();
 const XAMAN_API_SECRET = process.env.XAMAN_API_SECRET?.trim();
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:8080';
 
+// Debug: Log environment variable status
+console.log('🔍 Environment Debug:');
+console.log('  NODE_ENV:', process.env.NODE_ENV);
+console.log('  XAMAN_API_KEY exists:', !!XAMAN_API_KEY);
+console.log('  XAMAN_API_SECRET exists:', !!XAMAN_API_SECRET);
+console.log('  SUPABASE_URL exists:', !!process.env.SUPABASE_URL);
+console.log('  DATABASE_URL exists:', !!process.env.DATABASE_URL);
+
 // Initialize Supabase
 const supabase = createClient(
   process.env.SUPABASE_URL,
