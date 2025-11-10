@@ -6846,18 +6846,6 @@
     // Make function globally accessible for inline onclick handler
     window.openProfileSetup = openProfileSetup;
 
-    // Attach click handler to welcome button
-    const welcomeBtn = document.getElementById('welcomeBtn');
-    if (welcomeBtn) {
-      welcomeBtn.addEventListener('click', function() {
-        console.log('🐻 Welcome button clicked!');
-        openProfileSetup();
-      });
-      console.log('✅ Welcome button click handler attached successfully');
-    } else {
-      console.error('❌ Could not find welcomeBtn element!');
-    }
-
     function showBearSpaceTeaser(){
       // Create popup element
       const popup = document.createElement('div');
@@ -11747,10 +11735,33 @@
     if (welcomeBtn) {
       welcomeBtn.addEventListener('click', () => {
         const wallet = localStorage.getItem('bearpark_wallet');
-        if (wallet) {
+        if (!wallet) {
+          // No wallet - just open drawer
+          openDrawer();
+          return;
+        }
+
+        // Check if user has completed profile setup
+        const profileKey = `bearpark_profile_${wallet}`;
+        const localProfile = localStorage.getItem(profileKey);
+
+        let hasProfile = false;
+        if (localProfile) {
+          try {
+            const profile = JSON.parse(localProfile);
+            // Profile is considered "set" if it has both display_name and avatar
+            hasProfile = profile.display_name && (profile.avatar_nft || profile.avatar_url);
+          } catch (e) {
+            hasProfile = false;
+          }
+        }
+
+        if (hasProfile) {
+          // User has profile - open profile modal
           openProfileModal();
         } else {
-          openProfileSetup();
+          // New user without profile - just open drawer to BEAR HUB
+          openDrawer();
         }
       });
       console.log('✅ Welcome button wired to open profile modal');
