@@ -54,6 +54,14 @@
       "dest": "/flappybear.html"
     },
     {
+      "src": "/flappy-bear",
+      "dest": "/frontend/flappy-bear/index.html"
+    },
+    {
+      "src": "/flappy-bear/(.*)",
+      "dest": "/frontend/flappy-bear/$1"
+    },
+    {
       "src": "/bear-jumpventure",
       "dest": "/frontend/bear-jumpventure/index.html"
     },
