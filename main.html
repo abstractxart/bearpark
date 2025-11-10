@@ -49,6 +49,8 @@
 
   <!-- Chart.js for P&L Graph -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/luxon@3.4.4/build/global/luxon.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.3.1/dist/chartjs-adapter-luxon.umd.min.js"></script>
 
   <style>
   /* ==== THEME =========================================================== */
@@ -7246,8 +7248,10 @@
 
     /* ===== Portfolio & Points Functions ===== */
     async function loadPortfolioData() {
+      console.log('🔥 loadPortfolioData() CALLED!');
       const walletAddress = localStorage.getItem('bearpark_wallet');
       const isAuthenticated = localStorage.getItem('bearpark_auth') === 'true';
+      console.log('🔥 Wallet:', walletAddress, 'Auth:', isAuthenticated);
 
       const portfolioSection = document.getElementById('portfolioSection');
       const connectedWalletAddress = document.getElementById('connectedWalletAddress');
@@ -7485,7 +7489,54 @@
 
     async function loadPLChart(walletAddress) {
       const plSection = document.getElementById('plSection');
-      if (!plSection) return;
+      if (!plSection) {
+        console.error('📊 [P&L] ERROR: plSection element not found!');
+        return;
+      }
+
+      // Demo mode for testing - ALWAYS ON FOR NOW
+      const FORCE_DEMO = true; // Set to false to disable demo mode
+      if (FORCE_DEMO) {
+        console.log('📊 [P&L] DEMO MODE ACTIVATED');
+        plSection.style.display = 'block';
+
+        // Generate fake data points
+        const demoDataPoints = [];
+        const startDate = new Date('2024-04-13').getTime();
+        const now = Date.now();
+        let currentPL = -500;
+
+        for (let i = 0; i < 30; i++) {
+          const timestamp = startDate + (i * (now - startDate) / 30);
+          currentPL += Math.random() * 200 - 50; // Random walk
+          demoDataPoints.push({
+            timestamp: timestamp,
+            date: new Date(timestamp),
+            totalPLXRP: currentPL,
+            totalPLUSD: currentPL * 2.50,
+            unrealizedXRP: currentPL * 0.7,
+            unrealizedUSD: currentPL * 0.7 * 2.50,
+            realizedXRP: currentPL * 0.3,
+            realizedUSD: currentPL * 0.3 * 2.50
+          });
+        }
+
+        plData = {
+          dataPoints: demoDataPoints,
+          totalPLXRP: currentPL,
+          totalPLUSD: currentPL * 2.50,
+          unrealizedXRP: currentPL * 0.7,
+          unrealizedUSD: currentPL * 0.7 * 2.50,
+          realizedXRP: currentPL * 0.3,
+          realizedUSD: currentPL * 0.3 * 2.50,
+          roiPercent: 25.5
+        };
+
+        updatePLDisplay(plData);
+        createPLChart(demoDataPoints);
+        console.log('📊 [P&L] DEMO chart created!');
+        return;
+      }
 
       const BEAR_ISSUER = 'rKkkYMCvC63HEgxjQHmayKADaxYqnsMUkT';
       const BEAR_CURRENCY = '4245415200000000000000000000000000000000';
@@ -7576,8 +7627,11 @@
         plSection.style.display = 'block';
 
         // Get current prices
+        console.log('📊 [P&L] Fetching current BEAR price...');
         const {priceNative, priceUsd} = await fetchDex();
+        console.log('📊 [P&L] Current BEAR price:', priceNative, 'XRP,', priceUsd, 'USD');
         const xrpUsdPrice = 2.50; // Should fetch real XRP price
+        console.log('📊 [P&L] Starting FIFO analysis...');
 
         // Analyze transactions with FIFO cost basis
         const costBasis = []; // Queue for FIFO
@@ -7724,13 +7778,18 @@
           totalSold
         };
 
+        console.log('📊 [P&L] FIFO analysis complete! Data points:', dataPoints.length);
+        console.log('📊 [P&L] Total P&L:', totalPLXRP, 'XRP');
+
         // Update display
+        console.log('📊 [P&L] Updating display...');
         updatePLDisplay(plData);
 
         // Create chart
+        console.log('📊 [P&L] Creating chart with', dataPoints.length, 'data points...');
         createPLChart(dataPoints);
 
-        console.log('📊 [P&L] Analysis complete!', plData);
+        console.log('📊 [P&L] ✅ Chart created successfully!');
 
       } catch (err) {
         console.error('[P&L] Error loading P&L chart:', err);
@@ -7785,12 +7844,18 @@
     }
 
     function createPLChart(dataPoints) {
-      const ctx = document.getElementById('plChart');
-      if (!ctx) return;
+      const canvas = document.getElementById('plChart');
+      if (!canvas) return;
 
+      // Destroy existing chart instance if it exists
       if (plChartInstance) {
         plChartInstance.destroy();
+        plChartInstance = null;
       }
+
+      // Get a fresh context
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
 
       const isXRP = currentPLCurrency === 'XRP';
 
@@ -7800,7 +7865,7 @@
           datasets: [{
             label: 'P&L Over Time',
             data: dataPoints.map(d => ({
-              x: d.date,
+              x: d.timestamp,
               y: isXRP ? d.totalPLXRP : d.totalPLUSD
             })),
             borderColor: function(context) {
@@ -7857,20 +7922,22 @@
           },
           scales: {
             x: {
-              type: 'time',
-              time: {
-                unit: 'day',
-                displayFormats: {
-                  day: 'MMM d'
-                }
-              },
+              type: 'linear',
               grid: {
                 color: 'rgba(255,255,255,0.05)',
                 drawBorder: false
               },
               ticks: {
                 color: 'rgba(255,255,255,0.6)',
-                maxRotation: 0
+                maxRotation: 0,
+                callback: function(value, index, ticks) {
+                  // Convert timestamp back to date for display
+                  const date = new Date(value);
+                  const month = date.toLocaleDateString('en-US', { month: 'short' });
+                  const day = date.getDate();
+                  return month + ' ' + day;
+                },
+                maxTicksLimit: 8
               }
             },
             y: {
