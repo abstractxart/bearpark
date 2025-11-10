@@ -7540,6 +7540,7 @@
 
     // Switch P&L timeframe
     window.switchPLTimeframe = function(timeframe) {
+      console.log('📊 [Timeframe] Switching to:', timeframe);
       currentPLTimeframe = timeframe;
 
       // Update button states
@@ -7550,6 +7551,7 @@
       // Filter data based on timeframe
       if (plFullData) {
         const filteredData = filterPLDataByTimeframe(plFullData, timeframe);
+        console.log('📊 [Timeframe] Filtered data points:', filteredData.dataPoints.length);
         plData = filteredData;
         updatePLDisplay(filteredData);
         createPLChart(filteredData.dataPoints);
@@ -7576,24 +7578,50 @@
         default: return fullData;
       }
 
+      console.log('📊 [Timeframe] Cutoff time:', new Date(cutoffTime).toISOString());
+      console.log('📊 [Timeframe] First data point:', new Date(fullData.dataPoints[0].timestamp).toISOString());
+      console.log('📊 [Timeframe] Last data point:', new Date(fullData.dataPoints[fullData.dataPoints.length - 1].timestamp).toISOString());
+
       const filteredPoints = fullData.dataPoints.filter(d => d.timestamp >= cutoffTime);
 
+      console.log('📊 [Timeframe] Filtered points count:', filteredPoints.length, 'of', fullData.dataPoints.length);
+
       if (filteredPoints.length === 0) {
+        console.warn('📊 [Timeframe] No data points in this timeframe, showing all data');
         return fullData; // Return full data if no points in timeframe
       }
 
-      // Use the latest values from filtered data
+      if (filteredPoints.length < 2) {
+        console.warn('📊 [Timeframe] Only', filteredPoints.length, 'point(s) in timeframe, might not show much variation');
+      }
+
+      // Calculate P&L change within the timeframe
+      const firstPoint = filteredPoints[0];
       const latestPoint = filteredPoints[filteredPoints.length - 1];
+
+      // Calculate the CHANGE in P&L during this timeframe
+      const plChangeXRP = latestPoint.totalPLXRP - firstPoint.totalPLXRP;
+      const plChangeUSD = latestPoint.totalPLUSD - firstPoint.totalPLUSD;
+      const unrealizedChangeXRP = latestPoint.unrealizedXRP - firstPoint.unrealizedXRP;
+      const unrealizedChangeUSD = latestPoint.unrealizedUSD - firstPoint.unrealizedUSD;
+      const realizedChangeXRP = latestPoint.realizedXRP - firstPoint.realizedXRP;
+      const realizedChangeUSD = latestPoint.realizedUSD - firstPoint.realizedUSD;
+
+      // Calculate ROI for this timeframe
+      const startingValue = firstPoint.totalPLXRP;
+      const roiPercent = startingValue !== 0 ? (plChangeXRP / Math.abs(startingValue)) * 100 : 0;
+
+      console.log('📊 [Timeframe] P&L change in timeframe:', plChangeXRP, 'XRP');
 
       return {
         dataPoints: filteredPoints,
-        totalPLXRP: latestPoint.totalPLXRP,
-        totalPLUSD: latestPoint.totalPLUSD,
-        unrealizedXRP: latestPoint.unrealizedXRP,
-        unrealizedUSD: latestPoint.unrealizedUSD,
-        realizedXRP: latestPoint.realizedXRP,
-        realizedUSD: latestPoint.realizedUSD,
-        roiPercent: fullData.roiPercent,
+        totalPLXRP: plChangeXRP,
+        totalPLUSD: plChangeUSD,
+        unrealizedXRP: unrealizedChangeXRP,
+        unrealizedUSD: unrealizedChangeUSD,
+        realizedXRP: realizedChangeXRP,
+        realizedUSD: realizedChangeUSD,
+        roiPercent: roiPercent,
         totalBought: fullData.totalBought,
         totalSold: fullData.totalSold
       };
@@ -7606,8 +7634,8 @@
         return;
       }
 
-      // Demo mode for testing - ALWAYS ON FOR NOW
-      const FORCE_DEMO = true; // Set to false to use REAL data
+      // Demo mode for testing
+      const FORCE_DEMO = false; // Set to true for demo data
       if (FORCE_DEMO) {
         console.log('📊 [P&L] DEMO MODE ACTIVATED');
         plSection.style.display = 'block';
