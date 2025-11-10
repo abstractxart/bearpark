@@ -5386,10 +5386,10 @@
 
         <!-- Timeframe Filter -->
         <div style="display:flex; gap:6px; margin-bottom:16px; overflow-x:auto; padding:2px; flex-wrap:wrap;">
-          <button class="pl-timeframe-btn active" data-timeframe="all" onclick="switchPLTimeframe('all')">All Time</button>
+          <button class="pl-timeframe-btn" data-timeframe="all" onclick="switchPLTimeframe('all')">All Time</button>
           <button class="pl-timeframe-btn" data-timeframe="6m" onclick="switchPLTimeframe('6m')">6M</button>
           <button class="pl-timeframe-btn" data-timeframe="3m" onclick="switchPLTimeframe('3m')">3M</button>
-          <button class="pl-timeframe-btn" data-timeframe="1m" onclick="switchPLTimeframe('1m')">1M</button>
+          <button class="pl-timeframe-btn active" data-timeframe="1m" onclick="switchPLTimeframe('1m')">1M</button>
           <button class="pl-timeframe-btn" data-timeframe="2w" onclick="switchPLTimeframe('2w')">2W</button>
           <button class="pl-timeframe-btn" data-timeframe="1w" onclick="switchPLTimeframe('1w')">1W</button>
           <button class="pl-timeframe-btn" data-timeframe="3d" onclick="switchPLTimeframe('3d')">3D</button>
@@ -7531,7 +7531,7 @@
     let plData = null;
     let plFullData = null; // Store full unfiltered data
     let currentPLCurrency = 'XRP';
-    let currentPLTimeframe = 'all';
+    let currentPLTimeframe = '1m'; // Default to 1 month view
 
     // Switch P&L currency display
     window.switchPLCurrency = function(currency) {
@@ -7600,33 +7600,20 @@
         console.warn('📊 [Timeframe] Only', filteredPoints.length, 'point(s) in timeframe, might not show much variation');
       }
 
-      // Calculate P&L change within the timeframe
-      const firstPoint = filteredPoints[0];
+      // Use the latest point's actual values (not the change)
       const latestPoint = filteredPoints[filteredPoints.length - 1];
 
-      // Calculate the CHANGE in P&L during this timeframe
-      const plChangeXRP = latestPoint.totalPLXRP - firstPoint.totalPLXRP;
-      const plChangeUSD = latestPoint.totalPLUSD - firstPoint.totalPLUSD;
-      const unrealizedChangeXRP = latestPoint.unrealizedXRP - firstPoint.unrealizedXRP;
-      const unrealizedChangeUSD = latestPoint.unrealizedUSD - firstPoint.unrealizedUSD;
-      const realizedChangeXRP = latestPoint.realizedXRP - firstPoint.realizedXRP;
-      const realizedChangeUSD = latestPoint.realizedUSD - firstPoint.realizedUSD;
-
-      // Calculate ROI for this timeframe
-      const startingValue = firstPoint.totalPLXRP;
-      const roiPercent = startingValue !== 0 ? (plChangeXRP / Math.abs(startingValue)) * 100 : 0;
-
-      console.log('📊 [Timeframe] P&L change in timeframe:', plChangeXRP, 'XRP');
+      console.log('📊 [Timeframe] Latest P&L in timeframe:', latestPoint.totalPLXRP, 'XRP');
 
       return {
         dataPoints: filteredPoints,
-        totalPLXRP: plChangeXRP,
-        totalPLUSD: plChangeUSD,
-        unrealizedXRP: unrealizedChangeXRP,
-        unrealizedUSD: unrealizedChangeUSD,
-        realizedXRP: realizedChangeXRP,
-        realizedUSD: realizedChangeUSD,
-        roiPercent: roiPercent,
+        totalPLXRP: latestPoint.totalPLXRP,
+        totalPLUSD: latestPoint.totalPLUSD,
+        unrealizedXRP: latestPoint.unrealizedXRP,
+        unrealizedUSD: latestPoint.unrealizedUSD,
+        realizedXRP: latestPoint.realizedXRP,
+        realizedUSD: latestPoint.realizedUSD,
+        roiPercent: fullData.roiPercent, // Use overall ROI
         totalBought: fullData.totalBought,
         totalSold: fullData.totalSold
       };
@@ -7942,13 +7929,17 @@
 
         if (loadingProgress) loadingProgress.textContent = 'Creating chart...';
 
+        // Apply default 1M timeframe filter
+        const filteredData = filterPLDataByTimeframe(plFullData, currentPLTimeframe);
+        plData = filteredData;
+
         // Update display
         console.log('📊 [P&L] Updating display...');
-        updatePLDisplay(plData);
+        updatePLDisplay(filteredData);
 
         // Create chart
-        console.log('📊 [P&L] Creating chart with', dataPoints.length, 'data points...');
-        createPLChart(dataPoints);
+        console.log('📊 [P&L] Creating chart with', filteredData.dataPoints.length, 'data points...');
+        createPLChart(filteredData.dataPoints);
 
         // Hide loading indicator
         if (loadingIndicator) loadingIndicator.style.display = 'none';
