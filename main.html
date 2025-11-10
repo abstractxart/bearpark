@@ -7765,6 +7765,18 @@
           return;
         }
 
+        // Sort transactions by date FIRST so we can debug
+        bearTxs.sort((a, b) => a.tx.date - b.tx.date);
+
+        // DEBUG: Log first and last transaction dates to find the timestamp issue
+        const firstTx = bearTxs[0];
+        const lastTx = bearTxs[bearTxs.length - 1];
+        console.log('🔍 [DEBUG] First TX raw XRPL date:', firstTx.tx.date);
+        console.log('🔍 [DEBUG] First TX converted:', new Date((firstTx.tx.date + 946684800) * 1000).toISOString());
+        console.log('🔍 [DEBUG] Last TX raw XRPL date:', lastTx.tx.date);
+        console.log('🔍 [DEBUG] Last TX converted:', new Date((lastTx.tx.date + 946684800) * 1000).toISOString());
+        console.log('🔍 [DEBUG] Current time:', new Date().toISOString());
+
         console.log('📊 [P&L] Showing P&L section and starting analysis...');
 
         // Show section
@@ -7785,19 +7797,7 @@
         let realizedGainXRP = 0;
         let realizedGainUSD = 0;
 
-        // Sort transactions by date
-        bearTxs.sort((a, b) => a.tx.date - b.tx.date);
-
-        // Log first transaction date for debugging
-        if (bearTxs.length > 0) {
-          const firstTx = bearTxs[0];
-          console.log('📊 [P&L] First TX raw date:', firstTx.tx.date);
-          console.log('📊 [P&L] First TX converted:', new Date((firstTx.tx.date + 946684800) * 1000).toISOString());
-          const lastTx = bearTxs[bearTxs.length - 1];
-          console.log('📊 [P&L] Last TX raw date:', lastTx.tx.date);
-          console.log('📊 [P&L] Last TX converted:', new Date((lastTx.tx.date + 946684800) * 1000).toISOString());
-        }
-
+        // Transactions already sorted above, start FIFO loop
         for (const item of bearTxs) {
           const tx = item.tx;
           const meta = item.meta;
