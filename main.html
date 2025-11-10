@@ -11881,7 +11881,8 @@
         }
 
         // Check if user has completed profile setup
-        const profileKey = `bearpark_profile_${wallet}`;
+        // NOTE: Using bear_profile_ (without "park") to match updateWelcomeButton
+        const profileKey = `bear_profile_${wallet}`;
         const localProfile = localStorage.getItem(profileKey);
         console.log('🔍 [Welcome Button] Profile key:', profileKey);
         console.log('🔍 [Welcome Button] Local profile:', localProfile);
