@@ -879,19 +879,19 @@
     gap: 12px;
   }
 
-  /* Honey points button - dark with tri-color border */
+  /* Honey points button - compact circular design */
   .honey-points-btn {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 8px 16px;
+    justify-content: center;
+    gap: 4px;
+    padding: 8px 12px;
     background: #1a1a1a;
     color: var(--gold);
     border: 3px solid transparent;
-    border-radius: 20px;
-    font-size: 13px;
+    border-radius: 22px;
+    font-size: 14px;
     font-weight: 900;
-    text-transform: uppercase;
     cursor: pointer;
     transition: all 0.2s;
     box-shadow: 0 4px 0 #000, 0 4px 12px rgba(0,0,0,0.8);
@@ -899,6 +899,13 @@
     background-image: linear-gradient(#1a1a1a, #1a1a1a), var(--tri-gradient);
     background-origin: padding-box, border-box;
     background-clip: padding-box, border-box;
+    white-space: nowrap;
+  }
+
+  .honey-points-btn img {
+    height: 1.2em;
+    width: auto;
+    vertical-align: middle;
   }
 
   .honey-points-btn:hover {
@@ -4531,8 +4538,9 @@
           <span id="bellIcon">🔔</span>
           <span class="notification-badge" id="notificationBadge" style="display: none;">0</span>
         </button>
-        <button class="honey-points-btn" onclick="window.scrollTo({top: document.getElementById('honey-points').offsetTop - 80, behavior: 'smooth'})">
-          <span id="welcomePoints">HONEY <img src="https://files.catbox.moe/j89mri.png" alt="honey" style="height:1em; width:auto; vertical-align:middle; display:inline-block;">: 0 PTS</span>
+        <button class="honey-points-btn" onclick="window.scrollTo({top: document.getElementById('honey-points').offsetTop - 80, behavior: 'smooth'})" title="Honey Points">
+          <img src="https://files.catbox.moe/j89mri.png" alt="honey">
+          <span id="welcomePoints">0</span>
         </button>
         <button class="welcome-profile-btn" id="welcomeBtn">
           <span id="welcomeUsername">WELCOME BEAR (click me!)</span>
@@ -7246,6 +7254,12 @@
         navHoneyPoints.textContent = localPoints.total.toFixed(1) + ' PTS';
       }
 
+      // Update compact honey button
+      const welcomePoints = document.getElementById('welcomePoints');
+      if (welcomePoints) {
+        welcomePoints.textContent = localPoints.total.toFixed(1);
+      }
+
       // Try to sync with backend
       try {
         const response = await fetch(`${API_BASE_URL}/api/points/${walletAddress}`);
@@ -7277,15 +7291,17 @@
             // Keep local points displayed
             updatePointsDisplay(localPoints.total, localPoints.raiding, localPoints.games);
             if (navHoneyPoints) navHoneyPoints.textContent = localPoints.total.toFixed(1) + ' PTS';
+            const welcomePointsLocal = document.getElementById('welcomePoints');
+            if (welcomePointsLocal) welcomePointsLocal.textContent = localPoints.total.toFixed(1);
           } else {
             // Backend has more points, use backend data
             updatePointsDisplay(backendTotal, backendRaiding, backendGames);
             if (navHoneyPoints) navHoneyPoints.textContent = backendTotal.toFixed(1) + ' PTS';
 
-            // Update header welcome points
+            // Update compact honey button
             const welcomePoints = document.getElementById('welcomePoints');
             if (welcomePoints) {
-              welcomePoints.innerHTML = `HONEY <img src="https://files.catbox.moe/j89mri.png" alt="honey" style="height:1em; width:auto; vertical-align:middle; display:inline-block;">: ${backendTotal.toFixed(1)} PTS`;
+              welcomePoints.textContent = backendTotal.toFixed(1);
             }
 
             // Sync localStorage with backend data
@@ -7997,6 +8013,12 @@
           const navHoneyPoints = document.getElementById('navHoneyPoints');
           if (navHoneyPoints) {
             navHoneyPoints.textContent = currentPoints.total.toFixed(1) + ' PTS';
+          }
+
+          // Update compact honey button
+          const welcomePoints = document.getElementById('welcomePoints');
+          if (welcomePoints) {
+            welcomePoints.textContent = currentPoints.total.toFixed(1);
           }
 
           // Send to backend to sync points (will fail gracefully if API not ready)
@@ -8836,7 +8858,7 @@
       const navHoneyPoints = document.getElementById('navHoneyPoints');
 
       if (!walletAddress) {
-        welcomePoints.innerHTML = 'HONEY <img src="https://files.catbox.moe/j89mri.png" alt="honey" style="height:1em; width:auto; vertical-align:middle; display:inline-block;">: 0.0 PTS';
+        welcomePoints.textContent = '0.0';
         welcomeUsername.textContent = 'WELCOME BEAR (click me!)';
         if (navHoneyPoints) navHoneyPoints.textContent = '0.0 PTS';
         return;
@@ -8845,7 +8867,7 @@
       // Load points from localStorage first (instant)
       const pointsKey = `honey_points_${walletAddress}`;
       const localPoints = JSON.parse(localStorage.getItem(pointsKey) || '{"total":0,"raiding":0,"games":0}');
-      welcomePoints.innerHTML = `HONEY <img src="https://files.catbox.moe/j89mri.png" alt="honey" style="height:1em; width:auto; vertical-align:middle; display:inline-block;">: ${localPoints.total.toFixed(1)} PTS`;
+      welcomePoints.textContent = localPoints.total.toFixed(1);
       if (navHoneyPoints) navHoneyPoints.textContent = `${localPoints.total.toFixed(1)} PTS`;
 
       // Load username from localStorage
@@ -8877,7 +8899,7 @@
           const raidingPoints = pointsData.raiding_points || 0;
           const gamesPoints = pointsData.games_points || 0;
 
-          welcomePoints.innerHTML = `HONEY <img src="https://files.catbox.moe/j89mri.png" alt="honey" style="height:1em; width:auto; vertical-align:middle; display:inline-block;">: ${totalPoints.toFixed(1)} PTS`;
+          welcomePoints.textContent = totalPoints.toFixed(1);
           if (navHoneyPoints) navHoneyPoints.textContent = `${totalPoints.toFixed(1)} PTS`;
 
           // Update honey points section if it exists
