@@ -9021,40 +9021,96 @@
         return true; // Allow link to open
       }
 
-      // SECURITY: Check if already completed
+      // SECURITY: Check if already completed in localStorage (fast check)
       const completedRaids = JSON.parse(localStorage.getItem(`completed_raids_${walletAddress}`) || '[]');
       if (completedRaids.includes(raidId)) {
-        console.log('❌ SECURITY: Raid already completed!');
+        console.log('❌ SECURITY: Raid already completed in localStorage!');
         return false; // Don't allow reopening
       }
 
-      // SECURITY: Check if already being processed
+      // SECURITY: Check if already being processed on THIS device
       if (processingRaids.has(raidId)) {
-        console.log('❌ SECURITY: Raid already being processed!');
+        console.log('❌ SECURITY: Raid already being processed on this device!');
         return false; // Prevent duplicate processing
       }
 
-      // SECURITY: Mark as being processed IMMEDIATELY
+      // SECURITY: Mark as being processed IMMEDIATELY on this device
       processingRaids.add(raidId);
+
+      // CRITICAL SECURITY: Check backend BEFORE starting countdown
+      // This prevents race condition exploit across multiple devices
+      console.log('🔒 SECURITY: Checking backend for existing completion...');
+
+      // Show checking state
+      const raidCard = document.querySelector(`.raid-item[data-raid-id="${raidId}"]`);
+      const raidBtn = event ? event.currentTarget : document.querySelector(`.raid-item[data-raid-id="${raidId}"] .raid-btn`);
+
+      if (!raidCard || !raidBtn) {
+        console.error('Could not find raid card or button');
+        processingRaids.delete(raidId);
+        return true;
+      }
+
+      // Disable button immediately while checking
+      raidBtn.style.pointerEvents = 'none';
+      raidBtn.style.opacity = '0.5';
+      const originalText = raidBtn.textContent;
+      raidBtn.textContent = 'CHECKING...';
+
+      // Check backend for existing completion
+      fetch(`${API_BASE_URL}/api/raids/check-completion`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          wallet_address: walletAddress,
+          raid_id: raidId
+        })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.alreadyCompleted) {
+          console.log('❌ SECURITY: Backend says raid already completed! Blocking exploit attempt.');
+          raidBtn.textContent = 'ALREADY COMPLETED';
+          raidBtn.style.backgroundColor = '#ff0000';
+
+          // Mark as completed locally
+          completedRaids.push(raidId);
+          localStorage.setItem(`completed_raids_${walletAddress}`, JSON.stringify(completedRaids));
+
+          processingRaids.delete(raidId);
+
+          // Remove raid from view after 2 seconds
+          setTimeout(() => {
+            raidCard.classList.add('fade-out');
+            setTimeout(() => raidCard.remove(), 500);
+          }, 2000);
+
+          return;
+        }
+
+        // Backend approved - proceed with raid
+        console.log('✅ SECURITY: Backend approved raid completion');
+        startRaidCompletion(raidId, walletAddress, raidCard, raidBtn, event);
+      })
+      .catch(err => {
+        console.error('❌ SECURITY: Backend check failed:', err);
+        raidBtn.textContent = 'ERROR - TRY AGAIN';
+        raidBtn.style.pointerEvents = '';
+        raidBtn.style.opacity = '';
+        processingRaids.delete(raidId);
+      });
+
+      return false; // Prevent default link behavior
+    };
+
+    // Separate function for the actual raid completion flow
+    function startRaidCompletion(raidId, walletAddress, raidCard, raidBtn, event) {
 
       // SECURITY: Capture raid reward IMMEDIATELY before any async operations
       // This ensures we have the correct reward value even if raids refresh during countdown
       const raidData = currentRaidsData[raidId];
       const pointsAwarded = raidData?.reward || 20;
       console.log(`🎯 Raid reward captured: ${pointsAwarded} points for raid ${raidId}`);
-
-      // Get the raid card and button
-      const raidCard = document.querySelector(`.raid-item[data-raid-id="${raidId}"]`);
-      const raidBtn = event ? event.currentTarget : document.querySelector(`.raid-item[data-raid-id="${raidId}"] .raid-btn`);
-
-      console.log('raidCard:', raidCard);
-      console.log('raidBtn:', raidBtn);
-
-      if (!raidCard || !raidBtn) {
-        console.error('Could not find raid card or button');
-        processingRaids.delete(raidId); // Clean up
-        return true; // Allow link to open
-      }
 
       // Open Twitter URL in browser (bypass Windows X app handler)
       let twitterUrl = raidBtn.getAttribute('data-twitter-url') || raidData?.twitter_url;
@@ -9127,36 +9183,11 @@
             localStorage.setItem(`completed_raids_data_${walletAddress}`, JSON.stringify(completedRaidsData));
           }
 
-          // SECURITY: Award points with guard check
-          const pointsKey = `honey_points_${walletAddress}`;
-          const currentPoints = JSON.parse(localStorage.getItem(pointsKey) || '{"total":0,"raiding":0,"games":0}');
+          // CRITICAL SECURITY: Send to backend FIRST and ONLY award points if backend approves
+          // This prevents the double-reward exploit
+          raidBtn.textContent = 'SYNCING WITH SERVER...';
 
-          // Only award points ONCE
-          currentPoints.total += pointsAwarded;
-          currentPoints.raiding += pointsAwarded;
-          localStorage.setItem(pointsKey, JSON.stringify(currentPoints));
-
-          console.log(`✅ Points awarded! +${pointsAwarded} New balance:`, currentPoints);
-
-          // Update all points displays immediately
-          updatePointsDisplay(currentPoints.total, currentPoints.raiding, currentPoints.games);
-
-          // Update navigation bar honey points AND welcome button
-          updateWelcomeButton();
-
-          const navHoneyPoints = document.getElementById('navHoneyPoints');
-          if (navHoneyPoints) {
-            navHoneyPoints.textContent = currentPoints.total.toFixed(1) + ' PTS';
-          }
-
-          // Update compact honey button
-          const welcomePoints = document.getElementById('welcomePoints');
-          if (welcomePoints) {
-            welcomePoints.textContent = currentPoints.total.toFixed(1);
-          }
-
-          // Send to backend to sync points (will fail gracefully if API not ready)
-          fetch('/api/raids/complete', {
+          fetch(`${API_BASE_URL}/api/raids/complete`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -9166,40 +9197,91 @@
               points_awarded: pointsAwarded
             })
           })
-          .then(response => response.json())
-          .then(data => {
-            console.log('Raid completion synced with backend:', data);
-            // Reload honey points and leaderboard to ensure UI is in sync with backend
-            loadHoneyPoints();
-            loadDailyGameProgress();
-            loadHoneyLeaderboard(walletAddress);
+          .then(response => {
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
           })
-          .catch(err => console.log('Backend sync pending - points stored locally:', err));
+          .then(data => {
+            console.log('🔒 SECURITY: Backend response:', data);
 
-          // Show completed state briefly
-          raidBtn.textContent = `✓ COMPLETED +${pointsAwarded} PTS`;
-          raidBtn.classList.remove('completing');
-          raidCard.classList.remove('completing');
-          raidCard.classList.add('completed');
+            // CRITICAL: Only award points if backend says success AND not already completed
+            if (data.success && !data.alreadyCompleted) {
+              console.log('✅ SECURITY: Backend approved points award');
 
-          // SECURITY: Remove from processing set
-          processingRaids.delete(raidId);
+              // Award points locally
+              const pointsKey = `honey_points_${walletAddress}`;
+              const currentPoints = JSON.parse(localStorage.getItem(pointsKey) || '{"total":0,"raiding":0,"games":0}');
 
-          // Fade out and remove after animation
-          setTimeout(() => {
-            raidCard.classList.add('fade-out');
+              currentPoints.total += pointsAwarded;
+              currentPoints.raiding += pointsAwarded;
+              localStorage.setItem(pointsKey, JSON.stringify(currentPoints));
 
-            // Remove from DOM after animation completes
-            setTimeout(() => {
-              raidCard.remove();
+              console.log(`✅ Points awarded! +${pointsAwarded} New balance:`, currentPoints);
 
-              // Check if there are no more raids
-              const currentList = document.getElementById('currentRaidsList');
-              if (currentList && currentList.children.length === 0) {
-                currentList.innerHTML = '<div class="raids-empty">No active raids right now. Check back soon! <img src="https://files.catbox.moe/wyfjtc.png" alt="honey" style="height:1em; width:auto; vertical-align:middle; display:inline-block;"></div>';
+              // Update all points displays immediately
+              updatePointsDisplay(currentPoints.total, currentPoints.raiding, currentPoints.games);
+              updateWelcomeButton();
+
+              const navHoneyPoints = document.getElementById('navHoneyPoints');
+              if (navHoneyPoints) {
+                navHoneyPoints.textContent = currentPoints.total.toFixed(1) + ' PTS';
               }
-            }, 1000);
-          }, 1500);
+
+              const welcomePoints = document.getElementById('welcomePoints');
+              if (welcomePoints) {
+                welcomePoints.textContent = currentPoints.total.toFixed(1);
+              }
+
+              // Reload to sync with backend
+              loadHoneyPoints();
+              loadDailyGameProgress();
+              loadHoneyLeaderboard(walletAddress);
+
+              raidBtn.textContent = `✓ COMPLETED +${pointsAwarded} PTS`;
+            } else if (data.alreadyCompleted) {
+              console.log('❌ SECURITY: Backend rejected - raid already completed! EXPLOIT BLOCKED!');
+              raidBtn.textContent = 'ALREADY COMPLETED - NO POINTS';
+              raidBtn.style.backgroundColor = '#ff0000';
+            } else {
+              console.warn('⚠️ SECURITY: Backend returned unexpected response');
+              raidBtn.textContent = 'ERROR - NO POINTS AWARDED';
+              raidBtn.style.backgroundColor = '#ff6600';
+            }
+          })
+          .catch(err => {
+            console.error('❌ SECURITY: Backend sync FAILED - NO POINTS AWARDED:', err);
+            raidBtn.textContent = 'ERROR - TRY AGAIN LATER';
+            raidBtn.style.backgroundColor = '#ff0000';
+            processingRaids.delete(raidId);
+            return; // Don't continue if backend fails
+          })
+          .finally(() => {
+            // Clean up UI regardless of success or failure
+            raidBtn.classList.remove('completing');
+            raidCard.classList.remove('completing');
+            raidCard.classList.add('completed');
+
+            // SECURITY: Remove from processing set
+            processingRaids.delete(raidId);
+
+            // Fade out and remove after animation
+            setTimeout(() => {
+              raidCard.classList.add('fade-out');
+
+              // Remove from DOM after animation completes
+              setTimeout(() => {
+                raidCard.remove();
+
+                // Check if there are no more raids
+                const currentList = document.getElementById('currentRaidsList');
+                if (currentList && currentList.children.length === 0) {
+                  currentList.innerHTML = '<div class="raids-empty">No active raids right now. Check back soon! <img src="https://files.catbox.moe/wyfjtc.png" alt="honey" style="height:1em; width:auto; vertical-align:middle; display:inline-block;"></div>';
+                }
+              }, 1000);
+            }, 1500);
+          });
         }
       }, 1000);
 
