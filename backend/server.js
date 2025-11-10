@@ -42,8 +42,14 @@ console.log('✅ Push notifications configured');
 
 // Validate required environment variables
 if (!XAMAN_API_KEY || !XAMAN_API_SECRET) {
-  console.error('❌ ERROR: XAMAN_API_KEY and XAMAN_API_SECRET must be set in environment variables');
-  process.exit(1);
+  const error = '❌ ERROR: XAMAN_API_KEY and XAMAN_API_SECRET must be set in environment variables';
+  console.error(error);
+  // Don't exit in serverless - throw error instead
+  if (process.env.VERCEL) {
+    throw new Error(error);
+  } else {
+    process.exit(1);
+  }
 }
 
 // Initialize XAMAN SDK
