@@ -1,11 +1,12 @@
 <!doctype html>
-<html lang="en" id="top" class="no-js">
+<html lang="en" id="top" class="no-js" data-version="2025-01-10-v2">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
+  <meta http-equiv="Last-Modified" content="Fri, 10 Jan 2025 00:00:00 GMT" />
   <title>BEAR Park — BEARcade</title>
   <meta name="description" content="Welcome to BEAR Park — play BEARcade games, explore the lore of Bearableguy123, view BEAR NFTs, watch the live stream, and join the $BEAR community." />
   <meta name="theme-color" content="#edb723" />
@@ -6410,6 +6411,23 @@
   </script>
 
   <script>
+  // === VERSION CHECK - Force cache refresh ===
+  (function checkVersion() {
+    const CURRENT_VERSION = '2025-01-10-v2';
+    const STORED_VERSION = localStorage.getItem('bearpark_site_version');
+
+    if (STORED_VERSION !== CURRENT_VERSION) {
+      console.log('🔄 New version detected! Forcing cache refresh...');
+      localStorage.setItem('bearpark_site_version', CURRENT_VERSION);
+
+      // Force a hard reload if this is not the first visit
+      if (STORED_VERSION !== null && !sessionStorage.getItem('bearpark_just_refreshed')) {
+        sessionStorage.setItem('bearpark_just_refreshed', 'true');
+        window.location.reload(true);
+      }
+    }
+  })();
+
   // === API CONFIGURATION ===
   const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? 'http://localhost:3000'
