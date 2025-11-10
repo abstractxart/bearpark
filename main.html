@@ -8430,7 +8430,7 @@
             // Use custom display name or show abbreviated wallet
             const displayName = entry.display_name || `${entry.wallet_address.substring(0, 6)}...${entry.wallet_address.substring(entry.wallet_address.length - 4)}`;
 
-            // Show avatar if available
+            // Show avatar if available, or default bear avatar
             let avatarHTML = '';
             if (entry.avatar_nft) {
               try {
@@ -8440,15 +8440,22 @@
                   avatarHTML = `<img src="${avatarUrl}"
                        style="width:40px; height:40px; border-radius:50%; border:2px solid var(--gold); object-fit:cover; margin-right:8px;"
                        alt="${displayName} avatar"
-                       onerror="this.style.display='none'">`;
+                       onerror="this.src='https://files.catbox.moe/ugu1kl.png'">`;
                 }
               } catch (e) {
                 // If not JSON, try using it directly as NFT ID
                 avatarHTML = `<img src="https://nft.xrpl-labs.com/${entry.avatar_nft}"
                      style="width:40px; height:40px; border-radius:50%; border:2px solid var(--gold); object-fit:cover; margin-right:8px;"
                      alt="${displayName} avatar"
-                     onerror="this.style.display='none'">`;
+                     onerror="this.src='https://files.catbox.moe/ugu1kl.png'">`;
               }
+            }
+
+            // If no avatar_nft, show default bear avatar
+            if (!avatarHTML) {
+              avatarHTML = `<img src="https://files.catbox.moe/ugu1kl.png"
+                   style="width:40px; height:40px; border-radius:50%; border:2px solid var(--gold); object-fit:cover; margin-right:8px;"
+                   alt="${displayName} avatar">`;
             }
 
             return `
@@ -9829,14 +9836,18 @@
         welcomeUsername.textContent = 'WELCOME BEAR (click me!)';
       }
 
-      // Update avatar if available
+      // Update avatar if available, or show default bear avatar
       const welcomeAvatar = document.getElementById('welcomeAvatar');
       if (localProfile.avatar_url) {
         welcomeAvatar.src = localProfile.avatar_url;
         welcomeAvatar.style.display = 'block';
         welcomeAvatar.onerror = function() {
-          this.style.display = 'none';
+          this.src = 'https://files.catbox.moe/ugu1kl.png';
         };
+      } else {
+        // Show default bear avatar if no avatar is set
+        welcomeAvatar.src = 'https://files.catbox.moe/ugu1kl.png';
+        welcomeAvatar.style.display = 'block';
       }
 
       // Try to sync with backend (optional)
@@ -9900,7 +9911,7 @@
                     if (avatarData.fallbackImageUrl && this.src !== avatarData.fallbackImageUrl) {
                       this.src = avatarData.fallbackImageUrl;
                     } else {
-                      this.style.display = 'none';
+                      this.src = 'https://files.catbox.moe/ugu1kl.png';
                     }
                   };
                 }
@@ -9947,7 +9958,7 @@
               const rankClass = index === 0 ? 'rank-1' : (index === 1 ? 'rank-2' : (index === 2 ? 'rank-3' : ''));
               const displayName = entry.display_name || 'Anonymous';
 
-              // Show avatar if available
+              // Show avatar if available, or default bear avatar
               let avatarHTML = '';
               if (entry.avatar_nft) {
                 try {
@@ -9957,15 +9968,22 @@
                     avatarHTML = `<img src="${avatarUrl}"
                          style="width:40px; height:40px; border-radius:50%; border:2px solid var(--gold); object-fit:cover; margin-right:8px;"
                          alt="${displayName} avatar"
-                         onerror="this.style.display='none'">`;
+                         onerror="this.src='https://files.catbox.moe/ugu1kl.png'">`;
                   }
                 } catch (e) {
                   // If not JSON, try using it directly as NFT ID
                   avatarHTML = `<img src="https://nft.xrpl-labs.com/${entry.avatar_nft}"
                        style="width:40px; height:40px; border-radius:50%; border:2px solid var(--gold); object-fit:cover; margin-right:8px;"
                        alt="${displayName} avatar"
-                       onerror="this.style.display='none'">`;
+                       onerror="this.src='https://files.catbox.moe/ugu1kl.png'">`;
                 }
+              }
+
+              // If no avatar_nft, show default bear avatar
+              if (!avatarHTML) {
+                avatarHTML = `<img src="https://files.catbox.moe/ugu1kl.png"
+                     style="width:40px; height:40px; border-radius:50%; border:2px solid var(--gold); object-fit:cover; margin-right:8px;"
+                     alt="${displayName} avatar">`;
               }
 
               return `
@@ -10075,12 +10093,12 @@
           try {
             const avatarData = JSON.parse(user.avatar_nft);
             const avatarUrl = avatarData.imageUrl || avatarData.fallbackImageUrl;
-            avatarHTML = `<img src="${avatarUrl}" class="community-user-avatar" alt="${displayName}">`;
+            avatarHTML = `<img src="${avatarUrl}" class="community-user-avatar" alt="${displayName}" onerror="this.src='https://files.catbox.moe/ugu1kl.png'">`;
           } catch (e) {
-            avatarHTML = '<div class="community-user-avatar-placeholder">🐻</div>';
+            avatarHTML = `<img src="https://files.catbox.moe/ugu1kl.png" class="community-user-avatar" alt="${displayName}">`;
           }
         } else {
-          avatarHTML = '<div class="community-user-avatar-placeholder">🐻</div>';
+          avatarHTML = `<img src="https://files.catbox.moe/ugu1kl.png" class="community-user-avatar" alt="${displayName}">`;
         }
 
         return `
@@ -10320,12 +10338,12 @@
           try {
             const avatarData = JSON.parse(user.avatar_nft);
             const avatarUrl = avatarData.imageUrl || avatarData.fallbackImageUrl;
-            avatarHTML = `<img src="${avatarUrl}" class="bear-user-avatar" alt="${displayName}">`;
+            avatarHTML = `<img src="${avatarUrl}" class="bear-user-avatar" alt="${displayName}" onerror="this.src='https://files.catbox.moe/ugu1kl.png'">`;
           } catch (e) {
-            avatarHTML = '<div class="bear-user-avatar-placeholder">🐻</div>';
+            avatarHTML = `<img src="https://files.catbox.moe/ugu1kl.png" class="bear-user-avatar" alt="${displayName}">`;
           }
         } else {
-          avatarHTML = '<div class="bear-user-avatar-placeholder">🐻</div>';
+          avatarHTML = `<img src="https://files.catbox.moe/ugu1kl.png" class="bear-user-avatar" alt="${displayName}">`;
         }
 
         return `
@@ -10416,24 +10434,28 @@
             profileModalTitle.textContent = `${displayName.toUpperCase()}'S PROFILE`;
           }
 
-          if (profileData.avatar_nft || profileData.avatar_url) {
-            let avatarUrl = profileData.avatar_url;
+          let avatarUrl = profileData.avatar_url;
 
-            if (!avatarUrl && profileData.avatar_nft) {
-              try {
-                const avatarData = JSON.parse(profileData.avatar_nft);
-                avatarUrl = avatarData.imageUrl || avatarData.fallbackImageUrl;
-              } catch (e) {
-                avatarUrl = `https://nft.xrpl-labs.com/${profileData.avatar_nft}`;
-              }
-            }
-
-            if (avatarUrl) {
-              profilePictureDisplay.src = avatarUrl;
-              profilePictureDisplay.classList.add('loaded');
-              profilePicturePlaceholder.style.display = 'none';
+          if (!avatarUrl && profileData.avatar_nft) {
+            try {
+              const avatarData = JSON.parse(profileData.avatar_nft);
+              avatarUrl = avatarData.imageUrl || avatarData.fallbackImageUrl;
+            } catch (e) {
+              avatarUrl = `https://nft.xrpl-labs.com/${profileData.avatar_nft}`;
             }
           }
+
+          // If no avatar set, use default bear avatar
+          if (!avatarUrl) {
+            avatarUrl = 'https://files.catbox.moe/ugu1kl.png';
+          }
+
+          profilePictureDisplay.src = avatarUrl;
+          profilePictureDisplay.onerror = function() {
+            this.src = 'https://files.catbox.moe/ugu1kl.png';
+          };
+          profilePictureDisplay.classList.add('loaded');
+          profilePicturePlaceholder.style.display = 'none';
 
           if (profileData.bio) {
             bioDisplay.textContent = profileData.bio;
@@ -10644,12 +10666,12 @@
                   try {
                     const avatarData = JSON.parse(user.avatar_nft);
                     const avatarUrl = avatarData.imageUrl || avatarData.fallbackImageUrl;
-                    avatarHTML = `<img src="${avatarUrl}" class="follow-list-avatar" alt="${displayName}">`;
+                    avatarHTML = `<img src="${avatarUrl}" class="follow-list-avatar" alt="${displayName}" onerror="this.src='https://files.catbox.moe/ugu1kl.png'">`;
                   } catch (e) {
-                    avatarHTML = '<div class="follow-list-avatar-placeholder">🐻</div>';
+                    avatarHTML = `<img src="https://files.catbox.moe/ugu1kl.png" class="follow-list-avatar" alt="${displayName}">`;
                   }
                 } else {
-                  avatarHTML = '<div class="follow-list-avatar-placeholder">🐻</div>';
+                  avatarHTML = `<img src="https://files.catbox.moe/ugu1kl.png" class="follow-list-avatar" alt="${displayName}">`;
                 }
 
                 return `
@@ -10773,13 +10795,12 @@
         try {
           const avatarData = JSON.parse(comment.commenter_avatar);
           const avatarUrl = avatarData.imageUrl || avatarData.fallbackImageUrl;
-          avatarHTML = `<img src="${avatarUrl}" class="comment-avatar" alt="${comment.commenter_name}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                       <div class="comment-avatar-placeholder" style="display:none;">🐻</div>`;
+          avatarHTML = `<img src="${avatarUrl}" class="comment-avatar" alt="${comment.commenter_name}" onerror="this.src='https://files.catbox.moe/ugu1kl.png';">`;
         } catch (e) {
-          avatarHTML = '<div class="comment-avatar-placeholder">🐻</div>';
+          avatarHTML = `<img src="https://files.catbox.moe/ugu1kl.png" class="comment-avatar" alt="${comment.commenter_name}">`;
         }
       } else {
-        avatarHTML = '<div class="comment-avatar-placeholder">🐻</div>';
+        avatarHTML = `<img src="https://files.catbox.moe/ugu1kl.png" class="comment-avatar" alt="${comment.commenter_name}">`;
       }
 
       // Load reactions
