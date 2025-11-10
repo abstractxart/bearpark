@@ -5423,6 +5423,11 @@
             <div style="font-size:16px; font-weight:700; color:var(--gold); margin-bottom:8px;">Analyzing Transactions...</div>
             <div id="plLoadingProgress" style="font-size:13px; color:rgba(255,255,255,0.6);">Fetching data...</div>
           </div>
+          <div id="plNoDataIndicator" style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); text-align:center; display:none;">
+            <div style="font-size:40px; margin-bottom:10px;">📭</div>
+            <div style="font-size:16px; font-weight:700; color:rgba(255,255,255,0.6); margin-bottom:8px;">Insufficient Data</div>
+            <div style="font-size:13px; color:rgba(255,255,255,0.4);">No transactions in this timeframe. Try a longer period.</div>
+          </div>
           <canvas id="plChart"></canvas>
         </div>
 
@@ -8040,11 +8045,35 @@
     function createPLChart(dataPoints) {
       console.log('📊 [CHART] createPLChart() called with', dataPoints.length, 'data points');
       const canvas = document.getElementById('plChart');
+      const noDataIndicator = document.getElementById('plNoDataIndicator');
+
       console.log('📊 [CHART] Canvas element:', canvas);
       if (!canvas) {
         console.error('📊 [CHART] ERROR: Canvas not found!');
         return;
       }
+
+      // Check if we have enough data points to draw a line chart
+      if (dataPoints.length < 2) {
+        console.warn('📊 [CHART] Insufficient data points (<2), showing no-data message');
+        const loadingIndicator = document.getElementById('plLoadingIndicator');
+        if (loadingIndicator) loadingIndicator.style.display = 'none';
+        if (noDataIndicator) noDataIndicator.style.display = 'block';
+        canvas.style.display = 'none';
+
+        // Destroy existing chart instance if it exists
+        if (plChartInstance) {
+          plChartInstance.destroy();
+          plChartInstance = null;
+        }
+        return;
+      }
+
+      // Hide no-data indicator and loading indicator, show canvas
+      const loadingIndicator = document.getElementById('plLoadingIndicator');
+      if (loadingIndicator) loadingIndicator.style.display = 'none';
+      if (noDataIndicator) noDataIndicator.style.display = 'none';
+      canvas.style.display = 'block';
 
       // Destroy existing chart instance if it exists
       if (plChartInstance) {
