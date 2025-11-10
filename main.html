@@ -5418,6 +5418,11 @@
 
         <!-- Chart Canvas -->
         <div style="position:relative; height:300px; background:rgba(0,0,0,0.3); border-radius:12px; padding:16px;">
+          <div id="plLoadingIndicator" style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); text-align:center; display:none;">
+            <div style="font-size:40px; margin-bottom:10px;">📊</div>
+            <div style="font-size:16px; font-weight:700; color:var(--gold); margin-bottom:8px;">Analyzing Transactions...</div>
+            <div id="plLoadingProgress" style="font-size:13px; color:rgba(255,255,255,0.6);">Fetching data...</div>
+          </div>
           <canvas id="plChart"></canvas>
         </div>
 
@@ -7686,11 +7691,18 @@
 
       try {
         console.log('📊 [P&L] Starting genius-level P&L analysis...');
+        plSection.style.display = 'block';
+
+        // Show loading indicator
+        const loadingIndicator = document.getElementById('plLoadingIndicator');
+        const loadingProgress = document.getElementById('plLoadingProgress');
+        if (loadingIndicator) loadingIndicator.style.display = 'block';
 
         // Connect to XRPL
         const client = new xrpl.Client('wss://xrplcluster.com');
         await client.connect();
         console.log('📊 [P&L] Connected to XRPL');
+        if (loadingProgress) loadingProgress.textContent = 'Connected to XRPL...';
 
         // Fetch ALL account transactions
         console.log('📊 [P&L] Fetching account transactions...');
@@ -7711,6 +7723,7 @@
             if (marker) txRequest.marker = marker;
 
             console.log(`📊 [P&L] Fetching page ${pageCount + 1}...`);
+            if (loadingProgress) loadingProgress.textContent = `Fetching page ${pageCount + 1}/${maxPages}...`;
             const txResponse = await client.request(txRequest);
             allTransactions.push(...txResponse.result.transactions);
 
@@ -7725,6 +7738,7 @@
         }
 
         console.log(`📊 [P&L] Fetched ${allTransactions.length} total transactions across ${pageCount} pages`);
+        if (loadingProgress) loadingProgress.textContent = `Analyzing ${allTransactions.length} transactions...`;
 
         // Filter for BEAR token transactions
         const bearTxs = allTransactions.filter(item => {
@@ -7926,6 +7940,8 @@
         console.log('📊 [P&L] FIFO analysis complete! Data points:', dataPoints.length);
         console.log('📊 [P&L] Total P&L:', totalPLXRP, 'XRP');
 
+        if (loadingProgress) loadingProgress.textContent = 'Creating chart...';
+
         // Update display
         console.log('📊 [P&L] Updating display...');
         updatePLDisplay(plData);
@@ -7933,6 +7949,9 @@
         // Create chart
         console.log('📊 [P&L] Creating chart with', dataPoints.length, 'data points...');
         createPLChart(dataPoints);
+
+        // Hide loading indicator
+        if (loadingIndicator) loadingIndicator.style.display = 'none';
 
         console.log('📊 [P&L] ✅ Chart created successfully!');
 
