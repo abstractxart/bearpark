@@ -693,6 +693,37 @@
     opacity: 1;
   }
 
+  /* LP Card */
+  .lp-card{
+    position: relative;
+    padding:32px;
+    border-radius:28px;
+    background:radial-gradient(500px 200px at 50% -20%, rgba(76,175,80,.12), transparent 60%), #0b0d0e;
+    box-shadow:0 12px 22px rgba(0,0,0,.35);
+    transition:transform 0.2s ease, box-shadow 0.2s ease;
+    isolation: isolate;
+    margin-bottom: 20px;
+  }
+  .lp-card:hover{
+    transform:translateY(-2px);
+    box-shadow:0 16px 32px rgba(0,0,0,.45);
+  }
+  .lp-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 28px;
+    padding: 4px;
+    background: linear-gradient(135deg, var(--stripe-purple) 0%, var(--stripe-purple) 33.33%, var(--stripe-yellow) 33.33%, var(--stripe-yellow) 66.66%, var(--stripe-green) 66.66%, var(--stripe-green) 100%);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 1;
+  }
+
   /* Profile Card */
   .profile-card{
     position: relative;
@@ -5187,6 +5218,39 @@
         </div>
       </div>
 
+      <!-- LIQUIDITY POOL POSITION -->
+      <div id="lpSection" class="lp-card" style="display:none;">
+        <h4 style="margin:0 0 16px 0; font-size:18px; font-weight:900; color:var(--gold); text-transform:uppercase; letter-spacing:0.5px;">💧 My Liquidity Position</h4>
+        <div class="lp-stats">
+          <div class="stat-row" style="margin-bottom:16px;">
+            <span class="stat-label" style="font-size:15px; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;">
+              🪙 LP Tokens:
+            </span>
+            <span id="lpTokenAmount" class="stat-value" style="font-size:24px; font-weight:900;">—</span>
+          </div>
+          <div class="stat-row" style="margin-bottom:12px;">
+            <span class="stat-label" style="font-size:15px; white-space:nowrap;">📊 Pool Ownership:</span>
+            <span id="lpPoolPercentage" class="stat-value" style="font-size:20px; font-weight:900; color:#5D3FD3;">—</span>
+          </div>
+          <div class="stat-row" style="margin-bottom:12px;">
+            <span class="stat-label" style="font-size:15px; display:inline-flex; align-items:center; gap:4px; white-space:nowrap;">
+              <img src="https://files.catbox.moe/esp426.png" alt="BEAR" width="18" height="18" style="display:inline-block;"> BEAR Share:
+            </span>
+            <span id="lpBearAmount" class="stat-value" style="font-size:20px; font-weight:900;">—</span>
+          </div>
+          <div class="stat-row" style="margin-bottom:12px;">
+            <span class="stat-label" style="font-size:15px; display:inline-flex; align-items:center; gap:4px; white-space:nowrap;">
+              <img src="https://files.catbox.moe/lufprf.png" alt="XRP" width="18" height="18" style="display:inline-block;"> XRP Share:
+            </span>
+            <span id="lpXrpAmount" class="stat-value" style="font-size:20px; font-weight:900;">—</span>
+          </div>
+          <div class="stat-row" style="padding-top:12px; border-top:2px solid rgba(237,183,35,0.3);">
+            <span class="stat-label" style="font-size:15px; white-space:nowrap;">💰 Total USD Value:</span>
+            <span id="lpUsdValue" class="stat-value" style="font-size:24px; font-weight:900; color:#4CAF50;">—</span>
+          </div>
+        </div>
+      </div>
+
       <!-- USER PROFILE CUSTOMIZATION -->
       <div id="profileSection" class="profile-card" style="display:none;">
         <div id="profileSetupSection">
@@ -7162,6 +7226,107 @@
 
       // Load points data (will be implemented with backend)
       loadPointsData(walletAddress);
+
+      // Load LP position data
+      loadLPData(walletAddress);
+    }
+
+    async function loadLPData(walletAddress) {
+      const lpSection = document.getElementById('lpSection');
+      if (!lpSection) return;
+
+      const LP_TOKEN_ISSUER = 'rKkkYMCvC63HEgxjQHmayKADaxYqnsMUkT'; // Your BEAR token address (AMM LP issuer)
+
+      try {
+        // Set loading states
+        document.getElementById('lpTokenAmount').textContent = 'Loading...';
+        document.getElementById('lpPoolPercentage').textContent = 'Loading...';
+        document.getElementById('lpBearAmount').textContent = 'Loading...';
+        document.getElementById('lpXrpAmount').textContent = 'Loading...';
+        document.getElementById('lpUsdValue').textContent = 'Loading...';
+
+        // Connect to XRPL
+        const client = new xrpl.Client('wss://xrplcluster.com');
+        await client.connect();
+
+        // Get account lines to find LP tokens
+        const accountLines = await client.request({
+          command: 'account_lines',
+          account: walletAddress,
+          ledger_index: 'validated'
+        });
+
+        // Look for LP token (AMM pool tokens have special format)
+        // For XRPL AMM, we need to check for the AMM account's LP tokens
+        const ammInfoRequest = await client.request({
+          command: 'amm_info',
+          asset: {
+            currency: '4245415200000000000000000000000000000000', // BEAR in hex
+            issuer: LP_TOKEN_ISSUER
+          },
+          asset2: {
+            currency: 'XRP'
+          }
+        });
+
+        if (!ammInfoRequest || !ammInfoRequest.result || !ammInfoRequest.result.amm) {
+          console.log('[LP] No AMM pool found');
+          lpSection.style.display = 'none';
+          await client.disconnect();
+          return;
+        }
+
+        const ammData = ammInfoRequest.result.amm;
+        const ammAccount = ammData.account;
+
+        // Find user's LP tokens
+        const lpLine = accountLines.result.lines.find(line =>
+          line.account === ammAccount && line.currency.length === 40 // LP tokens have 40-char hex
+        );
+
+        if (!lpLine || parseFloat(lpLine.balance) === 0) {
+          console.log('[LP] User has no LP tokens');
+          lpSection.style.display = 'none';
+          await client.disconnect();
+          return;
+        }
+
+        // Show LP section
+        lpSection.style.display = 'block';
+
+        const userLPTokens = parseFloat(lpLine.balance);
+        const totalLPTokens = parseFloat(ammData.lp_token.value);
+        const poolOwnershipPercent = (userLPTokens / totalLPTokens) * 100;
+
+        // Get pool reserves
+        const bearReserve = parseFloat(ammData.amount.value);
+        const xrpReserve = parseFloat(ammData.amount2.value) / 1000000; // Convert drops to XRP
+
+        // Calculate user's share
+        const userBearShare = bearReserve * (userLPTokens / totalLPTokens);
+        const userXrpShare = xrpReserve * (userLPTokens / totalLPTokens);
+
+        // Get prices
+        const {priceNative, priceUsd} = await fetchDex();
+
+        // Calculate USD value
+        const bearUsdValue = userBearShare * priceUsd;
+        const xrpUsdValue = userXrpShare * 2.50; // Approximate XRP price, should fetch real price
+        const totalUsdValue = bearUsdValue + xrpUsdValue;
+
+        // Update UI
+        document.getElementById('lpTokenAmount').textContent = userLPTokens.toLocaleString('en-US', { maximumFractionDigits: 6 });
+        document.getElementById('lpPoolPercentage').textContent = poolOwnershipPercent.toFixed(4) + '%';
+        document.getElementById('lpBearAmount').textContent = userBearShare.toLocaleString('en-US', { maximumFractionDigits: 2 });
+        document.getElementById('lpXrpAmount').textContent = userXrpShare.toLocaleString('en-US', { maximumFractionDigits: 2 }) + ' XRP';
+        document.getElementById('lpUsdValue').textContent = '$' + totalUsdValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        await client.disconnect();
+
+      } catch (err) {
+        console.error('[LP] Error loading LP data:', err);
+        lpSection.style.display = 'none';
+      }
     }
 
     async function loadPointsData(walletAddress) {
