@@ -456,6 +456,67 @@ app.delete('/api/raids/:id', async (req, res) => {
 });
 
 // Record Raid Completion and Award Points
+// SECURITY: Check if user already completed a raid (before starting countdown)
+app.post('/api/raids/check-completion', async (req, res) => {
+  try {
+    const { wallet_address, raid_id } = req.body;
+
+    if (!wallet_address || !raid_id) {
+      return res.status(400).json({ error: 'wallet_address and raid_id are required' });
+    }
+
+    // Check if already completed
+    const { data, error } = await supabase
+      .from('raid_completions')
+      .select('*')
+      .eq('wallet_address', wallet_address)
+      .eq('raid_id', raid_id)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error checking raid completion:', error);
+      // If table doesn't exist yet, assume not completed
+      return res.json({ alreadyCompleted: false });
+    }
+
+    res.json({ alreadyCompleted: !!data });
+  } catch (error) {
+    console.error('Error checking raid completion:', error);
+    // On error, be safe and say not completed (better UX than blocking)
+    res.json({ alreadyCompleted: false });
+  }
+});
+
+// SECURITY: Get all completed raids for a wallet
+app.get('/api/raids/completed/:wallet_address', async (req, res) => {
+  try {
+    const { wallet_address } = req.params;
+
+    if (!wallet_address) {
+      return res.status(400).json({ error: 'wallet_address is required' });
+    }
+
+    // Get all completed raids
+    const { data, error } = await supabase
+      .from('raid_completions')
+      .select('raid_id, completed_at, points_awarded')
+      .eq('wallet_address', wallet_address)
+      .order('completed_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching completed raids:', error);
+      // If table doesn't exist yet, return empty array
+      return res.json({ success: true, completedRaids: [] });
+    }
+
+    res.json({ success: true, completedRaids: data || [] });
+  } catch (error) {
+    console.error('Error fetching completed raids:', error);
+    res.json({ success: true, completedRaids: [] });
+  }
+});
+
+// SECURITY: Updated raid completion with duplicate protection
 app.post('/api/raids/complete', async (req, res) => {
   try {
     const { wallet_address, raid_id, completed_at, points_awarded } = req.body;
@@ -465,6 +526,46 @@ app.post('/api/raids/complete', async (req, res) => {
         success: false,
         error: 'Missing required fields: wallet_address, raid_id, points_awarded'
       });
+    }
+
+    // CRITICAL: Check if already completed (prevent exploit)
+    const { data: existingCompletion } = await supabase
+      .from('raid_completions')
+      .select('*')
+      .eq('wallet_address', wallet_address)
+      .eq('raid_id', raid_id)
+      .maybeSingle();
+
+    if (existingCompletion) {
+      console.log(`❌ EXPLOIT BLOCKED: User ${wallet_address} attempted to complete raid ${raid_id} twice!`);
+      return res.json({
+        success: true,
+        alreadyCompleted: true,
+        message: 'Raid already completed - no points awarded'
+      });
+    }
+
+    // Record completion in raid_completions table
+    const { error: completionError } = await supabase
+      .from('raid_completions')
+      .insert({
+        wallet_address,
+        raid_id,
+        points_awarded,
+        completed_at: completed_at || new Date().toISOString()
+      });
+
+    if (completionError) {
+      // Check if it's a duplicate key error
+      if (completionError.code === '23505') { // PostgreSQL unique violation
+        console.log(`❌ EXPLOIT BLOCKED: Duplicate raid completion detected for ${wallet_address}, raid ${raid_id}`);
+        return res.json({
+          success: true,
+          alreadyCompleted: true,
+          message: 'Raid already completed - no points awarded'
+        });
+      }
+      throw completionError;
     }
 
     // Check if points record exists for this wallet
@@ -500,9 +601,10 @@ app.post('/api/raids/complete', async (req, res) => {
       if (error) throw error;
     }
 
-    console.log(`✅ Awarded ${points_awarded} points to ${wallet_address}`);
+    console.log(`✅ Raid completed: User ${wallet_address} earned ${points_awarded} points for raid ${raid_id}`);
     res.json({
       success: true,
+      alreadyCompleted: false,
       message: 'Points awarded successfully',
       points_awarded
     });
