@@ -40,26 +40,24 @@ webpush.setVapidDetails(
 );
 console.log('✅ Push notifications configured');
 
-// Validate required environment variables
-if (!XAMAN_API_KEY || !XAMAN_API_SECRET) {
-  const error = '❌ ERROR: XAMAN_API_KEY and XAMAN_API_SECRET must be set in environment variables';
-  console.error(error);
-  // Don't exit in serverless - throw error instead
-  if (process.env.VERCEL) {
-    throw new Error(error);
+// Initialize XAMAN SDK (with validation)
+let xumm;
+try {
+  if (!XAMAN_API_KEY || !XAMAN_API_SECRET) {
+    console.error('❌ WARNING: XAMAN_API_KEY and XAMAN_API_SECRET not found in environment');
+    // Don't throw or exit - let the server start and handle errors in routes
   } else {
-    process.exit(1);
+    console.log('Initializing XAMAN SDK...');
+    console.log('API Key length:', XAMAN_API_KEY?.length);
+    console.log('API Secret length:', XAMAN_API_SECRET?.length);
+    console.log('API Key (first 10 chars):', XAMAN_API_KEY?.substring(0, 10));
+    console.log('API Secret (first 10 chars):', XAMAN_API_SECRET?.substring(0, 10));
+    xumm = new XummSdk(XAMAN_API_KEY, XAMAN_API_SECRET);
+    console.log('✅ XAMAN SDK initialized successfully');
   }
+} catch (error) {
+  console.error('❌ Failed to initialize XAMAN SDK:', error.message);
 }
-
-// Initialize XAMAN SDK
-console.log('Initializing XAMAN SDK...');
-console.log('API Key length:', XAMAN_API_KEY?.length);
-console.log('API Secret length:', XAMAN_API_SECRET?.length);
-console.log('API Key (first 10 chars):', XAMAN_API_KEY?.substring(0, 10));
-console.log('API Secret (first 10 chars):', XAMAN_API_SECRET?.substring(0, 10));
-const xumm = new XummSdk(XAMAN_API_KEY, XAMAN_API_SECRET);
-console.log('✅ XAMAN SDK initialized successfully');
 
 // Middleware
 app.use(cors({
