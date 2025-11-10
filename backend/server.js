@@ -203,6 +203,120 @@ app.get('/api/leaderboard/:gameId', async (req, res) => {
   }
 });
 
+// Submit Game Score to Leaderboard
+app.post('/api/leaderboard', async (req, res) => {
+  try {
+    const { wallet_address, game_id, score, metadata } = req.body;
+
+    // Validate required fields
+    if (!wallet_address || !game_id || score === undefined) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: wallet_address, game_id, score'
+      });
+    }
+
+    console.log(`📝 Submitting score for ${game_id}: ${score} (wallet: ${wallet_address})`);
+
+    // Check if user already has a score for this game
+    const { data: existingScore, error: fetchError } = await supabase
+      .from('game_leaderboards')
+      .select('score')
+      .eq('wallet_address', wallet_address)
+      .eq('game_id', game_id)
+      .single();
+
+    if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 = no rows found
+      console.error('Error fetching existing score:', fetchError);
+      return res.status(500).json({ success: false, error: fetchError.message });
+    }
+
+    let is_high_score = false;
+    let result;
+
+    if (existingScore) {
+      // User has existing score - only update if new score is higher
+      if (score > existingScore.score) {
+        console.log(`🎉 New high score! Old: ${existingScore.score}, New: ${score}`);
+        is_high_score = true;
+
+        const { data, error: updateError } = await supabase
+          .from('game_leaderboards')
+          .update({
+            score: score,
+            metadata: metadata || {},
+            updated_at: new Date().toISOString()
+          })
+          .eq('wallet_address', wallet_address)
+          .eq('game_id', game_id)
+          .select()
+          .single();
+
+        if (updateError) {
+          console.error('Error updating score:', updateError);
+          return res.status(500).json({ success: false, error: updateError.message });
+        }
+
+        result = data;
+      } else {
+        console.log(`Score ${score} not higher than existing ${existingScore.score}`);
+        result = existingScore;
+      }
+    } else {
+      // No existing score - insert new one
+      console.log(`✨ First score submission for this game`);
+      is_high_score = true;
+
+      const { data, error: insertError } = await supabase
+        .from('game_leaderboards')
+        .insert({
+          wallet_address: wallet_address,
+          game_id: game_id,
+          score: score,
+          metadata: metadata || {},
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error('Error inserting score:', insertError);
+        return res.status(500).json({ success: false, error: insertError.message });
+      }
+
+      result = data;
+    }
+
+    // Get user's rank
+    const { data: leaderboard, error: rankError } = await supabase
+      .from('game_leaderboards')
+      .select('wallet_address, score')
+      .eq('game_id', game_id)
+      .order('score', { ascending: false });
+
+    let rank = null;
+    if (!rankError && leaderboard) {
+      const userIndex = leaderboard.findIndex(entry => entry.wallet_address === wallet_address);
+      if (userIndex !== -1) {
+        rank = userIndex + 1;
+      }
+    }
+
+    res.json({
+      success: true,
+      is_high_score: is_high_score,
+      score: score,
+      rank: rank,
+      entry: result
+    });
+
+  } catch (error) {
+    console.error('Error in POST /api/leaderboard:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Get User Points
 app.get('/api/points/:wallet', async (req, res) => {
   try {
