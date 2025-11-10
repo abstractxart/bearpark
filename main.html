@@ -7499,6 +7499,7 @@
         console.log('📊 [P&L] Connected to XRPL');
 
         // Fetch ALL account transactions
+        console.log('📊 [P&L] Fetching account transactions...');
         const allTransactions = [];
         let marker = undefined;
         let pageCount = 0;
@@ -7514,6 +7515,7 @@
           };
           if (marker) txRequest.marker = marker;
 
+          console.log(`📊 [P&L] Fetching page ${pageCount + 1}...`);
           const txResponse = await client.request(txRequest);
           allTransactions.push(...txResponse.result.transactions);
 
@@ -7523,7 +7525,7 @@
           if (!marker) break;
         }
 
-        console.log(`📊 [P&L] Fetched ${allTransactions.length} total transactions`);
+        console.log(`📊 [P&L] Fetched ${allTransactions.length} total transactions across ${pageCount} pages`);
 
         // Filter for BEAR token transactions
         const bearTxs = allTransactions.filter(item => {
