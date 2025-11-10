@@ -7592,9 +7592,21 @@
 
       console.log('📊 [Timeframe] Filtered points count:', filteredPoints.length, 'of', fullData.dataPoints.length);
 
+      if (filteredPoints.length > 0) {
+        console.log('📊 [Timeframe] Date range:',
+          new Date(filteredPoints[0].timestamp).toISOString().split('T')[0],
+          'to',
+          new Date(filteredPoints[filteredPoints.length - 1].timestamp).toISOString().split('T')[0]
+        );
+      }
+
       if (filteredPoints.length === 0) {
         console.warn('📊 [Timeframe] No data points in this timeframe, showing all data');
         return fullData;
+      }
+
+      if (filteredPoints.length === 1) {
+        console.warn('📊 [Timeframe] Only 1 point - cannot draw line chart');
       }
 
       // Use the latest point's actual values
