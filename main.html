@@ -7788,6 +7788,16 @@
         // Sort transactions by date
         bearTxs.sort((a, b) => a.tx.date - b.tx.date);
 
+        // Log first transaction date for debugging
+        if (bearTxs.length > 0) {
+          const firstTx = bearTxs[0];
+          console.log('📊 [P&L] First TX raw date:', firstTx.tx.date);
+          console.log('📊 [P&L] First TX converted:', new Date((firstTx.tx.date + 946684800) * 1000).toISOString());
+          const lastTx = bearTxs[bearTxs.length - 1];
+          console.log('📊 [P&L] Last TX raw date:', lastTx.tx.date);
+          console.log('📊 [P&L] Last TX converted:', new Date((lastTx.tx.date + 946684800) * 1000).toISOString());
+        }
+
         for (const item of bearTxs) {
           const tx = item.tx;
           const meta = item.meta;
