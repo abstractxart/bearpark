@@ -8729,16 +8729,45 @@
       const walletAddress = localStorage.getItem('bearpark_wallet');
 
       try {
-        const response = await fetch(`${API_BASE_URL}/api/raids/current`);
-        if (!response.ok) {
+        // Fetch current raids and user's completed raids in parallel
+        const [raidsResponse, completedResponse] = await Promise.all([
+          fetch(`${API_BASE_URL}/api/raids/current`),
+          walletAddress ? fetch(`${API_BASE_URL}/api/raids/completed/${walletAddress}`).catch(() => null) : Promise.resolve(null)
+        ]);
+
+        if (!raidsResponse.ok) {
           console.debug('Raids API not available');
           displayMockRaids(); // Show mock data for now
           return;
         }
-        const data = await response.json();
 
-        if (data.success && data.raids) {
-          displayCurrentRaids(data.raids, walletAddress);
+        const raidsData = await raidsResponse.json();
+
+        if (raidsData.success && raidsData.raids) {
+          // Get server-side completed raids if available
+          let serverCompletedRaids = [];
+          if (completedResponse && completedResponse.ok) {
+            const completedData = await completedResponse.json();
+            if (completedData.success && completedData.completedRaids) {
+              serverCompletedRaids = completedData.completedRaids.map(r => r.raid_id);
+              console.log('🔵 [Raids] Server-side completed raids:', serverCompletedRaids);
+            }
+          }
+
+          // Merge server-side completed raids with localStorage
+          const localCompleted = JSON.parse(localStorage.getItem(`completed_raids_${walletAddress}`) || '[]');
+          const allCompletedRaids = [...new Set([...serverCompletedRaids, ...localCompleted])];
+
+          // Update localStorage with merged data
+          if (walletAddress && allCompletedRaids.length > 0) {
+            localStorage.setItem(`completed_raids_${walletAddress}`, JSON.stringify(allCompletedRaids));
+          }
+
+          // Filter out completed raids entirely
+          const activeRaids = raidsData.raids.filter(raid => !allCompletedRaids.includes(raid.id));
+          console.log('🔵 [Raids] Total raids:', raidsData.raids.length, 'Active:', activeRaids.length, 'Completed:', allCompletedRaids.length);
+
+          displayCurrentRaids(activeRaids, walletAddress);
         }
       } catch (err) {
         console.error('Error loading raids:', err);
