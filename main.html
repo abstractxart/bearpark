@@ -7235,6 +7235,22 @@
       const lpSection = document.getElementById('lpSection');
       if (!lpSection) return;
 
+      // Check for demo mode
+      const urlParams = new URLSearchParams(window.location.search);
+      const showDemo = urlParams.get('show_lp_demo') === 'true';
+
+      if (showDemo) {
+        // Show demo data
+        lpSection.style.display = 'block';
+        document.getElementById('lpTokenAmount').textContent = '12,345.678901';
+        document.getElementById('lpPoolPercentage').textContent = '2.3456%';
+        document.getElementById('lpBearAmount').textContent = '500,000.00';
+        document.getElementById('lpXrpAmount').textContent = '1,234.56 XRP';
+        document.getElementById('lpUsdValue').textContent = '$3,850.75';
+        console.log('💧 LP Demo Mode Active - Showing sample data');
+        return;
+      }
+
       const LP_TOKEN_ISSUER = 'rKkkYMCvC63HEgxjQHmayKADaxYqnsMUkT'; // Your BEAR token address (AMM LP issuer)
 
       try {
