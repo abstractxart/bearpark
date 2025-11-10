@@ -9796,15 +9796,26 @@
         }
       }
 
-      // Wait for drawer to open, then scroll to profile section
-      setTimeout(() => {
+      // Wait for drawer to open and PNL to load, then scroll to profile section
+      const scrollToProfile = () => {
         const profileSection = document.getElementById('profileSection');
         const drawer = document.getElementById('buyDrawer');
         const drawerBody = drawer ? drawer.querySelector('.drawer-body') : null;
+        const portfolioSection = document.getElementById('portfolioSection');
 
-        console.log('🐻 Drawer opened, scrolling to profile section...', { profileSection, drawerBody });
+        console.log('🐻 Checking if ready to scroll...', {
+          profileSection,
+          drawerBody,
+          portfolioVisible: portfolioSection?.style.display !== 'none',
+          portfolioHeight: portfolioSection?.offsetHeight
+        });
 
-        if (profileSection && drawerBody) {
+        // Check if portfolio section has loaded (height > 0 means content is rendered)
+        const portfolioLoaded = !portfolioSection || portfolioSection.style.display === 'none' || portfolioSection.offsetHeight > 100;
+
+        if (profileSection && drawerBody && portfolioLoaded) {
+          console.log('🐻 Portfolio loaded, scrolling to profile section...');
+
           drawerBody.scrollTo({
             top: profileSection.offsetTop - 20,
             behavior: 'smooth'
@@ -9819,10 +9830,17 @@
           }, 5000);
 
           console.log('✅ Profile section highlighted and scrolled into view!');
+        } else if (profileSection && drawerBody) {
+          console.log('⏳ Portfolio still loading, waiting...');
+          // If portfolio hasn't loaded yet, wait a bit longer and try again
+          setTimeout(scrollToProfile, 300);
         } else {
           console.error('❌ Could not find profileSection or drawerBody elements!', { profileSection, drawerBody });
         }
-      }, 600);
+      };
+
+      // Start checking after drawer animation
+      setTimeout(scrollToProfile, 800);
     };
 
     // Update welcome button with points and username
