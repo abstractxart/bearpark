@@ -5420,21 +5420,6 @@
           <canvas id="plChart"></canvas>
         </div>
 
-        <!-- Additional Insights -->
-        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:10px; margin-top:16px;">
-          <div style="background:rgba(76,175,80,0.15); padding:12px; border-radius:8px; border:2px solid rgba(76,175,80,0.3);">
-            <div style="font-size:11px; font-weight:700; color:rgba(76,175,80,0.8); margin-bottom:4px; text-transform:uppercase;">🚀 Best Day</div>
-            <div id="plBestDay" style="font-size:15px; font-weight:900; color:#4CAF50;">—</div>
-          </div>
-          <div style="background:rgba(244,67,54,0.15); padding:12px; border-radius:8px; border:2px solid rgba(244,67,54,0.3);">
-            <div style="font-size:11px; font-weight:700; color:rgba(244,67,54,0.8); margin-bottom:4px; text-transform:uppercase;">📉 Worst Day</div>
-            <div id="plWorstDay" style="font-size:15px; font-weight:900; color:#f44336;">—</div>
-          </div>
-          <div style="background:rgba(237,183,35,0.15); padding:12px; border-radius:8px; border:2px solid rgba(237,183,35,0.3);">
-            <div style="font-size:11px; font-weight:700; color:rgba(237,183,35,0.8); margin-bottom:4px; text-transform:uppercase;">📊 Avg Daily</div>
-            <div id="plAvgDaily" style="font-size:15px; font-weight:900; color:var(--gold);">—</div>
-          </div>
-        </div>
       </div>
 
       <!-- USER PROFILE CUSTOMIZATION -->
@@ -7908,31 +7893,6 @@
       roiEl.textContent = (data.roiPercent >= 0 ? '+' : '') + data.roiPercent.toFixed(2) + '%';
       roiEl.className = 'pl-stat-value ' + (data.roiPercent >= 0 ? 'positive' : 'negative');
 
-      // Calculate best/worst days and average daily P&L
-      if (data.dataPoints.length > 1) {
-        let bestDayChange = 0;
-        let worstDayChange = 0;
-        let totalChange = 0;
-
-        for (let i = 1; i < data.dataPoints.length; i++) {
-          const prevValue = isXRP ? data.dataPoints[i-1].totalPLXRP : data.dataPoints[i-1].totalPLUSD;
-          const currValue = isXRP ? data.dataPoints[i].totalPLXRP : data.dataPoints[i].totalPLUSD;
-          const change = currValue - prevValue;
-
-          if (change > bestDayChange) bestDayChange = change;
-          if (change < worstDayChange) worstDayChange = change;
-          totalChange += change;
-        }
-
-        const avgDaily = totalChange / (data.dataPoints.length - 1);
-
-        document.getElementById('plBestDay').textContent =
-          (bestDayChange >= 0 ? '+' : '') + prefix + bestDayChange.toFixed(2) + symbol;
-        document.getElementById('plWorstDay').textContent =
-          (worstDayChange >= 0 ? '+' : '') + prefix + worstDayChange.toFixed(2) + symbol;
-        document.getElementById('plAvgDaily').textContent =
-          (avgDaily >= 0 ? '+' : '') + prefix + avgDaily.toFixed(2) + symbol;
-      }
 
       // Update chart if it exists
       if (plChartInstance) {
