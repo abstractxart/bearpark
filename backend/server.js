@@ -1920,9 +1920,15 @@ app.post('/api/push/test', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`\n🚀 BEAR Park API Server running on http://localhost:${PORT}`);
-  console.log(`✅ Ready to handle XAMAN authentication`);
-  console.log(`✅ Ready to handle honey points & leaderboard`);
-  console.log(`✅ Ready to handle admin features\n`);
-});
+// Start server for local development
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`\n🚀 BEAR Park API Server running on http://localhost:${PORT}`);
+    console.log(`✅ Ready to handle XAMAN authentication`);
+    console.log(`✅ Ready to handle honey points & leaderboard`);
+    console.log(`✅ Ready to handle admin features\n`);
+  });
+}
+
+// Export for Vercel serverless
+module.exports = app;
