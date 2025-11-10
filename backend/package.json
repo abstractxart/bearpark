@@ -11,10 +11,12 @@
     "dev": "node server.js"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.80.0",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
     "express": "^4.18.2",
     "node-fetch": "^2.7.0",
+    "pg": "^8.16.3",
     "xumm-sdk": "^1.11.2"
   }
 }
