@@ -347,7 +347,7 @@
   .community-banner img.bg{width:100%;height:100%;object-fit:cover;opacity:.5;filter:saturate(1.15) contrast(1.1) blur(1px)}
   .community-banner .overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;background:radial-gradient(circle at center, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.7) 100%)}
   .community-content{display:flex;flex-direction:column;align-items:center;max-width:700px;position:relative;z-index:2}
-  .community-badge{width:80px;height:80px;background:var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(237,183,35,0.4), 0 0 0 6px rgba(237,183,35,0.2), 0 0 0 12px rgba(0,0,0,0.3);animation:badge-float 3s ease-in-out infinite}
+  .community-badge{width:160px;height:160px;background:var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 12px 32px rgba(237,183,35,0.5), 0 0 0 8px rgba(237,183,35,0.3), 0 0 0 16px rgba(0,0,0,0.4);animation:badge-float 3s ease-in-out infinite}
   @keyframes badge-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
   .community-buttons{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;margin-bottom:32px}
   .community-btn{display:flex;align-items:center;gap:10px;font-size:16px;padding:14px 28px;transition:all 0.3s ease;position:relative;overflow:hidden}
@@ -369,7 +369,8 @@
   .paw:nth-child(4){top:70%;left:-50px;animation-delay:15s}
   @keyframes paw-walk{0%{left:-50px;transform:rotate(-15deg)}100%{left:calc(100% + 50px);transform:rotate(15deg)}}
   @media (max-width:640px){
-    .community-banner{min-height:650px}
+    .community-banner{min-height:700px}
+    .community-badge{width:140px;height:140px}
     .community-buttons{flex-direction:column;width:100%;max-width:280px}
     .community-btn{width:100%;justify-content:center}
     .community-stats{grid-template-columns:repeat(2,1fr);gap:16px;padding:16px;max-width:100%}
