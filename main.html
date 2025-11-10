@@ -11736,8 +11736,7 @@
       welcomeBtn.addEventListener('click', () => {
         const wallet = localStorage.getItem('bearpark_wallet');
         if (!wallet) {
-          // No wallet - just open drawer
-          openDrawer();
+          // No wallet - shouldn't happen since user needs wallet to access site
           return;
         }
 
