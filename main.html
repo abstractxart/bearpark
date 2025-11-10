@@ -791,6 +791,32 @@
     color: #000;
     box-shadow: 0 4px 12px rgba(237,183,35,0.4);
   }
+  .pl-timeframe-btn {
+    padding: 6px 12px;
+    background: rgba(0,0,0,0.4);
+    color: rgba(255,255,255,0.6);
+    border: 2px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+  }
+  .pl-timeframe-btn:hover {
+    background: rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.9);
+    border-color: rgba(255,255,255,0.2);
+    transform: translateY(-2px);
+  }
+  .pl-timeframe-btn.active {
+    background: rgba(237,183,35,0.2);
+    color: var(--gold);
+    border-color: var(--gold);
+    box-shadow: 0 0 12px rgba(237,183,35,0.3);
+  }
 
   /* P&L Stat Boxes */
   .pl-stat-box {
@@ -5350,12 +5376,24 @@
 
       <!-- PROFIT & LOSS CHART -->
       <div id="plSection" class="pl-card" style="display:none;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:12px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
           <h4 style="margin:0; font-size:18px; font-weight:900; color:var(--gold); text-transform:uppercase; letter-spacing:0.5px;">📈 Profit & Loss</h4>
           <div class="pl-toggle-group">
             <button id="plToggleXRP" class="pl-toggle-btn active" onclick="switchPLCurrency('XRP')">XRP</button>
             <button id="plToggleUSD" class="pl-toggle-btn" onclick="switchPLCurrency('USD')">USD</button>
           </div>
+        </div>
+
+        <!-- Timeframe Filter -->
+        <div style="display:flex; gap:6px; margin-bottom:16px; overflow-x:auto; padding:2px; flex-wrap:wrap;">
+          <button class="pl-timeframe-btn active" data-timeframe="all" onclick="switchPLTimeframe('all')">All Time</button>
+          <button class="pl-timeframe-btn" data-timeframe="6m" onclick="switchPLTimeframe('6m')">6M</button>
+          <button class="pl-timeframe-btn" data-timeframe="3m" onclick="switchPLTimeframe('3m')">3M</button>
+          <button class="pl-timeframe-btn" data-timeframe="1m" onclick="switchPLTimeframe('1m')">1M</button>
+          <button class="pl-timeframe-btn" data-timeframe="2w" onclick="switchPLTimeframe('2w')">2W</button>
+          <button class="pl-timeframe-btn" data-timeframe="1w" onclick="switchPLTimeframe('1w')">1W</button>
+          <button class="pl-timeframe-btn" data-timeframe="3d" onclick="switchPLTimeframe('3d')">3D</button>
+          <button class="pl-timeframe-btn" data-timeframe="1d" onclick="switchPLTimeframe('1d')">24H</button>
         </div>
 
         <!-- Summary Stats -->
@@ -5383,9 +5421,20 @@
           <canvas id="plChart"></canvas>
         </div>
 
-        <!-- Transaction Summary -->
-        <div style="margin-top:16px; padding:12px; background:rgba(0,0,0,0.2); border-radius:8px; font-size:13px; opacity:0.8;">
-          <span id="plTransactionSummary">Analyzing transaction history...</span>
+        <!-- Additional Insights -->
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:10px; margin-top:16px;">
+          <div style="background:rgba(76,175,80,0.15); padding:12px; border-radius:8px; border:2px solid rgba(76,175,80,0.3);">
+            <div style="font-size:11px; font-weight:700; color:rgba(76,175,80,0.8); margin-bottom:4px; text-transform:uppercase;">🚀 Best Day</div>
+            <div id="plBestDay" style="font-size:15px; font-weight:900; color:#4CAF50;">—</div>
+          </div>
+          <div style="background:rgba(244,67,54,0.15); padding:12px; border-radius:8px; border:2px solid rgba(244,67,54,0.3);">
+            <div style="font-size:11px; font-weight:700; color:rgba(244,67,54,0.8); margin-bottom:4px; text-transform:uppercase;">📉 Worst Day</div>
+            <div id="plWorstDay" style="font-size:15px; font-weight:900; color:#f44336;">—</div>
+          </div>
+          <div style="background:rgba(237,183,35,0.15); padding:12px; border-radius:8px; border:2px solid rgba(237,183,35,0.3);">
+            <div style="font-size:11px; font-weight:700; color:rgba(237,183,35,0.8); margin-bottom:4px; text-transform:uppercase;">📊 Avg Daily</div>
+            <div id="plAvgDaily" style="font-size:15px; font-weight:900; color:var(--gold);">—</div>
+          </div>
         </div>
       </div>
 
@@ -7475,7 +7524,9 @@
     // Global P&L state
     let plChartInstance = null;
     let plData = null;
+    let plFullData = null; // Store full unfiltered data
     let currentPLCurrency = 'XRP';
+    let currentPLTimeframe = 'all';
 
     // Switch P&L currency display
     window.switchPLCurrency = function(currency) {
@@ -7486,6 +7537,67 @@
         updatePLDisplay(plData);
       }
     };
+
+    // Switch P&L timeframe
+    window.switchPLTimeframe = function(timeframe) {
+      currentPLTimeframe = timeframe;
+
+      // Update button states
+      document.querySelectorAll('.pl-timeframe-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.timeframe === timeframe);
+      });
+
+      // Filter data based on timeframe
+      if (plFullData) {
+        const filteredData = filterPLDataByTimeframe(plFullData, timeframe);
+        plData = filteredData;
+        updatePLDisplay(filteredData);
+        createPLChart(filteredData.dataPoints);
+      }
+    };
+
+    // Filter P&L data by timeframe
+    function filterPLDataByTimeframe(fullData, timeframe) {
+      if (timeframe === 'all') {
+        return fullData;
+      }
+
+      const now = Date.now();
+      let cutoffTime;
+
+      switch(timeframe) {
+        case '6m': cutoffTime = now - (6 * 30 * 24 * 60 * 60 * 1000); break;
+        case '3m': cutoffTime = now - (3 * 30 * 24 * 60 * 60 * 1000); break;
+        case '1m': cutoffTime = now - (30 * 24 * 60 * 60 * 1000); break;
+        case '2w': cutoffTime = now - (14 * 24 * 60 * 60 * 1000); break;
+        case '1w': cutoffTime = now - (7 * 24 * 60 * 60 * 1000); break;
+        case '3d': cutoffTime = now - (3 * 24 * 60 * 60 * 1000); break;
+        case '1d': cutoffTime = now - (24 * 60 * 60 * 1000); break;
+        default: return fullData;
+      }
+
+      const filteredPoints = fullData.dataPoints.filter(d => d.timestamp >= cutoffTime);
+
+      if (filteredPoints.length === 0) {
+        return fullData; // Return full data if no points in timeframe
+      }
+
+      // Use the latest values from filtered data
+      const latestPoint = filteredPoints[filteredPoints.length - 1];
+
+      return {
+        dataPoints: filteredPoints,
+        totalPLXRP: latestPoint.totalPLXRP,
+        totalPLUSD: latestPoint.totalPLUSD,
+        unrealizedXRP: latestPoint.unrealizedXRP,
+        unrealizedUSD: latestPoint.unrealizedUSD,
+        realizedXRP: latestPoint.realizedXRP,
+        realizedUSD: latestPoint.realizedUSD,
+        roiPercent: fullData.roiPercent,
+        totalBought: fullData.totalBought,
+        totalSold: fullData.totalSold
+      };
+    }
 
     async function loadPLChart(walletAddress) {
       const plSection = document.getElementById('plSection');
@@ -7521,7 +7633,7 @@
           });
         }
 
-        plData = {
+        plFullData = {
           dataPoints: demoDataPoints,
           totalPLXRP: currentPL,
           totalPLUSD: currentPL * 2.50,
@@ -7534,6 +7646,7 @@
           totalSold: 300000
         };
 
+        plData = plFullData;
         updatePLDisplay(plData);
         createPLChart(demoDataPoints);
         console.log('📊 [P&L] DEMO chart created!');
@@ -7767,7 +7880,7 @@
         const totalInvestedXRP = costBasis.reduce((sum, lot) => sum + (lot.amount * lot.costPerToken), 0);
         const roiPercent = totalInvestedXRP > 0 ? (totalPLXRP / totalInvestedXRP) * 100 : 0;
 
-        plData = {
+        plFullData = {
           dataPoints,
           totalPLXRP,
           totalPLUSD,
@@ -7779,6 +7892,8 @@
           totalBought,
           totalSold
         };
+
+        plData = plFullData;
 
         console.log('📊 [P&L] FIFO analysis complete! Data points:', dataPoints.length);
         console.log('📊 [P&L] Total P&L:', totalPLXRP, 'XRP');
@@ -7827,9 +7942,31 @@
       roiEl.textContent = (data.roiPercent >= 0 ? '+' : '') + data.roiPercent.toFixed(2) + '%';
       roiEl.className = 'pl-stat-value ' + (data.roiPercent >= 0 ? 'positive' : 'negative');
 
-      // Update summary
-      document.getElementById('plTransactionSummary').textContent =
-        `${data.totalBought.toLocaleString()} BEAR bought • ${data.totalSold.toLocaleString()} BEAR sold • ${data.dataPoints.length} transactions analyzed`;
+      // Calculate best/worst days and average daily P&L
+      if (data.dataPoints.length > 1) {
+        let bestDayChange = 0;
+        let worstDayChange = 0;
+        let totalChange = 0;
+
+        for (let i = 1; i < data.dataPoints.length; i++) {
+          const prevValue = isXRP ? data.dataPoints[i-1].totalPLXRP : data.dataPoints[i-1].totalPLUSD;
+          const currValue = isXRP ? data.dataPoints[i].totalPLXRP : data.dataPoints[i].totalPLUSD;
+          const change = currValue - prevValue;
+
+          if (change > bestDayChange) bestDayChange = change;
+          if (change < worstDayChange) worstDayChange = change;
+          totalChange += change;
+        }
+
+        const avgDaily = totalChange / (data.dataPoints.length - 1);
+
+        document.getElementById('plBestDay').textContent =
+          (bestDayChange >= 0 ? '+' : '') + prefix + bestDayChange.toFixed(2) + symbol;
+        document.getElementById('plWorstDay').textContent =
+          (worstDayChange >= 0 ? '+' : '') + prefix + worstDayChange.toFixed(2) + symbol;
+        document.getElementById('plAvgDaily').textContent =
+          (avgDaily >= 0 ? '+' : '') + prefix + avgDaily.toFixed(2) + symbol;
+      }
 
       // Update chart if it exists
       if (plChartInstance) {
