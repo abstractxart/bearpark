@@ -5329,7 +5329,7 @@
     </div>
     <div class="drawer-body">
       <!-- MY $BEAR PORTFOLIO -->
-      <div id="portfolioSection" class="portfolio-card" style="display:none; min-height:200px;">
+      <div id="portfolioSection" class="portfolio-card" style="display:none;">
         <h4 style="margin:0 0 16px 0; font-size:18px; font-weight:900; color:var(--gold); text-transform:uppercase; letter-spacing:0.5px;">💼 My $BEAR Portfolio</h4>
         <div class="portfolio-stats">
           <div class="stat-row" style="margin-bottom:16px;">
@@ -5353,7 +5353,7 @@
       </div>
 
       <!-- LIQUIDITY POOL POSITION -->
-      <div id="lpSection" class="lp-card" style="display:none; min-height:250px;">
+      <div id="lpSection" class="lp-card" style="display:none;">
         <h4 style="margin:0 0 16px 0; font-size:18px; font-weight:900; color:var(--gold); text-transform:uppercase; letter-spacing:0.5px;">💧 My Liquidity Position</h4>
         <div class="lp-stats">
           <div class="stat-row" style="margin-bottom:16px;">
@@ -5386,7 +5386,7 @@
       </div>
 
       <!-- PROFIT & LOSS CHART -->
-      <div id="plSection" class="pl-card" style="display:none; min-height:300px;">
+      <div id="plSection" class="pl-card" style="display:none;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
           <h4 style="margin:0; font-size:18px; font-weight:900; color:var(--gold); text-transform:uppercase; letter-spacing:0.5px;">📈 Profit & Loss</h4>
           <div class="pl-toggle-group">
@@ -9814,8 +9814,7 @@
         }
       }
 
-      // Wait for drawer to open, then scroll to profile section
-      // Portfolio sections now have min-height set, so no need to wait for content to load
+      // Wait for drawer to open and PNL content to load, then scroll to profile section
       setTimeout(() => {
         const profileSection = document.getElementById('profileSection');
         const drawer = document.getElementById('buyDrawer');
@@ -9841,7 +9840,7 @@
         } else {
           console.error('❌ Could not find profileSection or drawerBody elements!', { profileSection, drawerBody });
         }
-      }, 650);
+      }, 1500);
     };
 
     // Update welcome button with points and username
