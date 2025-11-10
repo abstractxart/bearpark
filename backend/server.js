@@ -1,5 +1,8 @@
 const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
+// Load .env only in local development (Vercel injects env vars directly)
+if (process.env.NODE_ENV !== 'production') {
+  require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
+}
 const express = require('express');
 const cors = require('cors');
 const { XummSdk } = require('xumm-sdk');
