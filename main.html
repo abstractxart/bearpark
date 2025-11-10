@@ -7495,7 +7495,7 @@
       }
 
       // Demo mode for testing - ALWAYS ON FOR NOW
-      const FORCE_DEMO = false; // Set to false to use REAL data
+      const FORCE_DEMO = true; // Set to false to use REAL data
       if (FORCE_DEMO) {
         console.log('📊 [P&L] DEMO MODE ACTIVATED');
         plSection.style.display = 'block';
@@ -7529,7 +7529,9 @@
           unrealizedUSD: currentPL * 0.7 * 2.50,
           realizedXRP: currentPL * 0.3,
           realizedUSD: currentPL * 0.3 * 2.50,
-          roiPercent: 25.5
+          roiPercent: 25.5,
+          totalBought: 1500000,
+          totalSold: 300000
         };
 
         updatePLDisplay(plData);
