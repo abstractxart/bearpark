@@ -12141,8 +12141,9 @@
       const panel = document.getElementById('notificationPanel');
       panel.classList.remove('visible');
       setTimeout(() => panel.style.display = 'none', 300);
-      // Remove click-outside listener
-      document.removeEventListener('click', handleClickOutside);
+      // Remove click-outside listeners
+      document.removeEventListener('mousedown', handleClickOutside, true);
+      document.removeEventListener('touchstart', handleClickOutsideTouch, true);
       // Remove touch listeners
       panel.removeEventListener('touchstart', handleTouchStart);
       panel.removeEventListener('touchmove', handleTouchMove);
@@ -12158,7 +12159,8 @@
 
       // Add click-outside listener after a short delay to prevent immediate close
       setTimeout(() => {
-        document.addEventListener('click', handleClickOutside);
+        document.addEventListener('mousedown', handleClickOutside, true);
+        document.addEventListener('touchstart', handleClickOutsideTouch, true);
       }, 100);
 
       // Add touch/swipe listeners for mobile
@@ -12167,13 +12169,27 @@
       panel.addEventListener('touchend', handleTouchEnd);
     }
 
-    // Click outside to close
+    // Click outside to close (desktop)
     function handleClickOutside(event) {
       const panel = document.getElementById('notificationPanel');
       const bellBtn = document.getElementById('notificationBellBtn');
 
       // Don't close if clicking the bell button or inside the panel
       if (!panel.contains(event.target) && !bellBtn.contains(event.target)) {
+        event.preventDefault();
+        event.stopPropagation();
+        closeNotificationPanel();
+      }
+    }
+
+    // Touch outside to close (mobile)
+    function handleClickOutsideTouch(event) {
+      const panel = document.getElementById('notificationPanel');
+      const bellBtn = document.getElementById('notificationBellBtn');
+
+      // Don't close if touching the bell button or inside the panel
+      if (!panel.contains(event.target) && !bellBtn.contains(event.target)) {
+        event.preventDefault();
         closeNotificationPanel();
       }
     }
