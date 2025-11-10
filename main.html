@@ -344,8 +344,8 @@
 
   /* Community banner */
   .community-banner{position:relative;overflow:hidden;border-radius:22px;border:6px solid transparent;background:#000;box-shadow:0 20px 40px rgba(0,0,0,.45); background-image: linear-gradient(#000, #000), var(--tri-gradient); background-origin: padding-box, border-box; background-clip: padding-box, border-box; min-height:500px;}
-  .community-banner img.bg{position:absolute;top:0;left:0;width:120%;height:100%;object-fit:cover;opacity:.5;filter:saturate(1.15) contrast(1.1) blur(1px);animation:slow-pan 60s linear infinite;will-change:transform;transition:transform 0.3s ease-out}
-  @keyframes slow-pan{0%{transform:translateX(0)}50%{transform:translateX(-16.67%)}100%{transform:translateX(0)}}
+  .community-banner img.bg{position:absolute;top:50%;left:50%;width:140%;height:140%;min-width:140%;min-height:140%;object-fit:cover;opacity:.5;filter:saturate(1.15) contrast(1.1) blur(1px);animation:slow-pan 60s linear infinite;will-change:transform;transition:transform 0.3s ease-out;transform:translate(-50%, -50%)}
+  @keyframes slow-pan{0%{transform:translate(-50%, -50%) translateX(0)}50%{transform:translate(-50%, -50%) translateX(-14.29%)}100%{transform:translate(-50%, -50%) translateX(0)}}
   .community-banner .overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;background:radial-gradient(circle at center, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.7) 100%)}
   .community-content{display:flex;flex-direction:column;align-items:center;max-width:700px;position:relative;z-index:2}
   .community-badge{width:160px;height:160px;background:var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 12px 32px rgba(237,183,35,0.5), 0 0 0 8px rgba(237,183,35,0.3), 0 0 0 16px rgba(0,0,0,0.4);animation:badge-float 3s ease-in-out infinite}
@@ -10235,10 +10235,11 @@
         currentY += (mouseY - currentY) * 0.05;
 
         // Apply parallax transform (subtle movement)
-        const offsetX = currentX * 15; // Max 15px movement
-        const offsetY = currentY * 10; // Max 10px movement
+        const offsetX = currentX * 20; // Max 20px movement
+        const offsetY = currentY * 15; // Max 15px movement
 
-        bg.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
+        // Maintain center positioning with parallax offset
+        bg.style.transform = `translate(calc(-50% + ${offsetX}px), calc(-50% + ${offsetY}px))`;
 
         requestAnimationFrame(animate);
       }
