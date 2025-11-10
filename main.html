@@ -356,7 +356,7 @@
   .community-btn:hover{transform:translateY(-4px) scale(1.05);box-shadow:0 12px 32px rgba(237,183,35,0.5)}
   .btn-icon{font-size:22px;filter:drop-shadow(2px 2px 0 rgba(0,0,0,0.3))}
   .btn-text{position:relative;z-index:1}
-  .community-stats{display:flex;gap:32px;flex-wrap:wrap;justify-content:center;padding:20px;background:rgba(0,0,0,0.4);border-radius:16px;border:2px solid rgba(237,183,35,0.2);backdrop-filter:blur(10px)}
+  .community-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;padding:20px;background:rgba(0,0,0,0.4);border-radius:16px;border:2px solid rgba(237,183,35,0.2);backdrop-filter:blur(10px);max-width:700px}
   .stat-item{display:flex;flex-direction:column;align-items:center;gap:8px;min-width:100px}
   .stat-emoji{font-size:32px;animation:stat-pulse 2s ease-in-out infinite}
   .stat-text{font-size:13px;color:rgba(255,255,255,0.85);font-weight:700;text-align:center;text-shadow:1px 1px 2px #000}
@@ -369,11 +369,13 @@
   .paw:nth-child(4){top:70%;left:-50px;animation-delay:15s}
   @keyframes paw-walk{0%{left:-50px;transform:rotate(-15deg)}100%{left:calc(100% + 50px);transform:rotate(15deg)}}
   @media (max-width:640px){
-    .community-banner{min-height:600px}
+    .community-banner{min-height:650px}
     .community-buttons{flex-direction:column;width:100%;max-width:280px}
     .community-btn{width:100%;justify-content:center}
-    .community-stats{gap:20px;padding:16px}
-    .stat-item{min-width:80px}
+    .community-stats{grid-template-columns:repeat(2,1fr);gap:16px;padding:16px;max-width:100%}
+    .stat-item{min-width:auto}
+    .stat-emoji{font-size:28px}
+    .stat-text{font-size:12px}
   }
   .pair{display:flex;gap:16px;flex-wrap:wrap;justify-content:center}
 
@@ -5333,16 +5335,20 @@
             </div>
             <div class="community-stats">
               <div class="stat-item">
-                <span class="stat-emoji">🌟</span>
-                <span class="stat-text">Active Daily</span>
+                <span class="stat-emoji">💬</span>
+                <span class="stat-text">Discord Daily</span>
               </div>
               <div class="stat-item">
-                <span class="stat-emoji">🎮</span>
-                <span class="stat-text">Game Events</span>
+                <span class="stat-emoji">🎙️</span>
+                <span class="stat-text">Spaces Daily</span>
               </div>
               <div class="stat-item">
-                <span class="stat-emoji">🏆</span>
-                <span class="stat-text">Competitions</span>
+                <span class="stat-emoji">🪖</span>
+                <span class="stat-text">Raiding Daily</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-emoji">🎉</span>
+                <span class="stat-text">Having Fun Daily</span>
               </div>
             </div>
           </div>
