@@ -787,12 +787,13 @@
 
   .portfolio-stats{ display:grid; gap:12px }
   .stat-row{
-    display:flex; justify-content:space-between; align-items:center;
+    display:flex; justify-content:space-between; align-items:center; gap:12px;
     padding:14px 16px; background:rgba(255,255,255,.03); border-radius:12px;
-    border:2px solid rgba(255,255,255,.08)
+    border:2px solid rgba(255,255,255,.08);
+    flex-wrap:wrap;
   }
-  .stat-label{ font-size:22px; opacity:.85 }
-  .stat-value{ font-size:32px; font-weight:900; color:var(--gold) }
+  .stat-label{ font-size:22px; opacity:.85; flex-shrink:0; }
+  .stat-value{ font-size:32px; font-weight:900; color:var(--gold); text-align:right; word-break:break-word; min-width:0; }
 
   /* Points Card */
   .points-card{
@@ -5223,10 +5224,10 @@
         <h4 style="margin:0 0 16px 0; font-size:18px; font-weight:900; color:var(--gold); text-transform:uppercase; letter-spacing:0.5px;">💧 My Liquidity Position</h4>
         <div class="lp-stats">
           <div class="stat-row" style="margin-bottom:16px;">
-            <span class="stat-label" style="font-size:15px; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;">
+            <span class="stat-label" style="font-size:14px; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;">
               🪙 LP Tokens:
             </span>
-            <span id="lpTokenAmount" class="stat-value" style="font-size:24px; font-weight:900;">—</span>
+            <span id="lpTokenAmount" class="stat-value" style="font-size:18px; font-weight:900; word-break:break-all;">—</span>
           </div>
           <div class="stat-row" style="margin-bottom:12px;">
             <span class="stat-label" style="font-size:15px; white-space:nowrap;">📊 Pool Ownership:</span>
@@ -7234,22 +7235,6 @@
     async function loadLPData(walletAddress) {
       const lpSection = document.getElementById('lpSection');
       if (!lpSection) return;
-
-      // Check for demo mode
-      const urlParams = new URLSearchParams(window.location.search);
-      const showDemo = urlParams.get('show_lp_demo') === 'true';
-
-      if (showDemo) {
-        // Show demo data
-        lpSection.style.display = 'block';
-        document.getElementById('lpTokenAmount').textContent = '12,345.678901';
-        document.getElementById('lpPoolPercentage').textContent = '2.3456%';
-        document.getElementById('lpBearAmount').textContent = '500,000.00';
-        document.getElementById('lpXrpAmount').textContent = '1,234.56 XRP';
-        document.getElementById('lpUsdValue').textContent = '$3,850.75';
-        console.log('💧 LP Demo Mode Active - Showing sample data');
-        return;
-      }
 
       const LP_TOKEN_ISSUER = 'rKkkYMCvC63HEgxjQHmayKADaxYqnsMUkT'; // Your BEAR token address (AMM LP issuer)
 
