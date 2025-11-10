@@ -7495,8 +7495,8 @@
 
         // Connect to XRPL
         const client = new xrpl.Client('wss://xrplcluster.com');
-        await client.disconnect();
         await client.connect();
+        console.log('📊 [P&L] Connected to XRPL');
 
         // Fetch ALL account transactions
         const allTransactions = [];
