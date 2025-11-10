@@ -7846,22 +7846,34 @@
     }
 
     function createPLChart(dataPoints) {
+      console.log('📊 [CHART] createPLChart() called with', dataPoints.length, 'data points');
       const canvas = document.getElementById('plChart');
-      if (!canvas) return;
+      console.log('📊 [CHART] Canvas element:', canvas);
+      if (!canvas) {
+        console.error('📊 [CHART] ERROR: Canvas not found!');
+        return;
+      }
 
       // Destroy existing chart instance if it exists
       if (plChartInstance) {
+        console.log('📊 [CHART] Destroying existing chart instance');
         plChartInstance.destroy();
         plChartInstance = null;
       }
 
       // Get a fresh context
       const ctx = canvas.getContext('2d');
-      if (!ctx) return;
+      console.log('📊 [CHART] Canvas context:', ctx);
+      if (!ctx) {
+        console.error('📊 [CHART] ERROR: Could not get canvas context!');
+        return;
+      }
 
       const isXRP = currentPLCurrency === 'XRP';
+      console.log('📊 [CHART] Creating Chart.js instance... Currency:', isXRP ? 'XRP' : 'USD');
 
-      plChartInstance = new Chart(ctx, {
+      try {
+        plChartInstance = new Chart(ctx, {
         type: 'line',
         data: {
           datasets: [{
@@ -7962,7 +7974,12 @@
           }
         }
       });
+      console.log('📊 [CHART] ✅ Chart.js instance created successfully!', plChartInstance);
+    } catch (error) {
+      console.error('📊 [CHART] ❌ ERROR creating Chart.js instance:', error);
+      console.error('📊 [CHART] Error stack:', error.stack);
     }
+  }
 
     async function loadPointsData(walletAddress) {
       try {
