@@ -7882,14 +7882,21 @@
               x: d.timestamp,
               y: isXRP ? d.totalPLXRP : d.totalPLUSD
             })),
-            borderColor: function(context) {
-              const value = context.parsed.y;
-              return value >= 0 ? '#4CAF50' : '#f44336';
+            segment: {
+              borderColor: ctx => {
+                // Use segment styling to color based on y value
+                const p0 = ctx.p0;
+                const p1 = ctx.p1;
+                if (!p0 || !p1) return '#4CAF50';
+                const avg = (p0.parsed.y + p1.parsed.y) / 2;
+                return avg >= 0 ? '#4CAF50' : '#f44336';
+              }
             },
+            borderColor: '#4CAF50', // Default color
             backgroundColor: function(context) {
               const chart = context.chart;
               const {ctx, chartArea} = chart;
-              if (!chartArea) return;
+              if (!chartArea) return 'rgba(76, 175, 80, 0.1)';
 
               const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
               gradient.addColorStop(0, 'rgba(76, 175, 80, 0.3)');
