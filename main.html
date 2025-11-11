@@ -11941,6 +11941,14 @@
       if (!confirm('Are you sure you want to delete this comment?')) return;
 
       try {
+        console.log('🔵 [Delete] Deleting comment:', commentId);
+        console.log('🔵 [Delete] Current user wallet:', currentUserWallet);
+
+        if (!currentUserWallet) {
+          alert('Please connect your wallet first!');
+          return;
+        }
+
         const response = await fetch(`${API_BASE_URL}/api/comments/${commentId}`, {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
@@ -11950,13 +11958,18 @@
           })
         });
 
+        console.log('🔵 [Delete] Response status:', response.status);
+
         if (response.ok) {
+          console.log('✅ [Delete] Comment deleted successfully');
           await loadComments();
         } else {
-          alert('Failed to delete comment.');
+          const errorData = await response.json();
+          console.error('❌ [Delete] Error response:', errorData);
+          alert(`Failed to delete comment: ${errorData.error || 'Unknown error'}`);
         }
       } catch (error) {
-        console.error('Error deleting comment:', error);
+        console.error('❌ [Delete] Error deleting comment:', error);
         alert('Error deleting comment.');
       }
     };
