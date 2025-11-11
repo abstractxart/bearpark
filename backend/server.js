@@ -1204,7 +1204,7 @@ app.post('/api/comments/:id/react', async (req, res) => {
       try {
         const { data: commentData } = await supabase
           .from('profile_comments')
-          .select('commenter_wallet, comment_text')
+          .select('commenter_wallet, profile_wallet, comment_text')
           .eq('id', commentId)
           .single();
 
@@ -1245,7 +1245,8 @@ app.post('/api/comments/:id/react', async (req, res) => {
             avatarNft: reactorAvatar,
             reactions,
             commentText: commentData.comment_text?.substring(0, 100),
-            commentId: commentId
+            commentId: commentId,
+            profileWallet: commentData.profile_wallet
           });
         }
       } catch (notifError) {
