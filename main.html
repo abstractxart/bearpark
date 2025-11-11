@@ -12776,10 +12776,32 @@
       list.innerHTML = notifications.map(notif => {
         const unreadClass = notif.read ? '' : 'unread';
 
+        // Helper function to render user avatar
+        const renderAvatar = (avatarNft, displayName) => {
+          let avatarHTML = '';
+          if (avatarNft) {
+            try {
+              const avatarData = JSON.parse(avatarNft);
+              const avatarUrl = avatarData.imageUrl || avatarData.fallbackImageUrl;
+              if (avatarUrl) {
+                avatarHTML = `<img src="${avatarUrl}" style="width:40px; height:40px; border-radius:50%; border:2px solid var(--gold); object-fit:cover;" alt="${displayName} avatar" onerror="this.src='https://files.catbox.moe/ugu1kl.png'">`;
+              }
+            } catch (e) {
+              // If not JSON, try using it directly as NFT ID
+              avatarHTML = `<img src="https://nft.xrpl-labs.com/${avatarNft}" style="width:40px; height:40px; border-radius:50%; border:2px solid var(--gold); object-fit:cover;" alt="${displayName} avatar" onerror="this.src='https://files.catbox.moe/ugu1kl.png'">`;
+            }
+          }
+          // Default avatar if none provided
+          if (!avatarHTML) {
+            avatarHTML = `<img src="https://files.catbox.moe/ugu1kl.png" style="width:40px; height:40px; border-radius:50%; border:2px solid var(--gold); object-fit:cover;" alt="${displayName} avatar">`;
+          }
+          return avatarHTML;
+        };
+
         if (notif.type === 'follower') {
           return `
             <div class="notification-item ${unreadClass}" onclick="handleNotificationClick('${notif.id}')">
-              <div class="notification-icon">👤</div>
+              ${renderAvatar(notif.data.avatarNft, notif.data.displayName || 'Anonymous')}
               <div class="notification-content">
                 <p class="notification-text"><strong>${notif.data.displayName || notif.data.wallet}</strong> followed you!</p>
                 <p class="notification-time">${formatRelativeTime(notif.created_at)}</p>
@@ -12790,7 +12812,7 @@
           const emojis = notif.data.reactions || [];
           return `
             <div class="notification-item ${unreadClass}" onclick="handleNotificationClick('${notif.id}')">
-              <div class="notification-icon">💬</div>
+              ${renderAvatar(notif.data.avatarNft, notif.data.displayName || 'Anonymous')}
               <div class="notification-content">
                 <p class="notification-text"><strong>${notif.data.displayName || notif.data.wallet}</strong> reacted to your comment</p>
                 <div class="notification-reactions">
@@ -12834,11 +12856,13 @@
 
       // Navigate based on type
       if (notif.type === 'follower' && notif.data.wallet) {
+        // Open the follower's profile
         toggleNotificationPanel();
         setTimeout(() => openProfileModal(notif.data.wallet), 300);
-      } else if (notif.type === 'reaction') {
+      } else if (notif.type === 'reaction' && notif.data.wallet) {
+        // Open the reactor's profile (the person who reacted)
         toggleNotificationPanel();
-        // Could scroll to the comment if we have the comment ID
+        setTimeout(() => openProfileModal(notif.data.wallet), 300);
       }
     };
 
