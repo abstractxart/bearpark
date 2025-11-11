@@ -1089,11 +1089,18 @@ app.post('/api/comments/:id/react', async (req, res) => {
 
       console.log(`✅ Reaction removed successfully`);
 
+      console.log(`🔍 Fetching updated reactions for comment ${commentId}...`);
       // Fetch updated reactions to return fresh counts
-      const { data: updatedReactions } = await supabase
+      const { data: updatedReactions, error: fetchError } = await supabase
         .from('comment_reactions')
         .select('*')
         .eq('comment_id', commentId);
+
+      if (fetchError) {
+        console.error(`❌ Error fetching updated reactions:`, fetchError);
+      } else {
+        console.log(`📊 Found ${updatedReactions?.length || 0} reactions after removal`);
+      }
 
       // Group reactions by type with counts
       const reactionCounts = {};
@@ -1111,6 +1118,9 @@ app.post('/api/comments/:id/react', async (req, res) => {
         }
         userReactions[reaction.wallet_address].push(type);
       });
+
+      console.log(`📤 Sending response with counts:`, reactionCounts);
+      console.log(`📤 Sending response with userReactions:`, userReactions);
 
       res.json({
         success: true,
@@ -1176,11 +1186,18 @@ app.post('/api/comments/:id/react', async (req, res) => {
         });
       }
 
+      console.log(`🔍 Fetching updated reactions for comment ${commentId}...`);
       // Fetch updated reactions to return fresh counts
-      const { data: updatedReactions } = await supabase
+      const { data: updatedReactions, error: fetchError } = await supabase
         .from('comment_reactions')
         .select('*')
         .eq('comment_id', commentId);
+
+      if (fetchError) {
+        console.error(`❌ Error fetching updated reactions:`, fetchError);
+      } else {
+        console.log(`📊 Found ${updatedReactions?.length || 0} reactions after addition`);
+      }
 
       // Group reactions by type with counts
       const reactionCounts = {};
@@ -1198,6 +1215,9 @@ app.post('/api/comments/:id/react', async (req, res) => {
         }
         userReactions[reaction.wallet_address].push(type);
       });
+
+      console.log(`📤 Sending response with counts:`, reactionCounts);
+      console.log(`📤 Sending response with userReactions:`, userReactions);
 
       res.json({
         success: true,
