@@ -11458,8 +11458,29 @@
             return;
           }
 
-          // Check if already following
-          console.log('🔵 [LoadFollowData] Checking follow status for:', window.currentProfileWallet);
+          // CHECK COMMUNITY LIST BUTTON FIRST - it's the source of truth!
+          const communityBtn = document.querySelector(`.community-follow-btn[data-wallet="${window.currentProfileWallet}"]`);
+          if (communityBtn) {
+            const communityBtnIsFollowing = communityBtn.classList.contains('following');
+            console.log('🔵 [LoadFollowData] Found community button:', communityBtnIsFollowing ? 'Following' : 'Follow');
+
+            // Use community button state as source of truth
+            if (communityBtnIsFollowing) {
+              followBtn.classList.add('following');
+              followBtn.querySelector('.follow-btn-text').textContent = 'Following';
+              followBtn.querySelector('.follow-btn-icon').textContent = '✓';
+              console.log('✅ [LoadFollowData] Synced from community button: Following');
+            } else {
+              followBtn.classList.remove('following');
+              followBtn.querySelector('.follow-btn-text').textContent = 'Follow';
+              followBtn.querySelector('.follow-btn-icon').textContent = '+';
+              console.log('✅ [LoadFollowData] Synced from community button: Follow');
+            }
+            return; // Don't check database if community button exists
+          }
+
+          // Only check database if community button doesn't exist
+          console.log('🔵 [LoadFollowData] No community button found, checking database for:', window.currentProfileWallet);
           const statusResponse = await fetch(
             `${API_BASE_URL}/api/follow/status?follower_wallet=${currentUserWallet}&following_wallet=${window.currentProfileWallet}`
           );
