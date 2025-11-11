@@ -1308,7 +1308,7 @@ app.post('/api/comments/:id/react', async (req, res) => {
             avatarNft: reactorAvatar,
             reactions,
             commentText: commentData.comment_text?.substring(0, 100),
-            commentId: commentId,
+            commentId: commentId.toString(),
             profileWallet: commentData.profile_wallet
           });
         }

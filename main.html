@@ -1401,6 +1401,7 @@
 
   .notification-content {
     flex: 1;
+    pointer-events: none;
   }
 
   .notification-text {
@@ -1435,6 +1436,12 @@
     background: rgba(0,0,0,0.4);
     border-radius: 12px;
     border: 1px solid rgba(255,255,255,0.1);
+  }
+
+  /* Make sure child elements don't block notification clicks */
+  .notification-item img,
+  .notification-item .notification-content * {
+    pointer-events: none;
   }
 
   .notification-empty {
@@ -4045,6 +4052,97 @@
     color:var(--gold);
     text-transform:uppercase;
     letter-spacing:0.5px;
+  }
+
+  /* DEXScreener Style Stats */
+  .dex-stats-container {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(237,183,35,0.2);
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+
+  .dex-stat-box {
+    background: rgba(0,0,0,0.3);
+    border-radius: 8px;
+    padding: 12px;
+    border: 1px solid rgba(237,183,35,0.15);
+  }
+
+  .dex-stat-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.6);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+  }
+
+  .dex-stat-value {
+    font-size: 20px;
+    font-weight: 900;
+    color: #fff;
+    margin-bottom: 8px;
+  }
+
+  .dex-stat-subgrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .dex-stat-sub {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .dex-sub-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.5);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+
+  .dex-sub-value {
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  .dex-progress-bar {
+    display: flex;
+    height: 6px;
+    background: rgba(0,0,0,0.4);
+    border-radius: 3px;
+    overflow: hidden;
+    gap: 1px;
+  }
+
+  .dex-progress-fill {
+    height: 100%;
+    transition: width 0.3s ease;
+  }
+
+  .dex-progress-buy {
+    background: linear-gradient(90deg, #22c55e 0%, #16a34a 100%);
+  }
+
+  .dex-progress-sell {
+    background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%);
+  }
+
+  @media (max-width: 768px) {
+    .dex-stats-container {
+      grid-template-columns: 1fr;
+    }
+    .dex-stat-value {
+      font-size: 18px;
+    }
   }
 
   /* Price Stats Grid */
@@ -7368,7 +7466,9 @@
         // Add liquidity data
         liquidityUsd: Number(p.liquidity?.usd ?? 0),
         // Add 24h price change
-        priceChange24h: Number(p.priceChange?.h24 ?? 0)
+        priceChange24h: Number(p.priceChange?.h24 ?? 0),
+        // Add transaction data
+        txns: p.txns || {}
       };
     }
 
@@ -7386,7 +7486,7 @@
 
     async function updatePrices(){
       try{
-        const {priceNative, priceUsd, vol24Usd, mcapUsd, liquidityUsd, priceChange24h} = await fetchDex();
+        const {priceNative, priceUsd, vol24Usd, mcapUsd, liquidityUsd, priceChange24h, txns} = await fetchDex();
         const xrpPrice = await fetchXrpPrice();
         const xrpLine = $id('bearXrpBig');
         const usdLine = $id('bearUsdBig');
@@ -7413,13 +7513,13 @@
         }
 
         // Update Honey Points section
-        updateHoneyPrices(priceNative, priceUsd, vol24Usd, mcapUsd, liquidityUsd, priceChange24h, xrpPrice);
+        updateHoneyPrices(priceNative, priceUsd, vol24Usd, mcapUsd, liquidityUsd, priceChange24h, xrpPrice, txns);
       }catch(err){
         console.debug('Price update failed', err);
       }
     }
 
-    function updateHoneyPrices(priceNative, priceUsd, vol24Usd, mcapUsd, liquidityUsd, priceChange24h, xrpPrice){
+    function updateHoneyPrices(priceNative, priceUsd, vol24Usd, mcapUsd, liquidityUsd, priceChange24h, xrpPrice, txns){
       // Update price stats
       const honeyPriceXrp = $id('honeyPriceXrp');
       const honeyPriceUsd = $id('honeyPriceUsd');
@@ -7445,12 +7545,24 @@
 
       if (honeyVolume && Number.isFinite(vol24Usd)){
         honeyVolume.textContent = '$' + fmt0(vol24Usd);
+
+        // Update USD DEXScreener volume total to match
+        const usdVolumeTotal = $id('usdVolumeTotal');
+        if (usdVolumeTotal) {
+          usdVolumeTotal.textContent = '$' + fmt0(vol24Usd);
+        }
       }
 
       // Calculate XRP 24h volume
       if (honeyVolumeXrp && Number.isFinite(vol24Usd) && Number.isFinite(xrpPrice)){
         const vol24Xrp = vol24Usd / xrpPrice;
         honeyVolumeXrp.textContent = fmt0(vol24Xrp) + ' XRP';
+
+        // Update XRP DEXScreener volume total to match
+        const xrpVolumeTotal = $id('xrpVolumeTotal');
+        if (xrpVolumeTotal) {
+          xrpVolumeTotal.textContent = fmt0(vol24Xrp) + ' XRP';
+        }
       }
 
       if (honeyMcap && Number.isFinite(mcapUsd)){
@@ -7499,6 +7611,96 @@
       if (liquidityMcapRatio && Number.isFinite(liquidityUsd) && Number.isFinite(mcapUsd) && mcapUsd > 0){
         const ratio = (liquidityUsd / mcapUsd) * 100;
         liquidityMcapRatio.textContent = ratio.toFixed(2) + '%';
+      }
+
+      // Update DEXScreener-style stats with real transaction data
+      if (txns && txns.h24) {
+        const h24 = txns.h24;
+        const buys = Number(h24.buys || 0);
+        const sells = Number(h24.sells || 0);
+        const totalTxns = buys + sells;
+
+        // Calculate volume split based on transaction ratio
+        const buyRatio = totalTxns > 0 ? buys / totalTxns : 0.5;
+        const sellRatio = totalTxns > 0 ? sells / totalTxns : 0.5;
+
+        // Update TXNS for both USD and XRP (same transaction count)
+        if (totalTxns > 0) {
+          // USD TXNS
+          const usdTxnsTotal = $id('usdTxnsTotal');
+          const usdBuys = $id('usdBuys');
+          const usdSells = $id('usdSells');
+          const usdBuysBar = $id('usdBuysBar');
+          const usdSellsBar = $id('usdSellsBar');
+
+          if (usdTxnsTotal) usdTxnsTotal.textContent = totalTxns;
+          if (usdBuys) usdBuys.textContent = buys;
+          if (usdSells) usdSells.textContent = sells;
+          if (usdBuysBar && usdSellsBar) {
+            const buyPct = (buys / totalTxns) * 100;
+            const sellPct = (sells / totalTxns) * 100;
+            usdBuysBar.style.width = buyPct + '%';
+            usdSellsBar.style.width = sellPct + '%';
+          }
+
+          // XRP TXNS (same as USD)
+          const xrpTxnsTotal = $id('xrpTxnsTotal');
+          const xrpBuys = $id('xrpBuys');
+          const xrpSells = $id('xrpSells');
+          const xrpBuysBar = $id('xrpBuysBar');
+          const xrpSellsBar = $id('xrpSellsBar');
+
+          if (xrpTxnsTotal) xrpTxnsTotal.textContent = totalTxns;
+          if (xrpBuys) xrpBuys.textContent = buys;
+          if (xrpSells) xrpSells.textContent = sells;
+          if (xrpBuysBar && xrpSellsBar) {
+            const buyPct = (buys / totalTxns) * 100;
+            const sellPct = (sells / totalTxns) * 100;
+            xrpBuysBar.style.width = buyPct + '%';
+            xrpSellsBar.style.width = sellPct + '%';
+          }
+        }
+
+        // Update MAKERS (unique buyers/sellers)
+        const buyers = Number(h24.buyers || 0);
+        const sellers = Number(h24.sellers || 0);
+        const totalMakers = buyers + sellers;
+
+        if (totalMakers > 0) {
+          // USD MAKERS
+          const usdMakersTotal = $id('usdMakersTotal');
+          const usdBuyers = $id('usdBuyers');
+          const usdSellers = $id('usdSellers');
+          const usdBuyersBar = $id('usdBuyersBar');
+          const usdSellersBar = $id('usdSellersBar');
+
+          if (usdMakersTotal) usdMakersTotal.textContent = totalMakers;
+          if (usdBuyers) usdBuyers.textContent = buyers;
+          if (usdSellers) usdSellers.textContent = sellers;
+          if (usdBuyersBar && usdSellersBar) {
+            const buyersPct = (buyers / totalMakers) * 100;
+            const sellersPct = (sellers / totalMakers) * 100;
+            usdBuyersBar.style.width = buyersPct + '%';
+            usdSellersBar.style.width = sellersPct + '%';
+          }
+
+          // XRP MAKERS (same as USD)
+          const xrpMakersTotal = $id('xrpMakersTotal');
+          const xrpBuyers = $id('xrpBuyers');
+          const xrpSellers = $id('xrpSellers');
+          const xrpBuyersBar = $id('xrpBuyersBar');
+          const xrpSellersBar = $id('xrpSellersBar');
+
+          if (xrpMakersTotal) xrpMakersTotal.textContent = totalMakers;
+          if (xrpBuyers) xrpBuyers.textContent = buyers;
+          if (xrpSellers) xrpSellers.textContent = sellers;
+          if (xrpBuyersBar && xrpSellersBar) {
+            const buyersPct = (buyers / totalMakers) * 100;
+            const sellersPct = (sellers / totalMakers) * 100;
+            xrpBuyersBar.style.width = buyersPct + '%';
+            xrpSellersBar.style.width = sellersPct + '%';
+          }
+        }
       }
     }
     updatePrices();
@@ -10776,7 +10978,7 @@
     let profileNavigationHistory = []; // Track navigation history for back button
 
     // Open Profile Modal
-    window.openProfileModal = async function(walletAddress = null, addToHistory = true) {
+    window.openProfileModal = async function(walletAddress = null, addToHistory = true, options = {}) {
       currentUserWallet = localStorage.getItem('bearpark_wallet');
       if (!currentUserWallet) {
         alert('Please connect your wallet first!');
@@ -10794,8 +10996,8 @@
       profileModal.style.display = 'flex';
       setTimeout(() => profileModal.classList.add('visible'), 10);
 
-      // Scroll to top of profile modal
-      if (profileModalBody) {
+      // Scroll to top of profile modal (unless we're scrolling to a specific comment)
+      if (profileModalBody && !options.scrollToCommentId) {
         profileModalBody.scrollTop = 0;
       }
 
@@ -10805,6 +11007,11 @@
 
       // Update back button visibility
       updateBackButton();
+
+      // If a specific comment should be scrolled to, do it after everything loads
+      if (options.scrollToCommentId) {
+        scrollToComment(options.scrollToCommentId);
+      }
     };
 
     // Close Profile Modal
@@ -10821,6 +11028,41 @@
         updateBackButton();
       }, 300);
     };
+
+    // Scroll to a specific comment
+    function scrollToComment(commentId) {
+      console.log('📍 Attempting to scroll to comment:', commentId);
+      // Give a small delay to ensure DOM is fully rendered
+      setTimeout(() => {
+        const commentElement = document.querySelector(`.comment-thread[data-comment-id="${commentId}"]`);
+        console.log('📍 Comment element found:', !!commentElement);
+        if (commentElement) {
+          // Scroll the profile modal body to the comment
+          const modalBody = document.querySelector('.profile-modal-body');
+          console.log('📍 Modal body found:', !!modalBody);
+          if (modalBody) {
+            // Calculate position relative to modal body
+            const commentPosition = commentElement.offsetTop;
+            console.log('📍 Scrolling to position:', commentPosition);
+            modalBody.scrollTo({
+              top: commentPosition - 100, // Offset for better visibility
+              behavior: 'smooth'
+            });
+          }
+
+          // Add highlight effect
+          commentElement.style.animation = 'highlight-flash 2s ease-out';
+          setTimeout(() => {
+            commentElement.style.animation = '';
+          }, 2000);
+        } else {
+          console.warn('❌ Comment not found:', commentId);
+          // Log all comment IDs to help debug
+          const allComments = document.querySelectorAll('.comment-thread[data-comment-id]');
+          console.log('Available comment IDs:', Array.from(allComments).map(c => c.getAttribute('data-comment-id')));
+        }
+      }, 300);
+    }
 
     // Go Back in Profile Navigation
     window.goBackInProfile = function() {
@@ -11154,6 +11396,8 @@
     }
 
     // Make follow functions global
+    let isTogglingFollow = false; // Guard against multiple simultaneous clicks
+
     window.toggleFollow = async function() {
       console.log('🔵 [Follow] toggleFollow called');
       console.log('🔵 [Follow] currentUserWallet:', currentUserWallet);
@@ -11168,9 +11412,18 @@
         return;
       }
 
+      // Prevent multiple simultaneous operations
+      if (isTogglingFollow) {
+        console.log('⏸️ [Follow] Already processing a follow/unfollow action');
+        return;
+      }
+
       const followBtn = document.getElementById('followBtn');
       const isFollowing = followBtn.classList.contains('following');
       console.log('🔵 [Follow] Current state - isFollowing:', isFollowing);
+
+      // Set the guard flag
+      isTogglingFollow = true;
 
       // Disable button and show loading state
       followBtn.disabled = true;
@@ -11241,10 +11494,6 @@
         followBtn.style.transform = '';
       }, 200);
 
-      // Re-enable button and reset opacity
-      followBtn.disabled = false;
-      followBtn.style.opacity = '';
-
       // Now send to backend (fire and forget - UI already updated)
       try {
         const response = await fetch(`${API_BASE_URL}/api/follow`, {
@@ -11278,6 +11527,12 @@
       } catch (error) {
         console.error('❌ [Follow] Error toggling follow:', error);
         // Could revert UI here if needed, but for now trust the optimistic update
+      } finally {
+        // Always re-enable the button and clear the guard flag
+        followBtn.disabled = false;
+        followBtn.style.opacity = '';
+        isTogglingFollow = false;
+        console.log('🔵 [Follow] Operation complete, button re-enabled');
       }
     };
 
@@ -12942,6 +13197,7 @@
 
     // Render notifications
     function renderNotifications() {
+      console.log('🎨 renderNotifications called, count:', notifications.length);
       const list = document.getElementById('notificationList');
 
       if (notifications.length === 0) {
@@ -12981,7 +13237,7 @@
 
         if (notif.type === 'follower') {
           return `
-            <div class="notification-item ${unreadClass}" onclick="handleNotificationClick('${notif.id}')">
+            <div class="notification-item ${unreadClass}" data-notification-id="${notif.id}">
               ${renderAvatar(notif.data.avatarNft, notif.data.displayName || 'Anonymous')}
               <div class="notification-content">
                 <p class="notification-text"><strong>${notif.data.displayName || notif.data.wallet}</strong> followed you!</p>
@@ -12992,7 +13248,7 @@
         } else if (notif.type === 'reaction') {
           const emojis = notif.data.reactions || [];
           return `
-            <div class="notification-item ${unreadClass}" onclick="handleNotificationClick('${notif.id}')">
+            <div class="notification-item ${unreadClass}" data-notification-id="${notif.id}">
               ${renderAvatar(notif.data.avatarNft, notif.data.displayName || 'Anonymous')}
               <div class="notification-content">
                 <p class="notification-text"><strong>${notif.data.displayName || notif.data.wallet}</strong> reacted to your comment</p>
@@ -13006,6 +13262,20 @@
         }
         return '';
       }).join('');
+    }
+
+    // Click handler for notification list (event delegation)
+    function handleNotificationListClick(e) {
+      console.log('🖱️ Click detected on notification list', e.target);
+      const notificationItem = e.target.closest('.notification-item');
+      console.log('🖱️ Closest notification item:', notificationItem);
+      if (notificationItem) {
+        const notificationId = notificationItem.getAttribute('data-notification-id');
+        console.log('🖱️ Notification ID:', notificationId);
+        if (notificationId) {
+          handleNotificationClick(notificationId);
+        }
+      }
     }
 
     // Update badge
@@ -13024,9 +13294,15 @@
     }
 
     // Handle notification click
-    window.handleNotificationClick = function(notificationId) {
+    window.handleNotificationClick = async function(notificationId) {
+      console.log('🔔 Notification clicked:', notificationId);
       const notif = notifications.find(n => n.id === notificationId);
-      if (!notif) return;
+      if (!notif) {
+        console.error('❌ Notification not found:', notificationId);
+        return;
+      }
+
+      console.log('🔔 Notification data:', notif);
 
       // Mark as read
       notif.read = true;
@@ -13037,27 +13313,21 @@
 
       // Navigate based on type
       if (notif.type === 'follower' && notif.data.wallet) {
+        console.log('👤 Opening follower profile:', notif.data.wallet);
         // Open the follower's profile
         toggleNotificationPanel();
         setTimeout(() => openProfileModal(notif.data.wallet), 300);
       } else if (notif.type === 'reaction' && notif.data.profileWallet && notif.data.commentId) {
+        console.log('💬 Opening profile with comment:', notif.data.profileWallet, notif.data.commentId);
         // Open the profile where the comment was posted and scroll to that comment
         toggleNotificationPanel();
-        setTimeout(() => {
-          openProfileModal(notif.data.profileWallet);
-          // Wait for profile to load, then scroll to comment
-          setTimeout(() => {
-            const commentElement = document.querySelector(`.comment-thread[data-comment-id="${notif.data.commentId}"]`);
-            if (commentElement) {
-              commentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              // Add highlight effect
-              commentElement.style.animation = 'highlight-flash 2s ease-out';
-              setTimeout(() => {
-                commentElement.style.animation = '';
-              }, 2000);
-            }
-          }, 1000);
+        setTimeout(async () => {
+          await openProfileModal(notif.data.profileWallet, true, {
+            scrollToCommentId: notif.data.commentId
+          });
         }, 300);
+      } else {
+        console.warn('⚠️ Notification type not handled or missing data:', notif.type, notif.data);
       }
     };
 
@@ -13171,6 +13441,18 @@
     loadNotificationsFromLocalStorage();
     renderNotifications();
     updateBadge();
+
+    // Set up click event delegation on notification list (with delay to ensure DOM is ready)
+    setTimeout(() => {
+      const notificationListEl = document.getElementById('notificationList');
+      console.log('🔧 Setting up notification click listener on:', notificationListEl);
+      if (notificationListEl) {
+        notificationListEl.addEventListener('click', handleNotificationListClick);
+        console.log('✅ Notification click listener attached!');
+      } else {
+        console.error('❌ Could not find notificationList element!');
+      }
+    }, 500);
 
     // Poll for new notifications every 30 seconds
     setInterval(fetchNotifications, 30000);
