@@ -10796,12 +10796,26 @@
     }
 
     // Toggle follow/unfollow in community view
+    let isTogglingCommunityFollow = false; // Guard against multiple simultaneous clicks
+
     window.toggleCommunityFollow = async function(targetWallet) {
+      console.log('🔵 [Community Follow] toggleCommunityFollow called for:', targetWallet);
+
       const currentWallet = localStorage.getItem('bearpark_wallet');
       if (!currentWallet) {
+        console.log('❌ [Community Follow] No wallet connected');
         alert('Please connect your wallet first!');
         return;
       }
+
+      // Prevent multiple simultaneous operations
+      if (isTogglingCommunityFollow) {
+        console.log('⏸️ [Community Follow] Already processing a follow/unfollow action');
+        return;
+      }
+
+      isTogglingCommunityFollow = true;
+      console.log('🔵 [Community Follow] Starting follow toggle operation');
 
       try {
         const response = await fetch(`${API_BASE_URL}/api/follow`, {
@@ -10813,9 +10827,13 @@
           })
         });
 
+        console.log('🔵 [Community Follow] Response status:', response.status);
+
         if (response.ok) {
           const data = await response.json();
+          console.log('🔵 [Community Follow] Response data:', data);
           const action = data.action; // 'followed' or 'unfollowed'
+          console.log('🔵 [Community Follow] Action:', action);
 
           // Update the follow button
           const btn = document.querySelector(`.community-follow-btn[data-wallet="${targetWallet}"]`);
@@ -10875,12 +10893,17 @@
               }
             }
           }
+          console.log('✅ [Community Follow] Profile modal sync completed');
         } else {
+          console.error('❌ [Community Follow] Response not OK:', response.status, response.statusText);
           alert('Failed to update follow status. Please try again.');
         }
       } catch (error) {
-        console.error('Error toggling follow:', error);
+        console.error('❌ [Community Follow] Error toggling follow:', error);
         alert('Failed to update follow status. Please try again.');
+      } finally {
+        isTogglingCommunityFollow = false;
+        console.log('🔵 [Community Follow] Operation complete, unlocked');
       }
     };
 
