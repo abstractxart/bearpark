@@ -2215,6 +2215,43 @@
     margin: 0;
   }
 
+  .community-follow-btn {
+    padding: 8px 20px;
+    background: linear-gradient(135deg, var(--gold), #c9941a);
+    color: #000;
+    border: none;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(237,183,35,0.3);
+    white-space: nowrap;
+  }
+
+  .community-follow-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(237,183,35,0.5);
+    background: linear-gradient(135deg, #f4c542, var(--gold));
+  }
+
+  .community-follow-btn.following {
+    background: linear-gradient(135deg, #28a745, #1e7e34);
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(40,167,69,0.3);
+  }
+
+  .community-follow-btn.following:hover {
+    background: linear-gradient(135deg, #34ce57, #28a745);
+    box-shadow: 0 4px 12px rgba(40,167,69,0.5);
+  }
+
+  .community-follow-btn.following::before {
+    content: '✓ ';
+  }
+
   .community-empty {
     grid-column: 1 / -1;
     text-align: center;
@@ -10460,6 +10497,7 @@
 
     async function renderCommunityUsers(users) {
       const communityUserGrid = document.getElementById('communityUserGrid');
+      const currentWallet = localStorage.getItem('bearpark_wallet');
 
       if (users.length === 0) {
         communityUserGrid.innerHTML = `
@@ -10471,27 +10509,39 @@
         return;
       }
 
-      // Fetch follower counts for each user
+      // Fetch follower counts and follow status for each user
       const usersWithCounts = await Promise.all(users.map(async (user) => {
         try {
+          // Get follower/following counts
           const countsResponse = await fetch(`${API_BASE_URL}/api/follow/counts/${user.wallet_address}`);
+          let followers = 0, following = 0;
           if (countsResponse.ok) {
             const countsData = await countsResponse.json();
-            return {
-              ...user,
-              followers: countsData.success ? countsData.followers : 0,
-              following: countsData.success ? countsData.following : 0
-            };
+            followers = countsData.success ? countsData.followers : 0;
+            following = countsData.success ? countsData.following : 0;
           }
+
+          // Get follow status (are we following this user?)
+          let isFollowing = false;
+          if (currentWallet && currentWallet !== user.wallet_address) {
+            const statusResponse = await fetch(`${API_BASE_URL}/api/follow/status?follower_wallet=${currentWallet}&following_wallet=${user.wallet_address}`);
+            if (statusResponse.ok) {
+              const statusData = await statusResponse.json();
+              isFollowing = statusData.success ? statusData.isFollowing : false;
+            }
+          }
+
+          return { ...user, followers, following, isFollowing };
         } catch (error) {
-          console.error('Error fetching counts for user:', error);
+          console.error('Error fetching data for user:', error);
+          return { ...user, followers: 0, following: 0, isFollowing: false };
         }
-        return { ...user, followers: 0, following: 0 };
       }));
 
       const userCards = usersWithCounts.map(user => {
         const displayName = user.display_name || 'Anonymous BEAR';
         const walletShort = `${user.wallet_address.substring(0, 6)}...${user.wallet_address.substring(user.wallet_address.length - 4)}`;
+        const isSelf = currentWallet === user.wallet_address;
 
         let avatarHTML = '';
         if (user.avatar_nft) {
@@ -10506,6 +10556,14 @@
           avatarHTML = `<img src="https://files.catbox.moe/ugu1kl.png" class="community-user-avatar" alt="${displayName}">`;
         }
 
+        // Follow button (only show if not viewing own profile and user is logged in)
+        let followButtonHTML = '';
+        if (!isSelf && currentWallet) {
+          const buttonClass = user.isFollowing ? 'community-follow-btn following' : 'community-follow-btn';
+          const buttonText = user.isFollowing ? 'Following' : 'Follow';
+          followButtonHTML = `<button class="${buttonClass}" data-wallet="${user.wallet_address}" onclick="event.stopPropagation(); toggleCommunityFollow('${user.wallet_address}')">${buttonText}</button>`;
+        }
+
         return `
           <div class="community-user-card" onclick="viewUserProfileFromCommunity('${user.wallet_address}')">
             <div class="community-user-avatar-wrapper">
@@ -10518,14 +10576,15 @@
               </div>
               <div class="community-user-stats">
                 <div class="community-user-stat">
-                  <div class="community-user-stat-value">${user.followers}</div>
+                  <div class="community-user-stat-value" data-wallet="${user.wallet_address}" data-type="followers">${user.followers}</div>
                   <div class="community-user-stat-label">Followers</div>
                 </div>
                 <div class="community-user-stat">
-                  <div class="community-user-stat-value">${user.following}</div>
+                  <div class="community-user-stat-value" data-wallet="${user.wallet_address}" data-type="following">${user.following}</div>
                   <div class="community-user-stat-label">Following</div>
                 </div>
               </div>
+              ${followButtonHTML}
             </div>
           </div>
         `;
@@ -10533,6 +10592,70 @@
 
       communityUserGrid.innerHTML = userCards;
     }
+
+    // Toggle follow/unfollow in community view
+    window.toggleCommunityFollow = async function(targetWallet) {
+      const currentWallet = localStorage.getItem('bearpark_wallet');
+      if (!currentWallet) {
+        alert('Please connect your wallet first!');
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/follow`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            follower_wallet: currentWallet,
+            following_wallet: targetWallet
+          })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const action = data.action; // 'followed' or 'unfollowed'
+
+          // Update the follow button
+          const btn = document.querySelector(`.community-follow-btn[data-wallet="${targetWallet}"]`);
+          if (btn) {
+            if (action === 'followed') {
+              btn.classList.add('following');
+              btn.textContent = 'Following';
+            } else {
+              btn.classList.remove('following');
+              btn.textContent = 'Follow';
+            }
+          }
+
+          // Update the follower count for the target user
+          const followerCountEl = document.querySelector(`.community-user-stat-value[data-wallet="${targetWallet}"][data-type="followers"]`);
+          if (followerCountEl) {
+            let currentCount = parseInt(followerCountEl.textContent) || 0;
+            if (action === 'followed') {
+              followerCountEl.textContent = currentCount + 1;
+            } else {
+              followerCountEl.textContent = Math.max(0, currentCount - 1);
+            }
+          }
+
+          // Update the following count for the current user (if their card is visible)
+          const followingCountEl = document.querySelector(`.community-user-stat-value[data-wallet="${currentWallet}"][data-type="following"]`);
+          if (followingCountEl) {
+            let currentCount = parseInt(followingCountEl.textContent) || 0;
+            if (action === 'followed') {
+              followingCountEl.textContent = currentCount + 1;
+            } else {
+              followingCountEl.textContent = Math.max(0, currentCount - 1);
+            }
+          }
+        } else {
+          alert('Failed to update follow status. Please try again.');
+        }
+      } catch (error) {
+        console.error('Error toggling follow:', error);
+        alert('Failed to update follow status. Please try again.');
+      }
+    };
 
     // Search functionality
     const communitySearchInput = document.getElementById('communitySearchInput');
