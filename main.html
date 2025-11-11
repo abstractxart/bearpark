@@ -11406,8 +11406,8 @@
         }
       }
 
-      // Attach event listeners
-      attachLikeButtonListeners();
+      // Event listeners are now attached once via event delegation - no need to re-attach
+      // attachLikeButtonListeners(); // REMOVED - causes duplicate listeners
     }
 
     async function loadCommentReactions(commentId) {
@@ -11442,11 +11442,15 @@
         .filter(({ type }) => counts[type] > 0)
         .map(({ type, emoji }) => {
           const isUserReaction = userReactions.includes(type);
+          // If user already reacted, clicking removes it. Otherwise, clicking adds it.
+          const clickHandler = isUserReaction
+            ? `removeReaction(${commentId}, '${type}', this)`
+            : `toggleReaction(${commentId}, '${type}')`;
           return `
             <div class="reaction-pill ${isUserReaction ? 'user-reacted' : ''}"
                  data-comment-id="${commentId}"
                  data-reaction-type="${type}"
-                 onclick="removeReaction(${commentId}, '${type}', this)">
+                 onclick="${clickHandler}">
               <span class="pill-emoji">${emoji}</span>
               <span class="pill-count">${counts[type]}</span>
             </div>
@@ -11475,188 +11479,212 @@
       return `<div class="reaction-picker" data-comment-id="${commentId}">${items}</div>`;
     }
 
-    function attachLikeButtonListeners() {
-      const likeButtons = document.querySelectorAll('.like-button');
+    // Event delegation for like buttons - attach once, works forever
+    // State storage for each button's picker state
+    const buttonStates = new Map();
 
-      likeButtons.forEach(btn => {
-        let longPressTimer;
-        let picker;
-        let currentHoveredItem = null;
-        let selectedReaction = null;
-        let pickerShown = false;
-
-        const showPicker = () => {
-          picker = btn.querySelector('.reaction-picker');
-          if (picker) {
-            picker.classList.add('visible');
-            pickerShown = true;
-
-            // Haptic feedback
-            if (navigator.vibrate) {
-              navigator.vibrate(10);
-            }
-          }
-        };
-
-        const hidePicker = () => {
-          if (picker) {
-            picker.classList.remove('visible');
-            pickerShown = false;
-          }
-          // Reset all emoji scales
-          const items = picker?.querySelectorAll('.reaction-picker-item');
-          items?.forEach(item => {
-            item.style.transform = '';
-          });
-        };
-
-        const getEmojiAtTouch = (touch) => {
-          const pickerItems = picker?.querySelectorAll('.reaction-picker-item');
-          if (!pickerItems) return null;
-
-          for (const item of pickerItems) {
-            const rect = item.getBoundingClientRect();
-            if (
-              touch.clientX >= rect.left &&
-              touch.clientX <= rect.right &&
-              touch.clientY >= rect.top &&
-              touch.clientY <= rect.bottom
-            ) {
-              return item;
-            }
-          }
-          return null;
-        };
-
-        const updateHoveredEmoji = (touch) => {
-          if (!picker || !pickerShown) return;
-
-          const hoveredItem = getEmojiAtTouch(touch);
-
-          if (hoveredItem !== currentHoveredItem) {
-            // Reset previous hovered item
-            if (currentHoveredItem) {
-              currentHoveredItem.style.transform = '';
-            }
-
-            // Scale up new hovered item
-            if (hoveredItem) {
-              hoveredItem.style.transform = 'scale(1.8) translateY(-12px)';
-              hoveredItem.style.filter = 'drop-shadow(0 8px 20px rgba(237,183,35,0.8))';
-
-              // Haptic feedback on emoji change
-              if (navigator.vibrate) {
-                navigator.vibrate(5);
-              }
-
-              selectedReaction = hoveredItem.getAttribute('data-reaction-type');
-            } else {
-              selectedReaction = null;
-            }
-
-            currentHoveredItem = hoveredItem;
-          }
-        };
-
-        // Desktop: Mouse events
-        btn.addEventListener('mousedown', (e) => {
-          longPressTimer = setTimeout(showPicker, 300);
+    function getButtonState(btn) {
+      if (!buttonStates.has(btn)) {
+        buttonStates.set(btn, {
+          longPressTimer: null,
+          picker: null,
+          currentHoveredItem: null,
+          selectedReaction: null,
+          pickerShown: false
         });
+      }
+      return buttonStates.get(btn);
+    }
 
-        btn.addEventListener('mouseup', (e) => {
-          clearTimeout(longPressTimer);
-          // Don't hide picker on mouseup - let user release and then click emoji
-        });
+    function showPicker(btn) {
+      const state = getButtonState(btn);
+      state.picker = btn.querySelector('.reaction-picker');
+      if (state.picker) {
+        state.picker.classList.add('visible');
+        state.pickerShown = true;
+        if (navigator.vibrate) navigator.vibrate(10);
+      }
+    }
 
-        btn.addEventListener('mouseleave', (e) => {
-          clearTimeout(longPressTimer);
-          // Keep picker open even when mouse leaves button (so user can click emojis)
-        });
+    function hidePicker(btn) {
+      const state = getButtonState(btn);
+      if (state.picker) {
+        state.picker.classList.remove('visible');
+        state.pickerShown = false;
+        const items = state.picker.querySelectorAll('.reaction-picker-item');
+        items.forEach(item => { item.style.transform = ''; });
+      }
+    }
 
-        btn.addEventListener('click', async (e) => {
-          picker = btn.querySelector('.reaction-picker');
-          // Only trigger quick like if picker isn't visible AND wasn't just shown
-          if (!picker || !picker.classList.contains('visible')) {
-            const commentId = btn.getAttribute('data-comment-id');
-            await toggleReaction(commentId, 'like');
-          }
-        });
+    function getEmojiAtTouch(picker, touch) {
+      const pickerItems = picker?.querySelectorAll('.reaction-picker-item');
+      if (!pickerItems) return null;
 
-        // Mobile: Touch events with slide-to-select
-        btn.addEventListener('touchstart', (e) => {
-          e.preventDefault();
-          selectedReaction = null;
-          currentHoveredItem = null;
-          longPressTimer = setTimeout(() => {
-            showPicker();
-          }, 300);
-        });
+      for (const item of pickerItems) {
+        const rect = item.getBoundingClientRect();
+        if (touch.clientX >= rect.left && touch.clientX <= rect.right &&
+            touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
+          return item;
+        }
+      }
+      return null;
+    }
 
-        btn.addEventListener('touchmove', (e) => {
-          if (!pickerShown) {
-            // Cancel long press if finger moves before picker shows
-            clearTimeout(longPressTimer);
-            return;
-          }
+    function updateHoveredEmoji(btn, touch) {
+      const state = getButtonState(btn);
+      if (!state.picker || !state.pickerShown) return;
 
-          e.preventDefault();
-          const touch = e.touches[0];
-          updateHoveredEmoji(touch);
-        });
+      const hoveredItem = getEmojiAtTouch(state.picker, touch);
 
-        btn.addEventListener('touchend', async (e) => {
-          clearTimeout(longPressTimer);
-          picker = btn.querySelector('.reaction-picker');
+      if (hoveredItem !== state.currentHoveredItem) {
+        if (state.currentHoveredItem) {
+          state.currentHoveredItem.style.transform = '';
+        }
+        if (hoveredItem) {
+          hoveredItem.style.transform = 'scale(1.8) translateY(-12px)';
+          hoveredItem.style.filter = 'drop-shadow(0 8px 20px rgba(237,183,35,0.8))';
+          if (navigator.vibrate) navigator.vibrate(5);
+          state.selectedReaction = hoveredItem.getAttribute('data-reaction-type');
+        } else {
+          state.selectedReaction = null;
+        }
+        state.currentHoveredItem = hoveredItem;
+      }
+    }
 
-          if (pickerShown && selectedReaction) {
-            // User slid to an emoji and lifted finger
-            const commentId = btn.getAttribute('data-comment-id');
-            await toggleReaction(commentId, selectedReaction);
+    // Attach event listeners ONCE to commentsList using delegation
+    if (commentsList && !commentsList.dataset.likeListenersAttached) {
+      commentsList.dataset.likeListenersAttached = 'true';
 
-            // Stronger haptic feedback on selection
-            if (navigator.vibrate) {
-              navigator.vibrate([10, 20, 10]);
-            }
+      // Mousedown - start long press timer
+      commentsList.addEventListener('mousedown', (e) => {
+        const btn = e.target.closest('.like-button');
+        if (!btn) return;
+        const state = getButtonState(btn);
+        state.longPressTimer = setTimeout(() => showPicker(btn), 300);
+      });
 
-            hidePicker();
-            selectedReaction = null;
-            currentHoveredItem = null;
-          } else if (!pickerShown) {
-            // Quick tap - just like
-            const commentId = btn.getAttribute('data-comment-id');
-            await toggleReaction(commentId, 'like');
-          } else {
-            // Picker was shown but no emoji selected
-            hidePicker();
-          }
-        });
+      // Mouseup - clear timer
+      commentsList.addEventListener('mouseup', (e) => {
+        const btn = e.target.closest('.like-button');
+        if (!btn) return;
+        const state = getButtonState(btn);
+        clearTimeout(state.longPressTimer);
+      });
 
-        btn.addEventListener('touchcancel', (e) => {
-          clearTimeout(longPressTimer);
-          hidePicker();
-          selectedReaction = null;
-          currentHoveredItem = null;
-        });
+      // Mouseleave - clear timer but keep picker open
+      commentsList.addEventListener('mouseleave', (e) => {
+        const btn = e.target.closest('.like-button');
+        if (!btn) return;
+        const state = getButtonState(btn);
+        clearTimeout(state.longPressTimer);
+      }, true);
 
-        // Picker item clicks (for desktop)
-        const pickerItems = btn.querySelectorAll('.reaction-picker-item');
-        pickerItems.forEach(item => {
-          item.addEventListener('click', async (e) => {
-            e.stopPropagation();
-            const reactionType = item.getAttribute('data-reaction-type');
+      // Click - quick like or picker item selection
+      commentsList.addEventListener('click', async (e) => {
+        // Check if clicked on picker item first
+        const pickerItem = e.target.closest('.reaction-picker-item');
+        if (pickerItem) {
+          e.stopPropagation();
+          const btn = e.target.closest('.like-button');
+          if (btn) {
+            const reactionType = pickerItem.getAttribute('data-reaction-type');
             const commentId = btn.getAttribute('data-comment-id');
             await toggleReaction(commentId, reactionType);
-            hidePicker();
-          });
-        });
-
-        // Hide picker when clicking outside
-        document.addEventListener('click', (e) => {
-          if (picker && !btn.contains(e.target)) {
-            hidePicker();
+            hidePicker(btn);
           }
-        });
+          return;
+        }
+
+        // Otherwise check if clicked on button itself
+        const btn = e.target.closest('.like-button');
+        if (!btn) return;
+
+        const state = getButtonState(btn);
+        state.picker = btn.querySelector('.reaction-picker');
+        if (!state.picker || !state.picker.classList.contains('visible')) {
+          const commentId = btn.getAttribute('data-comment-id');
+          await toggleReaction(commentId, 'like');
+        }
       });
+
+      // Touchstart - start long press
+      commentsList.addEventListener('touchstart', (e) => {
+        const btn = e.target.closest('.like-button');
+        if (!btn) return;
+        e.preventDefault();
+        const state = getButtonState(btn);
+        state.selectedReaction = null;
+        state.currentHoveredItem = null;
+        state.longPressTimer = setTimeout(() => showPicker(btn), 300);
+      }, { passive: false });
+
+      // Touchmove - slide to select emoji
+      commentsList.addEventListener('touchmove', (e) => {
+        const btn = e.target.closest('.like-button');
+        if (!btn) return;
+        const state = getButtonState(btn);
+
+        if (!state.pickerShown) {
+          clearTimeout(state.longPressTimer);
+          return;
+        }
+
+        e.preventDefault();
+        const touch = e.touches[0];
+        updateHoveredEmoji(btn, touch);
+      }, { passive: false });
+
+      // Touchend - complete reaction
+      commentsList.addEventListener('touchend', async (e) => {
+        const btn = e.target.closest('.like-button');
+        if (!btn) return;
+        const state = getButtonState(btn);
+        clearTimeout(state.longPressTimer);
+        state.picker = btn.querySelector('.reaction-picker');
+
+        if (state.pickerShown && state.selectedReaction) {
+          const commentId = btn.getAttribute('data-comment-id');
+          await toggleReaction(commentId, state.selectedReaction);
+          if (navigator.vibrate) navigator.vibrate([10, 20, 10]);
+          hidePicker(btn);
+          state.selectedReaction = null;
+          state.currentHoveredItem = null;
+        } else if (!state.pickerShown) {
+          const commentId = btn.getAttribute('data-comment-id');
+          await toggleReaction(commentId, 'like');
+        } else {
+          hidePicker(btn);
+        }
+      });
+
+      // Touchcancel - cleanup
+      commentsList.addEventListener('touchcancel', (e) => {
+        const btn = e.target.closest('.like-button');
+        if (!btn) return;
+        const state = getButtonState(btn);
+        clearTimeout(state.longPressTimer);
+        hidePicker(btn);
+        state.selectedReaction = null;
+        state.currentHoveredItem = null;
+      });
+
+      // Hide picker when clicking outside
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('.like-button')) {
+          // Clicked outside - hide all pickers
+          buttonStates.forEach((state, btn) => {
+            if (state.pickerShown) {
+              hidePicker(btn);
+            }
+          });
+        }
+      });
+    }
+
+    // No-op function for compatibility (in case it's called somewhere)
+    function attachLikeButtonListeners() {
+      // Event delegation is now used - this function does nothing
     }
 
     postCommentBtn.addEventListener('click', async () => {
@@ -11826,11 +11854,26 @@
       }
     };
 
+    // Prevent double-clicking reactions
+    const reactionLocks = new Set();
+
     window.toggleReaction = async function(commentId, reactionType) {
       if (!currentUserWallet) {
         alert('Please connect your wallet first!');
         return;
       }
+
+      // Create unique lock key for this specific reaction
+      const lockKey = `${commentId}-${reactionType}`;
+
+      // If already processing this reaction, ignore
+      if (reactionLocks.has(lockKey)) {
+        console.log('⏳ Already processing this reaction, ignoring duplicate request');
+        return;
+      }
+
+      // Lock this reaction
+      reactionLocks.add(lockKey);
 
       try {
         const response = await fetch(`${API_BASE_URL}/api/comments/${commentId}/react`, {
@@ -11842,17 +11885,41 @@
           })
         });
 
-        if (response.ok) {
-          // Update just this comment's reactions smoothly
-          await updateCommentReactions(commentId);
+        let result;
+        try {
+          result = await response.json();
+        } catch (parseError) {
+          console.error('❌ Failed to parse response JSON:', parseError);
+          console.error('❌ Response status:', response.status, response.statusText);
+          alert('Server error - invalid response');
+          return;
+        }
+
+        if (response.ok && result.success) {
+          console.log('✅ toggleReaction Backend confirmed:', result.action);
+          console.log('📦 Backend returned updated counts:', result.counts);
+          console.log('📦 Backend returned user reactions:', result.userReactions);
+
+          // Use the fresh data directly from backend response (no fetching needed!)
+          updateCommentReactionsWithData(commentId, {
+            counts: result.counts || {},
+            userReactions: result.userReactions || {}
+          });
         } else {
-          const errorData = await response.json();
-          console.error('❌ Backend error:', errorData);
-          alert('Failed to add reaction: ' + (errorData.error || 'Unknown error'));
+          console.error('❌ toggleReaction Backend error:', result);
+          console.error('❌ Response status:', response.status);
+          console.error('❌ Failed request: commentId=' + commentId + ', reactionType=' + reactionType);
+          // Don't show alert for duplicate errors (user probably double-clicked)
+          if (!result.error?.includes('duplicate key')) {
+            alert('Failed to toggle reaction: ' + (result.error || 'Unknown error'));
+          }
         }
       } catch (error) {
         console.error('Error toggling reaction:', error);
         alert('Error adding reaction.');
+      } finally {
+        // Always unlock after request completes
+        reactionLocks.delete(lockKey);
       }
     };
 
@@ -11903,8 +11970,8 @@
           }
         }
 
-        // Re-attach event listeners to the updated reaction elements
-        attachLikeButtonListeners();
+        // Event listeners use delegation - no need to re-attach
+        // attachLikeButtonListeners(); // REMOVED - causes duplicate listeners
       } catch (error) {
         console.error('Error updating reactions:', error);
       }
@@ -11963,8 +12030,8 @@
           }
         }
 
-        // Re-attach event listeners to the updated reaction elements
-        attachLikeButtonListeners();
+        // Event listeners use delegation - no need to re-attach
+        // attachLikeButtonListeners(); // REMOVED - causes duplicate listeners
       } catch (error) {
         console.error('Error updating reactions:', error);
       }
