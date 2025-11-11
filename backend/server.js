@@ -1542,15 +1542,15 @@ app.get('/api/follow/counts/:wallet', async (req, res) => {
     } catch (pgError) {
       console.warn(`⚠️ pgPool failed (${pgError.message}), falling back to Supabase...`);
 
-      // Fallback to Supabase
+      // Fallback to Supabase - fetch all records and count them
       const { data: followerData, error: followerError } = await supabase
         .from('follows')
-        .select('*', { count: 'exact', head: true })
+        .select('id')
         .eq('following_wallet', wallet);
 
       const { data: followingData, error: followingError } = await supabase
         .from('follows')
-        .select('*', { count: 'exact', head: true })
+        .select('id')
         .eq('follower_wallet', wallet);
 
       if (followerError || followingError) {
@@ -1559,6 +1559,8 @@ app.get('/api/follow/counts/:wallet', async (req, res) => {
 
       followers = followerData?.length || 0;
       following = followingData?.length || 0;
+
+      console.log(`✅ [Supabase] Follower counts for ${wallet}: followers=${followers}, following=${following}`);
     }
 
     res.json({
