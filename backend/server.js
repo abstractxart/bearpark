@@ -1024,17 +1024,43 @@ app.delete('/api/comments/:id', async (req, res) => {
       return res.status(400).json({ success: false, error: 'wallet_address required' });
     }
 
-    // Get the comment to check ownership using direct SQL
-    const commentResult = await pgPool.query(
-      'SELECT * FROM profile_comments WHERE id = $1',
-      [id]
-    );
+    let comment;
 
-    if (commentResult.rows.length === 0) {
-      return res.status(404).json({ success: false, error: 'Comment not found' });
+    // Try direct PostgreSQL first, fall back to Supabase if it fails
+    try {
+      if (pgPool) {
+        // Get the comment to check ownership using direct SQL
+        const commentResult = await pgPool.query(
+          'SELECT * FROM profile_comments WHERE id = $1',
+          [id]
+        );
+
+        if (commentResult.rows.length === 0) {
+          return res.status(404).json({ success: false, error: 'Comment not found' });
+        }
+
+        comment = commentResult.rows[0];
+      } else {
+        throw new Error('pgPool not available');
+      }
+    } catch (pgError) {
+      console.warn(`⚠️ pgPool failed (${pgError.message}), falling back to Supabase...`);
+
+      // Fallback to Supabase
+      const { data, error } = await supabase
+        .from('profile_comments')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (!data) {
+        return res.status(404).json({ success: false, error: 'Comment not found' });
+      }
+
+      comment = data;
     }
-
-    const comment = commentResult.rows[0];
 
     // Check permissions: admin, profile owner, or comment author
     const canDelete = is_admin ||
@@ -1045,11 +1071,29 @@ app.delete('/api/comments/:id', async (req, res) => {
       return res.status(403).json({ success: false, error: 'Permission denied' });
     }
 
-    // Delete the comment using direct SQL (CASCADE will delete reactions and child comments)
-    await pgPool.query(
-      'DELETE FROM profile_comments WHERE id = $1',
-      [id]
-    );
+    // Delete the comment (CASCADE will delete reactions and child comments)
+    try {
+      if (pgPool) {
+        await pgPool.query(
+          'DELETE FROM profile_comments WHERE id = $1',
+          [id]
+        );
+        console.log(`✅ [pgPool] Comment ${id} deleted successfully`);
+      } else {
+        throw new Error('pgPool not available');
+      }
+    } catch (pgError) {
+      console.warn(`⚠️ pgPool failed (${pgError.message}), falling back to Supabase...`);
+
+      // Fallback to Supabase
+      const { error: deleteError } = await supabase
+        .from('profile_comments')
+        .delete()
+        .eq('id', id);
+
+      if (deleteError) throw deleteError;
+      console.log(`✅ [Supabase] Comment ${id} deleted successfully`);
+    }
 
     res.json({ success: true, message: 'Comment deleted successfully' });
   } catch (error) {
