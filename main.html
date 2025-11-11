@@ -8636,7 +8636,7 @@
             }
 
             return `
-              <div class="leaderboard-item ${rankClass}" style="display:flex; align-items:center; gap:12px;">
+              <div class="leaderboard-item ${rankClass}" onclick="openProfileModal('${entry.wallet_address}')" style="display:flex; align-items:center; gap:12px; cursor:pointer;">
                 <div class="leaderboard-rank ${rank <= 3 ? 'top-3' : ''}">${trophy}</div>
                 ${avatarHTML}
                 <div class="leaderboard-user" style="flex:1; min-width:0;">
@@ -10278,7 +10278,7 @@
               }
 
               return `
-                <div class="leaderboard-entry ${rankClass}">
+                <div class="leaderboard-entry ${rankClass}" onclick="openProfileModal('${entry.wallet_address}')" style="cursor:pointer;">
                   <div class="leaderboard-rank">${medal || `#${index + 1}`}</div>
                   <div class="leaderboard-name" style="display:flex; align-items:center;">
                     ${avatarHTML}
