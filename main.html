@@ -10901,6 +10901,10 @@
               console.log('✅ [Community Follow Sync] Set profile button to: Follow');
             }
 
+            // Mark that we just synced, so loadFollowData doesn't overwrite this
+            lastFollowSyncTimestamp = Date.now();
+            console.log('🔵 [Community Follow Sync] Set lastFollowSyncTimestamp to prevent database overwrite');
+
             console.log('🔵 [Community Follow Sync] Button classes after:', profileFollowBtn.className);
             console.log('🔵 [Community Follow Sync] Button text after:', profileFollowBtn.querySelector('.follow-btn-text')?.textContent);
 
@@ -11049,6 +11053,7 @@
     let allUsers = [];
     let isSearchMode = false;
     let profileNavigationHistory = []; // Track navigation history for back button
+    let lastFollowSyncTimestamp = 0; // Track when we last manually synced the follow button
 
     // Open Profile Modal
     window.openProfileModal = async function(walletAddress = null, addToHistory = true, options = {}) {
@@ -11445,6 +11450,13 @@
           followBtn.style.display = 'none';
         } else {
           followBtn.style.display = 'flex';
+
+          // Check if we recently synced the button manually (within last 2 seconds)
+          const timeSinceLastSync = Date.now() - lastFollowSyncTimestamp;
+          if (timeSinceLastSync < 2000) {
+            console.log(`⏸️ [LoadFollowData] Skipping database check - button was manually synced ${timeSinceLastSync}ms ago`);
+            return;
+          }
 
           // Check if already following
           console.log('🔵 [LoadFollowData] Checking follow status for:', window.currentProfileWallet);
