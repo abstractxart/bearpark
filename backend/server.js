@@ -795,14 +795,40 @@ app.post('/api/games/reset-daily/:wallet', async (req, res) => {
 // Get All Users (for BEAR Search)
 app.get('/api/users', async (req, res) => {
   try {
-    // Use direct SQL to get all profiles with basic info
-    const result = await pgPool.query(
-      'SELECT wallet_address, display_name, avatar_nft, created_at FROM profiles ORDER BY display_name ASC'
-    );
+    let users = [];
+
+    // Try direct PostgreSQL first, fall back to Supabase if it fails
+    try {
+      if (pgPool) {
+        const result = await pgPool.query(
+          'SELECT wallet_address, display_name, avatar_nft, created_at FROM profiles ORDER BY display_name ASC'
+        );
+        users = result.rows || [];
+        console.log(`✅ [pgPool] Fetched ${users.length} users from profiles table`);
+      } else {
+        throw new Error('pgPool not available');
+      }
+    } catch (pgError) {
+      console.warn(`⚠️ pgPool failed (${pgError.message}), falling back to Supabase...`);
+
+      // Fallback to Supabase
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('wallet_address, display_name, avatar_nft, created_at')
+        .order('display_name', { ascending: true });
+
+      if (error) {
+        console.error('❌ Supabase error:', error);
+        throw error;
+      }
+
+      users = data || [];
+      console.log(`✅ [Supabase] Fetched ${users.length} users from profiles table`);
+    }
 
     res.json({
       success: true,
-      users: result.rows || []
+      users: users
     });
   } catch (error) {
     console.error('Error fetching users:', error);
