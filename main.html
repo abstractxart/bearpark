@@ -3350,6 +3350,22 @@
     50% { transform: translateX(-2px); opacity: 0.7; }
   }
 
+  /* Highlight flash animation for notification navigation */
+  @keyframes highlight-flash {
+    0%, 100% {
+      background: transparent;
+      box-shadow: none;
+    }
+    10%, 30%, 50% {
+      background: linear-gradient(135deg, rgba(237,183,35,0.3), rgba(237,183,35,0.1));
+      box-shadow: 0 0 20px rgba(237,183,35,0.5), inset 0 0 15px rgba(237,183,35,0.2);
+    }
+    20%, 40%, 60% {
+      background: transparent;
+      box-shadow: none;
+    }
+  }
+
   .reply-to-text {
     font-size: 12px;
     color: rgba(255,255,255,0.6);
@@ -12859,10 +12875,24 @@
         // Open the follower's profile
         toggleNotificationPanel();
         setTimeout(() => openProfileModal(notif.data.wallet), 300);
-      } else if (notif.type === 'reaction' && notif.data.wallet) {
-        // Open the reactor's profile (the person who reacted)
+      } else if (notif.type === 'reaction' && notif.data.profileWallet && notif.data.commentId) {
+        // Open the profile where the comment was posted and scroll to that comment
         toggleNotificationPanel();
-        setTimeout(() => openProfileModal(notif.data.wallet), 300);
+        setTimeout(() => {
+          openProfileModal(notif.data.profileWallet);
+          // Wait for profile to load, then scroll to comment
+          setTimeout(() => {
+            const commentElement = document.querySelector(`.comment-thread[data-comment-id="${notif.data.commentId}"]`);
+            if (commentElement) {
+              commentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              // Add highlight effect
+              commentElement.style.animation = 'highlight-flash 2s ease-out';
+              setTimeout(() => {
+                commentElement.style.animation = '';
+              }, 2000);
+            }
+          }, 1000);
+        }, 300);
       }
     };
 
