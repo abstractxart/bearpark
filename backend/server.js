@@ -39,7 +39,8 @@ try {
   if (process.env.DATABASE_URL) {
     pgPool = new Pool({
       connectionString: process.env.DATABASE_URL,
-      ssl: { rejectUnauthorized: false }
+      ssl: { rejectUnauthorized: false },
+      connectionTimeoutMillis: 5000
     });
     console.log('✅ Direct PostgreSQL pool initialized');
   } else {
@@ -1076,16 +1077,45 @@ app.post('/api/comments/:id/react', async (req, res) => {
     }
 
     if (existing) {
-      // Remove reaction by ID using direct PostgreSQL (bypasses RLS and cache issues)
+      // Remove reaction by ID
       console.log(`❌ Removing reaction for comment ${commentId}, reaction ID: ${existing.id}`);
 
-      const deleteResult = await pgPool.query(
-        'DELETE FROM comment_reactions WHERE id = $1 RETURNING *',
-        [existing.id]
-      );
+      let deletedCount = 0;
 
-      console.log(`✅ Reaction removed successfully, deleted ${deleteResult.rowCount} row(s)`);
-      console.log(`📋 Deleted reaction:`, deleteResult.rows[0]);
+      // Try direct PostgreSQL first (bypasses RLS), fall back to Supabase if it fails
+      try {
+        if (pgPool) {
+          const deleteResult = await pgPool.query(
+            'DELETE FROM comment_reactions WHERE id = $1 RETURNING *',
+            [existing.id]
+          );
+          deletedCount = deleteResult.rowCount;
+          console.log(`✅ [pgPool] Reaction removed successfully, deleted ${deletedCount} row(s)`);
+        } else {
+          throw new Error('pgPool not available');
+        }
+      } catch (pgError) {
+        console.warn(`⚠️ pgPool failed (${pgError.message}), falling back to Supabase...`);
+
+        // Fallback to Supabase with .select() to verify deletion
+        const { data: deletedData, error: deleteError } = await supabase
+          .from('comment_reactions')
+          .delete()
+          .eq('id', existing.id)
+          .select();
+
+        if (deleteError) {
+          console.error(`❌ Supabase delete error:`, deleteError);
+          throw deleteError;
+        }
+
+        deletedCount = deletedData?.length || 0;
+        console.log(`✅ [Supabase] Reaction removed successfully, deleted ${deletedCount} row(s)`);
+      }
+
+      if (deletedCount === 0) {
+        console.error(`❌ WARNING: Delete returned 0 rows - reaction may not have been deleted!`);
+      }
 
       console.log(`🔍 Fetching updated reactions for comment ${commentId}...`);
       // Fetch updated reactions to return fresh counts
