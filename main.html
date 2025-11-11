@@ -10877,17 +10877,32 @@
           }
 
           // SYNC: Also update the profile modal follow button if it's open for this user
+          console.log('🔵 [Community Follow Sync] Checking profile modal sync...');
+          console.log('🔵 [Community Follow Sync] currentProfileWallet:', window.currentProfileWallet);
+          console.log('🔵 [Community Follow Sync] targetWallet:', targetWallet);
+
           const profileFollowBtn = document.getElementById('followBtn');
+          console.log('🔵 [Community Follow Sync] Found profile follow button:', !!profileFollowBtn);
+
           if (profileFollowBtn && window.currentProfileWallet === targetWallet) {
+            console.log('🔵 [Community Follow Sync] Wallets match! Syncing profile modal...');
+            console.log('🔵 [Community Follow Sync] Button classes before:', profileFollowBtn.className);
+            console.log('🔵 [Community Follow Sync] Button text before:', profileFollowBtn.querySelector('.follow-btn-text')?.textContent);
+
             if (action === 'followed') {
               profileFollowBtn.classList.add('following');
               profileFollowBtn.querySelector('.follow-btn-text').textContent = 'Following';
               profileFollowBtn.querySelector('.follow-btn-icon').textContent = '✓';
+              console.log('✅ [Community Follow Sync] Set profile button to: Following');
             } else {
               profileFollowBtn.classList.remove('following');
               profileFollowBtn.querySelector('.follow-btn-text').textContent = 'Follow';
               profileFollowBtn.querySelector('.follow-btn-icon').textContent = '+';
+              console.log('✅ [Community Follow Sync] Set profile button to: Follow');
             }
+
+            console.log('🔵 [Community Follow Sync] Button classes after:', profileFollowBtn.className);
+            console.log('🔵 [Community Follow Sync] Button text after:', profileFollowBtn.querySelector('.follow-btn-text')?.textContent);
 
             // Also update the profile modal follower count
             const profileFollowersCount = document.getElementById('followersCount');
@@ -10898,7 +10913,10 @@
               } else {
                 profileFollowersCount.textContent = Math.max(0, currentCount - 1);
               }
+              console.log('✅ [Community Follow Sync] Updated follower count to:', profileFollowersCount.textContent);
             }
+          } else {
+            console.log('⏸️ [Community Follow Sync] Not syncing - profile modal not open for this user or button not found');
           }
           console.log('✅ [Community Follow] Profile modal sync completed');
         } else {
