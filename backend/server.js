@@ -1361,42 +1361,101 @@ app.post('/api/follow', async (req, res) => {
       });
     }
 
-    // Check if already following using direct SQL
-    const checkResult = await pgPool.query(
-      'SELECT id FROM follows WHERE follower_wallet = $1 AND following_wallet = $2',
-      [follower_wallet, following_wallet]
-    );
+    let action;
 
-    if (checkResult.rows.length > 0) {
-      // Unfollow
-      await pgPool.query(
-        'DELETE FROM follows WHERE follower_wallet = $1 AND following_wallet = $2',
-        [follower_wallet, following_wallet]
-      );
-      res.json({ success: true, action: 'unfollowed' });
-    } else {
-      // Follow
-      await pgPool.query(
-        'INSERT INTO follows (follower_wallet, following_wallet) VALUES ($1, $2)',
-        [follower_wallet, following_wallet]
-      );
+    // Try direct PostgreSQL first, fall back to Supabase if it fails
+    try {
+      if (pgPool) {
+        // Check if already following using direct SQL
+        const checkResult = await pgPool.query(
+          'SELECT id FROM follows WHERE follower_wallet = $1 AND following_wallet = $2',
+          [follower_wallet, following_wallet]
+        );
 
-      // Get follower's display name for notification
-      const followerProfile = await pgPool.query(
-        'SELECT display_name FROM profiles WHERE wallet_address = $1',
-        [follower_wallet]
-      );
+        if (checkResult.rows.length > 0) {
+          // Unfollow
+          await pgPool.query(
+            'DELETE FROM follows WHERE follower_wallet = $1 AND following_wallet = $2',
+            [follower_wallet, following_wallet]
+          );
+          action = 'unfollowed';
+        } else {
+          // Follow
+          await pgPool.query(
+            'INSERT INTO follows (follower_wallet, following_wallet) VALUES ($1, $2)',
+            [follower_wallet, following_wallet]
+          );
 
-      const followerDisplayName = followerProfile.rows[0]?.display_name || null;
+          // Get follower's display name for notification
+          const followerProfile = await pgPool.query(
+            'SELECT display_name FROM profiles WHERE wallet_address = $1',
+            [follower_wallet]
+          );
 
-      // Send notification to the person being followed
-      addNotification(following_wallet, 'follower', {
-        wallet: follower_wallet,
-        displayName: followerDisplayName
-      });
+          const followerDisplayName = followerProfile.rows[0]?.display_name || null;
 
-      res.json({ success: true, action: 'followed' });
+          // Send notification to the person being followed
+          addNotification(following_wallet, 'follower', {
+            wallet: follower_wallet,
+            displayName: followerDisplayName
+          });
+
+          action = 'followed';
+        }
+      } else {
+        throw new Error('pgPool not available');
+      }
+    } catch (pgError) {
+      console.warn(`⚠️ pgPool failed (${pgError.message}), falling back to Supabase...`);
+
+      // Fallback to Supabase
+      const { data: existing, error: checkError } = await supabase
+        .from('follows')
+        .select('id')
+        .eq('follower_wallet', follower_wallet)
+        .eq('following_wallet', following_wallet)
+        .maybeSingle();
+
+      if (checkError) throw checkError;
+
+      if (existing) {
+        // Unfollow
+        const { error: deleteError } = await supabase
+          .from('follows')
+          .delete()
+          .eq('follower_wallet', follower_wallet)
+          .eq('following_wallet', following_wallet);
+
+        if (deleteError) throw deleteError;
+        action = 'unfollowed';
+      } else {
+        // Follow
+        const { error: insertError } = await supabase
+          .from('follows')
+          .insert({ follower_wallet, following_wallet });
+
+        if (insertError) throw insertError;
+
+        // Get follower's display name for notification
+        const { data: followerProfile } = await supabase
+          .from('profiles')
+          .select('display_name')
+          .eq('wallet_address', follower_wallet)
+          .maybeSingle();
+
+        const followerDisplayName = followerProfile?.display_name || null;
+
+        // Send notification to the person being followed
+        addNotification(following_wallet, 'follower', {
+          wallet: follower_wallet,
+          displayName: followerDisplayName
+        });
+
+        action = 'followed';
+      }
     }
+
+    res.json({ success: true, action });
   } catch (error) {
     console.error('Error toggling follow:', error);
     res.status(500).json({ success: false, error: error.message });
@@ -1415,14 +1474,37 @@ app.get('/api/follow/status', async (req, res) => {
       });
     }
 
-    const result = await pgPool.query(
-      'SELECT id FROM follows WHERE follower_wallet = $1 AND following_wallet = $2',
-      [follower_wallet, following_wallet]
-    );
+    let isFollowing = false;
+
+    // Try direct PostgreSQL first, fall back to Supabase if it fails
+    try {
+      if (pgPool) {
+        const result = await pgPool.query(
+          'SELECT id FROM follows WHERE follower_wallet = $1 AND following_wallet = $2',
+          [follower_wallet, following_wallet]
+        );
+        isFollowing = result.rows.length > 0;
+      } else {
+        throw new Error('pgPool not available');
+      }
+    } catch (pgError) {
+      console.warn(`⚠️ pgPool failed (${pgError.message}), falling back to Supabase...`);
+
+      // Fallback to Supabase
+      const { data, error } = await supabase
+        .from('follows')
+        .select('id')
+        .eq('follower_wallet', follower_wallet)
+        .eq('following_wallet', following_wallet)
+        .maybeSingle();
+
+      if (error) throw error;
+      isFollowing = !!data;
+    }
 
     res.json({
       success: true,
-      isFollowing: result.rows.length > 0
+      isFollowing: isFollowing
     });
   } catch (error) {
     console.error('Error checking follow status:', error);
@@ -1434,23 +1516,55 @@ app.get('/api/follow/status', async (req, res) => {
 app.get('/api/follow/counts/:wallet', async (req, res) => {
   try {
     const { wallet } = req.params;
+    let followers = 0;
+    let following = 0;
 
-    // Get follower count (people following this user)
-    const followerResult = await pgPool.query(
-      'SELECT COUNT(*) as count FROM follows WHERE following_wallet = $1',
-      [wallet]
-    );
+    // Try direct PostgreSQL first, fall back to Supabase if it fails
+    try {
+      if (pgPool) {
+        // Get follower count (people following this user)
+        const followerResult = await pgPool.query(
+          'SELECT COUNT(*) as count FROM follows WHERE following_wallet = $1',
+          [wallet]
+        );
 
-    // Get following count (people this user is following)
-    const followingResult = await pgPool.query(
-      'SELECT COUNT(*) as count FROM follows WHERE follower_wallet = $1',
-      [wallet]
-    );
+        // Get following count (people this user is following)
+        const followingResult = await pgPool.query(
+          'SELECT COUNT(*) as count FROM follows WHERE follower_wallet = $1',
+          [wallet]
+        );
+
+        followers = parseInt(followerResult.rows[0].count);
+        following = parseInt(followingResult.rows[0].count);
+      } else {
+        throw new Error('pgPool not available');
+      }
+    } catch (pgError) {
+      console.warn(`⚠️ pgPool failed (${pgError.message}), falling back to Supabase...`);
+
+      // Fallback to Supabase
+      const { data: followerData, error: followerError } = await supabase
+        .from('follows')
+        .select('*', { count: 'exact', head: true })
+        .eq('following_wallet', wallet);
+
+      const { data: followingData, error: followingError } = await supabase
+        .from('follows')
+        .select('*', { count: 'exact', head: true })
+        .eq('follower_wallet', wallet);
+
+      if (followerError || followingError) {
+        throw followerError || followingError;
+      }
+
+      followers = followerData?.length || 0;
+      following = followingData?.length || 0;
+    }
 
     res.json({
       success: true,
-      followers: parseInt(followerResult.rows[0].count),
-      following: parseInt(followingResult.rows[0].count)
+      followers: followers,
+      following: following
     });
   } catch (error) {
     console.error('Error fetching follow counts:', error);
