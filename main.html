@@ -11443,13 +11443,16 @@
 
     async function loadComments() {
       try {
+        console.log('🔄 [LoadComments] Fetching comments for:', currentProfileWallet);
         const response = await fetch(`${API_BASE_URL}/api/comments/${currentProfileWallet}`);
         if (!response.ok) throw new Error('Failed to load comments');
 
         const data = await response.json();
+        console.log(`✅ [LoadComments] Received ${data.comments?.length || 0} comments`);
         await displayComments(data.comments || []);
+        console.log('✅ [LoadComments] Comments displayed');
       } catch (error) {
-        console.error('Error loading comments:', error);
+        console.error('❌ [LoadComments] Error loading comments:', error);
         commentsList.innerHTML = '<div class="comments-empty">Unable to load comments. Please try again later.</div>';
       }
     }
@@ -11962,7 +11965,9 @@
 
         if (response.ok) {
           console.log('✅ [Delete] Comment deleted successfully');
+          console.log('🔄 [Delete] Reloading comments...');
           await loadComments();
+          console.log('✅ [Delete] Comments reloaded');
         } else {
           const errorData = await response.json();
           console.error('❌ [Delete] Error response:', errorData);
