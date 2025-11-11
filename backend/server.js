@@ -1576,19 +1576,55 @@ app.get('/api/follow/counts/:wallet', async (req, res) => {
 app.get('/api/follow/followers/:wallet', async (req, res) => {
   try {
     const { wallet } = req.params;
+    let followers = [];
 
-    const result = await pgPool.query(
-      `SELECT f.follower_wallet, p.display_name, p.avatar_nft, f.created_at
-       FROM follows f
-       LEFT JOIN profiles p ON f.follower_wallet = p.wallet_address
-       WHERE f.following_wallet = $1
-       ORDER BY f.created_at DESC`,
-      [wallet]
-    );
+    // Try direct PostgreSQL first, fall back to Supabase if it fails
+    try {
+      if (pgPool) {
+        const result = await pgPool.query(
+          `SELECT f.follower_wallet, p.display_name, p.avatar_nft, f.created_at
+           FROM follows f
+           LEFT JOIN profiles p ON f.follower_wallet = p.wallet_address
+           WHERE f.following_wallet = $1
+           ORDER BY f.created_at DESC`,
+          [wallet]
+        );
+        followers = result.rows;
+      } else {
+        throw new Error('pgPool not available');
+      }
+    } catch (pgError) {
+      console.warn(`⚠️ pgPool failed (${pgError.message}), falling back to Supabase...`);
+
+      // Fallback to Supabase - get follows then fetch profiles separately
+      const { data: followData, error: followError } = await supabase
+        .from('follows')
+        .select('follower_wallet, created_at')
+        .eq('following_wallet', wallet)
+        .order('created_at', { ascending: false });
+
+      if (followError) throw followError;
+
+      // Fetch profile data for each follower
+      followers = await Promise.all((followData || []).map(async (follow) => {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('display_name, avatar_nft')
+          .eq('wallet_address', follow.follower_wallet)
+          .maybeSingle();
+
+        return {
+          follower_wallet: follow.follower_wallet,
+          display_name: profile?.display_name || null,
+          avatar_nft: profile?.avatar_nft || null,
+          created_at: follow.created_at
+        };
+      }));
+    }
 
     res.json({
       success: true,
-      followers: result.rows
+      followers: followers
     });
   } catch (error) {
     console.error('Error fetching followers:', error);
@@ -1600,19 +1636,55 @@ app.get('/api/follow/followers/:wallet', async (req, res) => {
 app.get('/api/follow/following/:wallet', async (req, res) => {
   try {
     const { wallet } = req.params;
+    let following = [];
 
-    const result = await pgPool.query(
-      `SELECT f.following_wallet, p.display_name, p.avatar_nft, f.created_at
-       FROM follows f
-       LEFT JOIN profiles p ON f.following_wallet = p.wallet_address
-       WHERE f.follower_wallet = $1
-       ORDER BY f.created_at DESC`,
-      [wallet]
-    );
+    // Try direct PostgreSQL first, fall back to Supabase if it fails
+    try {
+      if (pgPool) {
+        const result = await pgPool.query(
+          `SELECT f.following_wallet, p.display_name, p.avatar_nft, f.created_at
+           FROM follows f
+           LEFT JOIN profiles p ON f.following_wallet = p.wallet_address
+           WHERE f.follower_wallet = $1
+           ORDER BY f.created_at DESC`,
+          [wallet]
+        );
+        following = result.rows;
+      } else {
+        throw new Error('pgPool not available');
+      }
+    } catch (pgError) {
+      console.warn(`⚠️ pgPool failed (${pgError.message}), falling back to Supabase...`);
+
+      // Fallback to Supabase - get follows then fetch profiles separately
+      const { data: followData, error: followError } = await supabase
+        .from('follows')
+        .select('following_wallet, created_at')
+        .eq('follower_wallet', wallet)
+        .order('created_at', { ascending: false });
+
+      if (followError) throw followError;
+
+      // Fetch profile data for each person being followed
+      following = await Promise.all((followData || []).map(async (follow) => {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('display_name, avatar_nft')
+          .eq('wallet_address', follow.following_wallet)
+          .maybeSingle();
+
+        return {
+          following_wallet: follow.following_wallet,
+          display_name: profile?.display_name || null,
+          avatar_nft: profile?.avatar_nft || null,
+          created_at: follow.created_at
+        };
+      }));
+    }
 
     res.json({
       success: true,
-      following: result.rows
+      following: following
     });
   } catch (error) {
     console.error('Error fetching following:', error);
