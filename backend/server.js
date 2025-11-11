@@ -1076,19 +1076,16 @@ app.post('/api/comments/:id/react', async (req, res) => {
     }
 
     if (existing) {
-      // Remove reaction by ID (more reliable than matching multiple fields)
+      // Remove reaction by ID using direct PostgreSQL (bypasses RLS and cache issues)
       console.log(`❌ Removing reaction for comment ${commentId}, reaction ID: ${existing.id}`);
-      const { error: deleteError, data: deletedData } = await supabase
-        .from('comment_reactions')
-        .delete()
-        .eq('id', existing.id);
 
-      if (deleteError) {
-        console.error(`❌ Delete error:`, deleteError);
-        throw deleteError;
-      }
+      const deleteResult = await pgPool.query(
+        'DELETE FROM comment_reactions WHERE id = $1 RETURNING *',
+        [existing.id]
+      );
 
-      console.log(`✅ Reaction removed successfully, deleted rows:`, deletedData);
+      console.log(`✅ Reaction removed successfully, deleted ${deleteResult.rowCount} row(s)`);
+      console.log(`📋 Deleted reaction:`, deleteResult.rows[0]);
 
       console.log(`🔍 Fetching updated reactions for comment ${commentId}...`);
       // Fetch updated reactions to return fresh counts
