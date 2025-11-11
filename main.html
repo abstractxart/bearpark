@@ -5752,7 +5752,7 @@
 
         <!-- NFT Collection Section (conditional) -->
         <div class="profile-section">
-          <h4>🖼️ My NFT Collection</h4>
+          <h4 id="nftCollectionHeader">🖼️ My NFT Collection</h4>
 
           <!-- Pixel BEARS Collection -->
           <div id="pixelBearsSection" class="nft-collection-section" style="display:none;">
@@ -10809,6 +10809,16 @@
             profileModalTitle.textContent = `${displayName.toUpperCase()}'S PROFILE`;
           }
 
+          // Update NFT Collection header based on whose profile is being viewed
+          const nftCollectionHeader = document.getElementById('nftCollectionHeader');
+          if (nftCollectionHeader) {
+            if (currentProfileWallet === currentUserWallet) {
+              nftCollectionHeader.textContent = '🖼️ My NFT Collection';
+            } else {
+              nftCollectionHeader.textContent = `🖼️ ${displayName}'s NFT Collection`;
+            }
+          }
+
           let avatarUrl = profileData.avatar_url;
 
           if (!avatarUrl && profileData.avatar_nft) {
@@ -10860,6 +10870,16 @@
             profileModalTitle.textContent = 'MY PROFILE';
           } else {
             profileModalTitle.textContent = 'ANONYMOUS BEAR\'S PROFILE';
+          }
+
+          // Update NFT Collection header for anonymous profiles
+          const nftCollectionHeader = document.getElementById('nftCollectionHeader');
+          if (nftCollectionHeader) {
+            if (currentProfileWallet === currentUserWallet) {
+              nftCollectionHeader.textContent = '🖼️ My NFT Collection';
+            } else {
+              nftCollectionHeader.textContent = '🖼️ Anonymous BEAR\'s NFT Collection';
+            }
           }
 
           // Show/hide edit buttons based on ownership
