@@ -11846,7 +11846,9 @@
           // Update just this comment's reactions smoothly
           await updateCommentReactions(commentId);
         } else {
-          alert('Failed to add reaction.');
+          const errorData = await response.json();
+          console.error('❌ Backend error:', errorData);
+          alert('Failed to add reaction: ' + (errorData.error || 'Unknown error'));
         }
       } catch (error) {
         console.error('Error toggling reaction:', error);

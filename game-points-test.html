@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Game Points Test - BEAR Park</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      background: white;
+      padding: 40px;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      text-align: center;
+      max-width: 500px;
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+    }
+    .subtitle {
+      color: #666;
+      margin-bottom: 30px;
+    }
+    button {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 15px 30px;
+      font-size: 18px;
+      font-weight: bold;
+      border-radius: 10px;
+      cursor: pointer;
+      margin: 10px;
+      transition: transform 0.2s;
+    }
+    button:hover {
+      transform: scale(1.05);
+    }
+    button:active {
+      transform: scale(0.95);
+    }
+    .info {
+      background: #f0f0f0;
+      padding: 20px;
+      border-radius: 10px;
+      margin: 20px 0;
+      text-align: left;
+    }
+    .info h3 {
+      margin-top: 0;
+      color: #667eea;
+    }
+    .status {
+      font-weight: bold;
+      font-size: 24px;
+      margin: 20px 0;
+      padding: 15px;
+      border-radius: 10px;
+      background: #e7f3ff;
+      color: #0066cc;
+    }
+    .wallet-check {
+      background: #fff9e6;
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      border-left: 4px solid #ffcc00;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🍯 Game Points Test</h1>
+    <p class="subtitle">Bear Market Edition - 8 pts/game, 5 games/day max</p>
+
+    <div class="wallet-check" id="walletCheck">
+      Checking wallet connection...
+    </div>
+
+    <button onclick="testAwardPoints()">
+      🎮 Complete Game (Award 8 Points)
+    </button>
+
+    <button onclick="checkDailyStatus()">
+      📊 Check Daily Status
+    </button>
+
+    <div class="status" id="status">
+      Click "Complete Game" to test!
+    </div>
+
+    <div class="info">
+      <h3>How It Works:</h3>
+      <ul>
+        <li>✅ 8 points per game completion</li>
+        <li>✅ Max 5 games per day</li>
+        <li>✅ Resets at midnight UTC</li>
+        <li>✅ Points saved to database</li>
+        <li>✅ Shows up on leaderboard</li>
+      </ul>
+    </div>
+
+    <div class="info">
+      <h3>Integration (2 lines):</h3>
+      <pre style="background: #282c34; color: #abb2bf; padding: 15px; border-radius: 5px; text-align: left; overflow-x: auto;">
+// Add before &lt;/body&gt;
+&lt;script src="frontend/game-points-helper.js"&gt;&lt;/script&gt;
+
+// Call when game ends
+awardGamePoints('your-game-id');</pre>
+    </div>
+  </div>
+
+  <!-- Include the game points helper -->
+  <script src="frontend/game-points-helper.js"></script>
+
+  <script>
+    // Check if wallet is connected
+    window.addEventListener('DOMContentLoaded', () => {
+      const wallet = localStorage.getItem('bearpark_wallet');
+      const walletCheck = document.getElementById('walletCheck');
+
+      if (wallet) {
+        walletCheck.innerHTML = `✅ Wallet Connected: <code style="background: #f0f0f0; padding: 5px; border-radius: 5px;">${wallet.substring(0, 8)}...${wallet.substring(wallet.length - 6)}</code>`;
+        walletCheck.style.background = '#e8f5e9';
+        walletCheck.style.borderColor = '#4caf50';
+      } else {
+        walletCheck.innerHTML = '❌ No wallet connected. <a href="/" style="color: #667eea; font-weight: bold;">Connect wallet first</a>';
+        walletCheck.style.background = '#ffebee';
+        walletCheck.style.borderColor = '#f44336';
+      }
+    });
+
+    // Test awarding points
+    async function testAwardPoints() {
+      const status = document.getElementById('status');
+      status.textContent = 'Awarding points...';
+      status.style.background = '#fff9e6';
+      status.style.color = '#ff8800';
+
+      const result = await awardGamePoints('test-game');
+
+      if (result.success) {
+        status.innerHTML = `
+          ✅ Success!<br>
+          <div style="font-size: 18px; margin-top: 10px;">
+            +${result.points_awarded} points awarded<br>
+            Games today: ${result.plays_today}/${result.max_plays}<br>
+            Remaining: ${result.remaining_plays}
+          </div>
+        `;
+        status.style.background = '#e8f5e9';
+        status.style.color = '#2e7d32';
+      } else {
+        status.innerHTML = `
+          ⚠️ ${result.message}<br>
+          <div style="font-size: 16px; margin-top: 10px;">
+            ${result.plays_today}/${result.max_plays} games played today
+          </div>
+        `;
+        status.style.background = '#ffebee';
+        status.style.color = '#c62828';
+      }
+    }
+
+    // Check daily status
+    async function checkDailyStatus() {
+      const status = document.getElementById('status');
+      status.textContent = 'Checking status...';
+      status.style.background = '#fff9e6';
+      status.style.color = '#ff8800';
+
+      const result = await getDailyGameStatus('test-game');
+
+      if (result.success) {
+        status.innerHTML = `
+          📊 Daily Status<br>
+          <div style="font-size: 18px; margin-top: 10px;">
+            Games played: ${result.plays_today}/${result.max_plays}<br>
+            Games remaining: ${result.remaining_plays}<br>
+            Points earned today: ${result.points_earned_today}
+          </div>
+        `;
+        status.style.background = '#e7f3ff';
+        status.style.color = '#0066cc';
+      } else {
+        status.innerHTML = '❌ Failed to check status';
+        status.style.background = '#ffebee';
+        status.style.color = '#c62828';
+      }
+    }
+  </script>
+</body>
+</html>

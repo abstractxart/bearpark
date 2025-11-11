@@ -1174,49 +1174,53 @@ app.post('/api/comments/:id/react', async (req, res) => {
 
       console.log(`✅ Reaction added successfully`);
 
-      // Get comment author for notification
-      const { data: commentData } = await supabase
-        .from('profile_comments')
-        .select('commenter_wallet, comment_text')
-        .eq('id', commentId)
-        .single();
+      // Get comment author for notification (non-blocking - don't fail request if this fails)
+      try {
+        const { data: commentData } = await supabase
+          .from('profile_comments')
+          .select('commenter_wallet, comment_text')
+          .eq('id', commentId)
+          .single();
 
-      if (commentData && commentData.commenter_wallet !== wallet_address) {
-        // Get reactor's display name
-        const { data: reactorProfile } = await supabase
-          .from('profiles')
-          .select('display_name')
-          .eq('wallet_address', wallet_address)
-          .maybeSingle();
+        if (commentData && commentData.commenter_wallet !== wallet_address) {
+          // Get reactor's display name
+          const { data: reactorProfile } = await supabase
+            .from('profiles')
+            .select('display_name')
+            .eq('wallet_address', wallet_address)
+            .maybeSingle();
 
-        const reactorDisplayName = reactorProfile?.display_name || null;
+          const reactorDisplayName = reactorProfile?.display_name || null;
 
-        // Get all current reactions for notification
-        const { data: allReactions } = await supabase
-          .from('comment_reactions')
-          .select('reaction_type')
-          .eq('comment_id', commentId)
-          .eq('wallet_address', wallet_address);
+          // Get all current reactions for notification
+          const { data: allReactions } = await supabase
+            .from('comment_reactions')
+            .select('reaction_type')
+            .eq('comment_id', commentId)
+            .eq('wallet_address', wallet_address);
 
-        const reactions = (allReactions || []).map(r => {
-          const emojiMap = {
-            'like': '👍',
-            'laugh': '😂',
-            'heart': '❤️',
-            'cry': '😢',
-            'thumbs_down': '👎',
-            'troll': '🤡'
-          };
-          return emojiMap[r.reaction_type] || r.reaction_type;
-        });
+          const reactions = (allReactions || []).map(r => {
+            const emojiMap = {
+              'like': '👍',
+              'laugh': '😂',
+              'heart': '❤️',
+              'cry': '😢',
+              'thumbs_down': '👎',
+              'troll': '🤡'
+            };
+            return emojiMap[r.reaction_type] || r.reaction_type;
+          });
 
-        // Send notification to comment author
-        addNotification(commentData.commenter_wallet, 'reaction', {
-          wallet: wallet_address,
-          displayName: reactorDisplayName,
-          reactions,
-          commentText: commentData.comment_text?.substring(0, 100)
-        });
+          // Send notification to comment author
+          addNotification(commentData.commenter_wallet, 'reaction', {
+            wallet: wallet_address,
+            displayName: reactorDisplayName,
+            reactions,
+            commentText: commentData.comment_text?.substring(0, 100)
+          });
+        }
+      } catch (notifError) {
+        console.warn('⚠️ Failed to send notification (non-critical):', notifError.message);
       }
 
       console.log(`🔍 Fetching updated reactions for comment ${commentId}...`);
