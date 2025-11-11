@@ -11857,11 +11857,17 @@
     // Update reactions for a specific comment without reloading all comments
     async function updateCommentReactions(commentId) {
       try {
-        const reactionsResponse = await fetch(`${API_BASE_URL}/api/comments/${commentId}/reactions`);
+        // Add cache-busting parameter to ensure fresh data
+        const timestamp = new Date().getTime();
+        const reactionsResponse = await fetch(`${API_BASE_URL}/api/comments/${commentId}/reactions?_=${timestamp}`);
         if (!reactionsResponse.ok) return;
 
         const reactions = await reactionsResponse.json();
         const userReactions = reactions.userReactions?.[currentUserWallet] || [];
+
+        console.log('🔄 Updating reactions UI for comment', commentId);
+        console.log('📊 Reaction counts:', reactions.counts);
+        console.log('👤 User reactions:', userReactions);
 
         // Find the comment element (data-comment-id is on .comment-thread, not .comment-item)
         const commentThread = document.querySelector(`.comment-thread[data-comment-id="${commentId}"]`);
@@ -11875,6 +11881,8 @@
 
         // Generate the new reaction summary HTML
         const newReactionHTML = generateReactionSummary(commentId, reactions, userReactions);
+
+        console.log('🎨 New reaction HTML:', newReactionHTML ? 'Generated' : 'Empty (no reactions)');
 
         if (existingReactionSummary) {
           // If there's an existing summary and new HTML, replace it
@@ -11912,6 +11920,8 @@
         return;
       }
 
+      console.log('🗑️ REMOVING reaction:', reactionType, 'from comment', commentId);
+
       // Add the removing animation
       pillElement.classList.add('removing');
 
@@ -11930,13 +11940,19 @@
           })
         });
 
-        if (response.ok) {
+        const result = await response.json();
+        console.log('📡 Backend response:', result);
+
+        if (response.ok && result.success) {
+          console.log('✅ Backend confirmed:', result.action);
+
           // Wait for animation to complete before updating
           setTimeout(async () => {
+            console.log('⏰ Animation complete, updating UI...');
             await updateCommentReactions(commentId);
           }, 400); // Match animation duration
         } else {
-          const result = await response.json();
+          console.error('❌ Backend error:', result);
           pillElement.classList.remove('removing');
           alert('Failed to remove reaction: ' + (result.error || 'Unknown error'));
         }
