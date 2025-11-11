@@ -1055,79 +1055,86 @@ app.post('/api/comments/:id/react', async (req, res) => {
       });
     }
 
-    // Check if pgPool is initialized
-    if (!pgPool) {
-      return res.status(503).json({
-        success: false,
-        error: 'Database connection not configured'
-      });
+    // Use Supabase instead of pgPool (works better with Railway)
+    const { data: existing, error: checkError } = await supabase
+      .from('comment_reactions')
+      .select('id')
+      .eq('comment_id', id)
+      .eq('wallet_address', wallet_address)
+      .eq('reaction_type', reaction_type)
+      .maybeSingle();
+
+    if (checkError && checkError.code !== 'PGRST116') {
+      throw checkError;
     }
 
-    // Use direct SQL to check if reaction exists
-    const checkResult = await pgPool.query(
-      'SELECT id FROM comment_reactions WHERE comment_id = $1 AND wallet_address = $2 AND reaction_type = $3',
-      [id, wallet_address, reaction_type]
-    );
-
-    if (checkResult.rows.length > 0) {
+    if (existing) {
       // Remove reaction
-      await pgPool.query(
-        'DELETE FROM comment_reactions WHERE comment_id = $1 AND wallet_address = $2 AND reaction_type = $3',
-        [id, wallet_address, reaction_type]
-      );
+      const { error: deleteError } = await supabase
+        .from('comment_reactions')
+        .delete()
+        .eq('comment_id', id)
+        .eq('wallet_address', wallet_address)
+        .eq('reaction_type', reaction_type);
+
+      if (deleteError) throw deleteError;
+
       res.json({ success: true, action: 'removed' });
     } else {
       // Add reaction
-      await pgPool.query(
-        'INSERT INTO comment_reactions (comment_id, wallet_address, reaction_type) VALUES ($1, $2, $3)',
-        [id, wallet_address, reaction_type]
-      );
+      const { error: insertError } = await supabase
+        .from('comment_reactions')
+        .insert({
+          comment_id: id,
+          wallet_address,
+          reaction_type
+        });
 
-      // Get comment author and reactor display name for notification
-      const commentResult = await pgPool.query(
-        'SELECT commenter_wallet, comment_text FROM profile_comments WHERE id = $1',
-        [id]
-      );
+      if (insertError) throw insertError;
 
-      if (commentResult.rows.length > 0) {
-        const commentAuthor = commentResult.rows[0].commenter_wallet;
-        const commentText = commentResult.rows[0].comment_text;
+      // Get comment author for notification
+      const { data: commentData } = await supabase
+        .from('profile_comments')
+        .select('commenter_wallet, comment_text')
+        .eq('id', id)
+        .single();
 
-        // Only send notification if someone else reacted to your comment
-        if (commentAuthor !== wallet_address) {
-          const reactorProfile = await pgPool.query(
-            'SELECT display_name FROM profiles WHERE wallet_address = $1',
-            [wallet_address]
-          );
+      if (commentData && commentData.commenter_wallet !== wallet_address) {
+        // Get reactor's display name
+        const { data: reactorProfile } = await supabase
+          .from('profiles')
+          .select('display_name')
+          .eq('wallet_address', wallet_address)
+          .maybeSingle();
 
-          const reactorDisplayName = reactorProfile.rows[0]?.display_name || null;
+        const reactorDisplayName = reactorProfile?.display_name || null;
 
-          // Get all current reactions for this comment to show in notification
-          const allReactions = await pgPool.query(
-            'SELECT DISTINCT reaction_type FROM comment_reactions WHERE comment_id = $1 AND wallet_address = $2',
-            [id, wallet_address]
-          );
+        // Get all current reactions for notification
+        const { data: allReactions } = await supabase
+          .from('comment_reactions')
+          .select('reaction_type')
+          .eq('comment_id', id)
+          .eq('wallet_address', wallet_address);
 
-          const reactions = allReactions.rows.map(r => {
-            const emojiMap = {
-              'like': '👍',
-              'laugh': '😂',
-              'heart': '❤️',
-              'cry': '😢',
-              'thumbs_down': '👎',
-              'troll': '🤡'
-            };
-            return emojiMap[r.reaction_type] || r.reaction_type;
-          });
+        const reactions = (allReactions || []).map(r => {
+          const emojiMap = {
+            'like': '👍',
+            'laugh': '😂',
+            'heart': '❤️',
+            'cry': '😢',
+            'thumbs_down': '👎',
+            'troll': '🤡'
+          };
+          return emojiMap[r.reaction_type] || r.reaction_type;
+        });
 
-          // Send notification to comment author
-          addNotification(commentAuthor, 'reaction', {
-            wallet: wallet_address,
-            displayName: reactorDisplayName,
-            reactions,
-            commentText: commentText?.substring(0, 100) // Truncate for notification
-          });
-        }
+        // Send notification to comment author
+        addNotification(commentData.commenter_wallet, 'reaction', {
+          wallet: wallet_address,
+          displayName: reactorDisplayName,
+          reactions,
+          commentText: commentData.comment_text?.substring(0, 100)
+        });
       }
 
       res.json({ success: true, action: 'added' });
@@ -1138,23 +1145,23 @@ app.post('/api/comments/:id/react', async (req, res) => {
   }
 });
 
-// Get Reactions for a Comment (using direct PostgreSQL to bypass cache)
+// Get Reactions for a Comment (using Supabase)
 app.get('/api/comments/:id/reactions', async (req, res) => {
   try {
     const { id } = req.params;
 
-    const result = await pgPool.query(
-      'SELECT * FROM comment_reactions WHERE comment_id = $1',
-      [id]
-    );
+    const { data, error } = await supabase
+      .from('comment_reactions')
+      .select('*')
+      .eq('comment_id', id);
 
-    const data = result.rows;
+    if (error) throw error;
 
     // Group reactions by type with counts
     const reactionCounts = {};
     const userReactions = {};
 
-    data.forEach(reaction => {
+    (data || []).forEach(reaction => {
       const type = reaction.reaction_type;
       if (!reactionCounts[type]) {
         reactionCounts[type] = 0;
@@ -1169,7 +1176,7 @@ app.get('/api/comments/:id/reactions', async (req, res) => {
 
     res.json({
       success: true,
-      reactions: data,
+      reactions: data || [],
       counts: reactionCounts,
       userReactions: userReactions
     });
