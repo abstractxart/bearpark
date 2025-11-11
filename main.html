@@ -10837,14 +10837,21 @@
 
           // Update the follow button
           const btn = document.querySelector(`.community-follow-btn[data-wallet="${targetWallet}"]`);
+          console.log('🔵 [Community Follow] Found button:', btn);
           if (btn) {
+            console.log('🔵 [Community Follow] Button classes before:', btn.classList.toString());
             if (action === 'followed') {
               btn.classList.add('following');
               btn.textContent = 'Following';
+              console.log('✅ [Community Follow] Updated button to: Following');
             } else {
               btn.classList.remove('following');
               btn.textContent = 'Follow';
+              console.log('✅ [Community Follow] Updated button to: Follow');
             }
+            console.log('🔵 [Community Follow] Button classes after:', btn.classList.toString());
+          } else {
+            console.error('❌ [Community Follow] Button not found for wallet:', targetWallet);
           }
 
           // Update the follower count for the target user
