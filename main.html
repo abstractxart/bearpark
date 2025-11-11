@@ -11598,18 +11598,23 @@
       const totalCount = comments.length;
       commentsCount.textContent = totalCount;
 
+      console.log('🔍 [DisplayComments] Received comments:', comments.map(c => c.id));
+
       if (totalCount === 0) {
         commentsList.innerHTML = '<div class="comments-empty">No comments yet. Be the first to comment!</div>';
         return;
       }
 
+      console.log('🧹 [DisplayComments] Clearing commentsList innerHTML');
       commentsList.innerHTML = '';
 
       // Build nested comment tree
       const commentTree = buildCommentTree(comments);
+      console.log('🌳 [DisplayComments] Built comment tree with root comments:', commentTree.map(c => c.id));
 
       // Render root comments
       for (const comment of commentTree) {
+        console.log('🎨 [DisplayComments] Rendering comment:', comment.id);
         const commentHTML = await renderComment(comment, 0);
         commentsList.insertAdjacentHTML('beforeend', commentHTML);
 
@@ -11618,6 +11623,17 @@
           await renderReplies(comment.children, comment.id, 1, comment);
         }
       }
+
+      console.log('✅ [DisplayComments] Finished rendering. DOM should now have', commentTree.length, 'root comments');
+
+      // Debug: Check what's actually in the DOM
+      const renderedComments = commentsList.querySelectorAll('.comment-thread');
+      console.log('🔍 [DisplayComments] DOM contains', renderedComments.length, 'comment elements');
+      const renderedIds = Array.from(renderedComments).map(el => {
+        const deleteBtn = el.querySelector('.comment-delete-btn');
+        return deleteBtn ? deleteBtn.getAttribute('data-comment-id') : 'no-id';
+      });
+      console.log('🔍 [DisplayComments] Comment IDs in DOM:', renderedIds);
 
       // Event listeners are now attached once via event delegation - no need to re-attach
       // attachLikeButtonListeners(); // REMOVED - causes duplicate listeners
