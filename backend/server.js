@@ -1209,14 +1209,15 @@ app.post('/api/comments/:id/react', async (req, res) => {
           .single();
 
         if (commentData && commentData.commenter_wallet !== wallet_address) {
-          // Get reactor's display name
+          // Get reactor's display name and avatar
           const { data: reactorProfile } = await supabase
             .from('profiles')
-            .select('display_name')
+            .select('display_name, avatar_nft')
             .eq('wallet_address', wallet_address)
             .maybeSingle();
 
           const reactorDisplayName = reactorProfile?.display_name || null;
+          const reactorAvatar = reactorProfile?.avatar_nft || null;
 
           // Get all current reactions for notification
           const { data: allReactions } = await supabase
@@ -1241,8 +1242,10 @@ app.post('/api/comments/:id/react', async (req, res) => {
           addNotification(commentData.commenter_wallet, 'reaction', {
             wallet: wallet_address,
             displayName: reactorDisplayName,
+            avatarNft: reactorAvatar,
             reactions,
-            commentText: commentData.comment_text?.substring(0, 100)
+            commentText: commentData.comment_text?.substring(0, 100),
+            commentId: commentId
           });
         }
       } catch (notifError) {
@@ -1386,18 +1389,20 @@ app.post('/api/follow', async (req, res) => {
             [follower_wallet, following_wallet]
           );
 
-          // Get follower's display name for notification
+          // Get follower's display name and avatar for notification
           const followerProfile = await pgPool.query(
-            'SELECT display_name FROM profiles WHERE wallet_address = $1',
+            'SELECT display_name, avatar_nft FROM profiles WHERE wallet_address = $1',
             [follower_wallet]
           );
 
           const followerDisplayName = followerProfile.rows[0]?.display_name || null;
+          const followerAvatar = followerProfile.rows[0]?.avatar_nft || null;
 
           // Send notification to the person being followed
           addNotification(following_wallet, 'follower', {
             wallet: follower_wallet,
-            displayName: followerDisplayName
+            displayName: followerDisplayName,
+            avatarNft: followerAvatar
           });
 
           action = 'followed';
@@ -1436,19 +1441,21 @@ app.post('/api/follow', async (req, res) => {
 
         if (insertError) throw insertError;
 
-        // Get follower's display name for notification
+        // Get follower's display name and avatar for notification
         const { data: followerProfile } = await supabase
           .from('profiles')
-          .select('display_name')
+          .select('display_name, avatar_nft')
           .eq('wallet_address', follower_wallet)
           .maybeSingle();
 
         const followerDisplayName = followerProfile?.display_name || null;
+        const followerAvatar = followerProfile?.avatar_nft || null;
 
         // Send notification to the person being followed
         addNotification(following_wallet, 'follower', {
           wallet: follower_wallet,
-          displayName: followerDisplayName
+          displayName: followerDisplayName,
+          avatarNft: followerAvatar
         });
 
         action = 'followed';
