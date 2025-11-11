@@ -1055,14 +1055,21 @@ app.post('/api/comments/:id/react', async (req, res) => {
       });
     }
 
+    // Convert id to integer for Supabase
+    const commentId = parseInt(id);
+
+    console.log(`🔵 Checking reaction: comment_id=${commentId}, wallet=${wallet_address}, type=${reaction_type}`);
+
     // Use Supabase instead of pgPool (works better with Railway)
     const { data: existing, error: checkError } = await supabase
       .from('comment_reactions')
       .select('id')
-      .eq('comment_id', id)
+      .eq('comment_id', commentId)
       .eq('wallet_address', wallet_address)
       .eq('reaction_type', reaction_type)
       .maybeSingle();
+
+    console.log(`🔵 Existing reaction found:`, existing);
 
     if (checkError && checkError.code !== 'PGRST116') {
       throw checkError;
@@ -1070,22 +1077,25 @@ app.post('/api/comments/:id/react', async (req, res) => {
 
     if (existing) {
       // Remove reaction
+      console.log(`❌ Removing reaction for comment ${commentId}`);
       const { error: deleteError } = await supabase
         .from('comment_reactions')
         .delete()
-        .eq('comment_id', id)
+        .eq('comment_id', commentId)
         .eq('wallet_address', wallet_address)
         .eq('reaction_type', reaction_type);
 
       if (deleteError) throw deleteError;
 
+      console.log(`✅ Reaction removed successfully`);
       res.json({ success: true, action: 'removed' });
     } else {
       // Add reaction
+      console.log(`➕ Adding reaction for comment ${commentId}`);
       const { error: insertError } = await supabase
         .from('comment_reactions')
         .insert({
-          comment_id: id,
+          comment_id: commentId,
           wallet_address,
           reaction_type
         });
@@ -1149,11 +1159,12 @@ app.post('/api/comments/:id/react', async (req, res) => {
 app.get('/api/comments/:id/reactions', async (req, res) => {
   try {
     const { id } = req.params;
+    const commentId = parseInt(id);
 
     const { data, error } = await supabase
       .from('comment_reactions')
       .select('*')
-      .eq('comment_id', id);
+      .eq('comment_id', commentId);
 
     if (error) throw error;
 
