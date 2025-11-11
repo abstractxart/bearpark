@@ -10850,6 +10850,31 @@
               followingCountEl.textContent = Math.max(0, currentCount - 1);
             }
           }
+
+          // SYNC: Also update the profile modal follow button if it's open for this user
+          const profileFollowBtn = document.getElementById('followBtn');
+          if (profileFollowBtn && window.currentProfileWallet === targetWallet) {
+            if (action === 'followed') {
+              profileFollowBtn.classList.add('following');
+              profileFollowBtn.querySelector('.follow-btn-text').textContent = 'Following';
+              profileFollowBtn.querySelector('.follow-btn-icon').textContent = '✓';
+            } else {
+              profileFollowBtn.classList.remove('following');
+              profileFollowBtn.querySelector('.follow-btn-text').textContent = 'Follow';
+              profileFollowBtn.querySelector('.follow-btn-icon').textContent = '+';
+            }
+
+            // Also update the profile modal follower count
+            const profileFollowersCount = document.getElementById('followersCount');
+            if (profileFollowersCount) {
+              let currentCount = parseInt(profileFollowersCount.textContent) || 0;
+              if (action === 'followed') {
+                profileFollowersCount.textContent = currentCount + 1;
+              } else {
+                profileFollowersCount.textContent = Math.max(0, currentCount - 1);
+              }
+            }
+          }
         } else {
           alert('Failed to update follow status. Please try again.');
         }
@@ -11516,6 +11541,29 @@
               console.log('✅ [Follow] Backend confirmed: followed');
             } else if (data.action === 'unfollowed') {
               console.log('✅ [Follow] Backend confirmed: unfollowed');
+            }
+
+            // SYNC: Also update the community list follow button if it exists
+            const communityBtn = document.querySelector(`.community-follow-btn[data-wallet="${currentProfileWallet}"]`);
+            if (communityBtn) {
+              if (data.action === 'followed') {
+                communityBtn.classList.add('following');
+                communityBtn.textContent = 'Following';
+              } else {
+                communityBtn.classList.remove('following');
+                communityBtn.textContent = 'Follow';
+              }
+            }
+
+            // Also update the community list follower count
+            const communityFollowerCount = document.querySelector(`.community-user-stat-value[data-wallet="${currentProfileWallet}"][data-type="followers"]`);
+            if (communityFollowerCount) {
+              let currentCount = parseInt(communityFollowerCount.textContent) || 0;
+              if (data.action === 'followed') {
+                communityFollowerCount.textContent = currentCount + 1;
+              } else {
+                communityFollowerCount.textContent = Math.max(0, currentCount - 1);
+              }
             }
           } else {
             console.warn('⚠️ [Follow] Backend returned success:false, but UI already updated');
