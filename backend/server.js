@@ -1076,18 +1076,19 @@ app.post('/api/comments/:id/react', async (req, res) => {
     }
 
     if (existing) {
-      // Remove reaction
-      console.log(`❌ Removing reaction for comment ${commentId}`);
-      const { error: deleteError } = await supabase
+      // Remove reaction by ID (more reliable than matching multiple fields)
+      console.log(`❌ Removing reaction for comment ${commentId}, reaction ID: ${existing.id}`);
+      const { error: deleteError, data: deletedData } = await supabase
         .from('comment_reactions')
         .delete()
-        .eq('comment_id', commentId)
-        .eq('wallet_address', wallet_address)
-        .eq('reaction_type', reaction_type);
+        .eq('id', existing.id);
 
-      if (deleteError) throw deleteError;
+      if (deleteError) {
+        console.error(`❌ Delete error:`, deleteError);
+        throw deleteError;
+      }
 
-      console.log(`✅ Reaction removed successfully`);
+      console.log(`✅ Reaction removed successfully, deleted rows:`, deletedData);
 
       console.log(`🔍 Fetching updated reactions for comment ${commentId}...`);
       // Fetch updated reactions to return fresh counts
