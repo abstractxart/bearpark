@@ -11527,7 +11527,7 @@
                     <p class="comment-timestamp">${timeAgo}${hasReplies ? `<span class="reply-count">${replyCount} ${replyCount === 1 ? 'reply' : 'replies'}</span>` : ''}</p>
                   </div>
                 </div>
-                ${isOwner ? `<button class="comment-delete-btn" onclick="deleteComment(${comment.id})">Delete</button>` : ''}
+                ${isOwner ? `<button class="comment-delete-btn" data-comment-id="${comment.id}">Delete</button>` : ''}
               </div>
               <p class="comment-text">${escapeHtml(comment.comment_text)}</p>
               ${generateReactionSummary(comment.id, reactions, userReactions)}
@@ -11973,6 +11973,14 @@
         alert('Error deleting comment.');
       }
     };
+
+    // Event delegation for delete buttons
+    commentsList.addEventListener('click', (e) => {
+      if (e.target.classList.contains('comment-delete-btn')) {
+        const commentId = parseInt(e.target.getAttribute('data-comment-id'));
+        deleteComment(commentId);
+      }
+    });
 
     // Open Reply Box
     window.openReplyBox = function(commentId) {
