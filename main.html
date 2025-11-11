@@ -10878,7 +10878,7 @@
 
           // SYNC: Also update the profile modal follow button if it's open for this user
           console.log('🔵 [Community Follow Sync] Checking profile modal sync...');
-          console.log('🔵 [Community Follow Sync] currentProfileWallet:', window.currentProfileWallet);
+          console.log('🔵 [Community Follow Sync] window.currentProfileWallet:', window.currentProfileWallet);
           console.log('🔵 [Community Follow Sync] targetWallet:', targetWallet);
 
           const profileFollowBtn = document.getElementById('followBtn');
@@ -11044,7 +11044,7 @@
     const profileModalTitle = document.getElementById('profileModalTitle');
     const profileModalBody = document.querySelector('.profile-modal-body');
 
-    let currentProfileWallet = null;
+    window.currentProfileWallet = null; // Make it global so community follow can access it
     let currentUserWallet = null;
     let allUsers = [];
     let isSearchMode = false;
@@ -11059,13 +11059,13 @@
       }
 
       // Add current profile to history before navigating (if there is one and we're adding to history)
-      if (addToHistory && currentProfileWallet && currentProfileWallet !== walletAddress) {
-        profileNavigationHistory.push(currentProfileWallet);
+      if (addToHistory && window.currentProfileWallet && window.currentProfileWallet !== walletAddress) {
+        profileNavigationHistory.push(window.currentProfileWallet);
         updateBackButton();
       }
 
       // If a wallet address is provided, view that profile; otherwise view own profile
-      currentProfileWallet = walletAddress || currentUserWallet;
+      window.currentProfileWallet = walletAddress || currentUserWallet;
       profileModal.style.display = 'flex';
       setTimeout(() => profileModal.classList.add('visible'), 10);
 
@@ -11193,7 +11193,7 @@
       } else {
         // Switch back to profile mode - restore proper title
         const currentDisplayName = profileDisplayName.textContent;
-        if (currentProfileWallet === currentUserWallet) {
+        if (window.currentProfileWallet === currentUserWallet) {
           profileModalTitle.textContent = 'MY PROFILE';
         } else {
           profileModalTitle.textContent = `${currentDisplayName.toUpperCase()}'S PROFILE`;
@@ -11271,7 +11271,7 @@
       bearSearchPanel.style.display = 'none';
 
       // Load the selected user's profile (title will be set by loadProfileData)
-      currentProfileWallet = walletAddress;
+      window.currentProfileWallet = walletAddress;
       await loadProfileData();
       await loadComments();
       await loadProfileNFTs();
@@ -11298,7 +11298,7 @@
     // Load Profile Data
     async function loadProfileData() {
       try {
-        const profileKey = `bearpark_profile_${currentProfileWallet}`;
+        const profileKey = `bearpark_profile_${window.currentProfileWallet}`;
         const localProfile = localStorage.getItem(profileKey);
         let profileData = null;
 
@@ -11311,7 +11311,7 @@
         }
 
         try {
-          const response = await fetch(`${API_BASE_URL}/api/profile/${currentProfileWallet}`);
+          const response = await fetch(`${API_BASE_URL}/api/profile/${window.currentProfileWallet}`);
           if (response.ok) {
             const data = await response.json();
             if (data.success && data.profile) {
@@ -11325,10 +11325,10 @@
         if (profileData) {
           const displayName = profileData.display_name || 'Anonymous BEAR';
           profileDisplayName.textContent = displayName;
-          profileWalletAddress.textContent = currentProfileWallet;
+          profileWalletAddress.textContent = window.currentProfileWallet;
 
           // Update modal title based on whose profile is being viewed
-          if (currentProfileWallet === currentUserWallet) {
+          if (window.currentProfileWallet === currentUserWallet) {
             profileModalTitle.textContent = 'MY PROFILE';
           } else {
             profileModalTitle.textContent = `${displayName.toUpperCase()}'S PROFILE`;
@@ -11337,7 +11337,7 @@
           // Update NFT Collection header based on whose profile is being viewed
           const nftCollectionHeader = document.getElementById('nftCollectionHeader');
           if (nftCollectionHeader) {
-            if (currentProfileWallet === currentUserWallet) {
+            if (window.currentProfileWallet === currentUserWallet) {
               nftCollectionHeader.textContent = '🖼️ My NFT Collection';
             } else {
               nftCollectionHeader.textContent = `🖼️ ${displayName}'s NFT Collection`;
@@ -11370,7 +11370,7 @@
           if (profileData.bio) {
             bioDisplay.textContent = profileData.bio;
           } else {
-            if (currentProfileWallet === currentUserWallet) {
+            if (window.currentProfileWallet === currentUserWallet) {
               bioDisplay.textContent = 'No bio yet. Click Edit to add one!';
             } else {
               bioDisplay.textContent = 'No bio yet.';
@@ -11379,7 +11379,7 @@
 
           // Show/hide edit buttons based on ownership
           const editProfilePictureBtn = document.getElementById('editProfilePictureBtn');
-          if (currentProfileWallet === currentUserWallet) {
+          if (window.currentProfileWallet === currentUserWallet) {
             editBioBtn.style.display = 'block';
             if (editProfilePictureBtn) editProfilePictureBtn.style.display = 'flex';
           } else {
@@ -11388,10 +11388,10 @@
           }
         } else {
           profileDisplayName.textContent = 'Anonymous BEAR';
-          profileWalletAddress.textContent = currentProfileWallet;
+          profileWalletAddress.textContent = window.currentProfileWallet;
 
           // Update modal title for anonymous profiles
-          if (currentProfileWallet === currentUserWallet) {
+          if (window.currentProfileWallet === currentUserWallet) {
             profileModalTitle.textContent = 'MY PROFILE';
           } else {
             profileModalTitle.textContent = 'ANONYMOUS BEAR\'S PROFILE';
@@ -11400,7 +11400,7 @@
           // Update NFT Collection header for anonymous profiles
           const nftCollectionHeader = document.getElementById('nftCollectionHeader');
           if (nftCollectionHeader) {
-            if (currentProfileWallet === currentUserWallet) {
+            if (window.currentProfileWallet === currentUserWallet) {
               nftCollectionHeader.textContent = '🖼️ My NFT Collection';
             } else {
               nftCollectionHeader.textContent = '🖼️ Anonymous BEAR\'s NFT Collection';
@@ -11409,7 +11409,7 @@
 
           // Show/hide edit buttons based on ownership
           const editProfilePictureBtn = document.getElementById('editProfilePictureBtn');
-          if (currentProfileWallet === currentUserWallet) {
+          if (window.currentProfileWallet === currentUserWallet) {
             editBioBtn.style.display = 'block';
             if (editProfilePictureBtn) editProfilePictureBtn.style.display = 'flex';
           } else {
@@ -11429,7 +11429,7 @@
     async function loadFollowData() {
       try {
         // Load follower/following counts
-        const countsResponse = await fetch(`${API_BASE_URL}/api/follow/counts/${currentProfileWallet}`);
+        const countsResponse = await fetch(`${API_BASE_URL}/api/follow/counts/${window.currentProfileWallet}`);
         if (countsResponse.ok) {
           const countsData = await countsResponse.json();
           if (countsData.success) {
@@ -11440,16 +11440,16 @@
 
         // Show/hide follow button and check follow status
         const followBtn = document.getElementById('followBtn');
-        if (currentProfileWallet === currentUserWallet) {
+        if (window.currentProfileWallet === currentUserWallet) {
           // Don't show follow button on own profile
           followBtn.style.display = 'none';
         } else {
           followBtn.style.display = 'flex';
 
           // Check if already following
-          console.log('🔵 [LoadFollowData] Checking follow status for:', currentProfileWallet);
+          console.log('🔵 [LoadFollowData] Checking follow status for:', window.currentProfileWallet);
           const statusResponse = await fetch(
-            `${API_BASE_URL}/api/follow/status?follower_wallet=${currentUserWallet}&following_wallet=${currentProfileWallet}`
+            `${API_BASE_URL}/api/follow/status?follower_wallet=${currentUserWallet}&following_wallet=${window.currentProfileWallet}`
           );
           console.log('🔵 [LoadFollowData] Status response:', statusResponse.status);
           if (statusResponse.ok) {
@@ -11480,13 +11480,13 @@
     window.toggleFollow = async function() {
       console.log('🔵 [Follow] toggleFollow called');
       console.log('🔵 [Follow] currentUserWallet:', currentUserWallet);
-      console.log('🔵 [Follow] currentProfileWallet:', currentProfileWallet);
+      console.log('🔵 [Follow] window.currentProfileWallet:', window.currentProfileWallet);
 
-      if (!currentUserWallet || !currentProfileWallet) {
+      if (!currentUserWallet || !window.currentProfileWallet) {
         console.log('❌ [Follow] Missing wallet addresses');
         return;
       }
-      if (currentUserWallet === currentProfileWallet) {
+      if (currentUserWallet === window.currentProfileWallet) {
         console.log('❌ [Follow] Cannot follow yourself');
         return;
       }
@@ -11580,7 +11580,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             follower_wallet: currentUserWallet,
-            following_wallet: currentProfileWallet
+            following_wallet: window.currentProfileWallet
           })
         });
 
@@ -11598,7 +11598,7 @@
             }
 
             // SYNC: Also update the community list follow button if it exists
-            const communityBtn = document.querySelector(`.community-follow-btn[data-wallet="${currentProfileWallet}"]`);
+            const communityBtn = document.querySelector(`.community-follow-btn[data-wallet="${window.currentProfileWallet}"]`);
             if (communityBtn) {
               if (data.action === 'followed') {
                 communityBtn.classList.add('following');
@@ -11610,7 +11610,7 @@
             }
 
             // Also update the community list follower count
-            const communityFollowerCount = document.querySelector(`.community-user-stat-value[data-wallet="${currentProfileWallet}"][data-type="followers"]`);
+            const communityFollowerCount = document.querySelector(`.community-user-stat-value[data-wallet="${window.currentProfileWallet}"][data-type="followers"]`);
             if (communityFollowerCount) {
               let currentCount = parseInt(communityFollowerCount.textContent) || 0;
               if (data.action === 'followed') {
@@ -11640,14 +11640,14 @@
 
     window.showFollowersList = async function(event) {
       if (event) event.stopPropagation();
-      if (!currentProfileWallet) return;
+      if (!window.currentProfileWallet) return;
 
       // Store current button state to preserve it
       const followBtn = document.getElementById('followBtn');
       const wasFollowing = followBtn ? followBtn.classList.contains('following') : false;
 
       try {
-        const response = await fetch(`${API_BASE_URL}/api/follow/followers/${currentProfileWallet}`);
+        const response = await fetch(`${API_BASE_URL}/api/follow/followers/${window.currentProfileWallet}`);
         if (response.ok) {
           const data = await response.json();
           if (data.success) {
@@ -11668,14 +11668,14 @@
 
     window.showFollowingList = async function(event) {
       if (event) event.stopPropagation();
-      if (!currentProfileWallet) return;
+      if (!window.currentProfileWallet) return;
 
       // Store current button state to preserve it
       const followBtn = document.getElementById('followBtn');
       const wasFollowing = followBtn ? followBtn.classList.contains('following') : false;
 
       try {
-        const response = await fetch(`${API_BASE_URL}/api/follow/following/${currentProfileWallet}`);
+        const response = await fetch(`${API_BASE_URL}/api/follow/following/${window.currentProfileWallet}`);
         if (response.ok) {
           const data = await response.json();
           if (data.success) {
@@ -11800,8 +11800,8 @@
 
     async function loadComments() {
       try {
-        console.log('🔄 [LoadComments] Fetching comments for:', currentProfileWallet);
-        const response = await fetch(`${API_BASE_URL}/api/comments/${currentProfileWallet}`);
+        console.log('🔄 [LoadComments] Fetching comments for:', window.currentProfileWallet);
+        const response = await fetch(`${API_BASE_URL}/api/comments/${window.currentProfileWallet}`);
         if (!response.ok) throw new Error('Failed to load comments');
 
         const data = await response.json();
@@ -12293,7 +12293,7 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            profile_wallet: currentProfileWallet,
+            profile_wallet: window.currentProfileWallet,
             commenter_wallet: currentUserWallet,
             comment_text: commentText,
             commenter_name: localProfile.display_name || 'Anonymous',
@@ -12442,7 +12442,7 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            profile_wallet: currentProfileWallet,
+            profile_wallet: window.currentProfileWallet,
             commenter_wallet: currentUserWallet,
             comment_text: replyText,
             commenter_name: localProfile.display_name || 'Anonymous',
@@ -12703,7 +12703,7 @@
 
     async function loadProfileNFTs() {
       try {
-        const walletAddress = currentProfileWallet;
+        const walletAddress = window.currentProfileWallet;
         console.log('🖼️ Loading NFTs for wallet:', walletAddress);
 
         // Fetch ALL NFTs with pagination
