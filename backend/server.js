@@ -1088,7 +1088,36 @@ app.post('/api/comments/:id/react', async (req, res) => {
       if (deleteError) throw deleteError;
 
       console.log(`✅ Reaction removed successfully`);
-      res.json({ success: true, action: 'removed' });
+
+      // Fetch updated reactions to return fresh counts
+      const { data: updatedReactions } = await supabase
+        .from('comment_reactions')
+        .select('*')
+        .eq('comment_id', commentId);
+
+      // Group reactions by type with counts
+      const reactionCounts = {};
+      const userReactions = {};
+
+      (updatedReactions || []).forEach(reaction => {
+        const type = reaction.reaction_type;
+        if (!reactionCounts[type]) {
+          reactionCounts[type] = 0;
+        }
+        reactionCounts[type]++;
+
+        if (!userReactions[reaction.wallet_address]) {
+          userReactions[reaction.wallet_address] = [];
+        }
+        userReactions[reaction.wallet_address].push(type);
+      });
+
+      res.json({
+        success: true,
+        action: 'removed',
+        counts: reactionCounts,
+        userReactions: userReactions
+      });
     } else {
       // Add reaction
       console.log(`➕ Adding reaction for comment ${commentId}`);
@@ -1147,7 +1176,35 @@ app.post('/api/comments/:id/react', async (req, res) => {
         });
       }
 
-      res.json({ success: true, action: 'added' });
+      // Fetch updated reactions to return fresh counts
+      const { data: updatedReactions } = await supabase
+        .from('comment_reactions')
+        .select('*')
+        .eq('comment_id', commentId);
+
+      // Group reactions by type with counts
+      const reactionCounts = {};
+      const userReactions = {};
+
+      (updatedReactions || []).forEach(reaction => {
+        const type = reaction.reaction_type;
+        if (!reactionCounts[type]) {
+          reactionCounts[type] = 0;
+        }
+        reactionCounts[type]++;
+
+        if (!userReactions[reaction.wallet_address]) {
+          userReactions[reaction.wallet_address] = [];
+        }
+        userReactions[reaction.wallet_address].push(type);
+      });
+
+      res.json({
+        success: true,
+        action: 'added',
+        counts: reactionCounts,
+        userReactions: userReactions
+      });
     }
   } catch (error) {
     console.error('Error toggling reaction:', error);

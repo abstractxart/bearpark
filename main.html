@@ -11854,6 +11854,60 @@
       }
     };
 
+    // Update reactions using data directly (no fetch needed)
+    function updateCommentReactionsWithData(commentId, reactionsData) {
+      try {
+        const userReactions = reactionsData.userReactions?.[currentUserWallet] || [];
+
+        console.log('🔄 Updating reactions UI for comment', commentId);
+        console.log('📊 Reaction counts:', reactionsData.counts);
+        console.log('👤 User reactions:', userReactions);
+
+        // Find the comment element (data-comment-id is on .comment-thread, not .comment-item)
+        const commentThread = document.querySelector(`.comment-thread[data-comment-id="${commentId}"]`);
+        if (!commentThread) return;
+        const commentElement = commentThread.querySelector('.comment-item');
+        if (!commentElement) return;
+
+        const commentContent = commentElement.querySelector('.comment-content');
+        const commentActions = commentContent.querySelector('.comment-actions');
+        let existingReactionSummary = commentContent.querySelector('.reaction-summary');
+
+        // Generate the new reaction summary HTML
+        const newReactionHTML = generateReactionSummary(commentId, reactionsData, userReactions);
+
+        console.log('🎨 New reaction HTML:', newReactionHTML ? 'Generated' : 'Empty (no reactions)');
+
+        if (existingReactionSummary) {
+          // If there's an existing summary and new HTML, replace it
+          if (newReactionHTML) {
+            existingReactionSummary.outerHTML = newReactionHTML;
+          } else {
+            // No reactions left, remove the summary
+            existingReactionSummary.remove();
+          }
+        } else if (newReactionHTML) {
+          // No existing summary but we have reactions, insert before actions
+          commentActions.insertAdjacentHTML('beforebegin', newReactionHTML);
+        }
+
+        // Update the like button state
+        const likeButton = commentElement.querySelector('.like-button');
+        if (likeButton) {
+          if (userReactions.length > 0) {
+            likeButton.classList.add('reacted');
+          } else {
+            likeButton.classList.remove('reacted');
+          }
+        }
+
+        // Re-attach event listeners to the updated reaction elements
+        attachLikeButtonListeners();
+      } catch (error) {
+        console.error('Error updating reactions:', error);
+      }
+    }
+
     // Update reactions for a specific comment without reloading all comments
     async function updateCommentReactions(commentId) {
       try {
@@ -11945,11 +11999,17 @@
 
         if (response.ok && result.success) {
           console.log('✅ Backend confirmed:', result.action);
+          console.log('📦 Backend returned updated counts:', result.counts);
+          console.log('📦 Backend returned user reactions:', result.userReactions);
 
-          // Wait for animation to complete before updating
-          setTimeout(async () => {
-            console.log('⏰ Animation complete, updating UI...');
-            await updateCommentReactions(commentId);
+          // Use the fresh data directly from backend response (no fetching needed!)
+          setTimeout(() => {
+            console.log('⏰ Animation complete, updating UI with backend data...');
+            // Update UI directly with the counts from backend response
+            updateCommentReactionsWithData(commentId, {
+              counts: result.counts || {},
+              userReactions: result.userReactions || {}
+            });
           }, 400); // Match animation duration
         } else {
           console.error('❌ Backend error:', result);
