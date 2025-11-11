@@ -1167,13 +1167,18 @@ app.post('/api/comments/:id/react', async (req, res) => {
           reaction_type
         });
 
-      if (insertError) throw insertError;
+      if (insertError) {
+        console.error(`❌ Insert error:`, insertError);
+        throw insertError;
+      }
+
+      console.log(`✅ Reaction added successfully`);
 
       // Get comment author for notification
       const { data: commentData } = await supabase
         .from('profile_comments')
         .select('commenter_wallet, comment_text')
-        .eq('id', id)
+        .eq('id', commentId)
         .single();
 
       if (commentData && commentData.commenter_wallet !== wallet_address) {
@@ -1190,7 +1195,7 @@ app.post('/api/comments/:id/react', async (req, res) => {
         const { data: allReactions } = await supabase
           .from('comment_reactions')
           .select('reaction_type')
-          .eq('comment_id', id)
+          .eq('comment_id', commentId)
           .eq('wallet_address', wallet_address);
 
         const reactions = (allReactions || []).map(r => {
