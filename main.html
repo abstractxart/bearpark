@@ -11898,6 +11898,9 @@
             likeButton.classList.remove('reacted');
           }
         }
+
+        // Re-attach event listeners to the updated reaction elements
+        attachLikeButtonListeners();
       } catch (error) {
         console.error('Error updating reactions:', error);
       }
