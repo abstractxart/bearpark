@@ -1085,18 +1085,18 @@ app.post('/api/comments/:id/react', async (req, res) => {
 
       // Get comment author and reactor display name for notification
       const commentResult = await pgPool.query(
-        'SELECT wallet_address, comment FROM profile_comments WHERE id = $1',
+        'SELECT commenter_wallet, comment_text FROM profile_comments WHERE id = $1',
         [id]
       );
 
       if (commentResult.rows.length > 0) {
-        const commentAuthor = commentResult.rows[0].wallet_address;
-        const commentText = commentResult.rows[0].comment;
+        const commentAuthor = commentResult.rows[0].commenter_wallet;
+        const commentText = commentResult.rows[0].comment_text;
 
         // Only send notification if someone else reacted to your comment
         if (commentAuthor !== wallet_address) {
           const reactorProfile = await pgPool.query(
-            'SELECT display_name FROM user_profiles WHERE wallet_address = $1',
+            'SELECT display_name FROM profiles WHERE wallet_address = $1',
             [wallet_address]
           );
 
@@ -1225,7 +1225,7 @@ app.post('/api/follow', async (req, res) => {
 
       // Get follower's display name for notification
       const followerProfile = await pgPool.query(
-        'SELECT display_name FROM user_profiles WHERE wallet_address = $1',
+        'SELECT display_name FROM profiles WHERE wallet_address = $1',
         [follower_wallet]
       );
 
