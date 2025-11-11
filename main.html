@@ -1718,6 +1718,33 @@
     filter: drop-shadow(0 0 4px rgba(237,183,35,0.5));
   }
 
+  /* Profile Back Button */
+  .profile-back-btn {
+    background: linear-gradient(135deg, rgba(104, 12, 217, 0.2), rgba(104, 12, 217, 0.1));
+    border: 2px solid rgba(104, 12, 217, 0.5);
+    color: rgba(104, 12, 217, 1);
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    position: relative;
+  }
+
+  .profile-back-btn:hover {
+    background: linear-gradient(135deg, rgba(104, 12, 217, 0.4), rgba(104, 12, 217, 0.2));
+    border-color: rgba(104, 12, 217, 1);
+    transform: scale(1.1) translateX(-3px);
+    box-shadow: 0 0 20px rgba(104, 12, 217, 0.6);
+  }
+
+  .profile-back-btn svg {
+    filter: drop-shadow(0 0 4px rgba(104, 12, 217, 0.5));
+  }
+
   /* BEAR Search Panel */
   .bear-search-panel {
     padding: 24px;
@@ -5654,6 +5681,11 @@
       <div class="profile-modal-header">
         <h2 id="profileModalTitle" style="margin:0; color:var(--gold); font-size:28px;">MY PROFILE</h2>
         <div style="display: flex; align-items: center; gap: 12px;">
+          <button id="profileBackBtn" class="profile-back-btn" onclick="goBackInProfile()" aria-label="Go back" style="display:none;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M19 12H5M12 19l-7-7 7-7"/>
+            </svg>
+          </button>
           <button class="bear-search-btn" onclick="toggleBearSearch()" aria-label="BEAR Search">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="11" cy="11" r="8"></circle>
@@ -10602,13 +10634,20 @@
     let currentUserWallet = null;
     let allUsers = [];
     let isSearchMode = false;
+    let profileNavigationHistory = []; // Track navigation history for back button
 
     // Open Profile Modal
-    window.openProfileModal = async function(walletAddress = null) {
+    window.openProfileModal = async function(walletAddress = null, addToHistory = true) {
       currentUserWallet = localStorage.getItem('bearpark_wallet');
       if (!currentUserWallet) {
         alert('Please connect your wallet first!');
         return;
+      }
+
+      // Add current profile to history before navigating (if there is one and we're adding to history)
+      if (addToHistory && currentProfileWallet && currentProfileWallet !== walletAddress) {
+        profileNavigationHistory.push(currentProfileWallet);
+        updateBackButton();
       }
 
       // If a wallet address is provided, view that profile; otherwise view own profile
@@ -10616,9 +10655,17 @@
       profileModal.style.display = 'flex';
       setTimeout(() => profileModal.classList.add('visible'), 10);
 
+      // Scroll to top of profile modal
+      if (profileModalBody) {
+        profileModalBody.scrollTop = 0;
+      }
+
       await loadProfileData();
       await loadComments();
       await loadProfileNFTs();
+
+      // Update back button visibility
+      updateBackButton();
     };
 
     // Close Profile Modal
@@ -10630,8 +10677,32 @@
         if (isSearchMode) {
           toggleBearSearch();
         }
+        // Clear navigation history
+        profileNavigationHistory = [];
+        updateBackButton();
       }, 300);
     };
+
+    // Go Back in Profile Navigation
+    window.goBackInProfile = function() {
+      if (profileNavigationHistory.length > 0) {
+        const previousWallet = profileNavigationHistory.pop();
+        // Open previous profile without adding to history
+        openProfileModal(previousWallet, false);
+      }
+    };
+
+    // Update Back Button Visibility
+    function updateBackButton() {
+      const backBtn = document.getElementById('profileBackBtn');
+      if (backBtn) {
+        if (profileNavigationHistory.length > 0) {
+          backBtn.style.display = 'flex';
+        } else {
+          backBtn.style.display = 'none';
+        }
+      }
+    }
 
     // Edit profile from modal - close modal and open BEAR HUB to profile section
     window.editProfileFromModal = function() {
