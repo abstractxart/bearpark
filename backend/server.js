@@ -964,16 +964,35 @@ app.post('/api/profile/bio', async (req, res) => {
 app.get('/api/comments/:wallet', async (req, res) => {
   try {
     const { wallet } = req.params;
+    let comments = [];
 
-    const { data, error } = await supabase
-      .from('profile_comments')
-      .select('*')
-      .eq('profile_wallet', wallet)
-      .order('created_at', { ascending: false });
+    // Try direct PostgreSQL first, fall back to Supabase if it fails
+    try {
+      if (pgPool) {
+        const result = await pgPool.query(
+          'SELECT * FROM profile_comments WHERE profile_wallet = $1 ORDER BY created_at DESC',
+          [wallet]
+        );
+        comments = result.rows || [];
+        console.log(`✅ [pgPool] Fetched ${comments.length} comments for ${wallet}`);
+      } else {
+        throw new Error('pgPool not available');
+      }
+    } catch (pgError) {
+      console.warn(`⚠️ pgPool failed (${pgError.message}), falling back to Supabase...`);
 
-    if (error) throw error;
+      const { data, error } = await supabase
+        .from('profile_comments')
+        .select('*')
+        .eq('profile_wallet', wallet)
+        .order('created_at', { ascending: false });
 
-    res.json({ success: true, comments: data || [] });
+      if (error) throw error;
+      comments = data || [];
+      console.log(`✅ [Supabase] Fetched ${comments.length} comments for ${wallet}`);
+    }
+
+    res.json({ success: true, comments: comments });
   } catch (error) {
     console.error('Error fetching comments:', error);
     res.status(500).json({ success: false, error: error.message });
