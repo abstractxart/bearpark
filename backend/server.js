@@ -1055,6 +1055,14 @@ app.post('/api/comments/:id/react', async (req, res) => {
       });
     }
 
+    // Check if pgPool is initialized
+    if (!pgPool) {
+      return res.status(503).json({
+        success: false,
+        error: 'Database connection not configured'
+      });
+    }
+
     // Use direct SQL to check if reaction exists
     const checkResult = await pgPool.query(
       'SELECT id FROM comment_reactions WHERE comment_id = $1 AND wallet_address = $2 AND reaction_type = $3',
