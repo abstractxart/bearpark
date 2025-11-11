@@ -1533,33 +1533,6 @@ app.get('/debug/env', (req, res) => {
   });
 });
 
-// Get All Users (for admin name moderation)
-app.get('/api/users', async (req, res) => {
-  try {
-    const { data, error } = await supabase
-      .from('honey_points')
-      .select('wallet_address, display_name, total_points')
-      .order('total_points', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching users:', error);
-      return res.status(500).json({ success: false, error: error.message });
-    }
-
-    // Format for frontend
-    const users = data.map(user => ({
-      wallet_address: user.wallet_address,
-      display_name: user.display_name,
-      honey_points: user.total_points
-    }));
-
-    res.json({ success: true, users: users || [] });
-  } catch (error) {
-    console.error('Error in get users endpoint:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
 // Update User Display Name (for admin moderation)
 app.patch('/api/users/:wallet', async (req, res) => {
   try {
