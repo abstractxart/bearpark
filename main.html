@@ -15936,8 +15936,9 @@
         return;
       }
 
-      // Load inventory and equipped items
+      // Load catalog, inventory, and equipped items
       await Promise.all([
+        loadCosmeticsCatalog(),
         loadUserInventory(),
         loadEquippedItems()
       ]);
