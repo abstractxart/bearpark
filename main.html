@@ -10910,14 +10910,25 @@
 
             // Also update the profile modal follower count
             const profileFollowersCount = document.getElementById('followersCount');
+            console.log('🔵 [Community Follow Sync] Looking for followersCount element:', !!profileFollowersCount);
             if (profileFollowersCount) {
               let currentCount = parseInt(profileFollowersCount.textContent) || 0;
+              console.log('🔵 [Community Follow Sync] Current count:', currentCount, 'Action:', action);
               if (action === 'followed') {
                 profileFollowersCount.textContent = currentCount + 1;
               } else {
                 profileFollowersCount.textContent = Math.max(0, currentCount - 1);
               }
               console.log('✅ [Community Follow Sync] Updated follower count to:', profileFollowersCount.textContent);
+              // Add animation for visual feedback
+              profileFollowersCount.style.transform = action === 'followed' ? 'scale(1.3)' : 'scale(0.9)';
+              profileFollowersCount.style.color = action === 'followed' ? 'var(--gold)' : '';
+              setTimeout(() => {
+                profileFollowersCount.style.transform = '';
+                profileFollowersCount.style.color = '';
+              }, 300);
+            } else {
+              console.log('⚠️ [Community Follow Sync] followersCount element not found - profile modal may not be open');
             }
           } else {
             console.log('⏸️ [Community Follow Sync] Not syncing - profile modal not open for this user or button not found');
