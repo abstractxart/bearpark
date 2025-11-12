@@ -2706,6 +2706,267 @@ function addNotification(targetWallet, type, data) {
   }
 }
 
+// ===================================================
+// COSMETICS SYSTEM API ROUTES
+// ===================================================
+
+// Get all cosmetics catalog items
+app.get('/api/cosmetics/catalog', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('cosmetics_catalog')
+      .select('*')
+      .order('honey_cost', { ascending: true });
+
+    if (error) throw error;
+
+    res.json({ success: true, items: data });
+  } catch (error) {
+    console.error('Error fetching cosmetics catalog:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get user's inventory (owned cosmetics)
+app.get('/api/cosmetics/inventory/:wallet', async (req, res) => {
+  try {
+    const { wallet } = req.params;
+
+    const { data, error } = await supabase
+      .from('user_cosmetics')
+      .select(`
+        *,
+        cosmetic:cosmetics_catalog(*)
+      `)
+      .eq('wallet_address', wallet);
+
+    if (error) throw error;
+
+    res.json({ success: true, inventory: data });
+  } catch (error) {
+    console.error('Error fetching user inventory:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get user's equipped cosmetics
+app.get('/api/cosmetics/equipped/:wallet', async (req, res) => {
+  try {
+    const { wallet } = req.params;
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select(`
+        equipped_ring_id,
+        equipped_banner_id,
+        equipped_ring:cosmetics_catalog!profiles_equipped_ring_id_fkey(*),
+        equipped_banner:cosmetics_catalog!profiles_equipped_banner_id_fkey(*)
+      `)
+      .eq('wallet_address', wallet)
+      .single();
+
+    if (error && error.code !== 'PGRST116') throw error;
+
+    res.json({
+      success: true,
+      equipped: {
+        ring: data?.equipped_ring || null,
+        banner: data?.equipped_banner || null
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching equipped cosmetics:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Purchase a cosmetic item
+app.post('/api/cosmetics/purchase', async (req, res) => {
+  try {
+    const { wallet_address, cosmetic_id } = req.body;
+
+    if (!wallet_address || !cosmetic_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'wallet_address and cosmetic_id are required'
+      });
+    }
+
+    // Get the cosmetic item details
+    const { data: cosmetic, error: cosmeticError } = await supabase
+      .from('cosmetics_catalog')
+      .select('*')
+      .eq('id', cosmetic_id)
+      .single();
+
+    if (cosmeticError) throw cosmeticError;
+    if (!cosmetic) {
+      return res.status(404).json({ success: false, error: 'Cosmetic not found' });
+    }
+
+    // Check if user already owns this item
+    const { data: existing } = await supabase
+      .from('user_cosmetics')
+      .select('id')
+      .eq('wallet_address', wallet_address)
+      .eq('cosmetic_id', cosmetic_id)
+      .single();
+
+    if (existing) {
+      return res.status(400).json({
+        success: false,
+        error: 'You already own this item'
+      });
+    }
+
+    // Get user's current honey points
+    const { data: pointsData } = await supabase
+      .from('honey_points')
+      .select('total_points')
+      .eq('wallet_address', wallet_address)
+      .single();
+
+    const currentPoints = pointsData?.total_points || 0;
+
+    if (currentPoints < cosmetic.honey_cost) {
+      return res.status(400).json({
+        success: false,
+        error: `Not enough Honey Points. Need ${cosmetic.honey_cost}, have ${currentPoints}`
+      });
+    }
+
+    // Deduct honey points
+    const newPoints = currentPoints - cosmetic.honey_cost;
+    const { error: pointsError } = await supabase
+      .from('honey_points')
+      .update({ total_points: newPoints })
+      .eq('wallet_address', wallet_address);
+
+    if (pointsError) throw pointsError;
+
+    // Add item to user's inventory
+    const { error: inventoryError } = await supabase
+      .from('user_cosmetics')
+      .insert({
+        wallet_address,
+        cosmetic_id
+      });
+
+    if (inventoryError) throw inventoryError;
+
+    // Record transaction
+    await supabase
+      .from('cosmetics_transactions')
+      .insert({
+        wallet_address,
+        cosmetic_id,
+        honey_spent: cosmetic.honey_cost,
+        transaction_type: 'purchase'
+      });
+
+    res.json({
+      success: true,
+      message: 'Purchase successful',
+      new_balance: newPoints,
+      item: cosmetic
+    });
+  } catch (error) {
+    console.error('Error purchasing cosmetic:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Equip a cosmetic item
+app.post('/api/cosmetics/equip', async (req, res) => {
+  try {
+    const { wallet_address, cosmetic_id, cosmetic_type } = req.body;
+
+    if (!wallet_address || !cosmetic_id || !cosmetic_type) {
+      return res.status(400).json({
+        success: false,
+        error: 'wallet_address, cosmetic_id, and cosmetic_type are required'
+      });
+    }
+
+    // Verify user owns this item
+    const { data: owned } = await supabase
+      .from('user_cosmetics')
+      .select('id')
+      .eq('wallet_address', wallet_address)
+      .eq('cosmetic_id', cosmetic_id)
+      .single();
+
+    if (!owned) {
+      return res.status(403).json({
+        success: false,
+        error: 'You do not own this item'
+      });
+    }
+
+    // Ensure profile exists
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('wallet_address')
+      .eq('wallet_address', wallet_address)
+      .single();
+
+    if (!profile) {
+      // Create profile if it doesn't exist
+      await supabase
+        .from('profiles')
+        .insert({ wallet_address });
+    }
+
+    // Update equipped cosmetic
+    const updateField = cosmetic_type === 'ring' ? 'equipped_ring_id' : 'equipped_banner_id';
+    const { error: equipError } = await supabase
+      .from('profiles')
+      .update({ [updateField]: cosmetic_id })
+      .eq('wallet_address', wallet_address);
+
+    if (equipError) throw equipError;
+
+    res.json({
+      success: true,
+      message: `${cosmetic_type === 'ring' ? 'Ring' : 'Banner'} equipped successfully`
+    });
+  } catch (error) {
+    console.error('Error equipping cosmetic:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Unequip a cosmetic item
+app.post('/api/cosmetics/unequip', async (req, res) => {
+  try {
+    const { wallet_address, cosmetic_type } = req.body;
+
+    if (!wallet_address || !cosmetic_type) {
+      return res.status(400).json({
+        success: false,
+        error: 'wallet_address and cosmetic_type are required'
+      });
+    }
+
+    // Update equipped cosmetic to null
+    const updateField = cosmetic_type === 'ring' ? 'equipped_ring_id' : 'equipped_banner_id';
+    const { error: unequipError } = await supabase
+      .from('profiles')
+      .update({ [updateField]: null })
+      .eq('wallet_address', wallet_address);
+
+    if (unequipError) throw unequipError;
+
+    res.json({
+      success: true,
+      message: `${cosmetic_type === 'ring' ? 'Ring' : 'Banner'} unequipped successfully`
+    });
+  } catch (error) {
+    console.error('Error unequipping cosmetic:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Start server for local development
 if (require.main === module) {
   app.listen(PORT, () => {
@@ -2713,7 +2974,8 @@ if (require.main === module) {
     console.log(`✅ Ready to handle XAMAN authentication`);
     console.log(`✅ Ready to handle honey points & leaderboard`);
     console.log(`✅ Ready to handle admin features`);
-    console.log(`✅ Ready to handle notifications\n`);
+    console.log(`✅ Ready to handle notifications`);
+    console.log(`✅ Ready to handle cosmetics store\n`);
   });
 }
 
