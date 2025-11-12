@@ -5557,6 +5557,41 @@
     50% { box-shadow: 0 3px 20px rgba(16, 185, 129, 0.8); }
   }
 
+  /* Equipped badge */
+  .store-item-equipped-badge {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    padding: 6px 12px;
+    background: linear-gradient(135deg, #fbbf24, #f59e0b);
+    color: #000;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 900;
+    text-transform: uppercase;
+    box-shadow: 0 3px 10px rgba(251, 191, 36, 0.5);
+    z-index: 3;
+    animation: equippedGlow 2s ease-in-out infinite;
+  }
+
+  @keyframes equippedGlow {
+    0%, 100% { box-shadow: 0 3px 10px rgba(251, 191, 36, 0.5); }
+    50% { box-shadow: 0 3px 20px rgba(251, 191, 36, 0.9); }
+  }
+
+  /* Equipped button state */
+  .store-item-btn.equipped {
+    background: linear-gradient(135deg, #fbbf24, #f59e0b);
+    color: #000;
+    box-shadow: 0 4px 12px rgba(251, 191, 36, 0.4);
+  }
+
+  .store-item-btn.equipped:hover {
+    background: linear-gradient(135deg, #fcd34d, #fbbf24);
+    transform: scale(1.05) translateY(-2px);
+    box-shadow: 0 8px 24px rgba(251, 191, 36, 0.6);
+  }
+
   .owned-badge {
     background: linear-gradient(135deg, #22c55e, #16a34a);
     color: #fff;
@@ -15268,6 +15303,40 @@
     </div>
   </div>
 
+  <!-- Inventory Modal -->
+  <div id="inventoryModal" class="store-modal">
+    <div class="store-modal-content">
+      <div class="store-header" style="background:linear-gradient(135deg, #8b5cf6, #7c3aed);">
+        <div class="store-title-section">
+          <h2 class="store-title">🎒 MY INVENTORY</h2>
+          <div class="store-subtitle">Equip and manage your cosmetics</div>
+        </div>
+        <div class="store-balance-container">
+          <button class="store-close-btn" onclick="closeInventoryModal()">×</button>
+        </div>
+      </div>
+
+      <div class="store-tabs">
+        <div class="store-tab active" onclick="switchInventoryTab('rings', event)">
+          <span>💍 Profile Rings</span>
+        </div>
+        <div class="store-tab" onclick="switchInventoryTab('banners', event)">
+          <span>🎨 Profile Banners</span>
+        </div>
+      </div>
+
+      <div class="store-body">
+        <div id="inventoryRingsGrid" class="store-grid"></div>
+        <div id="inventoryBannersGrid" class="store-grid" style="display: none;"></div>
+        <div id="inventoryEmptyState" style="display:none; text-align:center; padding:60px 20px; color:#888;">
+          <div style="font-size:48px; margin-bottom:20px;">📦</div>
+          <div style="font-size:20px; font-weight:700; margin-bottom:10px;">Your inventory is empty</div>
+          <div style="font-size:16px;">Visit the store to purchase cosmetics!</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Celebration Overlay -->
   <div id="celebrationOverlay" class="celebration-overlay">
     <div class="celebration-content">
@@ -15763,6 +15832,183 @@
         closeStoreModal();
       } else {
         clearCelebration();
+      }
+    });
+
+    // ===== INVENTORY MODAL JAVASCRIPT =====
+    let currentInventoryTab = 'rings';
+    let equippedItems = { ring: null, banner: null };
+
+    async function openInventoryModal() {
+      const walletAddress = window.currentWallet;
+      if (!walletAddress) {
+        alert('Please connect your wallet first!');
+        return;
+      }
+
+      // Load inventory and equipped items
+      await Promise.all([
+        loadUserInventory(),
+        loadEquippedItems()
+      ]);
+
+      document.getElementById('inventoryModal').classList.add('active');
+      loadInventoryItems('rings');
+    }
+
+    function closeInventoryModal() {
+      document.getElementById('inventoryModal').classList.remove('active');
+    }
+
+    function switchInventoryTab(tab, event) {
+      currentInventoryTab = tab;
+      document.querySelectorAll('#inventoryModal .store-tab').forEach(btn => btn.classList.remove('active'));
+      event.target.closest('.store-tab').classList.add('active');
+
+      document.getElementById('inventoryRingsGrid').style.display = tab === 'rings' ? 'grid' : 'none';
+      document.getElementById('inventoryBannersGrid').style.display = tab === 'banners' ? 'grid' : 'none';
+
+      loadInventoryItems(tab);
+    }
+
+    async function loadEquippedItems() {
+      const walletAddress = window.currentWallet;
+      if (!walletAddress) return;
+
+      try {
+        console.log('👔 Loading equipped items from API...');
+        const response = await fetch(`${API_BASE_URL}/api/cosmetics/equipped/${walletAddress}`);
+
+        if (!response.ok) throw new Error('Failed to load equipped items');
+
+        const data = await response.json();
+
+        if (data.success && data.equipped) {
+          equippedItems = {
+            ring: data.equipped.ring?.cosmetic_id || null,
+            banner: data.equipped.banner?.cosmetic_id || null
+          };
+          console.log(`✅ Loaded equipped items:`, equippedItems);
+        }
+      } catch (error) {
+        console.error('❌ Error loading equipped items:', error);
+        equippedItems = { ring: null, banner: null };
+      }
+    }
+
+    function loadInventoryItems(tab) {
+      const type = tab === 'rings' ? 'ring' : 'banner';
+      const allItems = tab === 'rings' ? rings : banners;
+      const ownedItems = allItems.filter(item => userInventory.includes(item.id));
+
+      const gridId = tab === 'rings' ? 'inventoryRingsGrid' : 'inventoryBannersGrid';
+      const grid = document.getElementById(gridId);
+      const emptyState = document.getElementById('inventoryEmptyState');
+
+      if (ownedItems.length === 0) {
+        grid.style.display = 'none';
+        emptyState.style.display = 'block';
+        return;
+      }
+
+      emptyState.style.display = 'none';
+      grid.style.display = 'grid';
+
+      // Group items by rarity
+      const rarityOrder = ['common', 'rare', 'epic', 'legendary', 'bearableguy123'];
+      const rarityLabels = {
+        common: '🌿 COMMON',
+        rare: '💎 RARE',
+        epic: '⚡ EPIC',
+        legendary: '👑 LEGENDARY',
+        bearableguy123: '🌑 BEARABLEGUY123'
+      };
+
+      const groupedItems = {};
+      rarityOrder.forEach(rarity => {
+        groupedItems[rarity] = ownedItems.filter(item => item.rarity === rarity);
+      });
+
+      let htmlContent = '';
+
+      rarityOrder.forEach(rarity => {
+        const rarityItems = groupedItems[rarity];
+        if (rarityItems.length === 0) return;
+
+        htmlContent += `<div class="rarity-section ${rarity}-section">`;
+        htmlContent += `<div class="rarity-header ${rarity}-header">${rarityLabels[rarity]}</div>`;
+        htmlContent += `<div class="store-grid">`;
+
+        rarityItems.forEach(item => {
+          const isEquipped = type === 'ring' ? equippedItems.ring === item.id : equippedItems.banner === item.id;
+
+          let previewHTML;
+
+          if (item.ringType) {
+            // Ring preview (same as store)
+            if (item.imageUrl) {
+              const spinAnimation = item.rarity === 'bearableguy123' ? `animation: spinRingImage 3s linear infinite;` : '';
+              const glowWrapper = item.rarity === 'bearableguy123'
+                ? `<div class="ring-glow-wrapper ${item.ringType}" style="width: 100px; height: 100px;"></div>`
+                : '';
+              const ouroborosRotation = item.ringType === 'ouroboros' ? ' rotate(180deg)' : '';
+
+              previewHTML = `
+                <div class="ring-demo">
+                  <img src="https://files.catbox.moe/2f0v9c.webp" alt="Avatar" style="position: relative; z-index: 1;">
+                  ${glowWrapper}
+                  <img src="${item.imageUrl}" alt="${item.name}" class="image-ring-${item.ringType}" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%)${ouroborosRotation}; object-fit: contain; z-index: 2; pointer-events: none; ${spinAnimation}">
+                </div>
+              `;
+            } else {
+              previewHTML = `
+                <div class="ring-demo">
+                  <div class="ring-border ${item.ringType}"></div>
+                  <img src="https://files.catbox.moe/2f0v9c.webp" alt="Avatar">
+                </div>
+              `;
+            }
+          } else if (item.gradient) {
+            // Banner preview
+            previewHTML = `
+              <div class="banner-demo" style="background: ${item.gradient};">
+                <div class="banner-profile-preview">
+                  <img src="https://files.catbox.moe/2f0v9c.webp" alt="Profile">
+                </div>
+              </div>
+            `;
+          }
+
+          const buttonText = isEquipped ? '✓ EQUIPPED' : 'EQUIP';
+          const buttonClass = isEquipped ? 'store-item-btn equipped' : 'store-item-btn';
+          const buttonAction = isEquipped ? `unequipItem(${item.id}, '${type}', event)` : `equipItem(${item.id}, '${type}', '${item.name}', event)`;
+
+          htmlContent += `
+            <div class="store-item ${item.rarity}">
+              <div class="store-item-preview">
+                ${previewHTML}
+                <div class="store-item-badge rarity-${item.rarity}">${item.rarity.toUpperCase()}</div>
+                ${isEquipped ? '<div class="store-item-equipped-badge">⚡ EQUIPPED</div>' : ''}
+              </div>
+              <div class="store-item-name">${item.name}</div>
+              <div class="store-item-description">${item.description}</div>
+              <div class="store-item-footer">
+                <button class="${buttonClass}" onclick="${buttonAction}">${buttonText}</button>
+              </div>
+            </div>
+          `;
+        });
+
+        htmlContent += `</div></div>`;
+      });
+
+      grid.innerHTML = htmlContent;
+    }
+
+    // Close inventory modal when clicking outside
+    document.getElementById('inventoryModal')?.addEventListener('click', (e) => {
+      if (e.target.id === 'inventoryModal') {
+        closeInventoryModal();
       }
     });
   </script>
