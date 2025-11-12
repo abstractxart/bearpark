@@ -7459,7 +7459,7 @@
     <div class="profile-modal-overlay" onclick="closeProfileModal()"></div>
     <div class="profile-modal-content">
       <!-- Header -->
-      <div class="profile-modal-header">
+      <div id="profileModalHeader" class="profile-modal-header">
         <h2 id="profileModalTitle" style="margin:0; color:var(--gold); font-size:28px;">MY PROFILE</h2>
         <div style="display: flex; align-items: center; gap: 12px;">
           <button id="profileBackBtn" class="profile-back-btn" onclick="goBackInProfile()" aria-label="Go back" style="display:none;">
@@ -7489,7 +7489,7 @@
       <div class="profile-modal-body">
         <!-- Profile Picture Section -->
         <div class="profile-picture-section">
-          <div class="profile-picture-container" style="position: relative;">
+          <div id="profilePictureContainer" class="profile-picture-container" style="position: relative;">
             <img id="profilePictureDisplay" src="" alt="Profile Picture" class="profile-picture">
             <div class="profile-picture-placeholder" id="profilePicturePlaceholder">
               <span style="font-size:48px;">🐻</span>
@@ -13067,8 +13067,87 @@
         console.error('Error loading profile:', error);
       }
 
+      // Apply equipped cosmetics to profile
+      await applyProfileCosmetics();
+
       // Load follow counts and button state
       await loadFollowData();
+    }
+
+    // Apply equipped cosmetics to the profile modal
+    async function applyProfileCosmetics() {
+      try {
+        const walletAddress = window.currentProfileWallet;
+        if (!walletAddress) return;
+
+        console.log('🎨 Loading cosmetics for profile:', walletAddress);
+
+        // Fetch equipped cosmetics
+        const response = await fetch(`${API_BASE_URL}/api/cosmetics/equipped/${walletAddress}`);
+        if (!response.ok) return;
+
+        const data = await response.json();
+        if (!data.success || !data.equipped) return;
+
+        const equippedRing = data.equipped.ring;
+        const equippedBanner = data.equipped.banner;
+
+        // Apply banner if equipped
+        if (equippedBanner && equippedBanner.css_gradient) {
+          const header = document.getElementById('profileModalHeader');
+          if (header) {
+            header.style.background = equippedBanner.css_gradient;
+            console.log('✅ Applied banner:', equippedBanner.name);
+          }
+        } else {
+          // Reset to default if no banner
+          const header = document.getElementById('profileModalHeader');
+          if (header) {
+            header.style.background = '';
+          }
+        }
+
+        // Apply ring if equipped
+        if (equippedRing && equippedRing.image_url) {
+          const container = document.getElementById('profilePictureContainer');
+          if (container) {
+            // Remove any existing ring
+            const existingRing = container.querySelector('.profile-cosmetic-ring');
+            if (existingRing) existingRing.remove();
+
+            // Create ring element
+            const ring = document.createElement('img');
+            ring.className = `profile-cosmetic-ring ${equippedRing.ring_type}`;
+            ring.src = equippedRing.image_url;
+            ring.alt = equippedRing.name;
+            ring.style.cssText = `
+              position: absolute;
+              top: 50%;
+              left: 50%;
+              transform: translate(-50%, -50%) ${equippedRing.ring_type === 'ouroboros' ? 'rotate(180deg)' : ''};
+              width: 220px;
+              height: 220px;
+              object-fit: contain;
+              pointer-events: none;
+              z-index: 1;
+              ${equippedRing.rarity === 'bearableguy123' ? 'animation: spinRingImage 3s linear infinite;' : ''}
+            `;
+
+            container.appendChild(ring);
+            console.log('✅ Applied ring:', equippedRing.name);
+          }
+        } else {
+          // Remove ring if none equipped
+          const container = document.getElementById('profilePictureContainer');
+          if (container) {
+            const existingRing = container.querySelector('.profile-cosmetic-ring');
+            if (existingRing) existingRing.remove();
+          }
+        }
+
+      } catch (error) {
+        console.error('❌ Error applying profile cosmetics:', error);
+      }
     }
 
     // Follow System Functions
