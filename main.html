@@ -7488,7 +7488,7 @@
       <!-- Profile Body -->
       <div class="profile-modal-body">
         <!-- Profile Picture Section -->
-        <div class="profile-picture-section">
+        <div id="profilePictureSection" class="profile-picture-section">
           <div id="profilePictureContainer" class="profile-picture-container" style="position: relative;">
             <img id="profilePictureDisplay" src="" alt="Profile Picture" class="profile-picture">
             <div class="profile-picture-placeholder" id="profilePicturePlaceholder">
@@ -13094,16 +13094,16 @@
 
         // Apply banner if equipped
         if (equippedBanner && equippedBanner.css_gradient) {
-          const header = document.getElementById('profileModalHeader');
-          if (header) {
-            header.style.background = equippedBanner.css_gradient;
+          const section = document.getElementById('profilePictureSection');
+          if (section) {
+            section.style.background = equippedBanner.css_gradient;
             console.log('✅ Applied banner:', equippedBanner.name);
           }
         } else {
           // Reset to default if no banner
-          const header = document.getElementById('profileModalHeader');
-          if (header) {
-            header.style.background = '';
+          const section = document.getElementById('profilePictureSection');
+          if (section) {
+            section.style.background = '';
           }
         }
 
