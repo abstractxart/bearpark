@@ -13102,6 +13102,8 @@
         if (equippedBanner && equippedBanner.css_gradient) {
           const section = document.getElementById('profilePictureSection');
           if (section) {
+            // Ensure section allows overflow for ring
+            section.style.overflow = 'visible';
             // Apply banner while preserving the gradient border
             section.style.backgroundImage = `${equippedBanner.css_gradient}, linear-gradient(135deg, #8b5cf6, #22c55e, #edb723, #8b5cf6)`;
             section.style.backgroundOrigin = 'padding-box, border-box';
@@ -13112,6 +13114,8 @@
           // Reset to default if no banner
           const section = document.getElementById('profilePictureSection');
           if (section) {
+            // Ensure section allows overflow for ring
+            section.style.overflow = 'visible';
             section.style.backgroundImage = 'linear-gradient(#141619, #141619), linear-gradient(135deg, #8b5cf6, #22c55e, #edb723, #8b5cf6)';
             section.style.backgroundOrigin = 'padding-box, border-box';
             section.style.backgroundClip = 'padding-box, border-box';
@@ -13122,6 +13126,9 @@
         if (equippedRing && equippedRing.image_url) {
           const container = document.getElementById('profilePictureContainer');
           if (container) {
+            // Ensure container allows ring to overflow
+            container.style.overflow = 'visible';
+
             // Remove any existing ring
             const existingRing = container.querySelector('.profile-cosmetic-ring');
             if (existingRing) existingRing.remove();
@@ -13145,10 +13152,6 @@
               z-index: 1;
               ${equippedRing.rarity === 'bearableguy123' ? 'animation: spinRingImage 3s linear infinite;' : ''}
             `;
-
-            // Expand container to accommodate larger ring
-            container.style.width = '320px';
-            container.style.height = '320px';
 
             container.appendChild(ring);
             console.log('✅ Applied ring:', equippedRing.name);
