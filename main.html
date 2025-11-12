@@ -15410,7 +15410,7 @@
 
     // Load user's inventory from API
     async function loadUserInventory() {
-      const walletAddress = window.currentWallet;
+      const walletAddress = localStorage.getItem('bearpark_wallet');
       if (!walletAddress) {
         console.log('⚠️ No wallet connected, skipping inventory load');
         userInventory = [];
@@ -15589,7 +15589,7 @@
     }
 
     async function purchaseItem(id, cost, rarity, name, event) {
-      const walletAddress = window.currentWallet;
+      const walletAddress = localStorage.getItem('bearpark_wallet');
       if (!walletAddress) {
         alert('Please connect your wallet first!');
         return;
@@ -15840,7 +15840,7 @@
     let equippedItems = { ring: null, banner: null };
 
     async function openInventoryModal() {
-      const walletAddress = window.currentWallet;
+      const walletAddress = localStorage.getItem('bearpark_wallet');
       if (!walletAddress) {
         alert('Please connect your wallet first!');
         return;
@@ -15872,7 +15872,7 @@
     }
 
     async function loadEquippedItems() {
-      const walletAddress = window.currentWallet;
+      const walletAddress = localStorage.getItem('bearpark_wallet');
       if (!walletAddress) return;
 
       try {
@@ -16007,7 +16007,7 @@
 
     // Equip an item
     async function equipItem(cosmeticId, type, itemName, event) {
-      const walletAddress = window.currentWallet;
+      const walletAddress = localStorage.getItem('bearpark_wallet');
       if (!walletAddress) {
         alert('Please connect your wallet first!');
         return;
@@ -16087,7 +16087,7 @@
 
     // Unequip an item
     async function unequipItem(cosmeticId, type, event) {
-      const walletAddress = window.currentWallet;
+      const walletAddress = localStorage.getItem('bearpark_wallet');
       if (!walletAddress) {
         alert('Please connect your wallet first!');
         return;
