@@ -2742,7 +2742,7 @@ app.get('/api/cosmetics/inventory/:wallet', async (req, res) => {
 
     if (error) throw error;
 
-    res.json({ success: true, inventory: data });
+    res.json({ success: true, items: data });
   } catch (error) {
     console.error('Error fetching user inventory:', error);
     res.status(500).json({ success: false, error: error.message });
