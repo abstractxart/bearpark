@@ -5514,6 +5514,49 @@
     100% { transform: scale(1); }
   }
 
+  /* Owned button state */
+  .store-item-btn.owned,
+  .store-item-btn:disabled {
+    background: linear-gradient(135deg, #6b7280, #9ca3af);
+    color: #fff;
+    cursor: not-allowed;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  }
+
+  .store-item-btn.owned:hover,
+  .store-item-btn:disabled:hover {
+    transform: none;
+    background: linear-gradient(135deg, #6b7280, #9ca3af);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  }
+
+  .store-item-btn.owned::before,
+  .store-item-btn:disabled::before {
+    display: none;
+  }
+
+  /* Owned badge */
+  .store-item-owned-badge {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    padding: 6px 12px;
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: #fff;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 900;
+    text-transform: uppercase;
+    box-shadow: 0 3px 10px rgba(16, 185, 129, 0.5);
+    z-index: 3;
+    animation: ownedPulse 2s ease-in-out infinite;
+  }
+
+  @keyframes ownedPulse {
+    0%, 100% { box-shadow: 0 3px 10px rgba(16, 185, 129, 0.5); }
+    50% { box-shadow: 0 3px 20px rgba(16, 185, 129, 0.8); }
+  }
+
   .owned-badge {
     background: linear-gradient(135deg, #22c55e, #16a34a);
     color: #fff;
@@ -15241,6 +15284,10 @@
     let banners = [];
     let catalogLoaded = false;
 
+    // User inventory - loaded from API
+    let userInventory = [];
+    let inventoryLoaded = false;
+
     // Load cosmetics catalog from API
     async function loadCosmeticsCatalog() {
       if (catalogLoaded) return; // Only load once
@@ -15289,9 +15336,40 @@
       }
     }
 
+    // Load user's inventory from API
+    async function loadUserInventory() {
+      const walletAddress = window.currentWallet;
+      if (!walletAddress) {
+        console.log('⚠️ No wallet connected, skipping inventory load');
+        userInventory = [];
+        return;
+      }
+
+      try {
+        console.log('👜 Loading user inventory from API...');
+        const response = await fetch(`${API_BASE_URL}/api/cosmetics/inventory/${walletAddress}`);
+
+        if (!response.ok) throw new Error('Failed to load inventory');
+
+        const data = await response.json();
+
+        if (data.success && data.items) {
+          userInventory = data.items.map(item => item.cosmetic_id);
+          inventoryLoaded = true;
+          console.log(`✅ Loaded ${userInventory.length} owned items`);
+        }
+      } catch (error) {
+        console.error('❌ Error loading user inventory:', error);
+        userInventory = [];
+      }
+    }
+
     async function openStoreModal() {
-      // Load catalog from API first
-      await loadCosmeticsCatalog();
+      // Load catalog and inventory from API
+      await Promise.all([
+        loadCosmeticsCatalog(),
+        loadUserInventory()
+      ]);
 
       // Get current honey points from the page
       const honeyPointsEl = document.getElementById('totalHoneyPoints');
@@ -15350,6 +15428,9 @@
         htmlContent += `<div class="store-grid">`;
 
         rarityItems.forEach(item => {
+          // Check if user owns this item
+          const isOwned = userInventory.includes(item.id);
+
           let previewHTML;
 
           if (item.ringType) {
@@ -15407,17 +15488,23 @@
             `;
           }
 
+          // Button text and state based on ownership
+          const buttonText = isOwned ? 'OWNED' : 'BUY NOW';
+          const buttonDisabled = isOwned ? 'disabled' : '';
+          const buttonClass = isOwned ? 'store-item-btn owned' : 'store-item-btn';
+
           htmlContent += `
             <div class="store-item ${item.rarity}">
               <div class="store-item-preview">
                 ${previewHTML}
                 <div class="store-item-badge rarity-${item.rarity}">${item.rarity.toUpperCase()}</div>
+                ${isOwned ? '<div class="store-item-owned-badge">✓ OWNED</div>' : ''}
               </div>
               <div class="store-item-name">${item.name}</div>
               <div class="store-item-description">${item.description}</div>
               <div class="store-item-footer">
                 <div class="store-item-price">${item.cost} HP</div>
-                <button class="store-item-btn" onclick="purchaseItem(${item.id}, ${item.cost}, '${item.rarity}', '${item.name}', event)">BUY NOW</button>
+                <button class="${buttonClass}" ${buttonDisabled} onclick="purchaseItem(${item.id}, ${item.cost}, '${item.rarity}', '${item.name}', event)">${buttonText}</button>
               </div>
             </div>
           `;
