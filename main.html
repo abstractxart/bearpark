@@ -16005,6 +16005,143 @@
       grid.innerHTML = htmlContent;
     }
 
+    // Equip an item
+    async function equipItem(cosmeticId, type, itemName, event) {
+      const walletAddress = window.currentWallet;
+      if (!walletAddress) {
+        alert('Please connect your wallet first!');
+        return;
+      }
+
+      const button = event?.target;
+      if (button) {
+        button.disabled = true;
+        button.textContent = 'EQUIPPING...';
+      }
+
+      try {
+        console.log(`⚡ Equipping ${type}:`, cosmeticId);
+        const response = await fetch(`${API_BASE_URL}/api/cosmetics/equip`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            wallet_address: walletAddress,
+            cosmetic_id: cosmeticId,
+            cosmetic_type: type
+          })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+          throw new Error(data.error || 'Failed to equip item');
+        }
+
+        console.log('✅ Item equipped successfully!');
+
+        // Update local equipped state
+        if (type === 'ring') {
+          equippedItems.ring = cosmeticId;
+        } else {
+          equippedItems.banner = cosmeticId;
+        }
+
+        // Reload inventory to show new equipped state
+        loadInventoryItems(currentInventoryTab);
+
+        // Show success message
+        showHypeMessage();
+        setTimeout(() => {
+          const overlay = document.getElementById('celebrationOverlay');
+          const icon = document.getElementById('celebrationIcon');
+          const text = document.getElementById('celebrationText');
+          const subtext = document.getElementById('celebrationSubtext');
+
+          icon.textContent = '⚡';
+          text.textContent = 'EQUIPPED!';
+          text.style.color = '#fbbf24';
+          subtext.textContent = itemName;
+          subtext.style.color = '#fbbf24';
+
+          overlay.classList.add('active');
+          createConfetti(100, '#fbbf24');
+
+          setTimeout(() => {
+            clearCelebration();
+          }, 2000);
+        }, 400);
+
+      } catch (error) {
+        console.error('❌ Equip error:', error);
+        alert(`Failed to equip item: ${error.message}`);
+
+        // Reset button on error
+        if (button) {
+          button.disabled = false;
+          button.textContent = 'EQUIP';
+        }
+      }
+    }
+
+    // Unequip an item
+    async function unequipItem(cosmeticId, type, event) {
+      const walletAddress = window.currentWallet;
+      if (!walletAddress) {
+        alert('Please connect your wallet first!');
+        return;
+      }
+
+      const button = event?.target;
+      if (button) {
+        button.disabled = true;
+        button.textContent = 'UNEQUIPPING...';
+      }
+
+      try {
+        console.log(`🔓 Unequipping ${type}:`, cosmeticId);
+        const response = await fetch(`${API_BASE_URL}/api/cosmetics/unequip`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            wallet_address: walletAddress,
+            cosmetic_type: type
+          })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+          throw new Error(data.error || 'Failed to unequip item');
+        }
+
+        console.log('✅ Item unequipped successfully!');
+
+        // Update local equipped state
+        if (type === 'ring') {
+          equippedItems.ring = null;
+        } else {
+          equippedItems.banner = null;
+        }
+
+        // Reload inventory to show new state
+        loadInventoryItems(currentInventoryTab);
+
+      } catch (error) {
+        console.error('❌ Unequip error:', error);
+        alert(`Failed to unequip item: ${error.message}`);
+
+        // Reset button on error
+        if (button) {
+          button.disabled = false;
+          button.textContent = '✓ EQUIPPED';
+        }
+      }
+    }
+
     // Close inventory modal when clicking outside
     document.getElementById('inventoryModal')?.addEventListener('click', (e) => {
       if (e.target.id === 'inventoryModal') {
