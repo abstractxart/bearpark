@@ -1441,10 +1441,25 @@ app.post('/api/follow', async (req, res) => {
 
         if (checkResult.rows.length > 0) {
           // Unfollow
-          await pgPool.query(
-            'DELETE FROM follows WHERE follower_wallet = $1 AND following_wallet = $2',
+          console.log(`🔵 [Follow] BEFORE DELETE: Found existing follow row for ${follower_wallet} -> ${following_wallet}`);
+          const deleteResult = await pgPool.query(
+            'DELETE FROM follows WHERE follower_wallet = $1 AND following_wallet = $2 RETURNING *',
             [follower_wallet, following_wallet]
           );
+          console.log(`🔵 [Follow] DELETE EXECUTED: Deleted ${deleteResult.rowCount} row(s)`, deleteResult.rows);
+
+          // VERIFY THE DELETE WORKED - check immediately after
+          const verifyResult = await pgPool.query(
+            'SELECT * FROM follows WHERE follower_wallet = $1 AND following_wallet = $2',
+            [follower_wallet, following_wallet]
+          );
+          console.log(`🔵 [Follow] VERIFY AFTER DELETE: Found ${verifyResult.rows.length} rows (should be 0)`);
+          if (verifyResult.rows.length > 0) {
+            console.error(`❌ [Follow] DELETE FAILED! Row still exists:`, verifyResult.rows[0]);
+          } else {
+            console.log(`✅ [Follow] DELETE CONFIRMED: Row successfully removed`);
+          }
+
           action = 'unfollowed';
         } else {
           // Follow
@@ -1555,6 +1570,7 @@ app.get('/api/follow/status', async (req, res) => {
           [follower_wallet, following_wallet]
         );
         isFollowing = result.rows.length > 0;
+        console.log(`🔵 [Follow Status] Query for ${follower_wallet} -> ${following_wallet}: Found ${result.rows.length} row(s), isFollowing: ${isFollowing}`);
       } else {
         throw new Error('pgPool not available');
       }
