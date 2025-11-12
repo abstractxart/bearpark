@@ -15516,7 +15516,13 @@
       grid.innerHTML = htmlContent;
     }
 
-    function purchaseItem(id, cost, rarity, name, event) {
+    async function purchaseItem(id, cost, rarity, name, event) {
+      const walletAddress = window.currentWallet;
+      if (!walletAddress) {
+        alert('Please connect your wallet first!');
+        return;
+      }
+
       if (currentBalance < cost) {
         alert(`Not enough Honey Points! You need ${cost} HP but only have ${currentBalance.toFixed(1)} HP.`);
         return;
@@ -15525,31 +15531,86 @@
       // Get the button element
       const button = event?.target || document.querySelector(`button[onclick*="purchaseItem(${id}"]`);
 
-      // Show hype message
-      showHypeMessage();
+      // Disable button during purchase
+      if (button) {
+        button.disabled = true;
+        button.textContent = 'PURCHASING...';
+      }
 
-      // Update balance and button after 400ms
-      setTimeout(() => {
-        currentBalance -= cost;
-        document.getElementById('storeHoneyBalance').textContent = currentBalance.toFixed(1);
+      try {
+        // Show hype message
+        showHypeMessage();
 
-        // Update button to show "OWNED"
-        if (button && button.parentElement) {
-          button.parentElement.innerHTML = '<span class="owned-badge">✓ OWNED</span>';
+        // Call API to purchase item
+        const response = await fetch(`${API_BASE_URL}/api/cosmetics/purchase`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            wallet_address: walletAddress,
+            cosmetic_id: id
+          })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+          throw new Error(data.error || 'Purchase failed');
         }
 
-        // TODO: Update backend to save purchase
-        // For now, just update local display
-        const honeyPointsEl = document.getElementById('totalHoneyPoints');
-        if (honeyPointsEl) {
-          honeyPointsEl.textContent = currentBalance.toFixed(1);
-        }
-      }, 400);
+        console.log('✅ Purchase successful!', data);
 
-      // Show celebration after hype message completes (2.6s total)
-      setTimeout(() => {
-        showCelebration(rarity, name);
-      }, 2600);
+        // Update balance and button after 400ms
+        setTimeout(() => {
+          currentBalance = data.new_balance;
+          document.getElementById('storeHoneyBalance').textContent = currentBalance.toFixed(1);
+
+          // Update main honey points display
+          const honeyPointsEl = document.getElementById('totalHoneyPoints');
+          if (honeyPointsEl) {
+            honeyPointsEl.textContent = currentBalance.toFixed(1);
+          }
+
+          // Add to user inventory
+          userInventory.push(id);
+
+          // Update button to show "OWNED"
+          if (button) {
+            button.textContent = 'OWNED';
+            button.classList.add('owned');
+            button.disabled = true;
+            button.onclick = null;
+          }
+
+          // Add OWNED badge to preview
+          const storeItem = button.closest('.store-item');
+          if (storeItem) {
+            const preview = storeItem.querySelector('.store-item-preview');
+            if (preview && !preview.querySelector('.store-item-owned-badge')) {
+              const ownedBadge = document.createElement('div');
+              ownedBadge.className = 'store-item-owned-badge';
+              ownedBadge.textContent = '✓ OWNED';
+              preview.appendChild(ownedBadge);
+            }
+          }
+        }, 400);
+
+        // Show celebration after hype message completes (2.6s total)
+        setTimeout(() => {
+          showCelebration(rarity, name);
+        }, 2600);
+
+      } catch (error) {
+        console.error('❌ Purchase error:', error);
+        alert(`Purchase failed: ${error.message}`);
+
+        // Re-enable button on error
+        if (button) {
+          button.disabled = false;
+          button.textContent = 'BUY NOW';
+        }
+      }
     }
 
     function showHypeMessage() {
