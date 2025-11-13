@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>BEAR PONG - BEAR Park</title>
+  <meta name="description" content="Play multiplayer BEAR PONG and compete on the leaderboard!" />
+  <meta name="theme-color" content="#edb723" />
+  <link rel="icon" href="/favicon.ico">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000;
+    }
+
+    #game-frame {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+    }
+
+    #loading {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: #141619;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      font-family: 'Luckiest Guy', Arial, sans-serif;
+      color: #edb723;
+    }
+
+    #loading.hidden {
+      display: none;
+    }
+
+    .spinner {
+      width: 60px;
+      height: 60px;
+      border: 6px solid rgba(237, 183, 35, 0.2);
+      border-top-color: #edb723;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 20px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+      font-size: 24px;
+      text-shadow: 2px 2px 0px #000;
+    }
+
+    #access-denied {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(135deg, #141619 0%, #0b0d0e 100%);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      font-family: 'Luckiest Guy', Arial, sans-serif;
+      padding: 20px;
+    }
+
+    #access-denied.show {
+      display: flex;
+    }
+
+    .denied-icon {
+      font-size: 80px;
+      margin-bottom: 20px;
+    }
+
+    .denied-title {
+      font-size: 36px;
+      color: #edb723;
+      text-shadow: 2px 2px 0px #000;
+      margin-bottom: 10px;
+      text-align: center;
+    }
+
+    .denied-text {
+      font-size: 18px;
+      color: rgba(255, 255, 255, 0.8);
+      text-shadow: 1px 1px 0px #000;
+      margin-bottom: 30px;
+      text-align: center;
+      max-width: 500px;
+      line-height: 1.4;
+    }
+
+    .connect-button {
+      padding: 16px 32px;
+      background: linear-gradient(135deg, #edb723 0%, #d19e1e 100%);
+      color: #000;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-radius: 12px;
+      font-family: 'Luckiest Guy', Arial, sans-serif;
+      font-size: 20px;
+      cursor: pointer;
+      text-decoration: none;
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+      transition: all 0.2s ease;
+      display: inline-block;
+    }
+
+    .connect-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
+    }
+
+    .connect-button:active {
+      transform: translateY(0);
+    }
+
+    .back-button {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      z-index: 10000;
+      padding: 12px 20px;
+      background: linear-gradient(135deg, #edb723 0%, #d19e1e 100%);
+      color: #000;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-radius: 12px;
+      font-family: 'Luckiest Guy', Arial, sans-serif;
+      font-size: 16px;
+      cursor: pointer;
+      text-decoration: none;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      transition: all 0.2s ease;
+    }
+
+    .back-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6);
+    }
+
+    .back-button:active {
+      transform: translateY(0);
+    }
+
+    @media (max-width: 640px) {
+      .back-button {
+        bottom: 10px;
+        left: 10px;
+        padding: 10px 16px;
+        font-size: 14px;
+      }
+    }
+  </style>
+
+  <!-- BEAR Park Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <div id="loading">
+    <div class="spinner"></div>
+    <div class="loading-text">Loading BEAR PONG...</div>
+  </div>
+
+  <div id="access-denied">
+    <div class="denied-icon">🔒</div>
+    <div class="denied-title">ACCESS RESTRICTED</div>
+    <div class="denied-text">
+      You must connect your XAMAN or Joey wallet to play BEAR PONG!<br>
+      Connect your wallet to unlock access to all BEAR Park games.
+    </div>
+    <a href="/" class="connect-button">Connect Wallet</a>
+  </div>
+
+  <iframe id="game-frame" allow="autoplay; fullscreen"></iframe>
+
+  <script>
+    (function() {
+      // Get wallet data from localStorage
+      const walletAddress = localStorage.getItem('xaman_wallet_address');
+      const displayName = localStorage.getItem('display_name');
+      const twitterUsername = localStorage.getItem('twitter_username');
+
+      // CHECK AUTHENTICATION - Block access if no wallet connected
+      if (!walletAddress) {
+        console.log('🔒 Access denied - No wallet connected');
+        document.getElementById('loading').classList.add('hidden');
+        document.getElementById('access-denied').classList.add('show');
+        return; // Don't load the game
+      }
+
+      console.log('✅ Wallet authenticated - Loading game');
+
+      // Build game URL with authentication parameters (use local game build)
+      let gameUrl = '/frontend/bear-pong/index.html';
+      const params = new URLSearchParams();
+      params.set('wallet', walletAddress);
+      if (displayName) params.set('display_name', displayName);
+      if (twitterUsername) params.set('twitter_username', twitterUsername);
+      gameUrl += '?' + params.toString();
+
+      // Set iframe source
+      const iframe = document.getElementById('game-frame');
+      iframe.src = gameUrl;
+
+      // Hide loading screen when iframe loads
+      iframe.addEventListener('load', function() {
+        setTimeout(function() {
+          document.getElementById('loading').classList.add('hidden');
+        }, 500);
+      });
+
+      // Hide loading screen after timeout (in case load event doesn't fire)
+      setTimeout(function() {
+        document.getElementById('loading').classList.add('hidden');
+      }, 5000);
+    })();
+  </script>
+</body>
+</html>
