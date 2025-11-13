@@ -2,8 +2,9 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <title>BEAR PONG - Multiplayer</title>
+    <title>FLAPPY BEAR</title>
 
     <!-- BEAR Park Font -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -19,7 +20,6 @@
           const wallet = urlParams.get('wallet');
           const displayName = urlParams.get('display_name');
           const twitterUsername = urlParams.get('twitter_username');
-          const avatarUrl = urlParams.get('avatar_url');
 
           // Store to localStorage if provided
           if (wallet) {
@@ -37,13 +37,8 @@
             console.log('✅ Twitter username synced from BEAR Park:', twitterUsername);
           }
 
-          if (avatarUrl) {
-            localStorage.setItem('avatar_url', avatarUrl);
-            console.log('✅ Avatar URL synced from BEAR Park:', avatarUrl);
-          }
-
           // Clean URL after reading params (optional - removes params from address bar)
-          if (wallet || displayName || twitterUsername || avatarUrl) {
+          if (wallet || displayName || twitterUsername) {
             const cleanUrl = window.location.origin + window.location.pathname;
             window.history.replaceState({}, document.title, cleanUrl);
           }
@@ -52,7 +47,7 @@
         }
       })();
     </script>
-
+
 
     <style>
       html, body {
@@ -75,8 +70,9 @@
         display: block;
       }
     </style>
-    <script type="module" crossorigin src="./assets/index-DZDHBKgF.js"></script>
-    <link rel="modulepreload" crossorigin href="./assets/phaser-0YPJO2g1.js">
+    <script type="module" crossorigin src="/assets/main-DoMIVNB7.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/phaser-skL0-YrO.js">
+    <link rel="stylesheet" crossorigin href="/assets/main-dnJ8f4Ah.css">
   </head>
   <body>
     <div id="game-container"></div>
