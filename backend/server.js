@@ -346,6 +346,41 @@ app.get('/api/points/:wallet', async (req, res) => {
   }
 });
 
+// Update/sync user's honey points (for games to award HONEY)
+app.post('/api/points', async (req, res) => {
+  try {
+    const { wallet_address, total_points, raiding_points, games_points } = req.body;
+
+    if (!wallet_address) {
+      return res.status(400).json({ success: false, error: 'wallet_address is required' });
+    }
+
+    // Upsert points (insert or update if exists)
+    const { data, error } = await supabase
+      .from('honey_points')
+      .upsert({
+        wallet_address,
+        total_points: total_points || 0,
+        raiding_points: raiding_points || 0,
+        games_points: games_points || 0,
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'wallet_address'
+      })
+      .select()
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    res.json({ success: true, points: data });
+  } catch (error) {
+    console.error('Error syncing points:', error);
+    res.status(500).json({ success: false, error: 'Failed to sync points', details: error.message });
+  }
+});
+
 // Create New Raid
 app.post('/api/raids', async (req, res) => {
   try {
