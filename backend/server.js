@@ -851,9 +851,29 @@ app.get('/api/profile/:wallet', async (req, res) => {
       return res.status(500).json({ success: false, error: error.message });
     }
 
+    // If no profile found, return null
+    if (!data) {
+      return res.json({ success: true, profile: null });
+    }
+
+    // Fetch honey points for this wallet
+    const { data: honeyData } = await supabase
+      .from('honey_points')
+      .select('total_points, raiding_points, games_points')
+      .eq('wallet_address', wallet)
+      .single();
+
+    // Merge honey data into profile response
+    const profileWithHoney = {
+      ...data,
+      honey: honeyData?.total_points || 0,
+      honey_raiding: honeyData?.raiding_points || 0,
+      honey_games: honeyData?.games_points || 0
+    };
+
     res.json({
       success: true,
-      profile: data || null
+      profile: profileWithHoney
     });
   } catch (error) {
     console.error('Error in profile endpoint:', error);
