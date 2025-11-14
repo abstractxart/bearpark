@@ -20,7 +20,6 @@
           const displayName = urlParams.get('display_name');
           const twitterUsername = urlParams.get('twitter_username');
           const avatarUrl = urlParams.get('avatar_url');
-          const avatarIsAnimated = urlParams.get('avatar_is_animated');
 
           // Store to localStorage if provided
           if (wallet) {
@@ -43,13 +42,8 @@
             console.log('✅ Avatar URL synced from BEAR Park:', avatarUrl);
           }
 
-          if (avatarIsAnimated) {
-            localStorage.setItem('avatar_is_animated', avatarIsAnimated);
-            console.log('✅ Avatar is animated synced from BEAR Park:', avatarIsAnimated);
-          }
-
           // Clean URL after reading params (optional - removes params from address bar)
-          if (wallet || displayName || twitterUsername || avatarUrl || avatarIsAnimated) {
+          if (wallet || displayName || twitterUsername || avatarUrl) {
             const cleanUrl = window.location.origin + window.location.pathname;
             window.history.replaceState({}, document.title, cleanUrl);
           }
@@ -81,7 +75,7 @@
         display: block;
       }
     </style>
-    <script type="module" crossorigin src="./assets/index-BMUfRUNi.js"></script>
+    <script type="module" crossorigin src="./assets/index-Ba29AB62.js"></script>
     <link rel="modulepreload" crossorigin href="./assets/phaser-0YPJO2g1.js">
   </head>
   <body>
