@@ -213,32 +213,42 @@
 
       console.log('✅ Wallet authenticated - Loading game');
 
-      // Fetch avatar URL from profile API
+      // Fetch profile data (avatar URL and display name) from API
       let avatarUrl = null;
+      let fetchedDisplayName = displayName; // Use localStorage value as fallback
       try {
         const response = await fetch(`/api/profile/${walletAddress}`);
         const data = await response.json();
 
-        if (data.success && data.profile && data.profile.avatar_nft) {
-          try {
-            // Try parsing as JSON first
-            const avatarData = JSON.parse(data.profile.avatar_nft);
-            avatarUrl = avatarData.imageUrl || avatarData.fallbackImageUrl || null;
-          } catch (e) {
-            // If not JSON, use it directly as NFT ID
-            avatarUrl = `https://nft.xrpl-labs.com/${data.profile.avatar_nft}`;
+        if (data.success && data.profile) {
+          // Get avatar URL
+          if (data.profile.avatar_nft) {
+            try {
+              // Try parsing as JSON first
+              const avatarData = JSON.parse(data.profile.avatar_nft);
+              avatarUrl = avatarData.imageUrl || avatarData.fallbackImageUrl || null;
+            } catch (e) {
+              // If not JSON, use it directly as NFT ID
+              avatarUrl = `https://nft.xrpl-labs.com/${data.profile.avatar_nft}`;
+            }
+            console.log('🖼️ Fetched avatar URL:', avatarUrl);
           }
-          console.log('🖼️ Fetched avatar URL:', avatarUrl);
+
+          // Get display name from API (more reliable than localStorage)
+          if (data.profile.display_name) {
+            fetchedDisplayName = data.profile.display_name;
+            console.log('👤 Fetched display name:', fetchedDisplayName);
+          }
         }
       } catch (error) {
-        console.error('Failed to fetch avatar:', error);
+        console.error('Failed to fetch profile:', error);
       }
 
       // Build game URL with authentication parameters (use local game build)
       let gameUrl = '/frontend/bear-pong/index.html';
       const params = new URLSearchParams();
       params.set('wallet', walletAddress);
-      if (displayName) params.set('display_name', displayName);
+      if (fetchedDisplayName) params.set('display_name', fetchedDisplayName);
       if (twitterUsername) params.set('twitter_username', twitterUsername);
       if (avatarUrl) params.set('avatar_url', avatarUrl);
       gameUrl += '?' + params.toString();
