@@ -215,23 +215,26 @@
 
       // Fetch profile data (avatar URL and display name) from API
       let avatarUrl = null;
+      let avatarIsAnimated = false;
       let fetchedDisplayName = displayName; // Use localStorage value as fallback
       try {
         const response = await fetch(`/api/profile/${walletAddress}`);
         const data = await response.json();
 
         if (data.success && data.profile) {
-          // Get avatar URL
+          // Get avatar URL and animation flag
           if (data.profile.avatar_nft) {
             try {
               // Try parsing as JSON first
               const avatarData = JSON.parse(data.profile.avatar_nft);
               avatarUrl = avatarData.imageUrl || avatarData.fallbackImageUrl || null;
+              avatarIsAnimated = avatarData.isAnimated || false;
             } catch (e) {
               // If not JSON, use it directly as NFT ID
               avatarUrl = `https://nft.xrpl-labs.com/${data.profile.avatar_nft}`;
+              avatarIsAnimated = false;
             }
-            console.log('🖼️ Fetched avatar URL:', avatarUrl);
+            console.log('🖼️ Fetched avatar URL:', avatarUrl, 'isAnimated:', avatarIsAnimated);
           }
 
           // Get display name from API (more reliable than localStorage)
@@ -251,6 +254,7 @@
       if (fetchedDisplayName) params.set('display_name', fetchedDisplayName);
       if (twitterUsername) params.set('twitter_username', twitterUsername);
       if (avatarUrl) params.set('avatar_url', avatarUrl);
+      if (avatarIsAnimated) params.set('avatar_is_animated', 'true');
       gameUrl += '?' + params.toString();
 
       // Set iframe source

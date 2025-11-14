@@ -1,5 +1,5 @@
 // BEAR Park Service Worker - Push Notifications & Offline Support
-const CACHE_NAME = 'bearpark-v1';
+const CACHE_NAME = 'bearpark-v2';
 const API_URL = 'https://bearpark.xyz'; // Change to your production URL
 
 // Install event - cache essential assets
