@@ -197,7 +197,7 @@
   <iframe id="game-frame" allow="autoplay; fullscreen"></iframe>
 
   <script>
-    (function() {
+    (async function() {
       // Get wallet data from localStorage
       const walletAddress = localStorage.getItem('xaman_wallet_address');
       const displayName = localStorage.getItem('display_name');
@@ -213,12 +213,34 @@
 
       console.log('✅ Wallet authenticated - Loading game');
 
+      // Fetch avatar URL from profile API
+      let avatarUrl = null;
+      try {
+        const response = await fetch(`/api/profile/${walletAddress}`);
+        const data = await response.json();
+
+        if (data.success && data.profile && data.profile.avatar_nft) {
+          try {
+            // Try parsing as JSON first
+            const avatarData = JSON.parse(data.profile.avatar_nft);
+            avatarUrl = avatarData.imageUrl || avatarData.fallbackImageUrl || null;
+          } catch (e) {
+            // If not JSON, use it directly as NFT ID
+            avatarUrl = `https://nft.xrpl-labs.com/${data.profile.avatar_nft}`;
+          }
+          console.log('🖼️ Fetched avatar URL:', avatarUrl);
+        }
+      } catch (error) {
+        console.error('Failed to fetch avatar:', error);
+      }
+
       // Build game URL with authentication parameters (use local game build)
       let gameUrl = '/frontend/bear-pong/index.html';
       const params = new URLSearchParams();
       params.set('wallet', walletAddress);
       if (displayName) params.set('display_name', displayName);
       if (twitterUsername) params.set('twitter_username', twitterUsername);
+      if (avatarUrl) params.set('avatar_url', avatarUrl);
       gameUrl += '?' + params.toString();
 
       // Set iframe source
