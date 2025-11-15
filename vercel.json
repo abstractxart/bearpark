@@ -32,6 +32,10 @@
     {
       "src": "frontend/**",
       "use": "@vercel/static"
+    },
+    {
+      "src": "public/**",
+      "use": "@vercel/static"
     }
   ],
   "routes": [
@@ -75,6 +79,10 @@
     {
       "src": "/bear-ninja/(.*)",
       "dest": "/frontend/bear-ninja/$1"
+    },
+    {
+      "src": "/pong/(.*)",
+      "dest": "/public/pong/$1"
     },
     {
       "src": "/(.*\\.(html|css|js|png|jpg|jpeg|gif|svg|ico))",
