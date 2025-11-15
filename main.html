@@ -6936,7 +6936,7 @@
   <section class="alt" id="bearcade">
     <div class="wrap reveal">
       <h2 class="h2">BEARCADE</h2>
-      <p style="text-align:center;margin:-6px 0 32px;">PLAY GAMES AND EARN HONEY POINTS! PLAY ANY OF THE 3 BELOW <img src="https://files.catbox.moe/wyfjtc.png" alt="honey" style="height:1em; width:auto; vertical-align:middle; display:inline-block;"> 🎮</p>
+      <p style="text-align:center;margin:-6px 0 32px;">PLAY GAMES AND EARN HONEY POINTS! PLAY ANY OF THE 4 BELOW <img src="https://files.catbox.moe/wyfjtc.png" alt="honey" style="height:1em; width:auto; vertical-align:middle; display:inline-block;"> 🎮</p>
 
       <div class="grid-3" style="gap:24px;">
         <!-- Flappy Bear -->
@@ -6973,6 +6973,19 @@
               <div style="padding:20px; background:#1a1a1a;">
                 <h3 style="color:var(--gold); font-size:24px; font-weight:900; margin:0 0 12px 0; text-align:center;">BEAR JUMPVENTURE</h3>
                 <p style="color:rgba(255,255,255,0.85); font-size:15px; line-height:1.5; margin:0; text-align:center;">Jump across platforms and collect coins! Explore challenging levels in this platformer.</p>
+              </div>
+            </div>
+          </a>
+        </div>
+
+        <!-- Bear Pong -->
+        <div class="game-card">
+          <a href="https://www.bearpark.xyz/bearpong" target="_blank" rel="noopener noreferrer" style="text-decoration:none;">
+            <div style="border:4px solid transparent; border-radius:16px; overflow:hidden; box-shadow:0 8px 24px rgba(0,0,0,0.4); background-image: linear-gradient(#1a1a1a, #1a1a1a), linear-gradient(135deg, #680cd9, #feb501, #00ff88); background-origin: border-box; background-clip: padding-box, border-box; transition: transform 0.3s ease, box-shadow 0.3s ease;">
+              <img src="https://files.catbox.moe/bs753i.png" alt="Bear Pong" style="width:100%; height:auto; display:block;">
+              <div style="padding:20px; background:#1a1a1a;">
+                <h3 style="color:var(--gold); font-size:24px; font-weight:900; margin:0 0 12px 0; text-align:center;">BEAR PONG</h3>
+                <p style="color:rgba(255,255,255,0.85); font-size:15px; line-height:1.5; margin:0; text-align:center;">Battle it out in classic pong action! Compete head-to-head in this timeless arcade showdown.</p>
               </div>
             </div>
           </a>
@@ -7015,6 +7028,16 @@
             BEAR <span style="color:var(--gold);">JUMP</span>
           </h3>
           <div id="leaderboard-jumpventure" class="leaderboard-list">
+            <div class="loading">Loading scores...</div>
+          </div>
+        </div>
+
+        <!-- BEAR Pong Leaderboard -->
+        <div class="leaderboard-card">
+          <h3 class="h3" style="text-align:center; margin-bottom:16px;">
+            BEAR <span style="color:var(--gold);">PONG</span>
+          </h3>
+          <div id="leaderboard-pong" class="leaderboard-list">
             <div class="loading">Loading scores...</div>
           </div>
         </div>
@@ -12155,7 +12178,8 @@
       const games = [
         { id: 'flappy-bear', elementId: 'leaderboard-flappy' },
         { id: 'bear-slice', elementId: 'leaderboard-slice' },
-        { id: 'bear-jumpventure', elementId: 'leaderboard-jumpventure' }
+        { id: 'bear-jumpventure', elementId: 'leaderboard-jumpventure' },
+        { id: 'bear-pong', elementId: 'leaderboard-pong' }
       ];
 
       for (const game of games) {
