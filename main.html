@@ -4653,7 +4653,6 @@
     width:52px;
     height:52px;
     border-radius:50%;
-    border:2px solid var(--gold);
     background:linear-gradient(135deg, rgba(237,183,35,0.15), rgba(237,183,35,0.05));
     display:flex;
     align-items:center;
@@ -4666,7 +4665,6 @@
     width:48px;
     height:48px;
     border-radius:50%;
-    border:2px solid var(--gold);
     object-fit:cover;
   }
 
@@ -10533,14 +10531,14 @@
                 const avatarUrl = avatarData.imageUrl || avatarData.fallbackImageUrl;
                 if (avatarUrl) {
                   avatarHTML = `<img src="${avatarUrl}"
-                       style="width:40px; height:40px; border-radius:50%; border:2px solid var(--gold); object-fit:cover; margin-right:8px;"
+                       style="width:40px; height:40px; border-radius:50%; object-fit:cover; margin-right:8px;"
                        alt="${displayName} avatar"
                        onerror="this.src='https://files.catbox.moe/ugu1kl.png'">`;
                 }
               } catch (e) {
                 // If not JSON, try using it directly as NFT ID
                 avatarHTML = `<img src="https://nft.xrpl-labs.com/${entry.avatar_nft}"
-                     style="width:40px; height:40px; border-radius:50%; border:2px solid var(--gold); object-fit:cover; margin-right:8px;"
+                     style="width:40px; height:40px; border-radius:50%; object-fit:cover; margin-right:8px;"
                      alt="${displayName} avatar"
                      onerror="this.src='https://files.catbox.moe/ugu1kl.png'">`;
               }
@@ -10549,7 +10547,7 @@
             // If no avatar_nft, show default bear avatar
             if (!avatarHTML) {
               avatarHTML = `<img src="https://files.catbox.moe/ugu1kl.png"
-                   style="width:40px; height:40px; border-radius:50%; border:2px solid var(--gold); object-fit:cover; margin-right:8px;"
+                   style="width:40px; height:40px; border-radius:50%; object-fit:cover; margin-right:8px;"
                    alt="${displayName} avatar">`;
             }
 
@@ -11386,14 +11384,14 @@
         // Browsers handle GIFs natively, and can show video thumbnails
         selector.innerHTML = `
           <img src="${imageData.imageUrl}"
-               style="width:100%; max-width:120px; border-radius:8px; border:2px solid var(--gold);"
+               style="width:100%; max-width:120px; border-radius:8px;"
                alt="Selected avatar"
                crossorigin="anonymous"
                onerror="if(this.src!=='${fallbackSrc.replace(/'/g, "\\'")}'){console.log('[Avatar] Trying fallback image');this.src='${fallbackSrc.replace(/'/g, "\\'")}';}">
         `;
       } else {
         selector.innerHTML = `
-          <div style="width:100%; max-width:120px; aspect-ratio:1; background:rgba(237,183,35,0.1); border-radius:8px; border:2px solid var(--gold); display:flex; align-items:center; justify-content:center; color:var(--gold);">
+          <div style="width:100%; max-width:120px; aspect-ratio:1; background:rgba(237,183,35,0.1); border-radius:8px; display:flex; align-items:center; justify-content:center; color:var(--gold);">
             Loading...
           </div>
         `;
@@ -12176,14 +12174,14 @@
                   const avatarUrl = avatarData.imageUrl || avatarData.fallbackImageUrl;
                   if (avatarUrl) {
                     avatarHTML = `<img src="${avatarUrl}"
-                         style="width:40px; height:40px; border-radius:50%; border:2px solid var(--gold); object-fit:cover; margin-right:8px;"
+                         style="width:40px; height:40px; border-radius:50%; object-fit:cover; margin-right:8px;"
                          alt="${displayName} avatar"
                          onerror="this.src='https://files.catbox.moe/ugu1kl.png'">`;
                   }
                 } catch (e) {
                   // If not JSON, try using it directly as NFT ID
                   avatarHTML = `<img src="https://nft.xrpl-labs.com/${entry.avatar_nft}"
-                       style="width:40px; height:40px; border-radius:50%; border:2px solid var(--gold); object-fit:cover; margin-right:8px;"
+                       style="width:40px; height:40px; border-radius:50%; object-fit:cover; margin-right:8px;"
                        alt="${displayName} avatar"
                        onerror="this.src='https://files.catbox.moe/ugu1kl.png'">`;
                 }
@@ -12192,7 +12190,7 @@
               // If no avatar_nft, show default bear avatar
               if (!avatarHTML) {
                 avatarHTML = `<img src="https://files.catbox.moe/ugu1kl.png"
-                     style="width:40px; height:40px; border-radius:50%; border:2px solid var(--gold); object-fit:cover; margin-right:8px;"
+                     style="width:40px; height:40px; border-radius:50%; object-fit:cover; margin-right:8px;"
                      alt="${displayName} avatar">`;
               }
 
@@ -15092,16 +15090,16 @@
               const avatarData = JSON.parse(avatarNft);
               const avatarUrl = avatarData.imageUrl || avatarData.fallbackImageUrl;
               if (avatarUrl) {
-                avatarHTML = `<img src="${avatarUrl}" style="width:40px; height:40px; border-radius:50%; border:2px solid var(--gold); object-fit:cover;" alt="${displayName} avatar" onerror="this.src='https://files.catbox.moe/ugu1kl.png'">`;
+                avatarHTML = `<img src="${avatarUrl}" style="width:40px; height:40px; border-radius:50%; object-fit:cover;" alt="${displayName} avatar" onerror="this.src='https://files.catbox.moe/ugu1kl.png'">`;
               }
             } catch (e) {
               // If not JSON, try using it directly as NFT ID
-              avatarHTML = `<img src="https://nft.xrpl-labs.com/${avatarNft}" style="width:40px; height:40px; border-radius:50%; border:2px solid var(--gold); object-fit:cover;" alt="${displayName} avatar" onerror="this.src='https://files.catbox.moe/ugu1kl.png'">`;
+              avatarHTML = `<img src="https://nft.xrpl-labs.com/${avatarNft}" style="width:40px; height:40px; border-radius:50%; object-fit:cover;" alt="${displayName} avatar" onerror="this.src='https://files.catbox.moe/ugu1kl.png'">`;
             }
           }
           // Default avatar if none provided
           if (!avatarHTML) {
-            avatarHTML = `<img src="https://files.catbox.moe/ugu1kl.png" style="width:40px; height:40px; border-radius:50%; border:2px solid var(--gold); object-fit:cover;" alt="${displayName} avatar">`;
+            avatarHTML = `<img src="https://files.catbox.moe/ugu1kl.png" style="width:40px; height:40px; border-radius:50%; object-fit:cover;" alt="${displayName} avatar">`;
           }
           return avatarHTML;
         };
