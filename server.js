@@ -53,6 +53,8 @@ app.use(express.json());
 
 // Serve static files from current directory
 app.use(express.static(__dirname));
+// Serve static files from public directory
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Handle preflight OPTIONS requests for all routes
 app.options('*', cors());
@@ -139,7 +141,22 @@ app.get('/api/profile/:wallet_address', async (req, res) => {
       return res.json({ success: true, profile: null });
     }
 
-    res.json({ success: true, profile: data });
+    // Also fetch honey points for this wallet
+    const { data: honeyData } = await supabase
+      .from('honey_points')
+      .select('total_points, raiding_points, games_points')
+      .eq('wallet_address', wallet_address)
+      .single();
+
+    // Add honey balance to profile response
+    const profileWithHoney = {
+      ...data,
+      honey: honeyData?.total_points || 0,
+      honey_raiding: honeyData?.raiding_points || 0,
+      honey_games: honeyData?.games_points || 0
+    };
+
+    res.json({ success: true, profile: profileWithHoney });
   } catch (error) {
     console.error('Error fetching profile:', error);
     res.status(500).json({ error: 'Failed to fetch profile', details: error.message });
