@@ -3,6 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+
+    <!-- Mobile fullscreen support -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-fullscreen">
+
     <title>BEAR PONG - Multiplayer</title>
 
     <!-- BEAR Park Font -->
@@ -53,6 +59,43 @@
       })();
     </script>
 
+    <!-- Mobile Fullscreen Trigger -->
+    <script>
+      (function() {
+        // Function to enter fullscreen
+        function enterFullscreen() {
+          const elem = document.documentElement;
+
+          if (elem.requestFullscreen) {
+            elem.requestFullscreen().catch(err => {
+              console.log('Fullscreen request failed:', err);
+            });
+          } else if (elem.webkitRequestFullscreen) { // Safari
+            elem.webkitRequestFullscreen();
+          } else if (elem.mozRequestFullScreen) { // Firefox
+            elem.mozRequestFullScreen();
+          } else if (elem.msRequestFullscreen) { // IE/Edge
+            elem.msRequestFullscreen();
+          }
+        }
+
+        // Attempt fullscreen on first user interaction
+        const triggerFullscreen = () => {
+          enterFullscreen();
+          // Remove listeners after first trigger
+          document.removeEventListener('touchstart', triggerFullscreen);
+          document.removeEventListener('click', triggerFullscreen);
+        };
+
+        // Listen for first touch or click (required for iOS)
+        document.addEventListener('touchstart', triggerFullscreen, { once: true });
+        document.addEventListener('click', triggerFullscreen, { once: true });
+
+        // Make enterFullscreen globally available
+        window.enterFullscreen = enterFullscreen;
+      })();
+    </script>
+
 
     <style>
       html, body {
@@ -75,7 +118,7 @@
         display: block;
       }
     </style>
-    <script type="module" crossorigin src="./assets/index-BLv7Ay1P.js"></script>
+    <script type="module" crossorigin src="./assets/index-Ct_mqPSX.js"></script>
     <link rel="modulepreload" crossorigin href="./assets/phaser-0YPJO2g1.js">
   </head>
   <body>
