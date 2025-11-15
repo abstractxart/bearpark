@@ -2,12 +2,13 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, minimal-ui" />
 
     <!-- Mobile fullscreen support -->
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-fullscreen">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#000000">
 
     <title>BEAR PONG - Multiplayer</title>
 
@@ -62,37 +63,72 @@
     <!-- Mobile Fullscreen Trigger -->
     <script>
       (function() {
+        // Detect device
+        const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+        const isAndroid = /Android/.test(navigator.userAgent);
+
+        console.log('📱 Device detected:', { isIOS, isAndroid, userAgent: navigator.userAgent });
+
         // Function to enter fullscreen
         function enterFullscreen() {
+          console.log('🚀 Attempting fullscreen...');
+
+          // iOS Safari doesn't support fullscreen API, use standalone mode instead
+          if (isIOS) {
+            console.log('📱 iOS detected - JavaScript fullscreen not supported');
+            console.log('💡 Add to Home Screen for fullscreen experience');
+
+            // Try to hide address bar by scrolling
+            setTimeout(() => {
+              window.scrollTo(0, 1);
+            }, 100);
+            return;
+          }
+
+          // For Android and other browsers, use standard fullscreen API
           const elem = document.documentElement;
 
           if (elem.requestFullscreen) {
-            elem.requestFullscreen().catch(err => {
-              console.log('Fullscreen request failed:', err);
-            });
-          } else if (elem.webkitRequestFullscreen) { // Safari
+            console.log('✅ Using requestFullscreen');
+            elem.requestFullscreen()
+              .then(() => console.log('✅ Fullscreen SUCCESS'))
+              .catch(err => console.error('❌ Fullscreen FAILED:', err));
+          } else if (elem.webkitRequestFullscreen) {
+            console.log('✅ Using webkitRequestFullscreen');
             elem.webkitRequestFullscreen();
-          } else if (elem.mozRequestFullScreen) { // Firefox
+          } else if (elem.webkitEnterFullscreen) {
+            console.log('✅ Using webkitEnterFullscreen');
+            elem.webkitEnterFullscreen();
+          } else if (elem.mozRequestFullScreen) {
+            console.log('✅ Using mozRequestFullScreen');
             elem.mozRequestFullScreen();
-          } else if (elem.msRequestFullscreen) { // IE/Edge
+          } else if (elem.msRequestFullscreen) {
+            console.log('✅ Using msRequestFullscreen');
             elem.msRequestFullscreen();
+          } else {
+            console.log('❌ No fullscreen API available');
           }
         }
 
+        let fullscreenTriggered = false;
+
         // Attempt fullscreen on first user interaction
-        const triggerFullscreen = () => {
+        const triggerFullscreen = (event) => {
+          if (fullscreenTriggered) return;
+          fullscreenTriggered = true;
+
+          console.log('👆 User interaction detected:', event.type);
           enterFullscreen();
-          // Remove listeners after first trigger
-          document.removeEventListener('touchstart', triggerFullscreen);
-          document.removeEventListener('click', triggerFullscreen);
         };
 
-        // Listen for first touch or click (required for iOS)
-        document.addEventListener('touchstart', triggerFullscreen, { once: true });
-        document.addEventListener('click', triggerFullscreen, { once: true });
+        // Listen for first touch or click (required for user gesture)
+        document.addEventListener('touchstart', triggerFullscreen);
+        document.addEventListener('click', triggerFullscreen);
+        document.addEventListener('pointerdown', triggerFullscreen);
 
         // Make enterFullscreen globally available
         window.enterFullscreen = enterFullscreen;
+        window.isIOS = isIOS;
       })();
     </script>
 
@@ -118,7 +154,7 @@
         display: block;
       }
     </style>
-    <script type="module" crossorigin src="./assets/index-Ct_mqPSX.js"></script>
+    <script type="module" crossorigin src="./assets/index-CE4JuMuV.js"></script>
     <link rel="modulepreload" crossorigin href="./assets/phaser-0YPJO2g1.js">
   </head>
   <body>
