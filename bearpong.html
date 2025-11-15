@@ -247,8 +247,8 @@
         console.error('Failed to fetch profile:', error);
       }
 
-      // Build game URL with authentication parameters (use local game build)
-      let gameUrl = '/frontend/bear-pong/index.html';
+      // Build game URL with authentication parameters (use production build)
+      let gameUrl = '/pong/index.html';
       const params = new URLSearchParams();
       params.set('wallet', walletAddress);
       if (fetchedDisplayName) params.set('display_name', fetchedDisplayName);
