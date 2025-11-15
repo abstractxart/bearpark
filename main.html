@@ -1176,10 +1176,6 @@
     height: 40px;
     border-radius: 50%;
     object-fit: cover;
-    border: 3px solid transparent;
-    background-image: linear-gradient(#fff, #fff), var(--tri-gradient);
-    background-origin: padding-box, border-box;
-    background-clip: padding-box, border-box;
     margin-left: 8px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.4);
   }
@@ -1838,16 +1834,7 @@
   }
 
   .bear-user-avatar-border {
-    position: absolute;
-    inset: -3px;
-    border-radius: 50%;
-    background: linear-gradient(45deg,
-      #9333ea 0%,
-      #edb723 33%,
-      #22c55e 66%,
-      #9333ea 100%);
-    background-size: 300% 300%;
-    animation: rainbowRotate 3s linear infinite;
+    display: none;
   }
 
   .bear-user-avatar {
@@ -2121,10 +2108,6 @@
     height: 100%;
     border-radius: 50%;
     object-fit: cover;
-    border: 3px solid transparent;
-    background-image: linear-gradient(#141619, #141619), var(--tri-gradient);
-    background-origin: padding-box, border-box;
-    background-clip: padding-box, border-box;
     box-shadow:
       0 4px 12px rgba(0,0,0,0.4),
       0 0 20px rgba(237,183,35,0.2);
@@ -2353,11 +2336,8 @@
     gap: 16px;
     margin-bottom: 32px;
     padding: 20px;
-    border: 4px solid transparent;
     border-radius: 16px;
-    background-image: linear-gradient(#141619, #141619), linear-gradient(135deg, #8b5cf6, #22c55e, #edb723, #8b5cf6);
-    background-origin: padding-box, border-box;
-    background-clip: padding-box, border-box;
+    background: #141619;
   }
 
   .profile-picture-container {
@@ -2371,10 +2351,6 @@
     width: 100%;
     height: 100%;
     border-radius: 50%;
-    border: 6px solid transparent;
-    background-image: linear-gradient(#141619, #141619), var(--tri-gradient);
-    background-origin: padding-box, border-box;
-    background-clip: padding-box, border-box;
     object-fit: cover;
   }
 
@@ -2702,10 +2678,6 @@
     height: 100%;
     border-radius: 50%;
     object-fit: cover;
-    border: 3px solid transparent;
-    background-image: linear-gradient(#141619, #141619), var(--tri-gradient);
-    background-origin: padding-box, border-box;
-    background-clip: padding-box, border-box;
   }
 
   .follow-list-avatar-placeholder {
