@@ -195,7 +195,7 @@
     <a href="/" class="connect-button">Connect Wallet</a>
   </div>
 
-  <iframe id="game-frame" allow="autoplay; fullscreen" allowfullscreen webkitallowfullscreen mozallowfullscreen></iframe>
+  <!-- No iframe needed - direct redirect to game -->
 
   <script>
     (async function() {
@@ -258,16 +258,9 @@
       if (avatarIsAnimated) params.set('avatar_is_animated', 'true');
       gameUrl += '?' + params.toString();
 
-      // Set iframe source
-      const iframe = document.getElementById('game-frame');
-      iframe.src = gameUrl;
-
-      // Hide loading screen when iframe loads
-      iframe.addEventListener('load', function() {
-        setTimeout(function() {
-          document.getElementById('loading').classList.add('hidden');
-        }, 500);
-      });
+      // DIRECT REDIRECT: Skip iframe, go straight to game (fixes fullscreen issue)
+      console.log('🎮 Redirecting to game:', gameUrl);
+      window.location.href = gameUrl;
 
       // Hide loading screen after timeout (in case load event doesn't fire)
       setTimeout(function() {
