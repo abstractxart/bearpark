@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>BEAR PONG - Multiplayer</title>
+
+    <!-- BEAR Park Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&display=swap" rel="stylesheet" />
+
+    <!-- BEAR Park Authentication - Read URL params and store to localStorage -->
+    <script>
+      (function() {
+        try {
+          // Read URL parameters
+          const urlParams = new URLSearchParams(window.location.search);
+          const wallet = urlParams.get('wallet');
+          const displayName = urlParams.get('display_name');
+          const twitterUsername = urlParams.get('twitter_username');
+          const avatarUrl = urlParams.get('avatar_url');
+
+          // Store to localStorage if provided
+          if (wallet) {
+            localStorage.setItem('xaman_wallet_address', wallet);
+            console.log('✅ Wallet address synced from BEAR Park:', wallet);
+          }
+
+          if (displayName) {
+            localStorage.setItem('display_name', displayName);
+            console.log('✅ Display name synced from BEAR Park:', displayName);
+          }
+
+          if (twitterUsername) {
+            localStorage.setItem('twitter_username', twitterUsername);
+            console.log('✅ Twitter username synced from BEAR Park:', twitterUsername);
+          }
+
+          if (avatarUrl) {
+            localStorage.setItem('avatar_url', avatarUrl);
+            console.log('✅ Avatar URL synced from BEAR Park:', avatarUrl);
+          }
+
+          // Clean URL after reading params (optional - removes params from address bar)
+          if (wallet || displayName || twitterUsername || avatarUrl) {
+            const cleanUrl = window.location.origin + window.location.pathname;
+            window.history.replaceState({}, document.title, cleanUrl);
+          }
+        } catch (error) {
+          console.error('Error reading BEAR Park authentication data:', error);
+        }
+      })();
+    </script>
+
+
+    <style>
+      html, body {
+        background: black;
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        overscroll-behavior: none;
+      }
+
+      #game-container {
+        width: 100%;
+        height: 100%;
+      }
+
+      /* Let Phaser handle canvas positioning */
+      #game-container canvas {
+        display: block;
+      }
+    </style>
+    <script type="module" crossorigin src="./assets/index-DDYWOpYz.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/phaser-0YPJO2g1.js">
+  </head>
+  <body>
+    <div id="game-container"></div>
+
+    <!-- HONEY Points Reward System -->
+    <script src="./game-points-helper.js"></script>
+  </body>
+</html>
