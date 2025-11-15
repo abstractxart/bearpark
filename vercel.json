@@ -81,6 +81,10 @@
       "dest": "/frontend/bear-ninja/$1"
     },
     {
+      "src": "/bearpong",
+      "dest": "/bearpong.html"
+    },
+    {
       "src": "/pong/(.*)",
       "dest": "/public/pong/$1"
     },
