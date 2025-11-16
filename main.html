@@ -10276,7 +10276,14 @@
 
       // Try to sync with backend
       try {
-        const response = await fetch(`${API_BASE_URL}/api/points/${walletAddress}`);
+        // Add cache-busting timestamp to force fresh data
+        const response = await fetch(`${API_BASE_URL}/api/points/${walletAddress}?_t=${Date.now()}`, {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          }
+        });
         if (response.ok) {
           const data = await response.json();
 
