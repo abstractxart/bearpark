@@ -94,7 +94,7 @@ app.use(compression());
 // Rate limiting to prevent API abuse and brute force attacks
 const apiLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute window
-  max: 60, // 60 requests per minute per IP (1 per second - prevents brute force)
+  max: 300, // 300 requests per minute per IP (5 per second - allows normal use, blocks spam)
   message: { success: false, error: 'Too many requests, please try again later' },
   standardHeaders: true,
   legacyHeaders: false
