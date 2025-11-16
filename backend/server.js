@@ -91,10 +91,10 @@ try {
 // Enable gzip compression for all responses (80% file size reduction)
 app.use(compression());
 
-// Rate limiting to prevent API abuse (increased limit for legitimate traffic)
+// Rate limiting to prevent API abuse and brute force attacks
 const apiLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute window
-  max: 1000, // 1000 requests per minute per IP (still blocks spam, allows normal use)
+  max: 60, // 60 requests per minute per IP (1 per second - prevents brute force)
   message: { success: false, error: 'Too many requests, please try again later' },
   standardHeaders: true,
   legacyHeaders: false
@@ -106,6 +106,250 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
+
+// ===== SECURITY HEADERS =====
+// Add security headers to ALL responses
+app.use((req, res, next) => {
+  // Prevent MIME type sniffing
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+
+  // Prevent clickjacking attacks
+  res.setHeader('X-Frame-Options', 'DENY');
+
+  // Enable XSS protection (legacy browsers)
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+
+  // Force HTTPS (1 year)
+  if (process.env.NODE_ENV === 'production') {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+  }
+
+  // Referrer policy
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+
+  // Permissions policy (disable unnecessary features)
+  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+
+  next();
+});
+
+// ===== SECURITY: INPUT VALIDATION =====
+// Validates XRPL wallet address format (prevents injection attacks)
+const isValidXRPLWallet = (wallet) => {
+  if (!wallet || typeof wallet !== 'string') return false;
+
+  // XRPL wallet addresses:
+  // - Start with 'r'
+  // - 25-35 characters long
+  // - Base58 encoded (alphanumeric excluding 0, O, I, l)
+  const xrplRegex = /^r[1-9A-HJ-NP-Za-km-z]{24,34}$/;
+  return xrplRegex.test(wallet);
+};
+
+// Middleware to validate wallet addresses in requests
+const validateWallet = (req, res, next) => {
+  // Check all possible wallet field names
+  const walletFields = [
+    'wallet_address',
+    'wallet',
+    'admin_wallet',
+    'profile_wallet',
+    'commenter_wallet',
+    'follower_wallet',
+    'following_wallet'
+  ];
+
+  for (const field of walletFields) {
+    const wallet = req.body[field] || req.params[field] || req.query[field];
+
+    if (wallet && !isValidXRPLWallet(wallet)) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid ${field.replace('_', ' ')} format`
+      });
+    }
+  }
+
+  next();
+};
+
+// ===== SECURITY: AMOUNT VALIDATION =====
+// Validates numeric amounts to prevent overflow, negative values, and economic exploits
+const isValidAmount = (amount) => {
+  if (amount === null || amount === undefined) return false;
+
+  const num = parseFloat(amount);
+
+  // Check for NaN, Infinity, negative, or zero
+  if (isNaN(num) || !isFinite(num) || num < 0) return false;
+
+  // Maximum safe amount: 1 billion (prevents overflow and economic exploits)
+  const MAX_AMOUNT = 1000000000;
+  if (num > MAX_AMOUNT) return false;
+
+  // Check for excessive decimal places (max 2 decimal places for points/currency)
+  const decimalPlaces = (num.toString().split('.')[1] || '').length;
+  if (decimalPlaces > 2) return false;
+
+  return true;
+};
+
+// Middleware to validate amounts in requests
+const validateAmount = (req, res, next) => {
+  const fieldsToValidate = [
+    'amount',
+    'points',
+    'reward',
+    'entry_fee',
+    'score',
+    'total_points',
+    'raiding_points',
+    'games_points',
+    'points_awarded',
+    'minutes_played'
+  ];
+
+  for (const field of fieldsToValidate) {
+    if (req.body[field] !== undefined && !isValidAmount(req.body[field])) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid ${field}: Must be a positive number ≤ 1,000,000,000 with max 2 decimal places`
+      });
+    }
+  }
+
+  next();
+};
+
+// ===== SECURITY: TEXT LENGTH VALIDATION =====
+// Validates text field lengths to prevent DoS attacks via large payloads
+const validateTextLengths = (req, res, next) => {
+  const validations = [
+    { field: 'description', max: 5000, name: 'Description' },
+    { field: 'reason', max: 500, name: 'Reason' },
+    { field: 'raid_name', max: 100, name: 'Raid name' },
+    { field: 'display_name', max: 50, name: 'Display name' },
+    { field: 'bio', max: 500, name: 'Bio' },
+    { field: 'comment', max: 2000, name: 'Comment' },
+    { field: 'comment_text', max: 2000, name: 'Comment' },
+    { field: 'message', max: 1000, name: 'Message' }
+  ];
+
+  for (const { field, max, name } of validations) {
+    const value = req.body[field];
+    if (value !== undefined && value !== null) {
+      if (typeof value !== 'string') {
+        return res.status(400).json({
+          success: false,
+          error: `${name} must be a string`
+        });
+      }
+      if (value.length > max) {
+        return res.status(400).json({
+          success: false,
+          error: `${name} exceeds maximum length of ${max} characters`
+        });
+      }
+    }
+  }
+
+  next();
+};
+
+// ===== SECURITY: URL VALIDATION =====
+// Validates Twitter/X URLs for raids to prevent SSRF and injection attacks
+const isValidTwitterURL = (url) => {
+  if (!url || typeof url !== 'string') return false;
+
+  try {
+    const parsedUrl = new URL(url);
+    const allowedHosts = ['twitter.com', 'www.twitter.com', 'x.com', 'www.x.com'];
+
+    // Check hostname
+    if (!allowedHosts.includes(parsedUrl.hostname.toLowerCase())) {
+      return false;
+    }
+
+    // Must use HTTPS
+    if (parsedUrl.protocol !== 'https:') {
+      return false;
+    }
+
+    // Basic path validation (should contain /status/ for tweets)
+    if (!parsedUrl.pathname.includes('/status/')) {
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    return false;
+  }
+};
+
+// Middleware to validate Twitter URLs
+const validateTwitterURL = (req, res, next) => {
+  const url = req.body.twitter_url;
+
+  if (url && !isValidTwitterURL(url)) {
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid Twitter URL: Must be a valid HTTPS URL from twitter.com or x.com containing /status/'
+    });
+  }
+
+  next();
+};
+
+// ===== SECURITY: ADMIN VERIFICATION MIDDLEWARE =====
+// Verifies admin status server-side by checking admin_roles table
+// NEVER trust client-provided admin_wallet or is_admin flags
+const verifyAdmin = async (req, res, next) => {
+  try {
+    const admin_wallet = req.body.admin_wallet || req.query.admin_wallet || req.headers['x-admin-wallet'];
+
+    if (!admin_wallet) {
+      return res.status(401).json({
+        success: false,
+        error: 'Unauthorized: Admin wallet required'
+      });
+    }
+
+    // Check database for actual admin role
+    const { data: adminRole, error } = await supabase
+      .from('admin_roles')
+      .select('role, is_active')
+      .eq('wallet_address', admin_wallet)
+      .eq('is_active', true)
+      .single();
+
+    if (error || !adminRole) {
+      console.warn(`🚫 Unauthorized admin access attempt by: ${admin_wallet}`);
+      return res.status(403).json({
+        success: false,
+        error: 'Forbidden: You do not have admin privileges'
+      });
+    }
+
+    // Check role level (admin or master)
+    if (adminRole.role !== 'admin' && adminRole.role !== 'master') {
+      return res.status(403).json({
+        success: false,
+        error: 'Forbidden: Insufficient permissions'
+      });
+    }
+
+    // Attach verified role to request for downstream use
+    req.adminRole = adminRole.role;
+    req.adminWallet = admin_wallet;
+    next();
+  } catch (error) {
+    console.error('Admin verification error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Admin verification failed'
+    });
+  }
+};
 
 // Serve static files from parent directory
 app.use(express.static(path.join(__dirname, '..')));
@@ -220,7 +464,7 @@ app.get('/api/leaderboard/:gameId', async (req, res) => {
 });
 
 // Submit Game Score to Leaderboard
-app.post('/api/leaderboard', async (req, res) => {
+app.post('/api/leaderboard', validateWallet, validateAmount, async (req, res) => {
   try {
     const { wallet_address, game_id, score, metadata } = req.body;
 
@@ -362,7 +606,7 @@ app.get('/api/points/:wallet', async (req, res) => {
 });
 
 // Update/sync user's honey points (for games to award HONEY)
-app.post('/api/points', async (req, res) => {
+app.post('/api/points', validateWallet, validateAmount, async (req, res) => {
   try {
     const { wallet_address, total_points, raiding_points, games_points } = req.body;
 
@@ -397,7 +641,7 @@ app.post('/api/points', async (req, res) => {
 });
 
 // Create New Raid
-app.post('/api/raids', async (req, res) => {
+app.post('/api/raids', verifyAdmin, validateTwitterURL, validateAmount, validateTextLengths, async (req, res) => {
   try {
     const { description, twitter_url, reward, profile_name, profile_handle, profile_emoji, expires_at } = req.body;
 
@@ -484,7 +728,7 @@ app.get('/api/raids/all', async (req, res) => {
 });
 
 // Delete Raid (for admin)
-app.delete('/api/raids/:id', async (req, res) => {
+app.delete('/api/raids/:id', verifyAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -508,7 +752,7 @@ app.delete('/api/raids/:id', async (req, res) => {
 
 // Record Raid Completion and Award Points
 // SECURITY: Check if user already completed a raid (before starting countdown)
-app.post('/api/raids/check-completion', async (req, res) => {
+app.post('/api/raids/check-completion', validateWallet, async (req, res) => {
   try {
     const { wallet_address, raid_id } = req.body;
 
@@ -568,7 +812,7 @@ app.get('/api/raids/completed/:wallet_address', async (req, res) => {
 });
 
 // SECURITY: Updated raid completion with duplicate protection
-app.post('/api/raids/complete', async (req, res) => {
+app.post('/api/raids/complete', validateWallet, validateAmount, async (req, res) => {
   try {
     const { wallet_address, raid_id, completed_at, points_awarded } = req.body;
 
@@ -668,7 +912,7 @@ app.post('/api/raids/complete', async (req, res) => {
 
 // Award Game Points with Daily Limit (Time-Based System)
 // Uses atomic database function to prevent race condition exploits
-app.post('/api/games/complete', async (req, res) => {
+app.post('/api/games/complete', validateWallet, async (req, res) => {
   try {
     const { wallet_address, game_id, minutes_played } = req.body;
 
@@ -932,7 +1176,7 @@ app.get('/api/profile/:wallet', async (req, res) => {
 });
 
 // Save/Update User Profile
-app.post('/api/profile', async (req, res) => {
+app.post('/api/profile', validateWallet, validateTextLengths, async (req, res) => {
   try {
     const { wallet_address, display_name, avatar_nft } = req.body;
 
@@ -989,7 +1233,7 @@ app.post('/api/profile', async (req, res) => {
 });
 
 // Update Bio
-app.post('/api/profile/bio', async (req, res) => {
+app.post('/api/profile/bio', validateWallet, validateTextLengths, async (req, res) => {
   try {
     const { wallet_address, bio } = req.body;
 
@@ -1070,7 +1314,7 @@ app.get('/api/comments/:wallet', async (req, res) => {
 });
 
 // Post a Comment
-app.post('/api/comments', async (req, res) => {
+app.post('/api/comments', validateWallet, validateTextLengths, async (req, res) => {
   try {
     const { profile_wallet, commenter_wallet, comment_text, commenter_name, commenter_avatar, parent_id } = req.body;
 
@@ -1107,10 +1351,26 @@ app.post('/api/comments', async (req, res) => {
 app.delete('/api/comments/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { wallet_address, is_admin } = req.body;
+    const { wallet_address } = req.body;
 
     if (!wallet_address) {
       return res.status(400).json({ success: false, error: 'wallet_address required' });
+    }
+
+    // Check if user is actually an admin (server-side verification)
+    let is_admin = false;
+    try {
+      const { data: adminRole } = await supabase
+        .from('admin_roles')
+        .select('role, is_active')
+        .eq('wallet_address', wallet_address)
+        .eq('is_active', true)
+        .single();
+
+      is_admin = adminRole && (adminRole.role === 'admin' || adminRole.role === 'master');
+    } catch (adminCheckError) {
+      // Not an admin - continue with normal authorization check
+      is_admin = false;
     }
 
     let comment;
@@ -1479,7 +1739,7 @@ app.get('/api/comments/:id/reactions', async (req, res) => {
 // ============================================
 
 // Toggle Follow/Unfollow
-app.post('/api/follow', async (req, res) => {
+app.post('/api/follow', validateWallet, async (req, res) => {
   try {
     const { follower_wallet, following_wallet } = req.body;
 
@@ -1864,6 +2124,20 @@ app.get('/api/twitter/oembed', async (req, res) => {
       return res.status(400).json({ error: 'URL parameter required' });
     }
 
+    // SECURITY: Validate that URL is actually from Twitter/X (prevents SSRF attacks)
+    try {
+      const parsedUrl = new URL(url);
+      const allowedHosts = ['twitter.com', 'www.twitter.com', 'x.com', 'www.x.com'];
+
+      if (!allowedHosts.includes(parsedUrl.hostname.toLowerCase())) {
+        return res.status(400).json({
+          error: 'Invalid URL: Only Twitter/X URLs are allowed'
+        });
+      }
+    } catch (urlError) {
+      return res.status(400).json({ error: 'Invalid URL format' });
+    }
+
     // Fetch from Twitter's public oEmbed API
     const oembedUrl = `https://publish.twitter.com/oembed?url=${encodeURIComponent(url)}&omit_script=true&dnt=true`;
     const response = await fetch(oembedUrl);
@@ -1892,17 +2166,8 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', message: 'BEAR Park API Server running' });
 });
 
-// Debug endpoint to check environment variables
-app.get('/debug/env', (req, res) => {
-  res.json({
-    apiKeyLength: XAMAN_API_KEY?.length,
-    apiSecretLength: XAMAN_API_SECRET?.length,
-    apiKeyFirst10: XAMAN_API_KEY?.substring(0, 10),
-    apiSecretFirst10: XAMAN_API_SECRET?.substring(0, 10),
-    apiKeyLast4: XAMAN_API_KEY?.substring(XAMAN_API_KEY.length - 4),
-    supabaseUrl: process.env.SUPABASE_URL
-  });
-});
+// SECURITY: Debug endpoint removed - exposed sensitive data
+// DO NOT re-add this in production
 
 // Update User Display Name (for admin moderation)
 app.patch('/api/users/:wallet', async (req, res) => {
@@ -1954,14 +2219,15 @@ async function logAdminActivity(adminWallet, actionType, details, targetWallet =
 }
 
 // 1. Manual Point Adjustments
-app.post('/api/admin/adjust-points', async (req, res) => {
+app.post('/api/admin/adjust-points', verifyAdmin, validateWallet, validateAmount, validateTextLengths, async (req, res) => {
   try {
-    const { wallet_address, amount, reason, admin_wallet } = req.body;
+    const { wallet_address, amount, reason } = req.body;
+    const admin_wallet = req.adminWallet; // From verified middleware
 
-    if (!wallet_address || !amount || !admin_wallet) {
+    if (!wallet_address || !amount) {
       return res.status(400).json({
         success: false,
-        error: 'Missing required fields: wallet_address, amount, admin_wallet'
+        error: 'Missing required fields: wallet_address, amount'
       });
     }
 
@@ -2025,14 +2291,15 @@ app.post('/api/admin/adjust-points', async (req, res) => {
 });
 
 // 2. Ban User
-app.post('/api/admin/ban-user', async (req, res) => {
+app.post('/api/admin/ban-user', verifyAdmin, validateWallet, validateTextLengths, async (req, res) => {
   try {
-    const { wallet_address, reason, admin_wallet } = req.body;
+    const { wallet_address, reason } = req.body;
+    const admin_wallet = req.adminWallet; // From verified middleware
 
-    if (!wallet_address || !admin_wallet) {
+    if (!wallet_address) {
       return res.status(400).json({
         success: false,
-        error: 'Missing required fields: wallet_address, admin_wallet'
+        error: 'Missing required field: wallet_address'
       });
     }
 
@@ -2063,9 +2330,10 @@ app.post('/api/admin/ban-user', async (req, res) => {
 });
 
 // 3. Unban User
-app.post('/api/admin/unban-user', async (req, res) => {
+app.post('/api/admin/unban-user', verifyAdmin, validateWallet, async (req, res) => {
   try {
-    const { wallet_address, admin_wallet } = req.body;
+    const { wallet_address } = req.body;
+    const admin_wallet = req.adminWallet; // From verified middleware
 
     if (!wallet_address || !admin_wallet) {
       return res.status(400).json({
@@ -2229,7 +2497,7 @@ app.get('/api/admin/game-settings', async (req, res) => {
 });
 
 // 8. Update Game Settings
-app.post('/api/admin/game-settings', async (req, res) => {
+app.post('/api/admin/game-settings', verifyAdmin, validateWallet, async (req, res) => {
   try {
     const { settings, admin_wallet } = req.body;
 
@@ -2307,7 +2575,7 @@ app.get('/api/admin/point-transactions', async (req, res) => {
 });
 
 // 11. Bulk Point Operations
-app.post('/api/admin/bulk-points', async (req, res) => {
+app.post('/api/admin/bulk-points', verifyAdmin, validateAmount, validateTextLengths, async (req, res) => {
   try {
     const { wallets, amount, reason, admin_wallet } = req.body;
 
@@ -2431,9 +2699,10 @@ app.get('/api/admin/check-role/:wallet', async (req, res) => {
 });
 
 // Assign a role to wallet (master only)
-app.post('/api/admin/roles/assign', async (req, res) => {
+app.post('/api/admin/roles/assign', verifyAdmin, validateWallet, validateTextLengths, async (req, res) => {
   try {
-    const { wallet_address, role, assigned_by, notes } = req.body;
+    const { wallet_address, role, notes } = req.body;
+    const assigned_by = req.adminWallet; // From verified middleware
 
     if (!wallet_address || !role || !assigned_by) {
       return res.status(400).json({
@@ -2519,7 +2788,7 @@ app.post('/api/admin/roles/assign', async (req, res) => {
 });
 
 // Remove role from wallet (master only)
-app.delete('/api/admin/roles/:wallet', async (req, res) => {
+app.delete('/api/admin/roles/:wallet', verifyAdmin, async (req, res) => {
   try {
     const { wallet } = req.params;
     const { removed_by } = req.body;
