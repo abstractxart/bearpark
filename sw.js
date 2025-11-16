@@ -1,5 +1,5 @@
 // BEAR Park Service Worker - Push Notifications & Offline Support
-const CACHE_NAME = 'bearpark-v5'; // Production optimized - no console spam, skip external APIs
+const CACHE_NAME = 'bearpark-v6'; // FORCE CACHE REFRESH - Stats always show now!
 const API_URL = 'https://bearpark.xyz'; // Change to your production URL
 
 // Install event - cache essential assets
