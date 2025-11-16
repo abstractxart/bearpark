@@ -40,24 +40,22 @@ async function setAllPoints() {
       return;
     }
 
-    // 3. Update each entry with corrected breakdown
+    // 3. Update each entry - put ALL points in games so they can be used for betting
     let updated = 0;
     for (const entry of allPoints) {
-      const raidingPoints = entry.raiding_points || 0;
-      const newGamesPoints = NEW_POINTS - raidingPoints;
-
       const { error: updateError } = await supabase
         .from('honey_points')
         .update({
           total_points: NEW_POINTS,
-          games_points: newGamesPoints
+          raiding_points: 0,
+          games_points: NEW_POINTS
         })
         .eq('wallet_address', entry.wallet_address);
 
       if (updateError) {
         console.error(`❌ Error updating ${entry.wallet_address}:`, updateError);
       } else {
-        console.log(`✅ ${entry.wallet_address.slice(-6)}: ${NEW_POINTS} HP (Raiding: ${raidingPoints}, Games: ${newGamesPoints})`);
+        console.log(`✅ ${entry.wallet_address.slice(-6)}: ${NEW_POINTS} HP (All usable for betting)`);
         updated++;
       }
     }
