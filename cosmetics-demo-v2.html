@@ -1,0 +1,2076 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BEARpark LEGENDARY Cosmetics Store Demo</title>
+  <style>
+    :root {
+      --gold: #edb723;
+      --tri-gradient: linear-gradient(135deg, #680cd9 0%, #ffae00 50%, #07ae08 100%);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: "Luckiest Guy", "Arial Black", Impact, sans-serif;
+      background: linear-gradient(135deg, #0a0a0f, #1a1a1f);
+      color: white;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .demo-container {
+      text-align: center;
+      max-width: 1200px;
+      width: 100%;
+    }
+
+    .demo-title {
+      font-size: 48px;
+      color: var(--gold);
+      margin-bottom: 16px;
+      text-shadow: 0 4px 12px rgba(237, 183, 35, 0.5);
+    }
+
+    .demo-subtitle {
+      font-size: 20px;
+      color: #aaa;
+      margin-bottom: 40px;
+    }
+
+    .demo-buttons {
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      margin-bottom: 60px;
+    }
+
+    .demo-btn {
+      padding: 16px 32px;
+      font-size: 20px;
+      font-weight: 900;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-family: inherit;
+    }
+
+    .demo-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    }
+
+    .btn-store {
+      background: linear-gradient(135deg, #ffae00, #edb723);
+      color: #000;
+    }
+
+    .btn-inventory {
+      background: #07ae08;
+      color: #fff;
+    }
+
+    /* Include all the store modal styles */
+    .store-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.92);
+      backdrop-filter: blur(15px);
+      z-index: 10001;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .store-modal.active {
+      display: flex;
+      animation: modalFadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes modalFadeIn {
+      from {
+        opacity: 0;
+        backdrop-filter: blur(0px);
+      }
+      to {
+        opacity: 1;
+        backdrop-filter: blur(15px);
+      }
+    }
+
+    .store-modal-content {
+      background: linear-gradient(135deg, #1a1a2e, #16213e);
+      border-radius: 28px;
+      border: 5px solid;
+      border-image: linear-gradient(135deg, #680cd9, #ffae00, #07ae08) 1;
+      max-width: 1100px;
+      width: 92%;
+      max-height: 92vh;
+      overflow: hidden;
+      box-shadow: 0 30px 100px rgba(237, 183, 35, 0.4),
+                  0 0 80px rgba(104, 12, 217, 0.3);
+      animation: modalSlideIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes modalSlideIn {
+      0% {
+        transform: translateY(-40px) scale(0.95);
+        opacity: 0;
+      }
+      100% {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+      }
+    }
+
+    .store-header {
+      background: linear-gradient(135deg, rgba(104, 12, 217, 0.4), rgba(237, 183, 35, 0.4), rgba(7, 174, 8, 0.4));
+      padding: 28px 36px;
+      border-bottom: 4px solid rgba(237, 183, 35, 0.6);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .store-header::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: linear-gradient(45deg, transparent, rgba(255,255,255,0.05), transparent);
+      animation: shimmer 3s infinite;
+    }
+
+    @keyframes shimmer {
+      0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+      100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+    }
+
+    .store-title-section {
+      position: relative;
+      z-index: 1;
+    }
+
+    .store-title {
+      font-size: 36px;
+      font-weight: 900;
+      color: #ffae00;
+      text-shadow: 0 3px 12px rgba(237, 183, 35, 0.8),
+                   0 0 30px rgba(237, 183, 35, 0.5);
+      margin-bottom: 4px;
+    }
+
+    .store-subtitle {
+      font-size: 14px;
+      color: #aaa;
+      font-weight: 400;
+    }
+
+    .store-balance-container {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .store-balance {
+      font-size: 28px;
+      font-weight: 900;
+      color: #ffae00;
+      background: linear-gradient(135deg, rgba(0,0,0,0.8), rgba(20,20,30,0.9));
+      padding: 14px 24px;
+      border-radius: 16px;
+      border: 3px solid #ffae00;
+      box-shadow: 0 0 20px rgba(255, 174, 0, 0.4),
+                  inset 0 0 20px rgba(255, 174, 0, 0.1);
+      animation: pulseGlow 2s ease-in-out infinite;
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 20px rgba(255, 174, 0, 0.4), inset 0 0 20px rgba(255, 174, 0, 0.1); }
+      50% { box-shadow: 0 0 30px rgba(255, 174, 0, 0.6), inset 0 0 30px rgba(255, 174, 0, 0.2); }
+    }
+
+    .store-balance .hp-amount {
+      font-size: 32px;
+      text-shadow: 0 2px 10px rgba(255, 174, 0, 0.8);
+    }
+
+    .store-close-btn {
+      background: rgba(255, 0, 0, 0.2);
+      border: 3px solid #ff4444;
+      color: #ff4444;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      font-size: 28px;
+      font-weight: 900;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+      z-index: 1;
+    }
+
+    .store-close-btn:hover {
+      background: rgba(255, 0, 0, 0.5);
+      transform: scale(1.15) rotate(90deg);
+      box-shadow: 0 0 20px rgba(255, 68, 68, 0.6);
+    }
+
+    .store-tabs {
+      display: flex;
+      gap: 12px;
+      padding: 20px 36px;
+      background: rgba(0,0,0,0.4);
+      border-bottom: 3px solid rgba(237, 183, 35, 0.3);
+    }
+
+    .store-tab {
+      padding: 14px 28px;
+      font-size: 18px;
+      font-weight: 900;
+      background: rgba(0,0,0,0.6);
+      border: 3px solid rgba(237, 183, 35, 0.3);
+      border-radius: 14px;
+      color: #888;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(.18,.9,.2,1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .store-tab::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 0;
+      height: 0;
+      border-radius: 50%;
+      background: rgba(237, 183, 35, 0.3);
+      transform: translate(-50%, -50%);
+      transition: width 0.4s, height 0.4s;
+    }
+
+    .store-tab:hover::before {
+      width: 200%;
+      height: 200%;
+    }
+
+    .store-tab:hover {
+      border-color: rgba(237, 183, 35, 0.7);
+      color: #ddd;
+      transform: translateY(-2px);
+    }
+
+    .store-tab.active {
+      background: linear-gradient(135deg, #ffae00, #edb723);
+      color: #000;
+      border-color: #ffae00;
+      box-shadow: 0 4px 15px rgba(255, 174, 0, 0.4);
+    }
+
+    .store-tab span {
+      position: relative;
+      z-index: 1;
+    }
+
+    .store-body {
+      padding: 36px;
+      overflow-y: auto;
+      max-height: calc(92vh - 280px);
+    }
+
+    .store-body::-webkit-scrollbar {
+      width: 12px;
+    }
+
+    .store-body::-webkit-scrollbar-track {
+      background: rgba(0,0,0,0.3);
+      border-radius: 10px;
+    }
+
+    .store-body::-webkit-scrollbar-thumb {
+      background: linear-gradient(135deg, #680cd9, #ffae00);
+      border-radius: 10px;
+    }
+
+    .store-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+      justify-items: center;
+    }
+
+    .store-item {
+      background: linear-gradient(135deg, rgba(20,20,30,0.8), rgba(10,10,20,0.9));
+      border: 4px solid;
+      border-radius: 20px;
+      padding: 20px;
+      transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+      overflow: hidden;
+      width: 100%;
+      max-width: 320px;
+      opacity: 0;
+      animation: storeItemFadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes storeItemFadeIn {
+      0% {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .store-item:nth-child(1) { animation-delay: 0.05s; }
+    .store-item:nth-child(2) { animation-delay: 0.1s; }
+    .store-item:nth-child(3) { animation-delay: 0.15s; }
+    .store-item:nth-child(4) { animation-delay: 0.2s; }
+    .store-item:nth-child(5) { animation-delay: 0.25s; }
+    .store-item:nth-child(6) { animation-delay: 0.3s; }
+
+    .store-item.common { border-color: #22c55e; }
+    .store-item.rare { border-color: #3b82f6; }
+    .store-item.epic { border-color: #a855f7; }
+    .store-item.legendary {
+      border-color: #f59e0b;
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(239, 68, 68, 0.1));
+    }
+
+    .store-item.bearableguy123 {
+      border-color: #ff0000;
+      background: linear-gradient(135deg, rgba(255, 0, 0, 0.2), rgba(139, 0, 0, 0.2));
+      animation: bearableguy123Eclipse 3s ease-in-out infinite, storeItemFadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    .store-item::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle, rgba(255,255,255,0.1), transparent 70%);
+      opacity: 0;
+      transition: opacity 0.4s;
+    }
+
+    .store-item:hover::before {
+      opacity: 1;
+      animation: rotateBg 3s linear infinite;
+    }
+
+    @keyframes rotateBg {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .store-item:hover {
+      transform: translateY(-6px) scale(1.02);
+    }
+
+    .store-item.common:hover {
+      box-shadow: 0 12px 40px rgba(34, 197, 94, 0.4);
+    }
+
+    .store-item.rare:hover {
+      box-shadow: 0 12px 40px rgba(59, 130, 246, 0.5);
+    }
+
+    .store-item.epic:hover {
+      box-shadow: 0 12px 40px rgba(168, 85, 247, 0.6);
+    }
+
+    .store-item.legendary:hover {
+      box-shadow: 0 16px 50px rgba(245, 158, 11, 0.7),
+                  0 0 60px rgba(239, 68, 68, 0.5);
+      transform: translateY(-8px) scale(1.03);
+    }
+
+    .store-item.bearableguy123:hover {
+      box-shadow: 0 20px 60px rgba(255, 0, 0, 0.9),
+                  0 0 80px rgba(139, 0, 0, 0.8),
+                  0 0 120px rgba(255, 0, 0, 0.6);
+      transform: translateY(-10px) scale(1.05);
+    }
+
+    .store-item.legendary {
+      animation: legendaryPulse 3s ease-in-out infinite, storeItemFadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes legendaryPulse {
+      0%, 100% {
+        box-shadow: 0 4px 20px rgba(245, 158, 11, 0.4), 0 0 30px rgba(239, 68, 68, 0.2);
+      }
+      50% {
+        box-shadow: 0 8px 35px rgba(245, 158, 11, 0.8), 0 0 50px rgba(239, 68, 68, 0.5);
+      }
+    }
+
+    @keyframes bearableguy123Eclipse {
+      0%, 100% {
+        box-shadow: 0 6px 30px rgba(255, 0, 0, 0.6),
+                    0 0 50px rgba(139, 0, 0, 0.4),
+                    0 0 80px rgba(255, 0, 0, 0.3);
+        border-color: #ff0000;
+      }
+      50% {
+        box-shadow: 0 10px 50px rgba(255, 0, 0, 1),
+                    0 0 80px rgba(139, 0, 0, 0.8),
+                    0 0 120px rgba(255, 0, 0, 0.6),
+                    0 0 160px rgba(139, 0, 0, 0.4);
+        border-color: #ff4444;
+      }
+    }
+
+    .store-item-preview {
+      width: 100%;
+      height: 140px;
+      background: rgba(0,0,0,0.7);
+      border-radius: 16px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .store-item-preview .ring-demo {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      position: relative;
+      background: transparent;
+    }
+
+    .store-item-preview .ring-border {
+      position: absolute;
+      inset: -6px;
+      border-radius: 50%;
+    }
+
+    .ring-border.purple { border: 6px solid #680cd9; }
+    .ring-border.green { border: 6px solid #07ae08; }
+    .ring-border.yellow { border: 6px solid #ffae00; }
+    .ring-border.bearableguy123 {
+      border: none;
+      background: radial-gradient(circle, transparent 40%, rgba(255, 0, 0, 0.3) 60%, transparent 80%);
+      animation: eclipseGlow 2s ease-in-out infinite;
+    }
+    .ring-border.bearableguy123::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      border: 6px solid #ff0000;
+      box-shadow: 0 0 20px rgba(255, 0, 0, 0.8),
+                  0 0 40px rgba(139, 0, 0, 0.6);
+      animation: eclipseGlow 2s ease-in-out infinite;
+    }
+    .ring-border.bearableguy123::after {
+      content: '';
+      position: absolute;
+      inset: 6px;
+      background: rgba(0,0,0,0.7);
+      border-radius: 50%;
+      z-index: 1;
+    }
+    @keyframes eclipseGlow {
+      0%, 100% {
+        box-shadow: 0 0 20px rgba(255, 0, 0, 0.6),
+                    0 0 40px rgba(139, 0, 0, 0.4);
+      }
+      50% {
+        box-shadow: 0 0 20px rgba(255, 0, 0, 1),
+                    0 0 40px rgba(139, 0, 0, 0.8);
+      }
+    }
+    .ring-border.tricolor {
+      background: conic-gradient(
+        #680cd9 0deg 120deg,
+        #ffae00 120deg 240deg,
+        #07ae08 240deg 360deg
+      );
+    }
+    .ring-border.tricolor::before {
+      content: '';
+      position: absolute;
+      inset: 6px;
+      background: rgba(0,0,0,0.7);
+      border-radius: 50%;
+    }
+    .ring-border.animated {
+      background: conic-gradient(
+        #680cd9 0deg 120deg,
+        #ffae00 120deg 240deg,
+        #07ae08 240deg 360deg
+      );
+      animation: spinRing 2s linear infinite;
+      transform-origin: center;
+    }
+    .ring-border.animated::before {
+      content: '';
+      position: absolute;
+      inset: 6px;
+      background: rgba(0,0,0,0.7);
+      border-radius: 50%;
+    }
+
+    @keyframes spinRing {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes spinRingImage {
+      from { transform: translate(-50%, -50%) rotate(0deg); }
+      to { transform: translate(-50%, -50%) rotate(360deg); }
+    }
+
+    .ring-glow-wrapper {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      z-index: 0;
+    }
+
+    .ring-glow-wrapper.ouroboros {
+      box-shadow: 0 0 20px rgba(7, 174, 8, 0.6), 0 0 40px rgba(7, 174, 8, 0.4);
+      animation: glowPulse-ouroboros 2s ease-in-out infinite;
+    }
+
+    .ring-glow-wrapper.waves {
+      box-shadow: 0 0 20px rgba(255, 255, 255, 0.6), 0 0 40px rgba(255, 255, 255, 0.4);
+      animation: glowPulse-waves 2s ease-in-out infinite;
+    }
+
+    .ring-glow-wrapper.castle {
+      box-shadow: 0 0 20px rgba(255, 255, 255, 0.6), 0 0 40px rgba(255, 255, 255, 0.4);
+      animation: glowPulse-castle 2s ease-in-out infinite;
+    }
+
+    @keyframes glowPulse-ouroboros {
+      0%, 100% {
+        box-shadow: 0 0 20px rgba(7, 174, 8, 0.6), 0 0 40px rgba(7, 174, 8, 0.4);
+      }
+      50% {
+        box-shadow: 0 0 20px rgba(7, 174, 8, 1), 0 0 40px rgba(7, 174, 8, 0.8);
+      }
+    }
+
+    @keyframes glowPulse-waves {
+      0%, 100% {
+        box-shadow: 0 0 20px rgba(255, 255, 255, 0.6), 0 0 40px rgba(255, 255, 255, 0.4);
+      }
+      50% {
+        box-shadow: 0 0 20px rgba(255, 255, 255, 1), 0 0 40px rgba(255, 255, 255, 0.8);
+      }
+    }
+
+    @keyframes glowPulse-castle {
+      0%, 100% {
+        box-shadow: 0 0 20px rgba(255, 255, 255, 0.6), 0 0 40px rgba(255, 255, 255, 0.4);
+      }
+      50% {
+        box-shadow: 0 0 20px rgba(255, 255, 255, 1), 0 0 40px rgba(255, 255, 255, 0.8);
+      }
+    }
+
+    .ring-demo img {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+
+    .banner-demo {
+      width: 100%;
+      height: 100%;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .banner-profile-preview {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      overflow: hidden;
+      border: 4px solid rgba(255,255,255,0.2);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+      position: relative;
+      z-index: 1;
+    }
+
+    .banner-profile-preview img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .store-item-badge {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      padding: 6px 14px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 900;
+      text-transform: uppercase;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.4);
+      z-index: 2;
+    }
+
+    .rarity-common {
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      color: #fff;
+    }
+
+    .rarity-rare {
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+      color: #fff;
+    }
+
+    .rarity-epic {
+      background: linear-gradient(135deg, #a855f7, #9333ea);
+      color: #fff;
+      animation: epicGlow 2s ease-in-out infinite;
+    }
+
+    @keyframes epicGlow {
+      0%, 100% { box-shadow: 0 3px 10px rgba(168, 85, 247, 0.4); }
+      50% { box-shadow: 0 3px 20px rgba(168, 85, 247, 0.8); }
+    }
+
+    .rarity-legendary {
+      background: linear-gradient(135deg, #f59e0b, #ef4444);
+      color: #fff;
+      animation: legendaryShine 2s linear infinite;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .rarity-legendary::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: linear-gradient(45deg, transparent, rgba(255,255,255,0.6), transparent);
+      animation: shineMove 2s infinite;
+    }
+
+    .rarity-bearableguy123 {
+      background: linear-gradient(135deg, #ff0000, #8b0000);
+      color: #fff;
+      animation: bearableguy123Shine 1.5s linear infinite;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .rarity-bearableguy123::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: linear-gradient(45deg, transparent, rgba(255,255,255,0.8), transparent);
+      animation: shineMove 1.5s infinite;
+    }
+
+    /* Rarity Section Styles */
+    .rarity-section {
+      margin-bottom: 48px;
+      position: relative;
+      background: linear-gradient(135deg, rgba(20,20,30,0.6), rgba(10,10,20,0.8));
+      border-radius: 24px;
+      padding: 24px;
+      border: 4px solid;
+    }
+
+    .common-section {
+      border-color: #22c55e;
+      box-shadow: 0 4px 20px rgba(34, 197, 94, 0.2);
+    }
+
+    .rare-section {
+      border-color: #3b82f6;
+      box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3);
+    }
+
+    .epic-section {
+      border-color: #a855f7;
+      box-shadow: 0 6px 30px rgba(168, 85, 247, 0.4);
+    }
+
+    .legendary-section {
+      border-color: #f59e0b;
+      box-shadow: 0 8px 40px rgba(245, 158, 11, 0.5),
+                  0 0 60px rgba(239, 68, 68, 0.3);
+    }
+
+    .bearableguy123-section {
+      border-color: #ff0000;
+      box-shadow: 0 10px 50px rgba(255, 0, 0, 0.7),
+                  0 0 80px rgba(139, 0, 0, 0.5),
+                  0 0 120px rgba(255, 0, 0, 0.3);
+      animation: sectionEclipse 3s ease-in-out infinite;
+    }
+
+    @keyframes sectionEclipse {
+      0%, 100% {
+        box-shadow: 0 10px 50px rgba(255, 0, 0, 0.7),
+                    0 0 80px rgba(139, 0, 0, 0.5),
+                    0 0 120px rgba(255, 0, 0, 0.3);
+      }
+      50% {
+        box-shadow: 0 15px 70px rgba(255, 0, 0, 1),
+                    0 0 120px rgba(139, 0, 0, 0.8),
+                    0 0 180px rgba(255, 0, 0, 0.6);
+      }
+    }
+
+    .rarity-header {
+      font-size: 28px;
+      font-weight: 900;
+      padding: 20px 32px;
+      border-radius: 16px;
+      margin-bottom: 24px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+      border: 4px solid;
+      text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+      z-index: 1;
+    }
+
+    .rarity-header::before,
+    .rarity-header::after {
+      z-index: -1;
+    }
+
+    .rarity-header > * {
+      position: relative;
+      z-index: 2;
+    }
+
+    .common-header {
+      background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(22, 163, 74, 0.2));
+      border-color: #22c55e;
+      color: #22c55e;
+    }
+
+    .rare-header {
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(37, 99, 235, 0.2));
+      border-color: #3b82f6;
+      color: #3b82f6;
+      box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3);
+    }
+
+    .epic-header {
+      background: linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(147, 51, 234, 0.2));
+      border-color: #a855f7;
+      color: #a855f7;
+      animation: epicHeaderGlow 2s ease-in-out infinite;
+    }
+
+    @keyframes epicHeaderGlow {
+      0%, 100% {
+        box-shadow: 0 4px 20px rgba(168, 85, 247, 0.4), 0 0 30px rgba(168, 85, 247, 0.2);
+      }
+      50% {
+        box-shadow: 0 6px 30px rgba(168, 85, 247, 0.7), 0 0 50px rgba(168, 85, 247, 0.4);
+      }
+    }
+
+    .legendary-header {
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.3), rgba(239, 68, 68, 0.3));
+      border-color: #f59e0b;
+      color: #f59e0b;
+      animation: legendaryHeaderGlow 2s ease-in-out infinite;
+      position: relative;
+    }
+
+    .legendary-header::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: linear-gradient(45deg, transparent, rgba(245, 158, 11, 0.3), transparent);
+      animation: shineMove 3s infinite;
+    }
+
+    @keyframes legendaryHeaderGlow {
+      0%, 100% {
+        box-shadow: 0 6px 30px rgba(245, 158, 11, 0.5), 0 0 40px rgba(239, 68, 68, 0.3);
+      }
+      50% {
+        box-shadow: 0 8px 50px rgba(245, 158, 11, 0.8), 0 0 70px rgba(239, 68, 68, 0.6);
+      }
+    }
+
+    .bearableguy123-header {
+      background: linear-gradient(135deg, rgba(255, 0, 0, 0.4), rgba(139, 0, 0, 0.4));
+      border-color: #ff0000;
+      color: #ff0000;
+      animation: bearableguy123HeaderGlow 2s ease-in-out infinite;
+      position: relative;
+      font-size: 32px;
+    }
+
+    .bearableguy123-header::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle, rgba(255, 0, 0, 0.3), transparent 70%);
+      animation: rotateBg 4s linear infinite;
+    }
+
+    .bearableguy123-header::after {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: linear-gradient(45deg, transparent, rgba(255, 0, 0, 0.5), transparent);
+      animation: shineMove 2s infinite;
+    }
+
+    @keyframes bearableguy123HeaderGlow {
+      0%, 100% {
+        box-shadow: 0 8px 40px rgba(255, 0, 0, 0.7),
+                    0 0 60px rgba(139, 0, 0, 0.5),
+                    0 0 100px rgba(255, 0, 0, 0.3);
+        border-color: #ff0000;
+      }
+      50% {
+        box-shadow: 0 12px 60px rgba(255, 0, 0, 1),
+                    0 0 100px rgba(139, 0, 0, 0.9),
+                    0 0 150px rgba(255, 0, 0, 0.7),
+                    0 0 200px rgba(139, 0, 0, 0.5);
+        border-color: #ff4444;
+      }
+    }
+
+    @keyframes shineMove {
+      0% { transform: translateX(-100%) rotate(45deg); }
+      100% { transform: translateX(100%) rotate(45deg); }
+    }
+
+    @keyframes legendaryShine {
+      0%, 100% { box-shadow: 0 3px 15px rgba(245, 158, 11, 0.6), 0 0 25px rgba(239, 68, 68, 0.4); }
+      50% { box-shadow: 0 3px 25px rgba(245, 158, 11, 1), 0 0 40px rgba(239, 68, 68, 0.7); }
+    }
+
+    @keyframes bearableguy123Shine {
+      0%, 100% {
+        box-shadow: 0 4px 20px rgba(255, 0, 0, 0.8),
+                    0 0 35px rgba(139, 0, 0, 0.6),
+                    0 0 50px rgba(255, 0, 0, 0.4);
+      }
+      50% {
+        box-shadow: 0 4px 30px rgba(255, 0, 0, 1),
+                    0 0 50px rgba(139, 0, 0, 1),
+                    0 0 70px rgba(255, 0, 0, 0.8);
+      }
+    }
+
+    .store-item-name {
+      font-size: 20px;
+      font-weight: 900;
+      margin-bottom: 10px;
+    }
+
+    .store-item.common .store-item-name { color: #22c55e; }
+    .store-item.rare .store-item-name { color: #3b82f6; }
+    .store-item.epic .store-item-name { color: #a855f7; }
+    .store-item.legendary .store-item-name {
+      background: linear-gradient(135deg, #f59e0b, #ef4444);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .store-item.bearableguy123 .store-item-name {
+      background: linear-gradient(135deg, #ff0000, #ff4444, #ff0000);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: redPulse 2s ease-in-out infinite;
+    }
+
+    @keyframes redPulse {
+      0%, 100% { filter: drop-shadow(0 0 5px rgba(255, 0, 0, 0.6)); }
+      50% { filter: drop-shadow(0 0 15px rgba(255, 0, 0, 1)); }
+    }
+
+    .store-item-description {
+      font-size: 14px;
+      color: #aaa;
+      margin-bottom: 16px;
+      min-height: 42px;
+      line-height: 1.4;
+    }
+
+    .store-item-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .store-item-price {
+      font-size: 24px;
+      font-weight: 900;
+      color: #ffae00;
+      text-shadow: 0 2px 8px rgba(255, 174, 0, 0.6);
+    }
+
+    .store-item-btn {
+      padding: 10px 20px;
+      font-size: 16px;
+      font-weight: 900;
+      background: linear-gradient(135deg, #ffae00, #edb723);
+      color: #000;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 0 4px 12px rgba(237, 183, 35, 0.4);
+      font-family: inherit;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .store-item-btn::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 0;
+      height: 0;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.4);
+      transform: translate(-50%, -50%);
+      transition: width 0.5s cubic-bezier(0.16, 1, 0.3, 1), height 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .store-item-btn:hover::before {
+      width: 300%;
+      height: 300%;
+    }
+
+    .store-item-btn:hover {
+      background: linear-gradient(135deg, #ffc422, #ffae00);
+      transform: scale(1.05) translateY(-2px);
+      box-shadow: 0 8px 24px rgba(237, 183, 35, 0.6);
+    }
+
+    .store-item-btn:active {
+      animation: btnBounce 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes btnBounce {
+      0% { transform: scale(1.05) translateY(-2px); }
+      40% { transform: scale(0.92); }
+      60% { transform: scale(1.08); }
+      80% { transform: scale(0.98); }
+      100% { transform: scale(1); }
+    }
+
+    .owned-badge {
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      color: #fff;
+      padding: 8px 16px;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 900;
+      box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
+      animation: ownedBadgeFadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes ownedBadgeFadeIn {
+      0% {
+        opacity: 0;
+        transform: scale(0.8);
+      }
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    /* CELEBRATION OVERLAY */
+    .celebration-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 20000;
+      pointer-events: none;
+    }
+
+    .celebration-overlay.active {
+      display: block;
+    }
+
+    .celebration-content {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      pointer-events: none;
+    }
+
+    .celebration-icon {
+      font-size: 120px;
+      animation: celebrationBounce 1.5s cubic-bezier(0.16, 1, 0.3, 1),
+                 iconFadeOut 0.8s cubic-bezier(0.16, 1, 0.3, 1) 4s forwards;
+      filter: drop-shadow(0 0 20px rgba(255, 174, 0, 0.6));
+    }
+
+    @keyframes celebrationBounce {
+      0% {
+        transform: scale(0) rotate(-30deg);
+        opacity: 0;
+        filter: blur(10px) drop-shadow(0 0 20px rgba(255, 174, 0, 0.6));
+      }
+      50% {
+        transform: scale(1.2) rotate(10deg);
+        opacity: 1;
+        filter: blur(0px) drop-shadow(0 0 30px rgba(255, 174, 0, 0.8));
+      }
+      70% {
+        transform: scale(0.9) rotate(-5deg);
+      }
+      85% {
+        transform: scale(1.05) rotate(2deg);
+      }
+      100% {
+        transform: scale(1) rotate(0deg);
+        opacity: 1;
+        filter: blur(0px) drop-shadow(0 0 20px rgba(255, 174, 0, 0.6));
+      }
+    }
+
+    @keyframes iconFadeOut {
+      0% {
+        opacity: 1;
+        transform: scale(1) rotate(0deg);
+        filter: blur(0px) drop-shadow(0 0 20px rgba(255, 174, 0, 0.6));
+      }
+      100% {
+        opacity: 0;
+        transform: scale(0.8) rotate(15deg);
+        filter: blur(10px) drop-shadow(0 0 0px rgba(255, 174, 0, 0));
+      }
+    }
+
+    .celebration-text {
+      font-size: 48px;
+      font-weight: 900;
+      margin-top: 20px;
+      text-shadow: 0 4px 20px rgba(0,0,0,0.8);
+      animation: textSlideUp 1.2s cubic-bezier(0.16, 1, 0.3, 1) 0.3s backwards,
+                 textFadeOut 0.8s cubic-bezier(0.16, 1, 0.3, 1) 4s forwards;
+    }
+
+    @keyframes textSlideUp {
+      0% {
+        transform: translateY(20px);
+        opacity: 0;
+        filter: blur(5px);
+      }
+      100% {
+        transform: translateY(0);
+        opacity: 1;
+        filter: blur(0px);
+      }
+    }
+
+    @keyframes textFadeOut {
+      0% {
+        opacity: 1;
+        filter: blur(0px);
+      }
+      100% {
+        opacity: 0;
+        filter: blur(10px);
+        transform: translateY(-10px);
+      }
+    }
+
+    .celebration-subtext {
+      font-size: 24px;
+      margin-top: 10px;
+      opacity: 0.9;
+      animation: textSlideUp 1.2s cubic-bezier(0.16, 1, 0.3, 1) 0.4s backwards,
+                 textFadeOut 0.8s cubic-bezier(0.16, 1, 0.3, 1) 4s forwards;
+    }
+
+    .confetti {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background: #ffae00;
+      border-radius: 2px;
+      animation: confettiFall 3.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+      box-shadow: 0 0 10px rgba(255, 174, 0, 0.6);
+      pointer-events: none;
+    }
+
+    @keyframes confettiFall {
+      0% {
+        transform: translateY(0) translateX(0) rotate(0deg) scale(1);
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(100vh) translateX(var(--drift, 0)) rotate(1080deg) scale(0.5);
+        opacity: 0;
+      }
+    }
+
+    @keyframes shake {
+      0%, 100% {
+        transform: translateX(0) rotate(0deg);
+      }
+      10% {
+        transform: translateX(-6px) rotate(-1deg);
+      }
+      20% {
+        transform: translateX(6px) rotate(1deg);
+      }
+      30% {
+        transform: translateX(-6px) rotate(-1deg);
+      }
+      40% {
+        transform: translateX(6px) rotate(1deg);
+      }
+      50% {
+        transform: translateX(-4px) rotate(-0.5deg);
+      }
+      60% {
+        transform: translateX(4px) rotate(0.5deg);
+      }
+      70% {
+        transform: translateX(-2px) rotate(-0.25deg);
+      }
+      80% {
+        transform: translateX(2px) rotate(0.25deg);
+      }
+      90% {
+        transform: translateX(-1px) rotate(0deg);
+      }
+    }
+
+    @keyframes shake-medium {
+      0%, 100% {
+        transform: translate(0, 0) rotate(0deg);
+      }
+      10% {
+        transform: translate(-10px, -5px) rotate(-2deg);
+      }
+      20% {
+        transform: translate(10px, 5px) rotate(2deg);
+      }
+      30% {
+        transform: translate(-10px, 3px) rotate(-1.5deg);
+      }
+      40% {
+        transform: translate(10px, -3px) rotate(1.5deg);
+      }
+      50% {
+        transform: translate(-8px, 2px) rotate(-1deg);
+      }
+      60% {
+        transform: translate(8px, -2px) rotate(1deg);
+      }
+      70% {
+        transform: translate(-5px, 1px) rotate(-0.5deg);
+      }
+      80% {
+        transform: translate(5px, -1px) rotate(0.5deg);
+      }
+      90% {
+        transform: translate(-2px, 0) rotate(0deg);
+      }
+    }
+
+    @keyframes shake-heavy {
+      0%, 100% {
+        transform: translate(0, 0) rotate(0deg) scale(1);
+      }
+      10% {
+        transform: translate(-15px, -8px) rotate(-3deg) scale(1.02);
+      }
+      20% {
+        transform: translate(15px, 8px) rotate(3deg) scale(0.98);
+      }
+      30% {
+        transform: translate(-15px, 5px) rotate(-2.5deg) scale(1.02);
+      }
+      40% {
+        transform: translate(15px, -5px) rotate(2.5deg) scale(0.98);
+      }
+      50% {
+        transform: translate(-12px, 3px) rotate(-2deg) scale(1.01);
+      }
+      60% {
+        transform: translate(12px, -3px) rotate(2deg) scale(0.99);
+      }
+      70% {
+        transform: translate(-8px, 2px) rotate(-1deg) scale(1.01);
+      }
+      80% {
+        transform: translate(8px, -2px) rotate(1deg) scale(0.99);
+      }
+      90% {
+        transform: translate(-3px, 0) rotate(0deg) scale(1);
+      }
+    }
+
+    @keyframes shake-legendary {
+      0%, 100% {
+        transform: translate(0, 0) rotate(0deg) scale(1);
+      }
+      5% {
+        transform: translate(-20px, -12px) rotate(-5deg) scale(1.05);
+      }
+      10% {
+        transform: translate(20px, 12px) rotate(5deg) scale(0.95);
+      }
+      15% {
+        transform: translate(-20px, 8px) rotate(-4deg) scale(1.05);
+      }
+      20% {
+        transform: translate(20px, -8px) rotate(4deg) scale(0.95);
+      }
+      25% {
+        transform: translate(-18px, 10px) rotate(-4deg) scale(1.04);
+      }
+      30% {
+        transform: translate(18px, -10px) rotate(4deg) scale(0.96);
+      }
+      35% {
+        transform: translate(-15px, 5px) rotate(-3deg) scale(1.03);
+      }
+      40% {
+        transform: translate(15px, -5px) rotate(3deg) scale(0.97);
+      }
+      45% {
+        transform: translate(-15px, 3px) rotate(-3deg) scale(1.03);
+      }
+      50% {
+        transform: translate(15px, -3px) rotate(3deg) scale(0.97);
+      }
+      55% {
+        transform: translate(-12px, 2px) rotate(-2deg) scale(1.02);
+      }
+      60% {
+        transform: translate(12px, -2px) rotate(2deg) scale(0.98);
+      }
+      65% {
+        transform: translate(-10px, 2px) rotate(-2deg) scale(1.02);
+      }
+      70% {
+        transform: translate(10px, -2px) rotate(2deg) scale(0.98);
+      }
+      75% {
+        transform: translate(-8px, 1px) rotate(-1deg) scale(1.01);
+      }
+      80% {
+        transform: translate(8px, -1px) rotate(1deg) scale(0.99);
+      }
+      85% {
+        transform: translate(-5px, 0) rotate(-0.5deg) scale(1.01);
+      }
+      90% {
+        transform: translate(5px, 0) rotate(0.5deg) scale(0.99);
+      }
+      95% {
+        transform: translate(-2px, 0) rotate(0deg) scale(1);
+      }
+    }
+
+    @keyframes shake-bearableguy123 {
+      0%, 100% {
+        transform: translate(0, 0) rotate(0deg) scale(1);
+      }
+      3% {
+        transform: translate(-30px, -18px) rotate(-8deg) scale(1.08);
+      }
+      6% {
+        transform: translate(30px, 18px) rotate(8deg) scale(0.92);
+      }
+      9% {
+        transform: translate(-28px, 15px) rotate(-7deg) scale(1.07);
+      }
+      12% {
+        transform: translate(28px, -15px) rotate(7deg) scale(0.93);
+      }
+      15% {
+        transform: translate(-26px, 12px) rotate(-6deg) scale(1.06);
+      }
+      18% {
+        transform: translate(26px, -12px) rotate(6deg) scale(0.94);
+      }
+      21% {
+        transform: translate(-24px, 10px) rotate(-6deg) scale(1.06);
+      }
+      24% {
+        transform: translate(24px, -10px) rotate(6deg) scale(0.94);
+      }
+      27% {
+        transform: translate(-22px, 8px) rotate(-5deg) scale(1.05);
+      }
+      30% {
+        transform: translate(22px, -8px) rotate(5deg) scale(0.95);
+      }
+      33% {
+        transform: translate(-20px, 6px) rotate(-4deg) scale(1.04);
+      }
+      36% {
+        transform: translate(20px, -6px) rotate(4deg) scale(0.96);
+      }
+      39% {
+        transform: translate(-18px, 5px) rotate(-4deg) scale(1.04);
+      }
+      42% {
+        transform: translate(18px, -5px) rotate(4deg) scale(0.96);
+      }
+      45% {
+        transform: translate(-16px, 4px) rotate(-3deg) scale(1.03);
+      }
+      48% {
+        transform: translate(16px, -4px) rotate(3deg) scale(0.97);
+      }
+      51% {
+        transform: translate(-14px, 3px) rotate(-3deg) scale(1.03);
+      }
+      54% {
+        transform: translate(14px, -3px) rotate(3deg) scale(0.97);
+      }
+      57% {
+        transform: translate(-12px, 2px) rotate(-2deg) scale(1.02);
+      }
+      60% {
+        transform: translate(12px, -2px) rotate(2deg) scale(0.98);
+      }
+      63% {
+        transform: translate(-10px, 2px) rotate(-2deg) scale(1.02);
+      }
+      66% {
+        transform: translate(10px, -2px) rotate(2deg) scale(0.98);
+      }
+      69% {
+        transform: translate(-8px, 1px) rotate(-1deg) scale(1.01);
+      }
+      72% {
+        transform: translate(8px, -1px) rotate(1deg) scale(0.99);
+      }
+      75% {
+        transform: translate(-6px, 1px) rotate(-1deg) scale(1.01);
+      }
+      78% {
+        transform: translate(6px, -1px) rotate(1deg) scale(0.99);
+      }
+      81% {
+        transform: translate(-4px, 0) rotate(-0.5deg) scale(1.005);
+      }
+      84% {
+        transform: translate(4px, 0) rotate(0.5deg) scale(0.995);
+      }
+      87% {
+        transform: translate(-3px, 0) rotate(-0.5deg) scale(1.005);
+      }
+      90% {
+        transform: translate(3px, 0) rotate(0.5deg) scale(0.995);
+      }
+      93% {
+        transform: translate(-2px, 0) rotate(0deg) scale(1.002);
+      }
+      96% {
+        transform: translate(2px, 0) rotate(0deg) scale(0.998);
+      }
+    }
+
+    @keyframes hypePopIn {
+      0% {
+        transform: translate(-50%, -50%) scale(0.3) rotate(-15deg);
+        opacity: 0;
+        filter: blur(10px);
+      }
+      15% {
+        transform: translate(-50%, -50%) scale(1.15) rotate(3deg);
+        opacity: 1;
+        filter: blur(0px);
+      }
+      25% {
+        transform: translate(-50%, -50%) scale(0.95) rotate(-2deg);
+        opacity: 1;
+      }
+      30% {
+        transform: translate(-50%, -50%) scale(1.02) rotate(1deg);
+        opacity: 1;
+      }
+      35% {
+        transform: translate(-50%, -50%) scale(1) rotate(0deg);
+        opacity: 1;
+      }
+      75% {
+        transform: translate(-50%, -50%) scale(1) rotate(0deg);
+        opacity: 1;
+        filter: blur(0px);
+      }
+      100% {
+        transform: translate(-50%, -50%) scale(0.85) rotate(5deg);
+        opacity: 0;
+        filter: blur(15px);
+      }
+    }
+
+    /* Image-based ring sizes for desktop */
+    img.image-ring-ouroboros {
+      width: 140px !important;
+      height: 140px !important;
+    }
+
+    img.image-ring-castle,
+    img.image-ring-castle-static {
+      width: 135px !important;
+      height: 135px !important;
+    }
+
+    img.image-ring-waves,
+    img.image-ring-waves-static {
+      width: 110px !important;
+      height: 110px !important;
+    }
+
+    /* Mobile Responsive Styles */
+    @media (max-width: 768px) {
+      .store-modal-content {
+        width: 98%;
+        max-height: 95vh;
+      }
+
+      .store-header {
+        padding: 12px 16px;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .store-title {
+        font-size: 20px;
+      }
+
+      .store-subtitle {
+        font-size: 11px;
+      }
+
+      .store-balance-container {
+        width: 100%;
+        justify-content: space-between;
+      }
+
+      .store-balance {
+        font-size: 18px;
+        padding: 8px 14px;
+      }
+
+      .store-balance .hp-amount {
+        font-size: 22px;
+      }
+
+      .store-close-btn {
+        width: 32px;
+        height: 32px;
+        font-size: 22px;
+      }
+
+      .store-tabs {
+        padding: 8px 12px;
+        gap: 6px;
+      }
+
+      .store-tab {
+        padding: 8px 14px;
+        font-size: 13px;
+        flex: 1;
+      }
+
+      .store-body {
+        padding: 12px;
+        max-height: calc(95vh - 180px);
+      }
+
+      .store-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
+
+      .store-item {
+        padding: 14px;
+      }
+
+      .store-item-preview {
+        height: 120px;
+        margin-bottom: 12px;
+      }
+
+      .store-item-badge {
+        font-size: 10px;
+        padding: 5px 10px;
+        top: 8px;
+        right: 8px;
+      }
+
+      .store-item-name {
+        font-size: 16px;
+        margin-bottom: 8px;
+      }
+
+      .store-item-description {
+        font-size: 12px;
+        margin-bottom: 12px;
+        min-height: auto;
+        line-height: 1.4;
+      }
+
+      .store-item-footer {
+        flex-direction: row;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .store-item-price {
+        font-size: 20px;
+      }
+
+      .store-item-btn {
+        padding: 10px 18px;
+        font-size: 14px;
+        white-space: nowrap;
+      }
+
+      .rarity-section {
+        margin-bottom: 20px;
+        padding: 12px;
+        border-width: 3px;
+        border-radius: 16px;
+      }
+
+      .rarity-header {
+        font-size: 16px;
+        padding: 10px 14px;
+        margin-bottom: 14px;
+        border-width: 3px;
+        border-radius: 12px;
+      }
+
+      .bearableguy123-header {
+        font-size: 18px;
+      }
+
+      .ring-demo {
+        width: 100px !important;
+        height: 100px !important;
+      }
+
+      .ring-glow-wrapper {
+        width: 100px !important;
+        height: 100px !important;
+      }
+
+      .celebration-icon {
+        font-size: 80px;
+      }
+
+      .celebration-text {
+        font-size: 32px;
+      }
+
+      .celebration-subtext {
+        font-size: 18px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .store-header {
+        padding: 10px 12px;
+      }
+
+      .store-title {
+        font-size: 18px;
+      }
+
+      .store-subtitle {
+        font-size: 10px;
+      }
+
+      .store-balance {
+        font-size: 16px;
+        padding: 6px 12px;
+      }
+
+      .store-balance .hp-amount {
+        font-size: 20px;
+      }
+
+      .store-close-btn {
+        width: 28px;
+        height: 28px;
+        font-size: 20px;
+      }
+
+      .store-tabs {
+        padding: 6px 10px;
+      }
+
+      .store-tab {
+        padding: 7px 12px;
+        font-size: 12px;
+      }
+
+      .store-body {
+        padding: 10px;
+      }
+
+      .store-item-name {
+        font-size: 15px;
+      }
+
+      .store-item-description {
+        font-size: 11px;
+      }
+
+      .store-item-price {
+        font-size: 18px;
+      }
+
+      .store-item-btn {
+        padding: 9px 16px;
+        font-size: 13px;
+      }
+
+      .rarity-section {
+        padding: 10px;
+        border-width: 2px;
+        margin-bottom: 16px;
+      }
+
+      .rarity-header {
+        font-size: 14px;
+        padding: 8px 12px;
+        border-width: 2px;
+        margin-bottom: 12px;
+      }
+
+      .bearableguy123-header {
+        font-size: 16px;
+      }
+
+      .ring-demo {
+        width: 90px !important;
+        height: 90px !important;
+      }
+
+      .ring-glow-wrapper {
+        width: 90px !important;
+        height: 90px !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="demo-container">
+    <h1 class="demo-title">🍯 LEGENDARY COSMETICS STORE</h1>
+    <p class="demo-subtitle">Click below to see the new store design!</p>
+
+    <div class="demo-buttons">
+      <button class="demo-btn btn-store" onclick="openStoreModal()">🍯 OPEN STORE</button>
+    </div>
+  </div>
+
+  <!-- Store Modal -->
+  <div id="storeModal" class="store-modal">
+    <div class="store-modal-content">
+      <div class="store-header">
+        <div class="store-title-section">
+          <h2 class="store-title">🍯 HONEY POINTS STORE</h2>
+          <div class="store-subtitle">Unlock legendary cosmetics with your points</div>
+        </div>
+        <div class="store-balance-container">
+          <div class="store-balance">
+            <span class="hp-amount" id="storeHoneyBalance">2500</span> <span style="font-size: 20px;">HP</span>
+          </div>
+          <button class="store-close-btn" onclick="closeStoreModal()">×</button>
+        </div>
+      </div>
+
+      <div class="store-tabs">
+        <div class="store-tab active" onclick="switchStoreTab('rings', event)">
+          <span>💍 Profile Rings</span>
+        </div>
+        <div class="store-tab" onclick="switchStoreTab('banners', event)">
+          <span>🎨 Profile Banners</span>
+        </div>
+      </div>
+
+      <div class="store-body">
+        <div id="storeRingsGrid" class="store-grid"></div>
+        <div id="storeBannersGrid" class="store-grid" style="display: none;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Celebration Overlay -->
+  <div id="celebrationOverlay" class="celebration-overlay">
+    <div class="celebration-content">
+      <div class="celebration-icon" id="celebrationIcon"></div>
+      <div class="celebration-text" id="celebrationText"></div>
+      <div class="celebration-subtext" id="celebrationSubtext"></div>
+    </div>
+  </div>
+
+  <script>
+    let currentStoreTab = 'rings';
+    let currentBalance = 2500;
+
+    const rings = [
+      { id: 1, name: 'Purple Ring', description: 'A solid purple ring around your profile picture', cost: 150, rarity: 'common', ringType: 'purple' },
+      { id: 2, name: 'Green Ring', description: 'A solid green ring around your profile picture', cost: 150, rarity: 'common', ringType: 'green' },
+      { id: 3, name: 'Yellow Ring', description: 'A solid yellow ring around your profile picture', cost: 150, rarity: 'common', ringType: 'yellow' },
+      { id: 4, name: 'Tri-Color Ring', description: 'A gradient ring with all BEARpark colors', cost: 400, rarity: 'rare', ringType: 'tricolor' },
+      { id: 5, name: 'Animated Tri-Color Ring', description: 'An epic spinning gradient ring - the ultimate flex!', cost: 800, rarity: 'legendary', ringType: 'animated' },
+      { id: 7, name: 'Waves Ring', description: 'Flowing waves of energy surrounding your avatar. Legendary serenity.', cost: 800, rarity: 'legendary', ringType: 'waves-static', imageUrl: 'https://files.catbox.moe/6q69or.png' },
+      { id: 8, name: 'Spinning Ouroboros Ring', description: 'The eternal serpent spinning with infinite power. Green energy radiates from the ancient symbol.', cost: 1500, rarity: 'bearableguy123', ringType: 'ouroboros', imageUrl: 'https://files.catbox.moe/jedwz8.png' },
+      { id: 9, name: 'Spinning Waves Ring', description: 'Hypnotic waves spinning with pure white energy. Feel the power flow through you.', cost: 1500, rarity: 'bearableguy123', ringType: 'waves', imageUrl: 'https://files.catbox.moe/6q69or.png' },
+      { id: 10, name: 'BEARABLEGUY123 Eclipse Ring', description: 'Bearableguy123 red mask energy! Pulsing blood moon animation. Only for the legends.', cost: 2000, rarity: 'bearableguy123', ringType: 'bearableguy123' },
+      { id: 11, name: 'Castle Walls Ring', description: 'Ancient fortress walls protecting your profile. Legendary strength and defense.', cost: 800, rarity: 'legendary', ringType: 'castle-static', imageUrl: 'https://files.catbox.moe/8vd6jp.png' },
+      { id: 12, name: 'Spinning Castle Walls Ring', description: 'The fortress spins with radiant white power. Ultimate protection and prestige.', cost: 1500, rarity: 'bearableguy123', ringType: 'castle', imageUrl: 'https://files.catbox.moe/8vd6jp.png' }
+    ];
+
+    const banners = [
+      { id: 9, name: 'Honeycomb Banner', description: 'A golden honeycomb pattern banner', cost: 200, rarity: 'common', gradient: 'linear-gradient(135deg, #1a1400, #2a2400)' },
+      { id: 10, name: 'Forest Banner', description: 'A lush forest scene banner', cost: 200, rarity: 'common', gradient: 'linear-gradient(180deg, #1a3a1a, #0a1a0a)' },
+      { id: 11, name: 'Starry Night Banner', description: 'A mystical starry night sky', cost: 500, rarity: 'epic', gradient: 'radial-gradient(circle, #1a1a3a, #0a0a1a)' },
+      { id: 12, name: 'Golden Honey Banner', description: 'Premium liquid gold honey flow', cost: 500, rarity: 'epic', gradient: 'linear-gradient(135deg, #ffae00, #edb723, #d4a017)' }
+    ];
+
+    function openStoreModal() {
+      document.getElementById('storeModal').classList.add('active');
+      loadStoreItems('rings');
+    }
+
+    function closeStoreModal() {
+      document.getElementById('storeModal').classList.remove('active');
+    }
+
+    function switchStoreTab(tab, event) {
+      currentStoreTab = tab;
+      document.querySelectorAll('.store-tab').forEach(btn => btn.classList.remove('active'));
+      event.target.closest('.store-tab').classList.add('active');
+
+      document.getElementById('storeRingsGrid').style.display = tab === 'rings' ? 'grid' : 'none';
+      document.getElementById('storeBannersGrid').style.display = tab === 'banners' ? 'grid' : 'none';
+
+      loadStoreItems(tab);
+    }
+
+    function loadStoreItems(tab) {
+      const items = tab === 'rings' ? rings : banners;
+      const gridId = tab === 'rings' ? 'storeRingsGrid' : 'storeBannersGrid';
+      const grid = document.getElementById(gridId);
+
+      // Group items by rarity
+      const rarityOrder = ['common', 'rare', 'epic', 'legendary', 'bearableguy123'];
+      const rarityLabels = {
+        common: '🌿 COMMON',
+        rare: '💎 RARE',
+        epic: '⚡ EPIC',
+        legendary: '👑 LEGENDARY',
+        bearableguy123: '🌑 BEARABLEGUY123'
+      };
+
+      const groupedItems = {};
+      rarityOrder.forEach(rarity => {
+        groupedItems[rarity] = items.filter(item => item.rarity === rarity);
+      });
+
+      let htmlContent = '';
+
+      rarityOrder.forEach(rarity => {
+        const rarityItems = groupedItems[rarity];
+        if (rarityItems.length === 0) return;
+
+        htmlContent += `<div class="rarity-section ${rarity}-section">`;
+        htmlContent += `<div class="rarity-header ${rarity}-header">${rarityLabels[rarity]}</div>`;
+        htmlContent += `<div class="store-grid">`;
+
+        rarityItems.forEach(item => {
+          let previewHTML;
+
+          if (item.ringType) {
+            // Ring preview
+            if (item.imageUrl) {
+              // Image-based ring (like ouroboros or waves)
+              const spinAnimation = item.rarity === 'bearableguy123'
+                ? `animation: spinRingImage 3s linear infinite;`
+                : '';
+
+              // Determine ring size based on type
+              let baseRingSize = '120px';
+              if (item.ringType === 'castle' || item.ringType === 'castle-static') {
+                baseRingSize = '150px';
+              } else if (item.ringType === 'waves-static') {
+                baseRingSize = '140px';
+              } else if (item.rarity === 'bearableguy123' && (item.ringType === 'ouroboros' || item.ringType === 'waves')) {
+                baseRingSize = '140px';
+              }
+
+              const ouroborosSize = baseRingSize;
+              const glowSize = '100px';
+
+              const glowWrapper = item.rarity === 'bearableguy123'
+                ? `<div class="ring-glow-wrapper ${item.ringType}" style="width: ${glowSize}; height: ${glowSize};"></div>`
+                : '';
+
+              const finalRingSize = item.ringType === 'ouroboros' ? ouroborosSize : baseRingSize;
+              const ouroborosRotation = item.ringType === 'ouroboros' ? ' rotate(180deg)' : '';
+
+              previewHTML = `
+                <div class="ring-demo">
+                  <img src="https://files.catbox.moe/2f0v9c.webp" alt="Avatar" style="position: relative; z-index: 1;">
+                  ${glowWrapper}
+                  <img src="${item.imageUrl}" alt="${item.name}" class="image-ring-${item.ringType}" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%)${ouroborosRotation}; object-fit: contain; z-index: 2; pointer-events: none; ${spinAnimation}">
+                </div>
+              `;
+            } else {
+              // CSS-based ring (like purple, tricolor, etc)
+              previewHTML = `
+                <div class="ring-demo">
+                  <div class="ring-border ${item.ringType}"></div>
+                  <img src="https://files.catbox.moe/2f0v9c.webp" alt="Avatar">
+                </div>
+              `;
+            }
+          } else if (item.gradient) {
+            // Banner preview with profile picture overlay
+            previewHTML = `
+              <div class="banner-demo" style="background: ${item.gradient};">
+                <div class="banner-profile-preview">
+                  <img src="https://files.catbox.moe/2f0v9c.webp" alt="Profile">
+                </div>
+              </div>
+            `;
+          }
+
+          htmlContent += `
+            <div class="store-item ${item.rarity}">
+              <div class="store-item-preview">
+                ${previewHTML}
+                <div class="store-item-badge rarity-${item.rarity}">${item.rarity.toUpperCase()}</div>
+              </div>
+              <div class="store-item-name">${item.name}</div>
+              <div class="store-item-description">${item.description}</div>
+              <div class="store-item-footer">
+                <div class="store-item-price">${item.cost} HP</div>
+                <button class="store-item-btn" onclick="purchaseItem(${item.id}, ${item.cost}, '${item.rarity}', '${item.name}', event)">BUY NOW</button>
+              </div>
+            </div>
+          `;
+        });
+
+        htmlContent += `</div></div>`;
+      });
+
+      grid.innerHTML = htmlContent;
+    }
+
+    function purchaseItem(id, cost, rarity, name, event) {
+      if (currentBalance < cost) {
+        alert(`Not enough Honey Points! You need ${cost} HP but only have ${currentBalance} HP.`);
+        return;
+      }
+
+      // Get the button element
+      const button = event?.target || document.querySelector(`button[onclick*="purchaseItem(${id}"]`);
+
+      // Show hype message
+      showHypeMessage();
+
+      // Update balance and button after 400ms
+      setTimeout(() => {
+        currentBalance -= cost;
+        document.getElementById('storeHoneyBalance').textContent = currentBalance;
+
+        // Update button to show "OWNED"
+        if (button && button.parentElement) {
+          button.parentElement.innerHTML = '<span class="owned-badge">✓ OWNED</span>';
+        }
+      }, 400);
+
+      // Show celebration after hype message completes (2.6s total)
+      setTimeout(() => {
+        showCelebration(rarity, name);
+      }, 2600);
+    }
+
+    function showHypeMessage() {
+      const messages = [
+        "WOO!!! SEND IT! 🚀",
+        "LET'S GOOO! 🚀",
+        "YESSS! SEND IT! 🚀",
+        "HELL YEAH! 🚀",
+        "YOU'RE A LEGEND! 🚀"
+      ];
+
+      const message = messages[Math.floor(Math.random() * messages.length)];
+
+      const hypeDiv = document.createElement('div');
+      hypeDiv.textContent = message;
+      hypeDiv.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) scale(0.5);
+        font-size: 48px;
+        font-weight: 900;
+        color: #ffae00;
+        text-shadow: 0 4px 20px rgba(255, 174, 0, 0.8);
+        z-index: 30000;
+        pointer-events: none;
+        animation: hypePopIn 2.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      `;
+
+      document.body.appendChild(hypeDiv);
+
+      setTimeout(() => {
+        hypeDiv.remove();
+      }, 2500);
+    }
+
+    let celebrationTimeout = null;
+
+    function clearCelebration() {
+      const overlay = document.getElementById('celebrationOverlay');
+      if (overlay.classList.contains('active')) {
+        overlay.classList.remove('active');
+        overlay.innerHTML = '<div class="celebration-content"><div class="celebration-icon" id="celebrationIcon"></div><div class="celebration-text" id="celebrationText"></div><div class="celebration-subtext" id="celebrationSubtext"></div></div>';
+
+        if (celebrationTimeout) {
+          clearTimeout(celebrationTimeout);
+          celebrationTimeout = null;
+        }
+      }
+    }
+
+    function showCelebration(rarity, itemName) {
+      const overlay = document.getElementById('celebrationOverlay');
+      const icon = document.getElementById('celebrationIcon');
+      const text = document.getElementById('celebrationText');
+      const subtext = document.getElementById('celebrationSubtext');
+
+      const celebrations = {
+        common: { icon: '👑', text: 'UNLOCKED!', color: '#22c55e', confettiCount: 150, shake: true },
+        rare: { icon: '💎', text: 'RARE UNLOCK!', color: '#3b82f6', confettiCount: 200, shake: true, shakeIntensity: 'shake-medium' },
+        epic: { icon: '🌟', text: 'EPIC UNLOCK!', color: '#a855f7', confettiCount: 300, shake: true, shakeIntensity: 'shake-heavy' },
+        legendary: { icon: '🔥', text: 'LEGENDARY!', color: '#f59e0b', confettiCount: 500, shake: true, shakeIntensity: 'shake-legendary' },
+        bearableguy123: { icon: '🌑', text: 'BEARABLEGUY123!!!', color: '#ff0000', confettiCount: 1000, shake: true, shakeIntensity: 'shake-bearableguy123' }
+      };
+
+      const config = celebrations[rarity];
+      icon.textContent = config.icon;
+      text.textContent = config.text;
+      text.style.color = config.color;
+      subtext.textContent = itemName;
+      subtext.style.color = config.color;
+
+      overlay.classList.add('active');
+      createConfetti(config.confettiCount, config.color);
+
+      if (config.shake) {
+        const shakeClass = config.shakeIntensity || 'shake';
+        document.querySelector('.store-modal-content').style.animation = `${shakeClass} 0.5s`;
+        setTimeout(() => {
+          document.querySelector('.store-modal-content').style.animation = '';
+        }, 500);
+      }
+
+      celebrationTimeout = setTimeout(() => {
+        clearCelebration();
+      }, 5000);
+    }
+
+    function createConfetti(count, color) {
+      const overlay = document.getElementById('celebrationOverlay');
+      for (let i = 0; i < count; i++) {
+        const confetti = document.createElement('div');
+        confetti.className = 'confetti';
+        confetti.style.left = Math.random() * 100 + '%';
+        confetti.style.background = i % 3 === 0 ? color : (i % 3 === 1 ? '#ffae00' : '#ffffff');
+        confetti.style.animationDelay = Math.random() * 0.3 + 's';
+        confetti.style.animationDuration = (Math.random() * 1.5 + 2.5) + 's';
+        confetti.style.setProperty('--drift', (Math.random() - 0.5) * 200 + 'px');
+        confetti.style.boxShadow = `0 0 10px ${i % 3 === 0 ? color : '#ffae00'}`;
+        overlay.appendChild(confetti);
+      }
+    }
+
+    document.getElementById('storeModal')?.addEventListener('click', (e) => {
+      if (e.target.id === 'storeModal') {
+        closeStoreModal();
+      } else {
+        // Clear celebration on any click inside the store
+        clearCelebration();
+      }
+    });
+  </script>
+</body>
+</html>

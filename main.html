@@ -8385,6 +8385,33 @@
     ? 'http://localhost:3000'
     : '';
 
+  // === INTERVAL MANAGER - Prevent memory leaks ===
+  const IntervalManager = {
+    intervals: new Map(),
+    set(key, fn, ms) {
+      // Clear existing interval with same key
+      this.clear(key);
+      // Set new interval and store reference
+      const id = setInterval(fn, ms);
+      this.intervals.set(key, id);
+      return id;
+    },
+    clear(key) {
+      if (this.intervals.has(key)) {
+        clearInterval(this.intervals.get(key));
+        this.intervals.delete(key);
+      }
+    },
+    clearAll() {
+      this.intervals.forEach(id => clearInterval(id));
+      this.intervals.clear();
+    }
+  };
+
+  // Clear all intervals when page unloads or user navigates away
+  window.addEventListener('beforeunload', () => IntervalManager.clearAll());
+  window.addEventListener('pagehide', () => IntervalManager.clearAll());
+
   // === AUTHENTICATION CHECK - Prevent bypass ===
   (function checkAuth(){
     const isAuthenticated = localStorage.getItem('bearpark_auth');
@@ -9333,7 +9360,7 @@
       }
     }
     updatePrices();
-    setInterval(updatePrices, 60000);
+    IntervalManager.set('updatePrices', updatePrices, 60000); // Use IntervalManager to prevent memory leaks
     document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) updatePrices(); });
 
     /* ===== Chart Loading Detection ===== */
@@ -12232,7 +12259,7 @@
     loadLeaderboards();
 
     // Refresh leaderboards every 30 seconds
-    setInterval(loadLeaderboards, 30000);
+    IntervalManager.set('loadLeaderboards', loadLeaderboards, 30000); // Use IntervalManager to prevent memory leaks
 
     // ===== COMMUNITY BANNER PARALLAX =====
     (function initCommunityParallax() {
@@ -15331,7 +15358,7 @@
     }, 500);
 
     // Poll for new notifications every 30 seconds
-    setInterval(fetchNotifications, 30000);
+    IntervalManager.set('fetchNotifications', fetchNotifications, 30000); // Use IntervalManager to prevent memory leaks
 
     // Fetch immediately on load
     setTimeout(fetchNotifications, 2000);

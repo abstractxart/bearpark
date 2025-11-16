@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BEARpark Cosmetics System Demo</title>
+  <style>
+    :root {
+      --gold: #edb723;
+      --tri-gradient: linear-gradient(135deg, #680cd9 0%, #ffae00 50%, #07ae08 100%);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: "Luckiest Guy", "Arial Black", Impact, sans-serif;
+      background: linear-gradient(135deg, #0a0a0f, #1a1a1f);
+      color: white;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .demo-container {
+      text-align: center;
+      max-width: 1200px;
+      width: 100%;
+    }
+
+    .demo-title {
+      font-size: 48px;
+      color: var(--gold);
+      margin-bottom: 16px;
+      text-shadow: 0 4px 12px rgba(237, 183, 35, 0.5);
+    }
+
+    .demo-subtitle {
+      font-size: 20px;
+      color: #aaa;
+      margin-bottom: 40px;
+    }
+
+    .demo-buttons {
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      margin-bottom: 60px;
+    }
+
+    .demo-btn {
+      padding: 16px 32px;
+      font-size: 20px;
+      font-weight: 900;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-family: inherit;
+    }
+
+    .demo-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    }
+
+    .btn-store {
+      background: var(--gold);
+      color: #000;
+    }
+
+    .btn-inventory {
+      background: #07ae08;
+      color: #fff;
+    }
+
+    .demo-preview {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 30px;
+      margin-top: 40px;
+    }
+
+    .preview-card {
+      background: rgba(0,0,0,0.5);
+      border: 3px solid rgba(237, 183, 35, 0.3);
+      border-radius: 16px;
+      padding: 24px;
+    }
+
+    .preview-card h3 {
+      color: var(--gold);
+      font-size: 24px;
+      margin-bottom: 20px;
+    }
+
+    .avatar-preview {
+      position: relative;
+      width: 120px;
+      height: 120px;
+      margin: 0 auto 20px;
+      background: #2a2a2f;
+      border-radius: 50%;
+      overflow: visible;
+    }
+
+    .avatar-preview img {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    .ring-preview {
+      position: absolute;
+      inset: -8px;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .ring-preview.purple {
+      border: 8px solid #680cd9;
+    }
+
+    .ring-preview.green {
+      border: 8px solid #07ae08;
+    }
+
+    .ring-preview.yellow {
+      border: 8px solid #ffae00;
+    }
+
+    .ring-preview.tricolor {
+      background: linear-gradient(135deg, #680cd9 0%, #ffae00 50%, #07ae08 100%);
+      border: none;
+      animation: none;
+    }
+
+    .ring-preview.tricolor::before {
+      content: '';
+      position: absolute;
+      inset: 8px;
+      background: #2a2a2f;
+      border-radius: 50%;
+    }
+
+    .ring-preview.animated {
+      background: linear-gradient(135deg, #680cd9 0%, #ffae00 50%, #07ae08 100%);
+      border: none;
+      animation: spin 3s linear infinite;
+    }
+
+    .ring-preview.animated::before {
+      content: '';
+      position: absolute;
+      inset: 8px;
+      background: #2a2a2f;
+      border-radius: 50%;
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .banner-preview {
+      width: 100%;
+      height: 120px;
+      border-radius: 12px;
+      margin-bottom: 12px;
+      background-size: cover;
+      background-position: center;
+    }
+
+    .price-tag {
+      display: inline-block;
+      background: rgba(237, 183, 35, 0.2);
+      border: 2px solid var(--gold);
+      padding: 8px 16px;
+      border-radius: 8px;
+      color: var(--gold);
+      font-size: 18px;
+      margin-top: 12px;
+    }
+
+    .demo-note {
+      background: rgba(7, 174, 8, 0.2);
+      border: 2px solid #07ae08;
+      border-radius: 12px;
+      padding: 20px;
+      margin-top: 40px;
+      text-align: left;
+      color: #aaa;
+      font-size: 16px;
+      line-height: 1.6;
+    }
+
+    .demo-note strong {
+      color: #07ae08;
+    }
+  </style>
+</head>
+<body>
+  <div class="demo-container">
+    <h1 class="demo-title">🍯 BEARpark Cosmetics System</h1>
+    <p class="demo-subtitle">Honey Points Store & Inventory Preview</p>
+
+    <div class="demo-buttons">
+      <button class="demo-btn btn-store" onclick="openStoreModal()">🍯 Open Store</button>
+      <button class="demo-btn btn-inventory" onclick="openInventoryModal()">🎒 Open Inventory</button>
+    </div>
+
+    <h2 style="color: var(--gold); margin-bottom: 30px; font-size: 28px;">Profile Ring Previews</h2>
+    <div class="demo-preview">
+      <div class="preview-card">
+        <h3>Purple Ring</h3>
+        <div class="avatar-preview">
+          <div class="ring-preview purple"></div>
+          <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=bear1" alt="Avatar">
+        </div>
+        <div class="price-tag">150 HP</div>
+      </div>
+
+      <div class="preview-card">
+        <h3>Green Ring</h3>
+        <div class="avatar-preview">
+          <div class="ring-preview green"></div>
+          <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=bear2" alt="Avatar">
+        </div>
+        <div class="price-tag">150 HP</div>
+      </div>
+
+      <div class="preview-card">
+        <h3>Yellow Ring</h3>
+        <div class="avatar-preview">
+          <div class="ring-preview yellow"></div>
+          <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=bear3" alt="Avatar">
+        </div>
+        <div class="price-tag">150 HP</div>
+      </div>
+
+      <div class="preview-card">
+        <h3>Tri-Color Ring</h3>
+        <div class="avatar-preview">
+          <div class="ring-preview tricolor"></div>
+          <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=bear4" alt="Avatar">
+        </div>
+        <div class="price-tag">400 HP</div>
+      </div>
+
+      <div class="preview-card">
+        <h3>Animated Tri-Color ⚡</h3>
+        <div class="avatar-preview">
+          <div class="ring-preview animated"></div>
+          <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=bear5" alt="Avatar">
+        </div>
+        <div class="price-tag">800 HP - LEGENDARY</div>
+      </div>
+    </div>
+
+    <h2 style="color: var(--gold); margin: 60px 0 30px; font-size: 28px;">Profile Banner Previews</h2>
+    <div class="demo-preview">
+      <div class="preview-card">
+        <h3>Honeycomb Banner</h3>
+        <div class="banner-preview" style="background: linear-gradient(45deg, #1a1400, #2a2400); position: relative;">
+          <svg style="width:100%; height:100%; opacity:0.6;" viewBox="0 0 700 120" xmlns="http://www.w3.org/2000/svg">
+            <pattern id="hex1" x="0" y="0" width="60" height="52" patternUnits="userSpaceOnUse">
+              <polygon points="30,0 52,15 52,37 30,52 8,37 8,15" fill="none" stroke="#ffae00" stroke-width="2"/>
+            </pattern>
+            <rect width="700" height="120" fill="url(#hex1)"/>
+          </svg>
+        </div>
+        <div class="price-tag">200 HP</div>
+      </div>
+
+      <div class="preview-card">
+        <h3>Forest Banner</h3>
+        <div class="banner-preview" style="background: linear-gradient(180deg, #1a3a1a, #0a1a0a);"></div>
+        <div class="price-tag">200 HP</div>
+      </div>
+
+      <div class="preview-card">
+        <h3>Starry Night Banner</h3>
+        <div class="banner-preview" style="background: radial-gradient(circle, #1a1a3a, #0a0a1a); position: relative;">
+          <div style="position: absolute; top: 20%; left: 20%; width: 3px; height: 3px; background: #ffae00; border-radius: 50%;"></div>
+          <div style="position: absolute; top: 40%; left: 60%; width: 2px; height: 2px; background: white; border-radius: 50%;"></div>
+          <div style="position: absolute; top: 70%; left: 30%; width: 3px; height: 3px; background: #ffae00; border-radius: 50%;"></div>
+          <div style="position: absolute; top: 50%; left: 80%; width: 2px; height: 2px; background: white; border-radius: 50%;"></div>
+        </div>
+        <div class="price-tag">500 HP - EPIC</div>
+      </div>
+
+      <div class="preview-card">
+        <h3>Golden Honey Banner</h3>
+        <div class="banner-preview" style="background: linear-gradient(135deg, #ffae00, #edb723, #d4a017);"></div>
+        <div class="price-tag">500 HP - EPIC</div>
+      </div>
+    </div>
+
+    <div class="demo-note">
+      <strong>💡 Demo Information:</strong><br>
+      • Click the buttons above to see the Store and Inventory modal designs<br>
+      • The modals are fully functional UI (backend integration pending)<br>
+      • All ring animations and styles are live previews<br>
+      • Pricing: Users earn ~65 HP/day, so items range from 2-12 days of activity<br>
+      • No default rings = makes cosmetics feel valuable and exclusive<br>
+      • The animated tri-color ring at 800 HP creates real prestige!
+    </div>
+  </div>
+
+  <!-- Include the actual modal files -->
+  <script src="cosmetics-system.js"></script>
+  <script>
+    // Mock localStorage for demo
+    if (!localStorage.getItem('xaman_account')) {
+      localStorage.setItem('xaman_account', 'rDemoWallet123456789');
+    }
+
+    // Mock API responses for demo
+    window.cosmeticsSystem.fetchCosmeticsCatalog = async (type) => {
+      const rings = [
+        { id: 1, cosmetic_type: 'ring', name: 'Purple Ring', description: 'A solid purple ring around your profile picture', image_url: 'purple-ring.svg', honey_cost: 150, rarity: 'common', is_animated: false },
+        { id: 2, cosmetic_type: 'ring', name: 'Green Ring', description: 'A solid green ring around your profile picture', image_url: 'green-ring.svg', honey_cost: 150, rarity: 'common', is_animated: false },
+        { id: 3, cosmetic_type: 'ring', name: 'Yellow Ring', description: 'A solid yellow ring around your profile picture', image_url: 'yellow-ring.svg', honey_cost: 150, rarity: 'common', is_animated: false },
+        { id: 4, cosmetic_type: 'ring', name: 'Tri-Color Ring', description: 'A ring with purple, green, and yellow colors', image_url: 'tricolor-ring.svg', honey_cost: 400, rarity: 'rare', is_animated: false },
+        { id: 5, cosmetic_type: 'ring', name: 'Animated Tri-Color Ring', description: 'A spinning ring with purple, green, and yellow colors', image_url: 'animated-tricolor-ring.svg', honey_cost: 800, rarity: 'legendary', is_animated: true }
+      ];
+
+      const banners = [
+        { id: 6, cosmetic_type: 'banner', name: 'Honeycomb Banner', description: 'A golden honeycomb pattern banner', image_url: 'banner-honeycomb.svg', honey_cost: 200, rarity: 'common', is_animated: false },
+        { id: 7, cosmetic_type: 'banner', name: 'Forest Banner', description: 'A lush forest scene banner', image_url: 'banner-forest.svg', honey_cost: 200, rarity: 'common', is_animated: false },
+        { id: 8, cosmetic_type: 'banner', name: 'Abstract Geometric Banner', description: 'Abstract shapes in BEARpark colors', image_url: 'banner-geometric.svg', honey_cost: 200, rarity: 'common', is_animated: false },
+        { id: 9, cosmetic_type: 'banner', name: 'Starry Night Banner', description: 'A starry night sky banner', image_url: 'banner-starry.svg', honey_cost: 500, rarity: 'epic', is_animated: false },
+        { id: 10, cosmetic_type: 'banner', name: 'Golden Honey Banner', description: 'Premium golden honey flow banner', image_url: 'banner-golden-honey.svg', honey_cost: 500, rarity: 'epic', is_animated: false }
+      ];
+
+      if (type === 'ring') return rings;
+      if (type === 'banner') return banners;
+      return [...rings, ...banners];
+    };
+
+    window.cosmeticsSystem.fetchUserInventory = async () => {
+      return {
+        inventory: [
+          { cosmetic_id: 1, cosmetic: { id: 1, cosmetic_type: 'ring', name: 'Purple Ring', description: 'A solid purple ring around your profile picture', image_url: 'purple-ring.svg', honey_cost: 150, rarity: 'common', is_animated: false }},
+          { cosmetic_id: 6, cosmetic: { id: 6, cosmetic_type: 'banner', name: 'Honeycomb Banner', description: 'A golden honeycomb pattern banner', image_url: 'banner-honeycomb.svg', honey_cost: 200, rarity: 'common', is_animated: false }}
+        ],
+        equipped: { ring_id: 1, banner_id: null }
+      };
+    };
+
+    window.cosmeticsSystem.purchaseCosmetic = async (wallet, cosmeticId) => {
+      alert('✅ Demo Mode: Purchase successful! In the live version, this would deduct Honey Points.');
+      return { success: true, new_balance: 450 };
+    };
+
+    window.cosmeticsSystem.equipCosmetic = async (wallet, cosmeticId) => {
+      alert('✅ Demo Mode: Cosmetic equipped! In the live version, this would update your profile.');
+      return { success: true };
+    };
+
+    window.cosmeticsSystem.unequipCosmetic = async (wallet, type) => {
+      alert('✅ Demo Mode: Cosmetic unequipped!');
+      return { success: true };
+    };
+  </script>
+  <script>
+    // Load store modal
+    fetch('store-modal.html')
+      .then(response => response.text())
+      .then(html => {
+        const div = document.createElement('div');
+        div.innerHTML = html;
+        document.body.appendChild(div);
+      });
+
+    // Load inventory modal
+    fetch('inventory-modal.html')
+      .then(response => response.text())
+      .then(html => {
+        const div = document.createElement('div');
+        div.innerHTML = html;
+        document.body.appendChild(div);
+      });
+  </script>
+</body>
+</html>
