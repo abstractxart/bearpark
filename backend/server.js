@@ -441,21 +441,58 @@ app.get('/api/leaderboard/:gameId', async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
 
     // Query the view that joins game_leaderboards with profiles
+    // Don't apply limit yet for bear-pong since we need to calculate weighted scores first
     const { data, error } = await supabase
       .from('game_leaderboard_with_profiles')
       .select('*')
       .eq('game_id', gameId)
-      .order('score', { ascending: false })
-      .limit(limit);
+      .order('score', { ascending: false });
 
     if (error) {
       console.error(`Error fetching ${gameId} leaderboard:`, error);
       return res.status(500).json({ success: false, error: error.message });
     }
 
+    let leaderboard = data || [];
+
+    // 🎯 BEAR PONG: Use weighted score ranking
+    // Formula: (Win% × 1000) + (Total Wins × 5)
+    // This balances skill (win rate) with dedication (total wins)
+    if (gameId === 'bear-pong') {
+      leaderboard = leaderboard.map(entry => {
+        const wins = entry.metadata?.wins || entry.score || 0;
+        const losses = entry.metadata?.losses || 0;
+        const totalGames = wins + losses;
+        const winRate = totalGames > 0 ? wins / totalGames : 0;
+
+        // Calculate weighted score: win% is heavily weighted, total wins add bonus points
+        const weightedScore = Math.round((winRate * 1000) + (wins * 5));
+
+        return {
+          ...entry,
+          weighted_score: weightedScore,
+          wins: wins,
+          losses: losses,
+          win_rate: winRate
+        };
+      });
+
+      // Sort by weighted score (highest first)
+      leaderboard.sort((a, b) => b.weighted_score - a.weighted_score);
+
+      // Re-calculate ranks based on weighted score
+      leaderboard = leaderboard.map((entry, index) => ({
+        ...entry,
+        rank: index + 1
+      }));
+    }
+
+    // Apply limit after sorting
+    leaderboard = leaderboard.slice(0, limit);
+
     res.json({
       success: true,
-      leaderboard: data || []
+      leaderboard: leaderboard
     });
   } catch (error) {
     console.error(`Error in ${req.params.gameId} leaderboard endpoint:`, error);
