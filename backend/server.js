@@ -91,10 +91,10 @@ try {
 // Enable gzip compression for all responses (80% file size reduction)
 app.use(compression());
 
-// Rate limiting to prevent API abuse
+// Rate limiting to prevent API abuse (increased limit for legitimate traffic)
 const apiLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute window
-  max: 100, // 100 requests per minute per IP
+  max: 1000, // 1000 requests per minute per IP (still blocks spam, allows normal use)
   message: { success: false, error: 'Too many requests, please try again later' },
   standardHeaders: true,
   legacyHeaders: false
