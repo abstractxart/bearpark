@@ -1,0 +1,384 @@
+<!-- Inventory Modal -->
+<style>
+  .inventory-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(10px);
+    z-index: 10001;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .inventory-modal.active {
+    display: flex;
+  }
+
+  .inventory-modal-content {
+    background: linear-gradient(135deg, #1a1a1f, #0f0f12);
+    border-radius: 24px;
+    border: 4px solid #07ae08;
+    max-width: 1000px;
+    width: 90%;
+    max-height: 90vh;
+    overflow: hidden;
+    box-shadow: 0 20px 80px rgba(7, 174, 8, 0.3);
+    animation: slideIn 0.3s cubic-bezier(.18,.9,.2,1);
+  }
+
+  .inventory-header {
+    background: linear-gradient(135deg, rgba(7, 174, 8, 0.3), rgba(237, 183, 35, 0.3));
+    padding: 24px 32px;
+    border-bottom: 3px solid #07ae08;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .inventory-title {
+    font-size: 32px;
+    font-weight: 900;
+    color: #07ae08;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  }
+
+  .inventory-close-btn {
+    background: rgba(255, 0, 0, 0.2);
+    border: 2px solid #ff4444;
+    color: #ff4444;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    font-size: 24px;
+    font-weight: 900;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .inventory-close-btn:hover {
+    background: rgba(255, 0, 0, 0.4);
+    transform: scale(1.1);
+  }
+
+  .inventory-tabs {
+    display: flex;
+    gap: 8px;
+    padding: 16px 32px;
+    background: rgba(0,0,0,0.3);
+    border-bottom: 2px solid rgba(7, 174, 8, 0.3);
+  }
+
+  .inventory-tab {
+    padding: 12px 24px;
+    font-size: 16px;
+    font-weight: 900;
+    background: rgba(0,0,0,0.5);
+    border: 2px solid rgba(7, 174, 8, 0.3);
+    border-radius: 12px;
+    color: #888;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .inventory-tab:hover {
+    border-color: rgba(7, 174, 8, 0.6);
+    color: #aaa;
+  }
+
+  .inventory-tab.active {
+    background: #07ae08;
+    color: #000;
+    border-color: #07ae08;
+  }
+
+  .inventory-body {
+    padding: 32px;
+    overflow-y: auto;
+    max-height: calc(90vh - 200px);
+  }
+
+  .inventory-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 20px;
+  }
+
+  .inventory-item {
+    background: rgba(0,0,0,0.5);
+    border: 3px solid rgba(7, 174, 8, 0.3);
+    border-radius: 16px;
+    padding: 16px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+  }
+
+  .inventory-item:hover {
+    border-color: #07ae08;
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(7, 174, 8, 0.3);
+  }
+
+  .inventory-item.equipped {
+    border-color: var(--gold);
+    background: rgba(237, 183, 35, 0.1);
+  }
+
+  .inventory-item-preview {
+    width: 100%;
+    height: 120px;
+    background: rgba(0,0,0,0.6);
+    border-radius: 12px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .inventory-item-preview img {
+    max-width: 100%;
+    max-height: 100%;
+  }
+
+  .equipped-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    padding: 4px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 900;
+    background: var(--gold);
+    color: #000;
+    text-transform: uppercase;
+  }
+
+  .inventory-item-name {
+    font-size: 18px;
+    font-weight: 900;
+    color: #07ae08;
+    margin-bottom: 8px;
+  }
+
+  .inventory-item-description {
+    font-size: 14px;
+    color: #aaa;
+    margin-bottom: 12px;
+    min-height: 40px;
+  }
+
+  .inventory-item-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .inventory-item-btn {
+    flex: 1;
+    padding: 8px 16px;
+    font-size: 14px;
+    font-weight: 900;
+    background: #07ae08;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .inventory-item-btn:hover {
+    background: #09d00a;
+    transform: scale(1.05);
+  }
+
+  .inventory-item-btn.unequip {
+    background: #ff4444;
+  }
+
+  .inventory-item-btn.unequip:hover {
+    background: #ff6666;
+  }
+
+  .inventory-empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: #666;
+  }
+
+  .inventory-empty-icon {
+    font-size: 64px;
+    margin-bottom: 16px;
+  }
+
+  .inventory-empty-text {
+    font-size: 20px;
+    font-weight: 900;
+    margin-bottom: 8px;
+  }
+
+  .inventory-empty-subtext {
+    font-size: 16px;
+    color: #888;
+  }
+</style>
+
+<div id="inventoryModal" class="inventory-modal">
+  <div class="inventory-modal-content">
+    <div class="inventory-header">
+      <h2 class="inventory-title">🎒 My Inventory</h2>
+      <button class="inventory-close-btn" onclick="closeInventoryModal()">×</button>
+    </div>
+
+    <div class="inventory-tabs">
+      <div class="inventory-tab active" onclick="switchInventoryTab('rings')">Profile Rings</div>
+      <div class="inventory-tab" onclick="switchInventoryTab('banners')">Profile Banners</div>
+    </div>
+
+    <div class="inventory-body">
+      <div id="inventoryRingsGrid" class="inventory-grid"></div>
+      <div id="inventoryBannersGrid" class="inventory-grid" style="display: none;"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let currentInventoryTab = 'rings';
+  let equippedRingId = null;
+  let equippedBannerId = null;
+
+  async function openInventoryModal() {
+    const modal = document.getElementById('inventoryModal');
+    modal.classList.add('active');
+
+    // Get user's wallet
+    const wallet = localStorage.getItem('xaman_account');
+    if (!wallet) {
+      alert('Please connect your wallet first');
+      closeInventoryModal();
+      return;
+    }
+
+    // Fetch user's inventory
+    const inventoryData = await window.cosmeticsSystem.fetchUserInventory(wallet);
+    equippedRingId = inventoryData.equipped.ring_id;
+    equippedBannerId = inventoryData.equipped.banner_id;
+
+    // Load inventory items
+    await loadInventoryItems('ring', inventoryData.inventory);
+  }
+
+  function closeInventoryModal() {
+    const modal = document.getElementById('inventoryModal');
+    modal.classList.remove('active');
+  }
+
+  async function switchInventoryTab(tab) {
+    currentInventoryTab = tab;
+
+    // Update tab buttons
+    document.querySelectorAll('.inventory-tab').forEach(btn => {
+      btn.classList.remove('active');
+    });
+    event.target.classList.add('active');
+
+    // Show/hide grids
+    document.getElementById('inventoryRingsGrid').style.display = tab === 'rings' ? 'grid' : 'none';
+    document.getElementById('inventoryBannersGrid').style.display = tab === 'banners' ? 'grid' : 'none';
+
+    // Reload items for this tab
+    const wallet = localStorage.getItem('xaman_account');
+    const inventoryData = await window.cosmeticsSystem.fetchUserInventory(wallet);
+    await loadInventoryItems(tab === 'rings' ? 'ring' : 'banner', inventoryData.inventory);
+  }
+
+  async function loadInventoryItems(type, inventory) {
+    const gridId = type === 'ring' ? 'inventoryRingsGrid' : 'inventoryBannersGrid';
+    const grid = document.getElementById(gridId);
+
+    // Filter items by type
+    const items = inventory.filter(item => item.cosmetic.cosmetic_type === type);
+
+    if (items.length === 0) {
+      grid.innerHTML = `
+        <div class="inventory-empty" style="grid-column: 1 / -1;">
+          <div class="inventory-empty-icon">📦</div>
+          <div class="inventory-empty-text">No ${type}s in your inventory</div>
+          <div class="inventory-empty-subtext">Visit the store to purchase some!</div>
+        </div>
+      `;
+      return;
+    }
+
+    const equippedId = type === 'ring' ? equippedRingId : equippedBannerId;
+
+    grid.innerHTML = items.map(item => {
+      const cosmetic = item.cosmetic;
+      const isEquipped = cosmetic.id === equippedId;
+
+      return `
+        <div class="inventory-item ${isEquipped ? 'equipped' : ''}" onclick="toggleEquipCosmetic(${cosmetic.id}, '${type}', ${isEquipped})">
+          <div class="inventory-item-preview">
+            <img src="/cosmetics/${cosmetic.image_url}" alt="${cosmetic.name}">
+            ${isEquipped ? '<div class="equipped-badge">EQUIPPED</div>' : ''}
+          </div>
+          <div class="inventory-item-name">${cosmetic.name}</div>
+          <div class="inventory-item-description">${cosmetic.description}</div>
+          <div class="inventory-item-footer">
+            <button class="inventory-item-btn ${isEquipped ? 'unequip' : ''}">
+              ${isEquipped ? 'Unequip' : 'Equip'}
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  async function toggleEquipCosmetic(cosmeticId, type, isEquipped) {
+    const wallet = localStorage.getItem('xaman_account');
+    if (!wallet) {
+      alert('Please connect your wallet first');
+      return;
+    }
+
+    let result;
+    if (isEquipped) {
+      result = await window.cosmeticsSystem.unequipCosmetic(wallet, type);
+      if (result.success) {
+        if (type === 'ring') equippedRingId = null;
+        else equippedBannerId = null;
+      }
+    } else {
+      result = await window.cosmeticsSystem.equipCosmetic(wallet, cosmeticId);
+      if (result.success) {
+        if (type === 'ring') equippedRingId = cosmeticId;
+        else equippedBannerId = cosmeticId;
+      }
+    }
+
+    if (result.success) {
+      // Reload inventory to reflect changes
+      const inventoryData = await window.cosmeticsSystem.fetchUserInventory(wallet);
+      await loadInventoryItems(type, inventoryData.inventory);
+
+      // Reload profile to show new cosmetics
+      if (typeof loadUserProfile === 'function') {
+        loadUserProfile();
+      }
+    } else {
+      alert(`Failed to ${isEquipped ? 'unequip' : 'equip'}: ${result.error}`);
+    }
+  }
+
+  // Close modal when clicking outside
+  document.getElementById('inventoryModal')?.addEventListener('click', (e) => {
+    if (e.target.id === 'inventoryModal') {
+      closeInventoryModal();
+    }
+  });
+</script>

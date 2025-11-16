@@ -5,6 +5,8 @@ if (process.env.NODE_ENV !== 'production') {
 }
 const express = require('express');
 const cors = require('cors');
+const compression = require('compression');
+const rateLimit = require('express-rate-limit');
 const { XummSdk } = require('xumm-sdk');
 const { createClient } = require('@supabase/supabase-js');
 const { Pool } = require('pg');
@@ -86,6 +88,19 @@ try {
 }
 
 // Middleware
+// Enable gzip compression for all responses (80% file size reduction)
+app.use(compression());
+
+// Rate limiting to prevent API abuse
+const apiLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute window
+  max: 100, // 100 requests per minute per IP
+  message: { success: false, error: 'Too many requests, please try again later' },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+app.use('/api/', apiLimiter);
+
 app.use(cors({
   origin: [FRONTEND_URL, 'https://bearpark.xyz', 'https://www.bearpark.xyz', 'http://localhost:8080', 'http://127.0.0.1:8080'],
   credentials: true

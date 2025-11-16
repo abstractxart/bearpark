@@ -1,0 +1,797 @@
+<!-- LEGENDARY Honey Points Store Modal -->
+<style>
+  .store-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.92);
+    backdrop-filter: blur(15px);
+    z-index: 10001;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .store-modal.active {
+    display: flex;
+    animation: fadeIn 0.3s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .store-modal-content {
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    border-radius: 28px;
+    border: 5px solid;
+    border-image: linear-gradient(135deg, #680cd9, #ffae00, #07ae08) 1;
+    max-width: 1100px;
+    width: 92%;
+    max-height: 92vh;
+    overflow: hidden;
+    box-shadow: 0 30px 100px rgba(237, 183, 35, 0.4),
+                0 0 80px rgba(104, 12, 217, 0.3);
+    animation: slideInBounce 0.5s cubic-bezier(.18,.9,.2,1);
+  }
+
+  @keyframes slideInBounce {
+    0% { transform: translateY(-100px) scale(0.9); opacity: 0; }
+    70% { transform: translateY(10px) scale(1.02); }
+    100% { transform: translateY(0) scale(1); opacity: 1; }
+  }
+
+  .store-header {
+    background: linear-gradient(135deg, rgba(104, 12, 217, 0.4), rgba(237, 183, 35, 0.4), rgba(7, 174, 8, 0.4));
+    padding: 28px 36px;
+    border-bottom: 4px solid rgba(237, 183, 35, 0.6);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .store-header::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(45deg, transparent, rgba(255,255,255,0.05), transparent);
+    animation: shimmer 3s infinite;
+  }
+
+  @keyframes shimmer {
+    0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+    100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+  }
+
+  .store-title-section {
+    position: relative;
+    z-index: 1;
+  }
+
+  .store-title {
+    font-size: 36px;
+    font-weight: 900;
+    color: #ffae00;
+    text-shadow: 0 3px 12px rgba(237, 183, 35, 0.8),
+                 0 0 30px rgba(237, 183, 35, 0.5);
+    margin-bottom: 4px;
+  }
+
+  .store-subtitle {
+    font-size: 14px;
+    color: #aaa;
+    font-weight: 400;
+  }
+
+  .store-balance-container {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    gap: 16px;
+    align-items: center;
+  }
+
+  .store-balance {
+    font-size: 28px;
+    font-weight: 900;
+    color: #ffae00;
+    background: linear-gradient(135deg, rgba(0,0,0,0.8), rgba(20,20,30,0.9));
+    padding: 14px 24px;
+    border-radius: 16px;
+    border: 3px solid #ffae00;
+    box-shadow: 0 0 20px rgba(255, 174, 0, 0.4),
+                inset 0 0 20px rgba(255, 174, 0, 0.1);
+    animation: pulseGlow 2s ease-in-out infinite;
+  }
+
+  @keyframes pulseGlow {
+    0%, 100% { box-shadow: 0 0 20px rgba(255, 174, 0, 0.4), inset 0 0 20px rgba(255, 174, 0, 0.1); }
+    50% { box-shadow: 0 0 30px rgba(255, 174, 0, 0.6), inset 0 0 30px rgba(255, 174, 0, 0.2); }
+  }
+
+  .store-balance .hp-amount {
+    font-size: 32px;
+    text-shadow: 0 2px 10px rgba(255, 174, 0, 0.8);
+  }
+
+  .store-close-btn {
+    background: rgba(255, 0, 0, 0.2);
+    border: 3px solid #ff4444;
+    color: #ff4444;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    font-size: 28px;
+    font-weight: 900;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    z-index: 1;
+  }
+
+  .store-close-btn:hover {
+    background: rgba(255, 0, 0, 0.5);
+    transform: scale(1.15) rotate(90deg);
+    box-shadow: 0 0 20px rgba(255, 68, 68, 0.6);
+  }
+
+  .store-tabs {
+    display: flex;
+    gap: 12px;
+    padding: 20px 36px;
+    background: rgba(0,0,0,0.4);
+    border-bottom: 3px solid rgba(237, 183, 35, 0.3);
+  }
+
+  .store-tab {
+    padding: 14px 28px;
+    font-size: 18px;
+    font-weight: 900;
+    background: rgba(0,0,0,0.6);
+    border: 3px solid rgba(237, 183, 35, 0.3);
+    border-radius: 14px;
+    color: #888;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(.18,.9,.2,1);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .store-tab::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(237, 183, 35, 0.3);
+    transform: translate(-50%, -50%);
+    transition: width 0.4s, height 0.4s;
+  }
+
+  .store-tab:hover::before {
+    width: 200%;
+    height: 200%;
+  }
+
+  .store-tab:hover {
+    border-color: rgba(237, 183, 35, 0.7);
+    color: #ddd;
+    transform: translateY(-2px);
+  }
+
+  .store-tab.active {
+    background: linear-gradient(135deg, #ffae00, #edb723);
+    color: #000;
+    border-color: #ffae00;
+    box-shadow: 0 4px 15px rgba(255, 174, 0, 0.4);
+  }
+
+  .store-tab span {
+    position: relative;
+    z-index: 1;
+  }
+
+  .store-body {
+    padding: 36px;
+    overflow-y: auto;
+    max-height: calc(92vh - 280px);
+  }
+
+  .store-body::-webkit-scrollbar {
+    width: 12px;
+  }
+
+  .store-body::-webkit-scrollbar-track {
+    background: rgba(0,0,0,0.3);
+    border-radius: 10px;
+  }
+
+  .store-body::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #680cd9, #ffae00);
+    border-radius: 10px;
+  }
+
+  .store-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 24px;
+  }
+
+  .store-item {
+    background: linear-gradient(135deg, rgba(20,20,30,0.8), rgba(10,10,20,0.9));
+    border: 4px solid;
+    border-radius: 20px;
+    padding: 20px;
+    transition: all 0.4s cubic-bezier(.18,.9,.2,1);
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Rarity-based borders and glows */
+  .store-item.common {
+    border-color: #22c55e;
+  }
+
+  .store-item.rare {
+    border-color: #3b82f6;
+  }
+
+  .store-item.epic {
+    border-color: #a855f7;
+  }
+
+  .store-item.legendary {
+    border-color: #f59e0b;
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(239, 68, 68, 0.1));
+  }
+
+  .store-item::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255,255,255,0.1), transparent 70%);
+    opacity: 0;
+    transition: opacity 0.4s;
+  }
+
+  .store-item:hover::before {
+    opacity: 1;
+    animation: rotateBg 3s linear infinite;
+  }
+
+  @keyframes rotateBg {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  .store-item:hover {
+    transform: translateY(-8px) scale(1.02);
+  }
+
+  .store-item.common:hover {
+    box-shadow: 0 12px 40px rgba(34, 197, 94, 0.4);
+  }
+
+  .store-item.rare:hover {
+    box-shadow: 0 12px 40px rgba(59, 130, 246, 0.5);
+  }
+
+  .store-item.epic:hover {
+    box-shadow: 0 12px 40px rgba(168, 85, 247, 0.6);
+  }
+
+  .store-item.legendary:hover {
+    box-shadow: 0 12px 40px rgba(245, 158, 11, 0.7),
+                0 0 60px rgba(239, 68, 68, 0.4);
+    animation: legendaryPulse 1s ease-in-out infinite;
+  }
+
+  @keyframes legendaryPulse {
+    0%, 100% { transform: translateY(-8px) scale(1.02); }
+    50% { transform: translateY(-10px) scale(1.03); }
+  }
+
+  .store-item.owned {
+    opacity: 0.6;
+    cursor: default;
+  }
+
+  .store-item.owned:hover {
+    transform: none;
+    box-shadow: none;
+  }
+
+  .store-item-preview {
+    width: 100%;
+    height: 140px;
+    background: rgba(0,0,0,0.7);
+    border-radius: 16px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .store-item-preview img {
+    max-width: 90%;
+    max-height: 90%;
+    filter: drop-shadow(0 4px 12px rgba(0,0,0,0.5));
+  }
+
+  .store-item-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    padding: 6px 14px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 900;
+    text-transform: uppercase;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.4);
+    z-index: 2;
+  }
+
+  .rarity-common {
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+    color: #fff;
+  }
+
+  .rarity-rare {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    color: #fff;
+  }
+
+  .rarity-epic {
+    background: linear-gradient(135deg, #a855f7, #9333ea);
+    color: #fff;
+    animation: epicGlow 2s ease-in-out infinite;
+  }
+
+  @keyframes epicGlow {
+    0%, 100% { box-shadow: 0 3px 10px rgba(168, 85, 247, 0.4); }
+    50% { box-shadow: 0 3px 20px rgba(168, 85, 247, 0.8); }
+  }
+
+  .rarity-legendary {
+    background: linear-gradient(135deg, #f59e0b, #ef4444);
+    color: #fff;
+    animation: legendaryShine 2s linear infinite;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .rarity-legendary::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(45deg, transparent, rgba(255,255,255,0.6), transparent);
+    animation: shineMove 2s infinite;
+  }
+
+  @keyframes shineMove {
+    0% { transform: translateX(-100%) rotate(45deg); }
+    100% { transform: translateX(100%) rotate(45deg); }
+  }
+
+  @keyframes legendaryShine {
+    0%, 100% { box-shadow: 0 3px 15px rgba(245, 158, 11, 0.6), 0 0 25px rgba(239, 68, 68, 0.4); }
+    50% { box-shadow: 0 3px 25px rgba(245, 158, 11, 1), 0 0 40px rgba(239, 68, 68, 0.7); }
+  }
+
+  .store-item-name {
+    font-size: 20px;
+    font-weight: 900;
+    margin-bottom: 10px;
+    position: relative;
+  }
+
+  .store-item.common .store-item-name { color: #22c55e; }
+  .store-item.rare .store-item-name { color: #3b82f6; }
+  .store-item.epic .store-item-name { color: #a855f7; }
+  .store-item.legendary .store-item-name {
+    background: linear-gradient(135deg, #f59e0b, #ef4444);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .store-item-description {
+    font-size: 14px;
+    color: #aaa;
+    margin-bottom: 16px;
+    min-height: 42px;
+    line-height: 1.4;
+  }
+
+  .store-item-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .store-item-price {
+    font-size: 24px;
+    font-weight: 900;
+    color: #ffae00;
+    text-shadow: 0 2px 8px rgba(255, 174, 0, 0.6);
+  }
+
+  .store-item-btn {
+    padding: 10px 20px;
+    font-size: 16px;
+    font-weight: 900;
+    background: linear-gradient(135deg, #ffae00, #edb723);
+    color: #000;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(237, 183, 35, 0.3);
+    font-family: inherit;
+  }
+
+  .store-item-btn:hover {
+    background: linear-gradient(135deg, #edb723, #d4a017);
+    transform: scale(1.08);
+    box-shadow: 0 6px 20px rgba(237, 183, 35, 0.5);
+  }
+
+  .store-item-btn:active {
+    transform: scale(0.98);
+  }
+
+  .store-item-btn:disabled {
+    background: #333;
+    color: #666;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .owned-badge {
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+    color: #fff;
+    padding: 6px 16px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 900;
+    box-shadow: 0 3px 10px rgba(34, 197, 94, 0.4);
+  }
+
+  /* CELEBRATION OVERLAY */
+  .celebration-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 20000;
+    pointer-events: none;
+  }
+
+  .celebration-overlay.active {
+    display: block;
+  }
+
+  .celebration-content {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+  }
+
+  .celebration-icon {
+    font-size: 120px;
+    animation: bounceIn 0.8s cubic-bezier(.18,.9,.2,1);
+  }
+
+  @keyframes bounceIn {
+    0% { transform: scale(0) rotate(0deg); opacity: 0; }
+    50% { transform: scale(1.2) rotate(180deg); }
+    100% { transform: scale(1) rotate(360deg); opacity: 1; }
+  }
+
+  .celebration-text {
+    font-size: 48px;
+    font-weight: 900;
+    margin-top: 20px;
+    text-shadow: 0 4px 20px rgba(0,0,0,0.8);
+  }
+
+  .celebration-subtext {
+    font-size: 24px;
+    margin-top: 10px;
+    opacity: 0.9;
+  }
+
+  /* Confetti and Particles */
+  .confetti {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background: #ffae00;
+    animation: confettiFall 3s ease-out forwards;
+  }
+
+  @keyframes confettiFall {
+    to {
+      transform: translateY(100vh) rotate(720deg);
+      opacity: 0;
+    }
+  }
+
+  .particle {
+    position: absolute;
+    border-radius: 50%;
+    animation: particleFloat 2s ease-out forwards;
+  }
+
+  @keyframes particleFloat {
+    0% {
+      transform: translate(0, 0) scale(1);
+      opacity: 1;
+    }
+    100% {
+      transform: translate(var(--tx), var(--ty)) scale(0);
+      opacity: 0;
+    }
+  }
+</style>
+
+<div id="storeModal" class="store-modal">
+  <div class="store-modal-content">
+    <div class="store-header">
+      <div class="store-title-section">
+        <h2 class="store-title">🍯 HONEY POINTS STORE</h2>
+        <div class="store-subtitle">Unlock legendary cosmetics with your points</div>
+      </div>
+      <div class="store-balance-container">
+        <div class="store-balance">
+          <span class="hp-amount" id="storeHoneyBalance">0</span> <span style="font-size: 20px;">HP</span>
+        </div>
+        <button class="store-close-btn" onclick="closeStoreModal()">×</button>
+      </div>
+    </div>
+
+    <div class="store-tabs">
+      <div class="store-tab active" onclick="switchStoreTab('rings', event)">
+        <span>💍 Profile Rings</span>
+      </div>
+      <div class="store-tab" onclick="switchStoreTab('banners', event)">
+        <span>🎨 Profile Banners</span>
+      </div>
+    </div>
+
+    <div class="store-body">
+      <div id="storeRingsGrid" class="store-grid"></div>
+      <div id="storeBannersGrid" class="store-grid" style="display: none;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Celebration Overlay -->
+<div id="celebrationOverlay" class="celebration-overlay">
+  <div class="celebration-content">
+    <div class="celebration-icon" id="celebrationIcon"></div>
+    <div class="celebration-text" id="celebrationText"></div>
+    <div class="celebration-subtext" id="celebrationSubtext"></div>
+  </div>
+</div>
+
+<script>
+  let currentStoreTab = 'rings';
+  let userOwnedCosmetics = [];
+
+  async function openStoreModal() {
+    const modal = document.getElementById('storeModal');
+    modal.classList.add('active');
+
+    const wallet = localStorage.getItem('xaman_account');
+    if (!wallet) {
+      alert('Please connect your wallet first');
+      closeStoreModal();
+      return;
+    }
+
+    await updateStoreBalance(wallet);
+    const inventoryData = await window.cosmeticsSystem.fetchUserInventory(wallet);
+    userOwnedCosmetics = inventoryData.inventory.map(item => item.cosmetic_id);
+    await loadStoreItems('ring');
+  }
+
+  function closeStoreModal() {
+    const modal = document.getElementById('storeModal');
+    modal.classList.remove('active');
+  }
+
+  async function switchStoreTab(tab, event) {
+    currentStoreTab = tab;
+
+    document.querySelectorAll('.store-tab').forEach(btn => {
+      btn.classList.remove('active');
+    });
+    event.target.closest('.store-tab').classList.add('active');
+
+    document.getElementById('storeRingsGrid').style.display = tab === 'rings' ? 'grid' : 'none';
+    document.getElementById('storeBannersGrid').style.display = tab === 'banners' ? 'grid' : 'none';
+
+    await loadStoreItems(tab === 'rings' ? 'ring' : 'banner');
+  }
+
+  async function loadStoreItems(type) {
+    const cosmetics = await window.cosmeticsSystem.fetchCosmeticsCatalog(type);
+    const gridId = type === 'ring' ? 'storeRingsGrid' : 'storeBannersGrid';
+    const grid = document.getElementById(gridId);
+
+    grid.innerHTML = cosmetics.map(cosmetic => {
+      const isOwned = userOwnedCosmetics.includes(cosmetic.id);
+      const rarityClass = cosmetic.rarity;
+
+      return `
+        <div class="store-item ${rarityClass} ${isOwned ? 'owned' : ''}" onclick="${!isOwned ? `purchaseStoreItem(${cosmetic.id}, ${cosmetic.honey_cost}, '${cosmetic.rarity}', '${cosmetic.name}')` : ''}">
+          <div class="store-item-preview">
+            <img src="/cosmetics/${cosmetic.image_url}" alt="${cosmetic.name}">
+            <div class="store-item-badge rarity-${rarityClass}">${cosmetic.rarity}</div>
+          </div>
+          <div class="store-item-name">${cosmetic.name}</div>
+          <div class="store-item-description">${cosmetic.description}</div>
+          <div class="store-item-footer">
+            <div class="store-item-price">${cosmetic.honey_cost} HP</div>
+            ${isOwned
+              ? '<span class="owned-badge">✓ OWNED</span>'
+              : `<button class="store-item-btn">BUY NOW</button>`
+            }
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  async function updateStoreBalance(wallet) {
+    try {
+      const response = await fetch(`/api/points/${wallet}`);
+      const data = await response.json();
+      document.getElementById('storeHoneyBalance').textContent = data.total_points || 0;
+    } catch (error) {
+      console.error('Error fetching balance:', error);
+    }
+  }
+
+  async function purchaseStoreItem(cosmeticId, cost, rarity, itemName) {
+    const wallet = localStorage.getItem('xaman_account');
+    if (!wallet) {
+      alert('Please connect your wallet first');
+      return;
+    }
+
+    if (!confirm(`Purchase ${itemName} for ${cost} Honey Points?`)) {
+      return;
+    }
+
+    const result = await window.cosmeticsSystem.purchaseCosmetic(wallet, cosmeticId);
+
+    if (result.success) {
+      // Show celebration based on rarity
+      showCelebration(rarity, itemName);
+
+      // Update balance and owned items
+      userOwnedCosmetics.push(cosmeticId);
+      await updateStoreBalance(wallet);
+      await loadStoreItems(currentStoreTab === 'rings' ? 'ring' : 'banner');
+    } else {
+      alert(`Purchase failed: ${result.error}`);
+    }
+  }
+
+  function showCelebration(rarity, itemName) {
+    const overlay = document.getElementById('celebrationOverlay');
+    const icon = document.getElementById('celebrationIcon');
+    const text = document.getElementById('celebrationText');
+    const subtext = document.getElementById('celebrationSubtext');
+
+    // Set content based on rarity
+    const celebrations = {
+      common: {
+        icon: '✨',
+        text: 'UNLOCKED!',
+        color: '#22c55e',
+        confettiCount: 30
+      },
+      rare: {
+        icon: '💎',
+        text: 'RARE UNLOCK!',
+        color: '#3b82f6',
+        confettiCount: 50
+      },
+      epic: {
+        icon: '🌟',
+        text: 'EPIC UNLOCK!',
+        color: '#a855f7',
+        confettiCount: 80
+      },
+      legendary: {
+        icon: '👑',
+        text: 'LEGENDARY!',
+        color: '#f59e0b',
+        confettiCount: 150
+      }
+    };
+
+    const config = celebrations[rarity];
+    icon.textContent = config.icon;
+    text.textContent = config.text;
+    text.style.color = config.color;
+    subtext.textContent = itemName;
+    subtext.style.color = config.color;
+
+    overlay.classList.add('active');
+
+    // Create confetti
+    createConfetti(config.confettiCount, config.color);
+
+    // Screen shake for legendary
+    if (rarity === 'legendary') {
+      document.querySelector('.store-modal-content').style.animation = 'shake 0.5s';
+      setTimeout(() => {
+        document.querySelector('.store-modal-content').style.animation = '';
+      }, 500);
+    }
+
+    // Hide after animation
+    setTimeout(() => {
+      overlay.classList.remove('active');
+      overlay.innerHTML = '<div class="celebration-content"><div class="celebration-icon" id="celebrationIcon"></div><div class="celebration-text" id="celebrationText"></div><div class="celebration-subtext" id="celebrationSubtext"></div></div>';
+    }, 3000);
+  }
+
+  function createConfetti(count, color) {
+    const overlay = document.getElementById('celebrationOverlay');
+
+    for (let i = 0; i < count; i++) {
+      const confetti = document.createElement('div');
+      confetti.className = 'confetti';
+      confetti.style.left = Math.random() * 100 + '%';
+      confetti.style.background = i % 3 === 0 ? color : (i % 3 === 1 ? '#ffae00' : '#ffffff');
+      confetti.style.animationDelay = Math.random() * 0.5 + 's';
+      confetti.style.animationDuration = (Math.random() * 2 + 2) + 's';
+      overlay.appendChild(confetti);
+    }
+  }
+
+  // Close modal when clicking outside
+  document.getElementById('storeModal')?.addEventListener('click', (e) => {
+    if (e.target.id === 'storeModal') {
+      closeStoreModal();
+    }
+  });
+</script>
+
+<style>
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-10px); }
+    20%, 40%, 60%, 80% { transform: translateX(10px); }
+  }
+</style>

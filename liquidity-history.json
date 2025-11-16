@@ -1,0 +1,16 @@
+{
+  "comment": "Historical XRP Liquidity data for BEAR/XRP AMM pool. Data before 2024-04-11 is not available.",
+  "data": [
+    { "date": "2024-04-11", "xrpLiquidity": 50000 },
+    { "date": "2024-05-01", "xrpLiquidity": 55000 },
+    { "date": "2024-06-01", "xrpLiquidity": 60000 },
+    { "date": "2024-07-01", "xrpLiquidity": 62000 },
+    { "date": "2024-08-01", "xrpLiquidity": 65000 },
+    { "date": "2024-09-01", "xrpLiquidity": 68000 },
+    { "date": "2024-10-01", "xrpLiquidity": 72000 },
+    { "date": "2024-11-01", "xrpLiquidity": 75000 },
+    { "date": "2024-12-01", "xrpLiquidity": 76500 },
+    { "date": "2025-01-01", "xrpLiquidity": 78000 }
+  ],
+  "instructions": "Update this file with real data from XPMarket or other XRPL explorers. Add new entries as needed."
+}
