@@ -500,6 +500,56 @@ app.get('/api/leaderboard/:gameId', async (req, res) => {
   }
 });
 
+// Get Individual Player Stats for a Game
+app.get('/api/leaderboard/:gameId/:walletAddress', async (req, res) => {
+  try {
+    const { gameId, walletAddress } = req.params;
+
+    // Fetch player's stats from database
+    const { data, error } = await supabase
+      .from('game_leaderboard_with_profiles')
+      .select('*')
+      .eq('game_id', gameId)
+      .eq('wallet_address', walletAddress)
+      .single();
+
+    if (error && error.code !== 'PGRST116') {
+      console.error(`Error fetching stats for ${walletAddress} in ${gameId}:`, error);
+      return res.status(500).json({ success: false, error: error.message });
+    }
+
+    if (!data) {
+      // Player has no stats for this game yet
+      return res.json({
+        success: true,
+        entry: null
+      });
+    }
+
+    // For bear-pong, add weighted score
+    if (gameId === 'bear-pong' && data.metadata) {
+      const wins = data.metadata.wins || data.score || 0;
+      const losses = data.metadata.losses || 0;
+      const totalGames = wins + losses;
+      const winRate = totalGames > 0 ? wins / totalGames : 0;
+      const weightedScore = Math.round((winRate * 1000) + (wins * 5));
+
+      data.weighted_score = weightedScore;
+      data.wins = wins;
+      data.losses = losses;
+      data.win_rate = winRate;
+    }
+
+    res.json({
+      success: true,
+      entry: data
+    });
+  } catch (error) {
+    console.error(`Error in /api/leaderboard/:gameId/:walletAddress:`, error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Submit Game Score to Leaderboard
 app.post('/api/leaderboard', validateWallet, validateAmount, async (req, res) => {
   try {
