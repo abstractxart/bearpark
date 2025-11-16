@@ -1,5 +1,5 @@
 // BEAR Park Service Worker - Push Notifications & Offline Support
-const CACHE_NAME = 'bearpark-v3'; // Updated to force new SW installation with bugfix
+const CACHE_NAME = 'bearpark-v4'; // Fixed API caching bug - never cache API calls
 const API_URL = 'https://bearpark.xyz'; // Change to your production URL
 
 // Install event - cache essential assets
@@ -42,6 +42,21 @@ self.addEventListener('fetch', (event) => {
 
   // Skip chrome-extension and other non-http(s) requests
   if (!event.request.url.startsWith('http')) return;
+
+  // NEVER cache API calls - always fetch fresh data
+  if (event.request.url.includes('/api/')) {
+    event.respondWith(
+      fetch(event.request).catch((error) => {
+        console.error('🐻 ❌ API fetch failed for:', event.request.url, error);
+        return new Response('Network error', {
+          status: 503,
+          statusText: 'Service Unavailable',
+          headers: new Headers({ 'Content-Type': 'text/plain' })
+        });
+      })
+    );
+    return;
+  }
 
   event.respondWith(
     caches.match(event.request).then((response) => {
