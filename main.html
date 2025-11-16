@@ -9128,16 +9128,9 @@
       };
     }
 
-    // Fetch XRP/USD price
+    // XRP/USD price - using static value (removed CoinGecko to eliminate console spam)
     async function fetchXrpPrice(){
-      try {
-        const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=ripple&vs_currencies=usd', {cache:'no-store'});
-        if (!r.ok) return 2.5; // fallback
-        const j = await r.json();
-        return Number(j?.ripple?.usd ?? 2.5);
-      } catch {
-        return 2.5; // fallback
-      }
+      return 2.5; // Static price - update manually if needed
     }
 
     async function updatePrices(){
