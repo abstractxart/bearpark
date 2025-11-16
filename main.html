@@ -12186,7 +12186,7 @@
 
       for (const game of games) {
         try {
-          const response = await fetch(`${API_BASE_URL}/api/leaderboard/${game.id}?limit=10`);
+          const response = await fetch(`${API_BASE_URL}/api/leaderboard/${game.id}?limit=100`);
           const data = await response.json();
 
           const container = document.getElementById(game.elementId);
