@@ -16632,6 +16632,23 @@
             }
           });
           console.log('🔥 FORCED CONTAINER AND', commentItems.length, 'comments to display');
+
+          // FORCE MODAL TO RECOGNIZE HEIGHT
+          const modalBody = document.querySelector('.bulletin-modal-body');
+          if (modalBody) {
+            modalBody.style.height = 'auto';
+            modalBody.style.minHeight = '600px';
+            modalBody.style.maxHeight = 'none';
+            modalBody.style.overflow = 'visible';
+            console.log('🔥 FORCED MODAL BODY TO EXPAND');
+          }
+
+          const modalContent = document.querySelector('.bulletin-modal-content');
+          if (modalContent) {
+            modalContent.style.height = 'auto';
+            modalContent.style.maxHeight = 'none';
+            console.log('🔥 FORCED MODAL CONTENT TO EXPAND');
+          }
         }, 100);
       } catch (error) {
         console.error('❌ Error loading comments:', error);
