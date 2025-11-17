@@ -17117,10 +17117,7 @@
       }
 
       try {
-        // Get user profile data
-        const profileKey = `bearpark_profile_${currentWallet}`;
-        const localProfile = JSON.parse(localStorage.getItem(profileKey) || '{}');
-
+        // Backend will fetch author info from profiles table automatically
         const response = await fetch(`${API_BASE_URL}/api/bulletin/comments`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -17128,8 +17125,6 @@
             post_id: currentPostId,
             wallet_address: currentWallet,
             content: replyText,
-            author_name: localProfile.display_name || 'Anonymous',
-            author_avatar: localProfile.avatar_nft || null,
             parent_id: parentCommentId
           })
         });
@@ -17436,10 +17431,7 @@
       }
 
       try {
-        // Get user profile data
-        const profileKey = `bearpark_profile_${currentWallet}`;
-        const localProfile = JSON.parse(localStorage.getItem(profileKey) || '{}');
-
+        // Backend will fetch author info from profiles table automatically
         const response = await fetch(`${API_BASE_URL}/api/bulletin/comments`, {
           method: 'POST',
           headers: {
@@ -17449,8 +17441,6 @@
             post_id: currentPostId,
             wallet_address: currentWallet,
             content: content,
-            author_name: localProfile.display_name || 'Anonymous',
-            author_avatar: localProfile.avatar_nft || null,
             parent_id: null  // Top-level comment (no parent)
           })
         });

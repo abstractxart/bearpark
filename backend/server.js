@@ -3515,21 +3515,28 @@ app.get('/api/bulletin/posts/:postId/comments', async (req, res) => {
 // Create a new bulletin comment or reply
 app.post('/api/bulletin/comments', async (req, res) => {
   try {
-    const { post_id, wallet_address, content, author_name, author_avatar, parent_id } = req.body;
+    const { post_id, wallet_address, content, parent_id } = req.body;
 
     if (!post_id || !wallet_address || !content) {
       return res.status(400).json({ error: 'post_id, wallet_address, and content are required' });
     }
 
-    // Insert comment into Supabase
+    // Get user profile for author info from database (always fetch fresh data)
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('display_name, avatar_nft')
+      .eq('wallet_address', wallet_address)
+      .single();
+
+    // Insert comment into Supabase with fresh profile data
     const { data: newComment, error } = await supabase
       .from('bulletin_comments')
       .insert({
         post_id,
         wallet_address,
         content,
-        author_name: author_name || 'Anonymous',
-        author_avatar,
+        author_name: profile?.display_name || 'Anonymous',
+        author_avatar: profile?.avatar_nft || null,
         parent_id: parent_id || null
       })
       .select()
@@ -3587,53 +3594,48 @@ app.get('/api/bulletin/comments/:commentId/reactions', async (req, res) => {
   try {
     const { commentId } = req.params;
 
-    // Use direct PostgreSQL query for real-time data (bypass PostgREST cache)
-    if (pgPool) {
-      const result = await pgPool.query(
-        `SELECT reaction_type, wallet_address
-         FROM bulletin_comment_reactions
-         WHERE comment_id = $1`,
-        [commentId]
-      );
+    let reactions = [];
 
-      // Aggregate reactions by type
-      const counts = {};
-      const userReactions = {};
+    // Try direct PostgreSQL first, fall back to Supabase if it fails
+    try {
+      if (pgPool) {
+        const result = await pgPool.query(
+          `SELECT reaction_type, wallet_address
+           FROM bulletin_comment_reactions
+           WHERE comment_id = $1`,
+          [commentId]
+        );
+        reactions = result.rows;
+        console.log(`✅ [pgPool] Fetched ${reactions.length} reactions for bulletin comment ${commentId}`);
+      } else {
+        throw new Error('pgPool not available');
+      }
+    } catch (pgError) {
+      console.warn(`⚠️ pgPool failed (${pgError.message}), falling back to Supabase...`);
 
-      result.rows.forEach(row => {
-        // Count reactions
-        counts[row.reaction_type] = (counts[row.reaction_type] || 0) + 1;
-
-        // Track user reactions
-        if (!userReactions[row.wallet_address]) {
-          userReactions[row.wallet_address] = [];
-        }
-        userReactions[row.wallet_address].push(row.reaction_type);
-      });
-
-      res.json({ counts, userReactions });
-    } else {
-      // Fallback to Supabase if pgPool not available
-      const { data: reactions, error } = await supabase
+      // Fallback to Supabase
+      const { data, error } = await supabase
         .from('bulletin_comment_reactions')
         .select('reaction_type, wallet_address')
         .eq('comment_id', commentId);
 
       if (error) throw error;
-
-      const counts = {};
-      const userReactions = {};
-
-      reactions.forEach(row => {
-        counts[row.reaction_type] = (counts[row.reaction_type] || 0) + 1;
-        if (!userReactions[row.wallet_address]) {
-          userReactions[row.wallet_address] = [];
-        }
-        userReactions[row.wallet_address].push(row.reaction_type);
-      });
-
-      res.json({ counts, userReactions });
+      reactions = data || [];
     }
+
+    // Aggregate reactions by type
+    const counts = {};
+    const userReactions = {};
+
+    reactions.forEach(row => {
+      counts[row.reaction_type] = (counts[row.reaction_type] || 0) + 1;
+      if (!userReactions[row.wallet_address]) {
+        userReactions[row.wallet_address] = [];
+      }
+      userReactions[row.wallet_address].push(row.reaction_type);
+    });
+
+    res.json({ counts, userReactions });
   } catch (error) {
     console.error('❌ Error fetching bulletin reactions:', error);
     res.status(500).json({ error: error.message });
@@ -3685,40 +3687,45 @@ app.post('/api/bulletin/comments/:commentId/react', async (req, res) => {
       action = 'added';
     }
 
-    // Fetch updated reaction counts using direct PostgreSQL
-    let counts = {};
-    let userReactions = {};
+    // Fetch updated reaction counts
+    let reactions = [];
 
-    if (pgPool) {
-      const result = await pgPool.query(
-        `SELECT reaction_type, wallet_address
-         FROM bulletin_comment_reactions
-         WHERE comment_id = $1`,
-        [commentId]
-      );
+    // Try direct PostgreSQL first, fall back to Supabase if it fails
+    try {
+      if (pgPool) {
+        const result = await pgPool.query(
+          `SELECT reaction_type, wallet_address
+           FROM bulletin_comment_reactions
+           WHERE comment_id = $1`,
+          [commentId]
+        );
+        reactions = result.rows;
+      } else {
+        throw new Error('pgPool not available');
+      }
+    } catch (pgError) {
+      console.warn(`⚠️ pgPool failed in reaction toggle, falling back to Supabase...`);
 
-      result.rows.forEach(row => {
-        counts[row.reaction_type] = (counts[row.reaction_type] || 0) + 1;
-        if (!userReactions[row.wallet_address]) {
-          userReactions[row.wallet_address] = [];
-        }
-        userReactions[row.wallet_address].push(row.reaction_type);
-      });
-    } else {
       // Fallback to Supabase
-      const { data: reactions } = await supabase
+      const { data } = await supabase
         .from('bulletin_comment_reactions')
         .select('reaction_type, wallet_address')
         .eq('comment_id', commentId);
 
-      reactions.forEach(row => {
-        counts[row.reaction_type] = (counts[row.reaction_type] || 0) + 1;
-        if (!userReactions[row.wallet_address]) {
-          userReactions[row.wallet_address] = [];
-        }
-        userReactions[row.wallet_address].push(row.reaction_type);
-      });
+      reactions = data || [];
     }
+
+    // Aggregate reactions
+    const counts = {};
+    const userReactions = {};
+
+    reactions.forEach(row => {
+      counts[row.reaction_type] = (counts[row.reaction_type] || 0) + 1;
+      if (!userReactions[row.wallet_address]) {
+        userReactions[row.wallet_address] = [];
+      }
+      userReactions[row.wallet_address].push(row.reaction_type);
+    });
 
     res.json({
       success: true,
