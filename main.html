@@ -2897,6 +2897,62 @@
   }
 
   /* Bulletin Feed Container */
+  .post-bulletin-btn {
+    position: absolute;
+    top: 50%;
+    right: 0;
+    transform: translateY(-50%);
+    background: linear-gradient(135deg, #edb723, #f4d06f);
+    color: #000;
+    font-weight: 700;
+    font-size: 18px;
+    padding: 14px 28px;
+    border: 3px solid #edb723;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 0 20px rgba(237, 183, 35, 0.6),
+                0 0 40px rgba(237, 183, 35, 0.4),
+                0 4px 12px rgba(0, 0, 0, 0.3);
+    animation: pulseGlow 2s ease-in-out infinite;
+  }
+
+  .post-bulletin-btn:hover {
+    background: linear-gradient(135deg, #f4d06f, #edb723);
+    transform: translateY(-50%) scale(1.05);
+    box-shadow: 0 0 30px rgba(237, 183, 35, 0.8),
+                0 0 60px rgba(237, 183, 35, 0.6),
+                0 6px 16px rgba(0, 0, 0, 0.4);
+  }
+
+  .post-bulletin-btn:active {
+    transform: translateY(-50%) scale(0.98);
+  }
+
+  @keyframes pulseGlow {
+    0%, 100% {
+      box-shadow: 0 0 20px rgba(237, 183, 35, 0.6),
+                  0 0 40px rgba(237, 183, 35, 0.4),
+                  0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+    50% {
+      box-shadow: 0 0 30px rgba(237, 183, 35, 0.8),
+                  0 0 50px rgba(237, 183, 35, 0.5),
+                  0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+  }
+
+  @keyframes highlightPulse {
+    0%, 100% {
+      box-shadow: 0 0 20px rgba(237, 183, 35, 0.6), 0 0 40px rgba(237, 183, 35, 0.4);
+      transform: scale(1);
+    }
+    50% {
+      box-shadow: 0 0 40px rgba(237, 183, 35, 1), 0 0 80px rgba(237, 183, 35, 0.8);
+      transform: scale(1.02);
+    }
+  }
+
   .bulletin-feed-container {
     max-width: 800px;
     margin: 0 auto;
@@ -7527,7 +7583,12 @@
   <!-- BEAR BULLETIN BOARD -->
   <section class="dark" id="bulletin-board">
     <div class="wrap reveal">
-      <h2 class="h2">📋 BEAR BULLETIN BOARD 📋</h2>
+      <div style="position:relative;">
+        <h2 class="h2">📋 BEAR BULLETIN BOARD 📋</h2>
+        <button id="postBulletinBtn" class="post-bulletin-btn" onclick="openPostBulletinHighlight()">
+          ✨ Post Bulletin
+        </button>
+      </div>
       <p style="text-align:center;margin:-6px 0 32px;">What are other BEARS up to?</p>
 
       <!-- Bulletin Feed -->
@@ -16215,6 +16276,40 @@
     let currentPostId = null;
     let bulletinPosts = [];
     const DEMO_MODE = true; // Set to false when backend is ready
+
+    // Open profile modal and highlight bulletin input
+    function openPostBulletinHighlight() {
+      // Open the profile modal
+      openProfileModal();
+
+      // Wait for modal to open, then highlight the bulletin input
+      setTimeout(() => {
+        const bulletinContainer = document.querySelector('.bulletin-post-input-container');
+        const bulletinInput = document.getElementById('bulletinPostInput');
+
+        if (bulletinContainer && bulletinInput) {
+          // Add highlight animation
+          bulletinContainer.style.cssText = `
+            animation: highlightPulse 2s ease-in-out 3;
+            box-shadow: 0 0 30px rgba(237, 183, 35, 0.8), 0 0 60px rgba(237, 183, 35, 0.6);
+            border: 3px solid #edb723 !important;
+          `;
+
+          // Scroll to bulletin input
+          bulletinInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+          // Focus the input
+          bulletinInput.focus();
+
+          // Remove highlight after animation
+          setTimeout(() => {
+            bulletinContainer.style.animation = '';
+            bulletinContainer.style.boxShadow = '';
+            bulletinContainer.style.border = '';
+          }, 6000);
+        }
+      }, 300);
+    }
 
     // Load bulletin feed
     async function loadBulletinFeed() {
