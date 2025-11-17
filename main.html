@@ -16145,7 +16145,6 @@
 
   <script>
     // ===== BEAR BULLETIN BOARD JAVASCRIPT =====
-    const API_BASE_URL = 'https://api.bearpark.xyz';
     let currentPostId = null;
     let bulletinPosts = [];
 
@@ -16231,12 +16230,12 @@
       const content = input.value.trim();
 
       if (!content) {
-        showNotification('⚠️ Please enter some content to post!', 'warning');
+        showBulletinNotification('⚠️ Please enter some content to post!', 'warning');
         return;
       }
 
       if (!currentWallet) {
-        showNotification('⚠️ Please connect your wallet first!', 'warning');
+        showBulletinNotification('⚠️ Please connect your wallet first!', 'warning');
         return;
       }
 
@@ -16283,7 +16282,7 @@
         // Reload feed
         await loadBulletinFeed();
 
-        showNotification('📢 Posted to bulletin board!', 'success');
+        showBulletinNotification('Your post is now on the bulletin board!', 'success');
 
         // Scroll bulletin board into view
         const bulletinSection = document.getElementById('bulletin-board');
@@ -16292,7 +16291,7 @@
         }
       } catch (error) {
         console.error('Error posting to bulletin:', error);
-        showNotification('❌ Failed to post. Please try again.', 'error');
+        showBulletinNotification('❌ Failed to post. Please try again.', 'error');
       } finally {
         button.disabled = false;
         button.textContent = '📢 Post to Bulletin Board';
@@ -16408,12 +16407,12 @@
       const content = input.value.trim();
 
       if (!content) {
-        showNotification('⚠️ Please enter a comment!', 'warning');
+        showBulletinNotification('⚠️ Please enter a comment!', 'warning');
         return;
       }
 
       if (!currentWallet) {
-        showNotification('⚠️ Please connect your wallet first!', 'warning');
+        showBulletinNotification('⚠️ Please connect your wallet first!', 'warning');
         return;
       }
 
@@ -16444,10 +16443,10 @@
           await loadBulletinFeed();
         }
 
-        showNotification('💬 Comment posted!', 'success');
+        showBulletinNotification('Your comment has been posted!', 'success');
       } catch (error) {
         console.error('Error posting comment:', error);
-        showNotification('❌ Failed to post comment. Please try again.', 'error');
+        showBulletinNotification('❌ Failed to post comment. Please try again.', 'error');
       }
     }
 
@@ -16475,12 +16474,47 @@
     }
 
     // Show notification
-    function showNotification(message, type = 'info') {
-      // You can integrate this with your existing notification system
-      console.log(`[${type.toUpperCase()}] ${message}`);
-      // For now, use a simple alert or your existing notification mechanism
-      if (typeof window.showToast === 'function') {
-        window.showToast(message, type);
+    function showBulletinNotification(message, type = 'info') {
+      if (type === 'success') {
+        // Use the existing celebration system with green checkmark
+        const overlay = document.getElementById('celebrationOverlay');
+        const icon = document.getElementById('celebrationIcon');
+        const text = document.getElementById('celebrationText');
+        const subtext = document.getElementById('celebrationSubtext');
+
+        icon.textContent = '✅';
+        text.textContent = 'POSTED!';
+        text.style.color = '#22c55e';
+        subtext.textContent = message;
+        subtext.style.color = '#22c55e';
+
+        overlay.classList.add('active');
+
+        // Create confetti
+        const confettiCount = 150;
+        const color = '#22c55e';
+        for (let i = 0; i < confettiCount; i++) {
+          const confetti = document.createElement('div');
+          confetti.className = 'confetti';
+          confetti.style.left = Math.random() * 100 + '%';
+          confetti.style.background = i % 3 === 0 ? color : (i % 3 === 1 ? '#ffae00' : '#ffffff');
+          confetti.style.animationDelay = Math.random() * 0.3 + 's';
+          confetti.style.animationDuration = (Math.random() * 1.5 + 2.5) + 's';
+          confetti.style.setProperty('--drift', (Math.random() - 0.5) * 200 + 'px');
+          confetti.style.boxShadow = `0 0 10px ${i % 3 === 0 ? color : '#ffae00'}`;
+          overlay.appendChild(confetti);
+        }
+
+        setTimeout(() => {
+          overlay.classList.remove('active');
+          setTimeout(() => {
+            const confettiElements = overlay.querySelectorAll('.confetti');
+            confettiElements.forEach(c => c.remove());
+          }, 500);
+        }, 3000);
+      } else if (type === 'warning' || type === 'error') {
+        console.log(`[${type.toUpperCase()}] ${message}`);
+        alert(message);
       }
     }
 
