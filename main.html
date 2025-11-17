@@ -16591,6 +16591,32 @@
 
         console.log('✅ Rendering', comments.length, 'comments');
         container.innerHTML = comments.map(comment => createCommentHTML(comment)).join('');
+
+        // FORCE REMOVE ALL LOADING MESSAGES
+        setTimeout(() => {
+          document.querySelectorAll('.loading').forEach(el => el.remove());
+          // Force display of all comments
+          const commentItems = container.querySelectorAll('.comment-item');
+          commentItems.forEach(item => {
+            item.style.display = 'block';
+            item.style.minHeight = '80px';
+            item.style.visibility = 'visible';
+            item.style.opacity = '1';
+            // Force children to display
+            const header = item.querySelector('.comment-header');
+            const text = item.querySelector('.comment-text');
+            if (header) {
+              header.style.display = 'flex';
+              header.style.minHeight = '40px';
+            }
+            if (text) {
+              text.style.display = 'block';
+              text.style.minHeight = '20px';
+              text.style.fontSize = '14px';
+            }
+          });
+          console.log('🔥 FORCED', commentItems.length, 'comments to display');
+        }, 100);
       } catch (error) {
         console.error('❌ Error loading comments:', error);
         container.innerHTML = `
