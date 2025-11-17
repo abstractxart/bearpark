@@ -16667,22 +16667,22 @@
       const isOwner = currentWallet && comment.wallet_address === currentWallet;
 
       return `
-        <div class="comment-item">
-          <div class="comment-header">
+        <div style="background: rgba(0,0,0,0.6); border: 2px solid #edb723; border-radius: 10px; padding: 16px; margin: 12px 0; display: block !important; min-height: 100px !important; height: auto !important; visibility: visible !important; opacity: 1 !important; position: relative !important; width: 100%;">
+          <div style="display: flex !important; align-items: center; gap: 10px; margin-bottom: 12px; min-height: 40px !important; height: auto !important;">
             <img
               src="${comment.author_avatar || 'https://files.catbox.moe/esp426.png'}"
               alt="${comment.author_name}"
-              class="comment-avatar"
+              style="width: 36px !important; height: 36px !important; border-radius: 50%; border: 2px solid #edb723; object-fit: cover; flex-shrink: 0; display: block !important;"
             />
-            <div class="comment-author">${escapeHtml(comment.author_name)}</div>
-            <div class="comment-time">${timeAgo}</div>
+            <div style="font-size: 14px !important; font-weight: 700; color: #edb723; display: block !important;">${escapeHtml(comment.author_name)}</div>
+            <div style="font-size: 12px !important; color: rgba(255,255,255,0.5); display: block !important;">${timeAgo}</div>
             ${isOwner ? `
-              <button class="comment-delete-btn" onclick="deleteComment('${comment.id}')" title="Delete comment">
+              <button onclick="deleteComment('${comment.id}')" title="Delete comment" style="width: 28px; height: 28px; border-radius: 50%; background: rgba(255,75,75,0.2); border: 2px solid rgba(255,75,75,0.5); color: #ff4b4b; font-size: 14px; cursor: pointer; margin-left: auto;">
                 🗑️
               </button>
             ` : ''}
           </div>
-          <div class="comment-text">${escapeHtml(comment.content)}</div>
+          <div style="color: #ffffff; font-size: 16px !important; line-height: 1.6; white-space: pre-wrap; word-break: break-word; min-height: 30px !important; height: auto !important; display: block !important; padding: 8px 0;">${escapeHtml(comment.content)}</div>
         </div>
       `;
     }
