@@ -3561,7 +3561,27 @@ app.delete('/api/bulletin/comments/:commentId', async (req, res) => {
       return res.status(400).json({ error: 'wallet_address is required' });
     }
 
-    // Verify ownership
+    // Check if user is admin/moderator (server-side verification)
+    let is_admin = false;
+    try {
+      const { data: adminRole } = await supabase
+        .from('admin_roles')
+        .select('role, is_active')
+        .eq('wallet_address', wallet_address)
+        .eq('is_active', true)
+        .single();
+
+      is_admin = adminRole && (adminRole.role === 'admin' || adminRole.role === 'master' || adminRole.role === 'moderator');
+
+      if (is_admin) {
+        console.log(`🛡️ Admin/moderator ${wallet_address} (${adminRole.role}) deleting bulletin comment ${commentId}`);
+      }
+    } catch (adminCheckError) {
+      // Not an admin - continue with normal authorization check
+      is_admin = false;
+    }
+
+    // Get comment data
     const { data: comment, error: fetchError } = await supabase
       .from('bulletin_comments')
       .select('wallet_address')
@@ -3570,7 +3590,10 @@ app.delete('/api/bulletin/comments/:commentId', async (req, res) => {
 
     if (fetchError) throw fetchError;
 
-    if (comment.wallet_address !== wallet_address) {
+    // Check permissions: admin/moderator OR comment author
+    const canDelete = is_admin || comment.wallet_address === wallet_address;
+
+    if (!canDelete) {
       return res.status(403).json({ error: 'You can only delete your own comments' });
     }
 
@@ -3582,6 +3605,7 @@ app.delete('/api/bulletin/comments/:commentId', async (req, res) => {
 
     if (deleteError) throw deleteError;
 
+    console.log(`✅ Bulletin comment ${commentId} deleted by ${wallet_address}${is_admin ? ' (admin/moderator)' : ''}`);
     res.json({ success: true, message: 'Comment deleted successfully' });
   } catch (error) {
     console.error('❌ Error deleting bulletin comment:', error);

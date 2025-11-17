@@ -16345,6 +16345,7 @@
     let currentPostId = null;
     let bulletinPosts = [];
     const BULLETIN_DEMO_MODE = false; // Using Supabase backend
+    let isAdminOrModerator = false; // Will be set after checking admin status
 
     // State storage for bulletin like buttons
     const bulletinButtonStates = new Map();
@@ -16439,9 +16440,39 @@
       }, 300);
     }
 
+    // Check if current user is admin or moderator
+    async function checkAdminStatus() {
+      const currentWallet = localStorage.getItem('bearpark_wallet');
+      if (!currentWallet) {
+        isAdminOrModerator = false;
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/admin/check-role/${currentWallet}`);
+        if (response.ok) {
+          const data = await response.json();
+          isAdminOrModerator = data.is_moderator || data.is_admin || data.is_master || false;
+
+          if (isAdminOrModerator) {
+            console.log(`🛡️ User has ${data.role?.role || 'admin'} privileges - can moderate bulletin board`);
+          }
+        } else {
+          isAdminOrModerator = false;
+        }
+      } catch (error) {
+        console.error('Error checking admin status:', error);
+        isAdminOrModerator = false;
+      }
+    }
+
     // Load bulletin feed
     async function loadBulletinFeed() {
       const feed = document.getElementById('bulletinFeed');
+
+      // Check admin status before loading feed
+      await checkAdminStatus();
+
       try {
         if (BULLETIN_DEMO_MODE) {
           // Load from localStorage in demo mode
@@ -17415,6 +17446,7 @@
       const maxDepth = 8;
       const currentWallet = localStorage.getItem('bearpark_wallet');
       const isOwner = comment.wallet_address === currentWallet;
+      const canDelete = isOwner || isAdminOrModerator; // Show delete for owner OR admin/moderator
       const timeAgo = getTimeAgo(comment.created_at);
       const hasReplies = comment.children && comment.children.length > 0;
       const replyCount = hasReplies ? comment.children.length : 0;
@@ -17453,7 +17485,7 @@
                     <p class="comment-timestamp">${timeAgo}${hasReplies ? `<span class="reply-count">${replyCount} ${replyCount === 1 ? 'reply' : 'replies'}</span>` : ''}</p>
                   </div>
                 </div>
-                ${isOwner ? `<button class="comment-delete-btn" onclick="deleteBulletinComment('${comment.id}')">Delete</button>` : ''}
+                ${canDelete ? `<button class="comment-delete-btn" onclick="deleteBulletinComment('${comment.id}')">Delete</button>` : ''}
               </div>
               <p class="comment-text">${escapeHtml(comment.content)}</p>
               ${generateBulletinReactionSummary(comment.id, reactions, userReactions)}
