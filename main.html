@@ -3079,46 +3079,116 @@
     text-decoration: none;
   }
 
+  /* Link Preview Card - Twitter/X Style */
   .bulletin-post-link-preview {
-    margin-top: 12px;
-    border: 2px solid rgba(237, 183, 35, 0.3);
-    border-radius: 10px;
+    margin-top: 16px;
+    border: 2px solid rgba(237, 183, 35, 0.4);
+    border-radius: 16px;
     overflow: hidden;
-    background: rgba(0, 0, 0, 0.4);
-    transition: all 0.2s ease;
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.5) 0%, rgba(20, 20, 20, 0.5) 100%);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   }
 
   .bulletin-post-link-preview:hover {
     border-color: var(--gold);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(237, 183, 35, 0.3), 0 0 40px rgba(237, 183, 35, 0.1);
+  }
+
+  .bulletin-post-link-image-container {
+    position: relative;
+    width: 100%;
+    height: 280px;
+    overflow: hidden;
+    background: rgba(0, 0, 0, 0.3);
   }
 
   .bulletin-post-link-image {
     width: 100%;
-    height: 200px;
+    height: 100%;
     object-fit: cover;
+    transition: transform 0.3s ease;
+  }
+
+  .bulletin-post-link-preview:hover .bulletin-post-link-image {
+    transform: scale(1.05);
+  }
+
+  /* YouTube Play Button Overlay */
+  .youtube-play-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80px;
+    height: 80px;
+    background: rgba(237, 183, 35, 0.95);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    color: #000;
+    padding-left: 6px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    transition: all 0.3s ease;
+    pointer-events: none;
+  }
+
+  .bulletin-post-link-preview:hover .youtube-play-overlay {
+    transform: translate(-50%, -50%) scale(1.1);
+    background: var(--gold);
+    box-shadow: 0 6px 30px rgba(237, 183, 35, 0.6);
+  }
+
+  .youtube-preview {
+    border-color: rgba(255, 0, 0, 0.4) !important;
+  }
+
+  .youtube-preview:hover {
+    border-color: rgba(255, 0, 0, 0.8) !important;
+    box-shadow: 0 8px 24px rgba(255, 0, 0, 0.3), 0 0 40px rgba(255, 0, 0, 0.1) !important;
   }
 
   .bulletin-post-link-info {
-    padding: 12px;
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.3);
   }
 
   .bulletin-post-link-title {
-    font-size: 16px;
+    font-size: 17px;
     font-weight: 700;
-    color: var(--gold);
-    margin-bottom: 6px;
+    color: #fff;
+    margin-bottom: 8px;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .bulletin-post-link-description {
     font-size: 14px;
-    color: rgba(255, 255, 255, 0.7);
-    line-height: 1.4;
+    color: rgba(255, 255, 255, 0.75);
+    line-height: 1.5;
+    margin-bottom: 8px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .bulletin-post-link-url {
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.5);
-    margin-top: 6px;
+    font-size: 13px;
+    color: var(--gold);
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 4px;
   }
 
   .bulletin-post-footer {
@@ -16466,15 +16536,27 @@
       `;
     }
 
-    // Create link preview HTML
+    // Create link preview HTML (Twitter/X style)
     function createLinkPreview(preview) {
+      if (!preview || !preview.url) return '';
+
+      const isYouTube = preview.type === 'youtube';
+      const hostname = new URL(preview.url).hostname.replace('www.', '');
+
       return `
-        <div class="bulletin-post-link-preview" onclick="event.stopPropagation(); window.open('${preview.url}', '_blank')">
-          ${preview.image ? `<img src="${preview.image}" alt="" class="bulletin-post-link-image" onerror="this.style.display='none'">` : ''}
+        <div class="bulletin-post-link-preview ${isYouTube ? 'youtube-preview' : ''}" onclick="event.stopPropagation(); window.open('${escapeHtml(preview.url)}', '_blank')">
+          ${preview.image ? `
+            <div class="bulletin-post-link-image-container">
+              <img src="${escapeHtml(preview.image)}" alt="" class="bulletin-post-link-image" onerror="this.style.display='none'">
+              ${isYouTube ? '<div class="youtube-play-overlay">▶</div>' : ''}
+            </div>
+          ` : ''}
           <div class="bulletin-post-link-info">
             <div class="bulletin-post-link-title">${escapeHtml(preview.title || 'Link')}</div>
             ${preview.description ? `<div class="bulletin-post-link-description">${escapeHtml(preview.description)}</div>` : ''}
-            <div class="bulletin-post-link-url">${new URL(preview.url).hostname}</div>
+            <div class="bulletin-post-link-url">
+              🔗 ${escapeHtml(hostname)}
+            </div>
           </div>
         </div>
       `;
@@ -16509,12 +16591,13 @@
         if (urls && urls.length > 0 && !BULLETIN_DEMO_MODE) {
           // Fetch link preview for the first URL (not in demo mode)
           try {
-            const previewResponse = await fetch(`${API_BASE_URL}/link-preview?url=${encodeURIComponent(urls[0])}`);
+            const previewResponse = await fetch(`${API_BASE_URL}/api/link-preview?url=${encodeURIComponent(urls[0])}`);
             if (previewResponse.ok) {
               linkPreview = await previewResponse.json();
+              console.log('✅ Link preview fetched:', linkPreview);
             }
           } catch (e) {
-            console.log('Link preview failed, continuing without it');
+            console.log('❌ Link preview failed, continuing without it:', e);
           }
         }
 
