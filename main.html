@@ -16592,64 +16592,49 @@
         console.log('✅ Rendering', comments.length, 'comments');
         container.innerHTML = comments.map(comment => createCommentHTML(comment)).join('');
 
-        // FORCE REMOVE ALL LOADING MESSAGES AND FIX CONTAINER
-        setTimeout(() => {
-          document.querySelectorAll('.loading').forEach(el => el.remove());
+        // FORCE EVERYTHING IMMEDIATELY - NO SETTIMEOUT
+        document.querySelectorAll('.loading').forEach(el => el.remove());
 
-          // FORCE THE CONTAINER TO HAVE HEIGHT
-          container.style.display = 'flex';
-          container.style.flexDirection = 'column';
-          container.style.gap = '16px';
-          container.style.minHeight = '200px';
-          container.style.height = 'auto';
-          container.style.maxHeight = 'none';
-          container.style.overflow = 'visible';
-          container.style.visibility = 'visible';
-          container.style.opacity = '1';
+        // FORCE THE CONTAINER TO HAVE HEIGHT
+        container.style.display = 'flex';
+        container.style.flexDirection = 'column';
+        container.style.gap = '16px';
+        container.style.minHeight = '200px';
+        container.style.height = 'auto';
+        container.style.maxHeight = 'none';
+        container.style.overflow = 'visible';
+        container.style.visibility = 'visible';
+        container.style.opacity = '1';
 
-          // Force display of all comments
-          const commentItems = container.querySelectorAll('.comment-item');
-          commentItems.forEach(item => {
-            item.style.display = 'block';
-            item.style.minHeight = '80px';
-            item.style.height = 'auto';
-            item.style.visibility = 'visible';
-            item.style.opacity = '1';
-            item.style.position = 'relative';
-            // Force children to display
-            const header = item.querySelector('.comment-header');
-            const text = item.querySelector('.comment-text');
-            if (header) {
-              header.style.display = 'flex';
-              header.style.minHeight = '40px';
-              header.style.height = 'auto';
-            }
-            if (text) {
-              text.style.display = 'block';
-              text.style.minHeight = '20px';
-              text.style.fontSize = '14px';
-              text.style.height = 'auto';
-            }
-          });
-          console.log('🔥 FORCED CONTAINER AND', commentItems.length, 'comments to display');
+        // FORCE MODAL TO RECOGNIZE HEIGHT
+        const modalBody = document.querySelector('.bulletin-modal-body');
+        if (modalBody) {
+          modalBody.style.height = 'auto';
+          modalBody.style.minHeight = '600px';
+          modalBody.style.maxHeight = 'none';
+          modalBody.style.overflow = 'visible';
+          console.log('🔥 FORCED MODAL BODY TO EXPAND');
+        }
 
-          // FORCE MODAL TO RECOGNIZE HEIGHT
-          const modalBody = document.querySelector('.bulletin-modal-body');
-          if (modalBody) {
-            modalBody.style.height = 'auto';
-            modalBody.style.minHeight = '600px';
-            modalBody.style.maxHeight = 'none';
-            modalBody.style.overflow = 'visible';
-            console.log('🔥 FORCED MODAL BODY TO EXPAND');
-          }
+        const modalContent = document.querySelector('.bulletin-modal-content');
+        if (modalContent) {
+          modalContent.style.height = 'auto';
+          modalContent.style.maxHeight = 'none';
+          modalContent.style.overflow = 'visible';
+          console.log('🔥 FORCED MODAL CONTENT TO EXPAND WITH VISIBLE OVERFLOW');
+        }
 
-          const modalContent = document.querySelector('.bulletin-modal-content');
-          if (modalContent) {
-            modalContent.style.height = 'auto';
-            modalContent.style.maxHeight = 'none';
-            console.log('🔥 FORCED MODAL CONTENT TO EXPAND');
-          }
-        }, 100);
+        // FORCE COMMENTS SECTION TO EXPAND
+        const commentsSection = document.querySelector('.bulletin-comments-section');
+        if (commentsSection) {
+          commentsSection.style.minHeight = '300px';
+          commentsSection.style.height = 'auto';
+          commentsSection.style.overflow = 'visible';
+          commentsSection.style.display = 'block';
+          console.log('🔥 FORCED COMMENTS SECTION TO EXPAND');
+        }
+
+        console.log('🔥 ALL STYLES APPLIED IMMEDIATELY FOR', comments.length, 'comments');
       } catch (error) {
         console.error('❌ Error loading comments:', error);
         container.innerHTML = `
