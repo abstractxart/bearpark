@@ -16636,26 +16636,33 @@
 
         console.log('🔥 ALL STYLES APPLIED IMMEDIATELY FOR', comments.length, 'comments');
 
-        // EXTREME DEBUG - CHECK ACTUAL DOM
-        const allCommentDivs = container.querySelectorAll('div');
-        console.log('📊 Total divs in container:', allCommentDivs.length);
-        allCommentDivs.forEach((div, i) => {
-          const rect = div.getBoundingClientRect();
-          const computed = window.getComputedStyle(div);
-          console.log(`DIV ${i}:`, {
-            width: rect.width,
-            height: rect.height,
-            top: rect.top,
-            left: rect.left,
-            display: computed.display,
-            visibility: computed.visibility,
-            opacity: computed.opacity,
-            position: computed.position,
-            overflow: computed.overflow,
-            border: computed.border,
-            innerHTML: div.innerHTML.substring(0, 50)
-          });
+        // EXTREME DEBUG - CHECK PARENT DIMENSIONS FIRST
+        const containerRect = container.getBoundingClientRect();
+        const containerStyles = window.getComputedStyle(container);
+        console.log('📦 CONTAINER (#commentsList):', {
+          width: containerRect.width,
+          height: containerRect.height,
+          display: containerStyles.display,
+          position: containerStyles.position
         });
+
+        const modalBodyEl = document.querySelector('.bulletin-modal-body');
+        if (modalBodyEl) {
+          const mbRect = modalBodyEl.getBoundingClientRect();
+          console.log('📦 MODAL BODY:', {width: mbRect.width, height: mbRect.height});
+        }
+
+        const modalContentEl = document.querySelector('.bulletin-modal-content');
+        if (modalContentEl) {
+          const mcRect = modalContentEl.getBoundingClientRect();
+          console.log('📦 MODAL CONTENT:', {width: mcRect.width, height: mcRect.height});
+        }
+
+        const commentsSection = document.querySelector('.bulletin-comments-section');
+        if (commentsSection) {
+          const csRect = commentsSection.getBoundingClientRect();
+          console.log('📦 COMMENTS SECTION:', {width: csRect.width, height: csRect.height});
+        }
       } catch (error) {
         console.error('❌ Error loading comments:', error);
         container.innerHTML = `
