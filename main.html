@@ -16373,7 +16373,7 @@
     async function loadBulletinFeed() {
       const feed = document.getElementById('bulletinFeed');
       try {
-        if (DEMO_MODE) {
+        if (BULLETIN_DEMO_MODE) {
           // Load from localStorage in demo mode
           const stored = localStorage.getItem('bearpark_bulletin_posts');
           bulletinPosts = stored ? JSON.parse(stored) : [];
@@ -16492,7 +16492,7 @@
         const urls = content.match(urlRegex);
         let linkPreview = null;
 
-        if (urls && urls.length > 0 && !DEMO_MODE) {
+        if (urls && urls.length > 0 && !BULLETIN_DEMO_MODE) {
           // Fetch link preview for the first URL (not in demo mode)
           try {
             const previewResponse = await fetch(`${API_BASE_URL}/link-preview?url=${encodeURIComponent(urls[0])}`);
@@ -16506,7 +16506,7 @@
 
         let newPost;
 
-        if (DEMO_MODE) {
+        if (BULLETIN_DEMO_MODE) {
           // Demo mode: save to localStorage
           // Get profile from localStorage or fetch from API
           let authorName = 'Anonymous BEAR';
@@ -17527,7 +17527,7 @@
       }
 
       try {
-        if (DEMO_MODE) {
+        if (BULLETIN_DEMO_MODE) {
           // Delete from localStorage
           const stored = localStorage.getItem('bearpark_bulletin_posts');
           if (stored) {
@@ -17568,7 +17568,7 @@
       if (!currentPostId) return;
 
       try {
-        if (DEMO_MODE) {
+        if (BULLETIN_DEMO_MODE) {
           // Delete from localStorage
           const stored = localStorage.getItem(`bearpark_bulletin_comments_${currentPostId}`);
           if (stored) {
