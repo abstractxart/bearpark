@@ -16559,10 +16559,14 @@
 
     // Load comments for a post
     async function loadComments(postId) {
-      const container = document.getElementById('commentsList');
-      container.innerHTML = '<div class="loading">Loading comments...</div>';
-
       console.log('📥 Loading comments for post:', postId);
+
+      const commentsSection = document.querySelector('.bulletin-comments-section');
+
+      // Show loading state
+      const existingComments = commentsSection.querySelectorAll('div[style*="border: 2px solid #edb723"]');
+      existingComments.forEach(el => el.remove());
+      commentsSection.insertAdjacentHTML('beforeend', '<div class="loading">Loading comments...</div>');
 
       try {
         let comments;
@@ -16578,34 +16582,29 @@
           comments = await response.json();
         }
 
+        // Remove loading indicator
+        document.querySelectorAll('.loading').forEach(el => el.remove());
+
         if (comments.length === 0) {
           console.log('📝 No comments found for this post');
-          container.innerHTML = `
+          commentsSection.insertAdjacentHTML('beforeend', `
             <div style="text-align:center; padding:40px 20px; color:rgba(255,255,255,0.5);">
               <div style="font-size:32px; margin-bottom:12px;">💬</div>
               <div style="font-size:16px;">No comments yet. Be the first!</div>
             </div>
-          `;
+          `);
           return;
         }
 
         console.log('✅ Rendering', comments.length, 'comments');
 
-        // NUCLEAR: BYPASS THE CURSED #commentsList - RENDER DIRECTLY TO SECTION
-        document.querySelectorAll('.loading').forEach(el => el.remove());
-
-        const commentsSection = document.querySelector('.bulletin-comments-section');
-
-        // Remove the broken container entirely
-        if (container) container.remove();
-
-        // Render directly to the section with massive inline styles
+        // Render comments directly to section
         comments.forEach(comment => {
           const html = createCommentHTML(comment);
           commentsSection.insertAdjacentHTML('beforeend', html);
         });
 
-        console.log('💥 BYPASSED CONTAINER - RENDERED', comments.length, 'comments DIRECTLY to .bulletin-comments-section');
+        console.log('💥 RENDERED', comments.length, 'comments DIRECTLY to .bulletin-comments-section');
 
         // FORCE MODAL TO RECOGNIZE HEIGHT
         const modalBody = document.querySelector('.bulletin-modal-body');
