@@ -2825,6 +2825,428 @@
     background: rgba(255,255,255,0.2);
   }
 
+  /* ===== BULLETIN BOARD STYLES ===== */
+  /* Bulletin Post Input in Profile Modal */
+  .bulletin-post-section {
+    background: rgba(237, 183, 35, 0.05);
+    border: 2px solid rgba(237, 183, 35, 0.2);
+    border-radius: 12px;
+    padding: 20px;
+  }
+
+  .bulletin-post-input-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .bulletin-post-input {
+    width: 100%;
+    min-height: 80px;
+    background: rgba(0, 0, 0, 0.5);
+    border: 2px solid rgba(237, 183, 35, 0.3);
+    border-radius: 10px;
+    padding: 12px;
+    color: #fff;
+    font-size: 15px;
+    font-family: inherit;
+    resize: vertical;
+    transition: all 0.3s ease;
+  }
+
+  .bulletin-post-input:focus {
+    outline: none;
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(237, 183, 35, 0.1);
+  }
+
+  .bulletin-post-input::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+  }
+
+  .bulletin-post-actions {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .btn-post-bulletin {
+    padding: 12px 24px;
+    background: var(--gold);
+    color: #000;
+    border: 2px solid var(--gold);
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .btn-post-bulletin:hover {
+    background: #ffca3a;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(237, 183, 35, 0.3);
+  }
+
+  .btn-post-bulletin:active {
+    transform: translateY(0);
+  }
+
+  .btn-post-bulletin:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* Bulletin Feed Container */
+  .bulletin-feed-container {
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  .bulletin-feed {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    max-height: 600px;
+    overflow-y: auto;
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 16px;
+    border: 2px solid rgba(237, 183, 35, 0.2);
+  }
+
+  .bulletin-feed::-webkit-scrollbar {
+    width: 10px;
+  }
+
+  .bulletin-feed::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 10px;
+  }
+
+  .bulletin-feed::-webkit-scrollbar-thumb {
+    background: var(--gold);
+    border-radius: 10px;
+  }
+
+  .bulletin-feed::-webkit-scrollbar-thumb:hover {
+    background: #ffca3a;
+  }
+
+  /* Bulletin Post Card */
+  .bulletin-post-card {
+    background: rgba(0, 0, 0, 0.6);
+    border: 2px solid rgba(237, 183, 35, 0.3);
+    border-radius: 12px;
+    padding: 20px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+  }
+
+  .bulletin-post-card:hover {
+    border-color: var(--gold);
+    box-shadow: 0 4px 20px rgba(237, 183, 35, 0.2);
+    transform: translateY(-2px);
+  }
+
+  .bulletin-post-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .bulletin-post-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: 2px solid var(--gold);
+    object-fit: cover;
+  }
+
+  .bulletin-post-info {
+    flex: 1;
+  }
+
+  .bulletin-post-author {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--gold);
+    margin-bottom: 4px;
+  }
+
+  .bulletin-post-time {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  .bulletin-post-content {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 15px;
+    line-height: 1.6;
+    margin-bottom: 12px;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .bulletin-post-link-preview {
+    margin-top: 12px;
+    border: 2px solid rgba(237, 183, 35, 0.3);
+    border-radius: 10px;
+    overflow: hidden;
+    background: rgba(0, 0, 0, 0.4);
+    transition: all 0.2s ease;
+  }
+
+  .bulletin-post-link-preview:hover {
+    border-color: var(--gold);
+  }
+
+  .bulletin-post-link-image {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+  }
+
+  .bulletin-post-link-info {
+    padding: 12px;
+  }
+
+  .bulletin-post-link-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--gold);
+    margin-bottom: 6px;
+  }
+
+  .bulletin-post-link-description {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.7);
+    line-height: 1.4;
+  }
+
+  .bulletin-post-link-url {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.5);
+    margin-top: 6px;
+  }
+
+  .bulletin-post-footer {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(237, 183, 35, 0.2);
+  }
+
+  .bulletin-post-stat {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.6);
+  }
+
+  /* Bulletin Post Modal */
+  .bulletin-post-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .bulletin-modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(4px);
+  }
+
+  .bulletin-modal-content {
+    position: relative;
+    width: 90%;
+    max-width: 700px;
+    max-height: 90vh;
+    background: #1a1a1a;
+    border: 3px solid var(--gold);
+    border-radius: 16px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  }
+
+  .bulletin-modal-header {
+    padding: 20px;
+    background: linear-gradient(135deg, rgba(237, 183, 35, 0.2), rgba(237, 183, 35, 0.1));
+    border-bottom: 2px solid rgba(237, 183, 35, 0.3);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .bulletin-modal-title {
+    margin: 0;
+    color: var(--gold);
+    font-size: 24px;
+  }
+
+  .bulletin-close-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    color: #fff;
+    font-size: 28px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    line-height: 1;
+  }
+
+  .bulletin-close-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: rotate(90deg);
+  }
+
+  .bulletin-modal-body {
+    padding: 20px;
+    overflow-y: auto;
+    max-height: calc(90vh - 80px);
+  }
+
+  .bulletin-modal-body::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .bulletin-modal-body::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.3);
+  }
+
+  .bulletin-modal-body::-webkit-scrollbar-thumb {
+    background: var(--gold);
+    border-radius: 4px;
+  }
+
+  .bulletin-post-detail {
+    margin-bottom: 30px;
+  }
+
+  /* Comments Section */
+  .bulletin-comments-section {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 2px solid rgba(237, 183, 35, 0.2);
+  }
+
+  .comments-title {
+    color: var(--gold);
+    font-size: 20px;
+    margin-bottom: 16px;
+  }
+
+  .comment-input-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .comment-input {
+    width: 100%;
+    min-height: 60px;
+    background: rgba(0, 0, 0, 0.5);
+    border: 2px solid rgba(237, 183, 35, 0.3);
+    border-radius: 10px;
+    padding: 12px;
+    color: #fff;
+    font-size: 15px;
+    font-family: inherit;
+    resize: vertical;
+  }
+
+  .comment-input:focus {
+    outline: none;
+    border-color: var(--gold);
+  }
+
+  .btn-post-comment {
+    align-self: flex-end;
+    padding: 10px 20px;
+    background: var(--gold);
+    color: #000;
+    border: 2px solid var(--gold);
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .btn-post-comment:hover {
+    background: #ffca3a;
+    transform: translateY(-2px);
+  }
+
+  .comments-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .comment-item {
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(237, 183, 35, 0.2);
+    border-radius: 10px;
+    padding: 14px;
+  }
+
+  .comment-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+
+  .comment-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 2px solid var(--gold);
+    object-fit: cover;
+  }
+
+  .comment-author {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--gold);
+  }
+
+  .comment-time {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.5);
+    margin-left: auto;
+  }
+
+  .comment-text {
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 14px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
   /* Achievements Grid */
   .achievements-grid {
     display: grid;
@@ -7032,6 +7454,21 @@
     </div>
   </section>
 
+  <!-- BEAR BULLETIN BOARD -->
+  <section class="dark" id="bulletin-board">
+    <div class="wrap reveal">
+      <h2 class="h2">📋 BEAR BULLETIN BOARD 📋</h2>
+      <p style="text-align:center;margin:-6px 0 32px;">What are other BEARS up to?</p>
+
+      <!-- Bulletin Feed -->
+      <div class="bulletin-feed-container">
+        <div id="bulletinFeed" class="bulletin-feed">
+          <div class="loading">Loading bulletin posts...</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- BEAR COMMUNITY -->
   <section class="alt" id="community">
     <div class="wrap reveal">
@@ -7537,6 +7974,24 @@
             <span class="follow-btn-text">Follow</span>
             <span class="follow-btn-icon">+</span>
           </button>
+        </div>
+
+        <!-- Bear Bulletin Post Section -->
+        <div class="profile-section bulletin-post-section">
+          <div class="bulletin-post-input-container">
+            <textarea
+              id="bulletinPostInput"
+              class="bulletin-post-input"
+              placeholder="What would you like to share with the BEARS?"
+              maxlength="1000"
+              rows="3"
+            ></textarea>
+            <div class="bulletin-post-actions">
+              <button id="postToBulletinBtn" class="btn-post-bulletin" onclick="postToBulletin()">
+                📢 Post to Bulletin Board
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- Bio Section -->
@@ -15642,6 +16097,43 @@
     </div>
   </div>
 
+  <!-- Bulletin Post Detail Modal -->
+  <div id="bulletinPostModal" class="bulletin-post-modal" style="display:none;">
+    <div class="bulletin-modal-overlay" onclick="closeBulletinPostModal()"></div>
+    <div class="bulletin-modal-content">
+      <div class="bulletin-modal-header">
+        <h3 class="bulletin-modal-title">Bulletin Post</h3>
+        <button class="bulletin-close-btn" onclick="closeBulletinPostModal()">&times;</button>
+      </div>
+      <div class="bulletin-modal-body">
+        <!-- Post Content -->
+        <div id="bulletinPostDetail" class="bulletin-post-detail"></div>
+
+        <!-- Comments Section -->
+        <div class="bulletin-comments-section">
+          <h4 class="comments-title">💬 Comments</h4>
+
+          <!-- Comment Input -->
+          <div class="comment-input-container">
+            <textarea
+              id="commentInput"
+              class="comment-input"
+              placeholder="Add a comment..."
+              maxlength="500"
+              rows="2"
+            ></textarea>
+            <button class="btn-post-comment" onclick="postComment()">Post Comment</button>
+          </div>
+
+          <!-- Comments List -->
+          <div id="commentsList" class="comments-list">
+            <div class="loading">Loading comments...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Celebration Overlay -->
   <div id="celebrationOverlay" class="celebration-overlay">
     <div class="celebration-content">
@@ -15650,6 +16142,356 @@
       <div class="celebration-subtext" id="celebrationSubtext"></div>
     </div>
   </div>
+
+  <script>
+    // ===== BEAR BULLETIN BOARD JAVASCRIPT =====
+    const API_BASE_URL = 'https://api.bearpark.xyz';
+    let currentPostId = null;
+    let bulletinPosts = [];
+
+    // Load bulletin feed
+    async function loadBulletinFeed() {
+      const feed = document.getElementById('bulletinFeed');
+      try {
+        const response = await fetch(`${API_BASE_URL}/bulletin/posts`);
+        if (!response.ok) throw new Error('Failed to load posts');
+
+        bulletinPosts = await response.json();
+
+        if (bulletinPosts.length === 0) {
+          feed.innerHTML = `
+            <div style="text-align:center; padding:60px 20px; color:rgba(255,255,255,0.5);">
+              <div style="font-size:48px; margin-bottom:20px;">📋</div>
+              <div style="font-size:20px; font-weight:700; margin-bottom:10px;">No posts yet!</div>
+              <div style="font-size:16px;">Be the first BEAR to share something!</div>
+            </div>
+          `;
+          return;
+        }
+
+        feed.innerHTML = bulletinPosts.map(post => createPostCard(post)).join('');
+      } catch (error) {
+        console.error('Error loading bulletin feed:', error);
+        feed.innerHTML = `
+          <div style="text-align:center; padding:40px 20px; color:#ff6b6b;">
+            <div style="font-size:24px; margin-bottom:12px;">⚠️</div>
+            <div>Failed to load posts. Please try again later.</div>
+          </div>
+        `;
+      }
+    }
+
+    // Create post card HTML
+    function createPostCard(post) {
+      const timeAgo = getTimeAgo(post.created_at);
+      const linkPreview = post.link_preview ? createLinkPreview(post.link_preview) : '';
+
+      return `
+        <div class="bulletin-post-card" onclick="openBulletinPost('${post.id}')">
+          <div class="bulletin-post-header">
+            <img
+              src="${post.author_avatar || 'https://files.catbox.moe/esp426.png'}"
+              alt="${post.author_name}"
+              class="bulletin-post-avatar"
+            />
+            <div class="bulletin-post-info">
+              <div class="bulletin-post-author">${escapeHtml(post.author_name)}</div>
+              <div class="bulletin-post-time">${timeAgo}</div>
+            </div>
+          </div>
+          <div class="bulletin-post-content">${escapeHtml(post.content)}</div>
+          ${linkPreview}
+          <div class="bulletin-post-footer">
+            <div class="bulletin-post-stat">
+              💬 ${post.comment_count || 0} ${post.comment_count === 1 ? 'comment' : 'comments'}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Create link preview HTML
+    function createLinkPreview(preview) {
+      return `
+        <div class="bulletin-post-link-preview" onclick="event.stopPropagation(); window.open('${preview.url}', '_blank')">
+          ${preview.image ? `<img src="${preview.image}" alt="" class="bulletin-post-link-image" onerror="this.style.display='none'">` : ''}
+          <div class="bulletin-post-link-info">
+            <div class="bulletin-post-link-title">${escapeHtml(preview.title || 'Link')}</div>
+            ${preview.description ? `<div class="bulletin-post-link-description">${escapeHtml(preview.description)}</div>` : ''}
+            <div class="bulletin-post-link-url">${new URL(preview.url).hostname}</div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Post to bulletin board
+    async function postToBulletin() {
+      const input = document.getElementById('bulletinPostInput');
+      const button = document.getElementById('postToBulletinBtn');
+      const content = input.value.trim();
+
+      if (!content) {
+        showNotification('⚠️ Please enter some content to post!', 'warning');
+        return;
+      }
+
+      if (!currentWallet) {
+        showNotification('⚠️ Please connect your wallet first!', 'warning');
+        return;
+      }
+
+      button.disabled = true;
+      button.textContent = 'Posting...';
+
+      try {
+        // Check if content contains URLs
+        const urlRegex = /(https?:\/\/[^\s]+)/g;
+        const urls = content.match(urlRegex);
+        let linkPreview = null;
+
+        if (urls && urls.length > 0) {
+          // Fetch link preview for the first URL
+          try {
+            const previewResponse = await fetch(`${API_BASE_URL}/link-preview?url=${encodeURIComponent(urls[0])}`);
+            if (previewResponse.ok) {
+              linkPreview = await previewResponse.json();
+            }
+          } catch (e) {
+            console.log('Link preview failed, continuing without it');
+          }
+        }
+
+        const response = await fetch(`${API_BASE_URL}/bulletin/posts`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            wallet_address: currentWallet,
+            content: content,
+            link_preview: linkPreview
+          })
+        });
+
+        if (!response.ok) throw new Error('Failed to create post');
+
+        const newPost = await response.json();
+
+        // Clear input
+        input.value = '';
+
+        // Reload feed
+        await loadBulletinFeed();
+
+        showNotification('📢 Posted to bulletin board!', 'success');
+
+        // Scroll bulletin board into view
+        const bulletinSection = document.getElementById('bulletin-board');
+        if (bulletinSection) {
+          bulletinSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      } catch (error) {
+        console.error('Error posting to bulletin:', error);
+        showNotification('❌ Failed to post. Please try again.', 'error');
+      } finally {
+        button.disabled = false;
+        button.textContent = '📢 Post to Bulletin Board';
+      }
+    }
+
+    // Open bulletin post modal
+    async function openBulletinPost(postId) {
+      currentPostId = postId;
+      const modal = document.getElementById('bulletinPostModal');
+      const detailContainer = document.getElementById('bulletinPostDetail');
+      const commentsContainer = document.getElementById('commentsList');
+
+      modal.style.display = 'flex';
+      document.body.style.overflow = 'hidden';
+
+      // Find the post
+      const post = bulletinPosts.find(p => p.id === postId);
+      if (!post) {
+        detailContainer.innerHTML = '<div class="loading">Post not found</div>';
+        return;
+      }
+
+      // Render post detail
+      const timeAgo = getTimeAgo(post.created_at);
+      const linkPreview = post.link_preview ? createLinkPreview(post.link_preview) : '';
+
+      detailContainer.innerHTML = `
+        <div class="bulletin-post-header">
+          <img
+            src="${post.author_avatar || 'https://files.catbox.moe/esp426.png'}"
+            alt="${post.author_name}"
+            class="bulletin-post-avatar"
+          />
+          <div class="bulletin-post-info">
+            <div class="bulletin-post-author">${escapeHtml(post.author_name)}</div>
+            <div class="bulletin-post-time">${timeAgo}</div>
+          </div>
+        </div>
+        <div class="bulletin-post-content">${escapeHtml(post.content)}</div>
+        ${linkPreview}
+      `;
+
+      // Load comments
+      await loadComments(postId);
+    }
+
+    // Close bulletin post modal
+    function closeBulletinPostModal() {
+      const modal = document.getElementById('bulletinPostModal');
+      modal.style.display = 'none';
+      document.body.style.overflow = '';
+      currentPostId = null;
+    }
+
+    // Load comments for a post
+    async function loadComments(postId) {
+      const container = document.getElementById('commentsList');
+      container.innerHTML = '<div class="loading">Loading comments...</div>';
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/bulletin/posts/${postId}/comments`);
+        if (!response.ok) throw new Error('Failed to load comments');
+
+        const comments = await response.json();
+
+        if (comments.length === 0) {
+          container.innerHTML = `
+            <div style="text-align:center; padding:40px 20px; color:rgba(255,255,255,0.5);">
+              <div style="font-size:32px; margin-bottom:12px;">💬</div>
+              <div style="font-size:16px;">No comments yet. Be the first!</div>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = comments.map(comment => createCommentHTML(comment)).join('');
+      } catch (error) {
+        console.error('Error loading comments:', error);
+        container.innerHTML = `
+          <div style="text-align:center; padding:20px; color:#ff6b6b;">
+            Failed to load comments.
+          </div>
+        `;
+      }
+    }
+
+    // Create comment HTML
+    function createCommentHTML(comment) {
+      const timeAgo = getTimeAgo(comment.created_at);
+
+      return `
+        <div class="comment-item">
+          <div class="comment-header">
+            <img
+              src="${comment.author_avatar || 'https://files.catbox.moe/esp426.png'}"
+              alt="${comment.author_name}"
+              class="comment-avatar"
+            />
+            <div class="comment-author">${escapeHtml(comment.author_name)}</div>
+            <div class="comment-time">${timeAgo}</div>
+          </div>
+          <div class="comment-text">${escapeHtml(comment.content)}</div>
+        </div>
+      `;
+    }
+
+    // Post a comment
+    async function postComment() {
+      if (!currentPostId) return;
+
+      const input = document.getElementById('commentInput');
+      const content = input.value.trim();
+
+      if (!content) {
+        showNotification('⚠️ Please enter a comment!', 'warning');
+        return;
+      }
+
+      if (!currentWallet) {
+        showNotification('⚠️ Please connect your wallet first!', 'warning');
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/bulletin/posts/${currentPostId}/comments`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            wallet_address: currentWallet,
+            content: content
+          })
+        });
+
+        if (!response.ok) throw new Error('Failed to post comment');
+
+        // Clear input
+        input.value = '';
+
+        // Reload comments
+        await loadComments(currentPostId);
+
+        // Update comment count in feed
+        const post = bulletinPosts.find(p => p.id === currentPostId);
+        if (post) {
+          post.comment_count = (post.comment_count || 0) + 1;
+          await loadBulletinFeed();
+        }
+
+        showNotification('💬 Comment posted!', 'success');
+      } catch (error) {
+        console.error('Error posting comment:', error);
+        showNotification('❌ Failed to post comment. Please try again.', 'error');
+      }
+    }
+
+    // Utility function to get time ago
+    function getTimeAgo(timestamp) {
+      const now = new Date();
+      const posted = new Date(timestamp);
+      const diffMs = now - posted;
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMs / 3600000);
+      const diffDays = Math.floor(diffMs / 86400000);
+
+      if (diffMins < 1) return 'Just now';
+      if (diffMins < 60) return `${diffMins}m ago`;
+      if (diffHours < 24) return `${diffHours}h ago`;
+      if (diffDays < 7) return `${diffDays}d ago`;
+      return posted.toLocaleDateString();
+    }
+
+    // Utility function to escape HTML
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Show notification
+    function showNotification(message, type = 'info') {
+      // You can integrate this with your existing notification system
+      console.log(`[${type.toUpperCase()}] ${message}`);
+      // For now, use a simple alert or your existing notification mechanism
+      if (typeof window.showToast === 'function') {
+        window.showToast(message, type);
+      }
+    }
+
+    // Initialize bulletin board
+    document.addEventListener('DOMContentLoaded', () => {
+      loadBulletinFeed();
+
+      // Reload feed every 30 seconds
+      setInterval(loadBulletinFeed, 30000);
+    });
+  </script>
 
   <script>
     // ===== COSMETICS STORE JAVASCRIPT =====
