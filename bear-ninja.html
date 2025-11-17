@@ -256,6 +256,7 @@
       if (twitterUsername) params.set('twitter_username', twitterUsername);
       if (avatarUrl) params.set('avatar_url', avatarUrl);
       if (avatarIsAnimated) params.set('avatar_is_animated', 'true');
+      params.set('_cb', Date.now()); // Cache buster
       gameUrl += '?' + params.toString();
 
       // DIRECT REDIRECT: Skip iframe, go straight to game (fixes fullscreen issue)
