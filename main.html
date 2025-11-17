@@ -16147,15 +16147,22 @@
     // ===== BEAR BULLETIN BOARD JAVASCRIPT =====
     let currentPostId = null;
     let bulletinPosts = [];
+    const DEMO_MODE = true; // Set to false when backend is ready
 
     // Load bulletin feed
     async function loadBulletinFeed() {
       const feed = document.getElementById('bulletinFeed');
       try {
-        const response = await fetch(`${API_BASE_URL}/bulletin/posts`);
-        if (!response.ok) throw new Error('Failed to load posts');
-
-        bulletinPosts = await response.json();
+        if (DEMO_MODE) {
+          // Load from localStorage in demo mode
+          const stored = localStorage.getItem('bearpark_bulletin_posts');
+          bulletinPosts = stored ? JSON.parse(stored) : [];
+          bulletinPosts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        } else {
+          const response = await fetch(`${API_BASE_URL}/bulletin/posts`);
+          if (!response.ok) throw new Error('Failed to load posts');
+          bulletinPosts = await response.json();
+        }
 
         if (bulletinPosts.length === 0) {
           feed.innerHTML = `
@@ -16249,8 +16256,8 @@
         const urls = content.match(urlRegex);
         let linkPreview = null;
 
-        if (urls && urls.length > 0) {
-          // Fetch link preview for the first URL
+        if (urls && urls.length > 0 && !DEMO_MODE) {
+          // Fetch link preview for the first URL (not in demo mode)
           try {
             const previewResponse = await fetch(`${API_BASE_URL}/link-preview?url=${encodeURIComponent(urls[0])}`);
             if (previewResponse.ok) {
@@ -16261,21 +16268,54 @@
           }
         }
 
-        const response = await fetch(`${API_BASE_URL}/bulletin/posts`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
+        let newPost;
+
+        if (DEMO_MODE) {
+          // Demo mode: save to localStorage
+          const profileResponse = await fetch(`${API_BASE_URL}/api/profile/${currentWallet}`);
+          let authorName = 'Anonymous BEAR';
+          let authorAvatar = 'https://files.catbox.moe/esp426.png';
+
+          if (profileResponse.ok) {
+            const profile = await profileResponse.json();
+            authorName = profile.display_name || 'Anonymous BEAR';
+            authorAvatar = profile.profile_picture || 'https://files.catbox.moe/esp426.png';
+          }
+
+          newPost = {
+            id: Date.now().toString(),
             wallet_address: currentWallet,
+            author_name: authorName,
+            author_avatar: authorAvatar,
             content: content,
-            link_preview: linkPreview
-          })
-        });
+            link_preview: linkPreview,
+            created_at: new Date().toISOString(),
+            comment_count: 0
+          };
 
-        if (!response.ok) throw new Error('Failed to create post');
+          const stored = localStorage.getItem('bearpark_bulletin_posts');
+          const posts = stored ? JSON.parse(stored) : [];
+          posts.unshift(newPost);
+          localStorage.setItem('bearpark_bulletin_posts', JSON.stringify(posts));
 
-        const newPost = await response.json();
+          // Also initialize comments storage for this post
+          localStorage.setItem(`bearpark_bulletin_comments_${newPost.id}`, JSON.stringify([]));
+        } else {
+          const response = await fetch(`${API_BASE_URL}/bulletin/posts`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              wallet_address: currentWallet,
+              content: content,
+              link_preview: linkPreview
+            })
+          });
+
+          if (!response.ok) throw new Error('Failed to create post');
+          newPost = await response.json();
+        }
 
         // Clear input
         input.value = '';
@@ -16354,10 +16394,17 @@
       container.innerHTML = '<div class="loading">Loading comments...</div>';
 
       try {
-        const response = await fetch(`${API_BASE_URL}/bulletin/posts/${postId}/comments`);
-        if (!response.ok) throw new Error('Failed to load comments');
+        let comments;
 
-        const comments = await response.json();
+        if (DEMO_MODE) {
+          // Load from localStorage in demo mode
+          const stored = localStorage.getItem(`bearpark_bulletin_comments_${postId}`);
+          comments = stored ? JSON.parse(stored) : [];
+        } else {
+          const response = await fetch(`${API_BASE_URL}/bulletin/posts/${postId}/comments`);
+          if (!response.ok) throw new Error('Failed to load comments');
+          comments = await response.json();
+        }
 
         if (comments.length === 0) {
           container.innerHTML = `
@@ -16419,18 +16466,56 @@
       }
 
       try {
-        const response = await fetch(`${API_BASE_URL}/bulletin/posts/${currentPostId}/comments`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            wallet_address: currentWallet,
-            content: content
-          })
-        });
+        if (DEMO_MODE) {
+          // Demo mode: save to localStorage
+          const profileResponse = await fetch(`${API_BASE_URL}/api/profile/${currentWallet}`);
+          let authorName = 'Anonymous BEAR';
+          let authorAvatar = 'https://files.catbox.moe/esp426.png';
 
-        if (!response.ok) throw new Error('Failed to post comment');
+          if (profileResponse.ok) {
+            const profile = await profileResponse.json();
+            authorName = profile.display_name || 'Anonymous BEAR';
+            authorAvatar = profile.profile_picture || 'https://files.catbox.moe/esp426.png';
+          }
+
+          const newComment = {
+            id: Date.now().toString(),
+            wallet_address: currentWallet,
+            author_name: authorName,
+            author_avatar: authorAvatar,
+            content: content,
+            created_at: new Date().toISOString()
+          };
+
+          const stored = localStorage.getItem(`bearpark_bulletin_comments_${currentPostId}`);
+          const comments = stored ? JSON.parse(stored) : [];
+          comments.push(newComment);
+          localStorage.setItem(`bearpark_bulletin_comments_${currentPostId}`, JSON.stringify(comments));
+
+          // Update post comment count
+          const postsStored = localStorage.getItem('bearpark_bulletin_posts');
+          if (postsStored) {
+            const posts = JSON.parse(postsStored);
+            const post = posts.find(p => p.id === currentPostId);
+            if (post) {
+              post.comment_count = (post.comment_count || 0) + 1;
+              localStorage.setItem('bearpark_bulletin_posts', JSON.stringify(posts));
+            }
+          }
+        } else {
+          const response = await fetch(`${API_BASE_URL}/bulletin/posts/${currentPostId}/comments`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              wallet_address: currentWallet,
+              content: content
+            })
+          });
+
+          if (!response.ok) throw new Error('Failed to post comment');
+        }
 
         // Clear input
         input.value = '';
