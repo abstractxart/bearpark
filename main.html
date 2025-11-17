@@ -16563,9 +16563,13 @@
 
       const commentsSection = document.querySelector('.bulletin-comments-section');
 
+      // Clear ALL previous content (comments, empty state, loading)
+      const allDivs = Array.from(commentsSection.children).filter(el =>
+        el.id !== 'commentInput' && !el.classList.contains('comment-input-container') && !el.classList.contains('comments-title')
+      );
+      allDivs.forEach(el => el.remove());
+
       // Show loading state
-      const existingComments = commentsSection.querySelectorAll('div[style*="border: 2px solid #edb723"]');
-      existingComments.forEach(el => el.remove());
       commentsSection.insertAdjacentHTML('beforeend', '<div class="loading">Loading comments...</div>');
 
       try {
