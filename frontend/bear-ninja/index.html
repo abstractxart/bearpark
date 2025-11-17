@@ -169,19 +169,33 @@
         // Check if on mobile device
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
+        console.log('🔍 Mobile detection:', isMobile ? 'YES - Mobile device' : 'NO - Desktop');
+
         if (isMobile) {
           const elem = document.documentElement;
 
+          // Show visual indicator
+          const indicator = document.createElement('div');
+          indicator.style.cssText = 'position:fixed;top:10px;left:50%;transform:translateX(-50%);background:rgba(237,183,35,0.9);color:#000;padding:10px 20px;border-radius:8px;font-family:Arial;font-size:14px;z-index:99999;';
+          indicator.textContent = '📱 Entering fullscreen...';
+          document.body.appendChild(indicator);
+          setTimeout(() => indicator.remove(), 2000);
+
           if (elem.requestFullscreen) {
-            elem.requestFullscreen().catch(err => {
-              console.log('Fullscreen request failed:', err);
+            elem.requestFullscreen().then(() => {
+              console.log('✅ Fullscreen activated successfully');
+            }).catch(err => {
+              console.log('❌ Fullscreen request failed:', err);
             });
           } else if (elem.webkitRequestFullscreen) { // Safari
             elem.webkitRequestFullscreen();
+            console.log('✅ WebKit fullscreen activated');
           } else if (elem.mozRequestFullScreen) { // Firefox
             elem.mozRequestFullScreen();
+            console.log('✅ Mozilla fullscreen activated');
           } else if (elem.msRequestFullscreen) { // IE/Edge
             elem.msRequestFullscreen();
+            console.log('✅ MS fullscreen activated');
           }
 
           fullscreenRequested = true;
