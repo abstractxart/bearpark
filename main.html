@@ -2898,10 +2898,7 @@
 
   /* Bulletin Feed Container */
   .post-bulletin-btn {
-    position: absolute;
-    top: 50%;
-    right: 0;
-    transform: translateY(-50%);
+    display: inline-block;
     background: linear-gradient(135deg, #edb723, #f4d06f);
     color: #000;
     font-weight: 700;
@@ -2919,14 +2916,14 @@
 
   .post-bulletin-btn:hover {
     background: linear-gradient(135deg, #f4d06f, #edb723);
-    transform: translateY(-50%) scale(1.05);
+    transform: scale(1.05);
     box-shadow: 0 0 30px rgba(237, 183, 35, 0.8),
                 0 0 60px rgba(237, 183, 35, 0.6),
                 0 6px 16px rgba(0, 0, 0, 0.4);
   }
 
   .post-bulletin-btn:active {
-    transform: translateY(-50%) scale(0.98);
+    transform: scale(0.98);
   }
 
   @keyframes pulseGlow {
@@ -7583,13 +7580,15 @@
   <!-- BEAR BULLETIN BOARD -->
   <section class="dark" id="bulletin-board">
     <div class="wrap reveal">
-      <div style="position:relative;">
-        <h2 class="h2">📋 BEAR BULLETIN BOARD 📋</h2>
+      <h2 class="h2">📋 BEAR BULLETIN BOARD 📋</h2>
+      <p style="text-align:center;margin:-6px 0 20px;">What are other BEARS up to?</p>
+
+      <!-- Post Bulletin Button -->
+      <div style="text-align:center; margin-bottom:32px;">
         <button id="postBulletinBtn" class="post-bulletin-btn" onclick="openPostBulletinHighlight()">
           ✨ Post Bulletin
         </button>
       </div>
-      <p style="text-align:center;margin:-6px 0 32px;">What are other BEARS up to?</p>
 
       <!-- Bulletin Feed -->
       <div class="bulletin-feed-container">
