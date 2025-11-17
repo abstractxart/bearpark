@@ -16658,7 +16658,7 @@
           console.log('📦 MODAL CONTENT:', {width: mcRect.width, height: mcRect.height});
         }
 
-        const commentsSection = document.querySelector('.bulletin-comments-section');
+        // Re-use commentsSection variable from above
         if (commentsSection) {
           const csRect = commentsSection.getBoundingClientRect();
           console.log('📦 COMMENTS SECTION:', {width: csRect.width, height: csRect.height});
