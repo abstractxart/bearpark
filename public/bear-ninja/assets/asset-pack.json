@@ -1,0 +1,290 @@
+{
+  "animation_json": {
+    "files": [
+      {
+        "url": "assets/animations.json",
+        "type": "animation",
+        "key": "animations"
+      }
+    ]
+  },
+  "fonts": {
+    "files": [
+      {
+        "url": "assets/fronts/supercell-magic_0.ttf",
+        "type": "font",
+        "key": "SupercellMagic",
+        "fontType": "opentype"
+      }
+    ]
+  },
+  "backgrounds": {
+    "files": [
+      {
+        "type": "image",
+        "key": "forest_background",
+        "url": "https://cdn-game-mcp.gambo.ai/f6ec5de0-2ea3-437d-a2ff-a71ee90956bf/images/forest_background.png"
+      },
+      {
+        "type": "image",
+        "key": "castle_valley_background",
+        "url": "https://cdn-game-mcp.gambo.ai/b7fb16d5-27d0-47dd-a54b-b5126a7cb082/uploads/b7fb16d5-27d0-47dd-a54b-b5126a7cb082.png"
+      },
+      {
+        "type": "image",
+        "key": "ninja_dojo_background",
+        "url": "https://cdn-gambo-public.gambo.ai/assets/SZFMimTPRFAplO0qtIZtQ.png"
+      }
+    ]
+  },
+  "ui_images": {
+    "files": [
+      {
+        "type": "image",
+        "key": "slice_surge_title",
+        "url": "https://cdn-game-mcp.gambo.ai/259b2384-85f3-4f03-a753-6551e72e3233/images/slice_surge_title.png"
+      },
+      {
+        "type": "image",
+        "key": "bear_ninja_logo",
+        "url": "https://cdn-game-mcp.gambo.ai/a056df13-9a9a-453e-8e1a-a3dc0d792aec/uploads/a056df13-9a9a-453e-8e1a-a3dc0d792aec.png"
+      }
+    ]
+  },
+  "objects": {
+    "files": [
+      {
+        "type": "image",
+        "key": "red_mask",
+        "url": "https://cdn-game-mcp.gambo.ai/2c68c81f-1d02-4c40-a8c6-f422a28a1187/images/red_mask.png"
+      },
+      {
+        "type": "image",
+        "key": "golden_crown",
+        "url": "https://cdn-game-mcp.gambo.ai/f2cc028b-3799-4940-a539-cde01d73e353/images/golden_crown.png"
+      },
+      {
+        "type": "image",
+        "key": "sheriff_hat",
+        "url": "https://cdn-game-mcp.gambo.ai/55bd1df7-6663-44a6-9388-2bbbf481d2aa/images/sheriff_hat.png"
+      },
+      {
+        "type": "image",
+        "key": "jester_hat",
+        "url": "https://cdn-game-mcp.gambo.ai/92bdfe12-24c0-4474-9f95-d8986a6a98d0/images/jester_hat.png"
+      },
+      {
+        "type": "image",
+        "key": "pearl_shell",
+        "url": "https://cdn-game-mcp.gambo.ai/b0b16fb9-7873-4972-9190-50019c3c3b0d/images/pearl_shell.png"
+      },
+      {
+        "type": "image",
+        "key": "red_wrench",
+        "url": "https://cdn-game-mcp.gambo.ai/9d456ef0-d795-4c71-9f8e-ef94913adff0/images/red_wrench.png"
+      },
+      {
+        "type": "image",
+        "key": "golden_coin",
+        "url": "https://cdn-game-mcp.gambo.ai/ddfdaf1c-2929-4616-b00d-7edfdc31bc42/images/golden_coin.png"
+      },
+      {
+        "type": "image",
+        "key": "carousel_ride",
+        "url": "https://cdn-game-mcp.gambo.ai/4be58932-37f2-4a82-a0be-5808e11febca/images/carousel_ride.png"
+      },
+      {
+        "type": "image",
+        "key": "red_alchemist",
+        "url": "https://cdn-game-mcp.gambo.ai/8d2f83c5-f029-4c09-8267-e0ecf9378d39/images/red_alchemist.png"
+      },
+      {
+        "type": "image",
+        "key": "green_dragon",
+        "url": "https://cdn-game-mcp.gambo.ai/8b4a28b3-4fbc-43d3-81be-eb71cbd2501b/images/green_dragon.png"
+      },
+      {
+        "type": "image",
+        "key": "phoenix_emblem",
+        "url": "https://cdn-game-mcp.gambo.ai/7750386c-11bc-4a45-9717-341697301298/images/phoenix_emblem.png"
+      },
+      {
+        "type": "image",
+        "key": "x_coin",
+        "url": "https://cdn-game-mcp.gambo.ai/99ba296c-3c60-4945-9527-d8233ad324a2/images/x_coin.png"
+      }
+    ]
+  },
+  "game_objects": {
+    "files": [
+      {
+        "type": "image",
+        "key": "bomb_object",
+        "url": "https://cdn-game-mcp.gambo.ai/b9fe0631-4dea-499b-b26b-0f77b2ea5204/images/bomb_object.png"
+      },
+      {
+        "type": "image",
+        "key": "golden_fruit_powerup",
+        "url": "https://cdn-gambo-public.gambo.ai/assets/4Ob1y9B1ibn1aJVNTBy-x.png"
+      },
+      {
+        "type": "image",
+        "key": "blue_wave_slice",
+        "url": "https://cdn-game-mcp.gambo.ai/6e624520-383b-4bf6-a90c-8f8c64d7a483/images/blue_wave_slice.png"
+      }
+    ]
+  },
+  "sound_effects": {
+    "files": [
+      {
+        "type": "audio",
+        "key": "slice_red_mask",
+        "url": "https://cdn-game-mcp.gambo.ai/99626d86-359e-4830-9764-4718960c6be3/sound_effects/slice_red_mask.mp3"
+      },
+      {
+        "type": "audio",
+        "key": "slice_golden_crown",
+        "url": "https://cdn-game-mcp.gambo.ai/c9e17ce9-bf61-4fbb-b253-bf7269109a58/sound_effects/slice_golden_crown.mp3"
+      },
+      {
+        "type": "audio",
+        "key": "slice_sheriff_hat",
+        "url": "https://cdn-game-mcp.gambo.ai/118d60c9-2794-4b08-9341-e6394dcac489/sound_effects/slice_sheriff_hat.mp3"
+      },
+      {
+        "type": "audio",
+        "key": "slice_jester_hat",
+        "url": "https://cdn-game-mcp.gambo.ai/1858fcb3-d345-44bd-98e8-f1cc28f542e0/sound_effects/slice_jester_hat.mp3"
+      },
+      {
+        "type": "audio",
+        "key": "slice_pearl_shell",
+        "url": "https://cdn-game-mcp.gambo.ai/de99ad91-b5f0-4d10-8e17-a7212b28feda/sound_effects/slice_pearl_shell.mp3"
+      },
+      {
+        "type": "audio",
+        "key": "slice_red_wrench",
+        "url": "https://cdn-game-mcp.gambo.ai/ca856ded-bfd3-42c5-8724-a9eafe2e3ea8/sound_effects/slice_red_wrench.mp3"
+      },
+      {
+        "type": "audio",
+        "key": "slice_golden_coin",
+        "url": "https://cdn-game-mcp.gambo.ai/d209a4ee-fe29-4bba-b558-99d971e283cd/sound_effects/slice_golden_coin.mp3"
+      },
+      {
+        "type": "audio",
+        "key": "bomb_explosion",
+        "url": "https://cdn-game-mcp.gambo.ai/249cbe3a-39af-42e6-b3c3-5fbc9d2e6a0a/sound_effects/bomb_explosion.mp3"
+      },
+      {
+        "type": "audio",
+        "key": "ui_click",
+        "url": "https://cdn-game-mcp.gambo.ai/7b47ffb7-c5d2-4fa0-ab1f-4ce6b7ee5198/sound_effects/ui_click.mp3"
+      },
+      {
+        "type": "audio",
+        "key": "game_over_sound",
+        "url": "https://cdn-game-mcp.gambo.ai/df54f411-dc21-4257-853f-315fa925c006/sound_effects/game_over_sound.mp3"
+      },
+      {
+        "type": "audio",
+        "key": "perfect_slice",
+        "url": "https://cdn-game-mcp.gambo.ai/afa0e73c-3c27-4dbf-8f88-4496cc9501e0/sound_effects/perfect_slice.mp3"
+      },
+      {
+        "type": "audio",
+        "key": "critical_slice",
+        "url": "https://cdn-game-mcp.gambo.ai/c6c9ec9e-76ae-48b8-8b6e-51470e94d898/sound_effects/critical_slice.mp3"
+      },
+      {
+        "type": "audio",
+        "key": "frenzy_mode",
+        "url": "https://cdn-game-mcp.gambo.ai/bd1929c5-445d-43dc-b02b-6bebf3b36982/sound_effects/frenzy_mode.mp3"
+      },
+      {
+        "type": "audio",
+        "key": "achievement_unlock",
+        "url": "https://cdn-game-mcp.gambo.ai/c9cd1d7a-0039-4908-97d7-673d890c644a/sound_effects/achievement_unlock.mp3"
+      },
+      {
+        "type": "audio",
+        "key": "spectacular_slice",
+        "url": "https://cdn-game-mcp.gambo.ai/49df49d9-6623-4d27-b607-8f6dad5ae2c6/sound_effects/spectacular_slice.mp3"
+      },
+      {
+        "type": "audio",
+        "key": "on_fire_mode",
+        "url": "https://cdn-game-mcp.gambo.ai/774d16e9-bd73-4153-9a6d-c89ec69bb377/sound_effects/on_fire_mode.mp3"
+      },
+      {
+        "type": "audio",
+        "key": "perfect_streak",
+        "url": "https://cdn-game-mcp.gambo.ai/a4f0fab9-ab6f-4535-9983-6ca51aeb7971/sound_effects/perfect_streak.mp3"
+      },
+      {
+        "type": "audio",
+        "key": "near_miss",
+        "url": "https://cdn-game-mcp.gambo.ai/f225d132-36e3-4b45-93c9-083b81c1ec33/sound_effects/near_miss.mp3"
+      },
+      {
+        "type": "audio",
+        "key": "personal_best",
+        "url": "https://cdn-game-mcp.gambo.ai/fffdce99-9491-47e1-832a-8f1ad8516952/sound_effects/personal_best.mp3"
+      },
+      {
+        "type": "audio",
+        "key": "slice_carousel_ride",
+        "url": "https://cdn-game-mcp.gambo.ai/2c3e2f24-9b0b-40a1-a9ad-647efac313b7/sound_effects/slice_carousel_ride.mp3"
+      },
+      {
+        "type": "audio",
+        "key": "slice_red_alchemist",
+        "url": "https://cdn-game-mcp.gambo.ai/6c252a50-6864-4022-b69d-61322e0f59fc/sound_effects/slice_red_alchemist.mp3"
+      },
+      {
+        "type": "audio",
+        "key": "slice_green_dragon",
+        "url": "https://cdn-game-mcp.gambo.ai/ecffe9ae-1f77-4910-a57c-a86aed6332d7/sound_effects/slice_green_dragon.mp3"
+      },
+      {
+        "type": "audio",
+        "key": "slice_phoenix_emblem",
+        "url": "https://cdn-game-mcp.gambo.ai/8dc5f84a-629f-4881-89f8-05ca1b3f1569/sound_effects/slice_phoenix_emblem.mp3"
+      },
+      {
+        "type": "audio",
+        "key": "slice_x_coin",
+        "url": "https://cdn-game-mcp.gambo.ai/982d8e7e-e004-42c0-88a7-324a6eb50611/sound_effects/slice_x_coin.mp3"
+      },
+      {
+        "type": "audio",
+        "key": "hourglass_hit_satisfying",
+        "url": "https://cdn-game-mcp.gambo.ai/5e2092da-3b97-4a9a-b076-8ca79543e13a/sound_effects/hourglass_hit_satisfying.mp3"
+      },
+      {
+        "type": "audio",
+        "key": "hourglass_hit_impact",
+        "url": "https://cdn-game-mcp.gambo.ai/7824dd51-9e13-4cce-a706-306eb774ea8f/sound_effects/hourglass_hit_impact.mp3"
+      },
+      {
+        "type": "audio",
+        "key": "hourglass_hit_cascade",
+        "url": "https://cdn-game-mcp.gambo.ai/8dc1e68b-6efe-46db-8ccb-0fde99f53818/sound_effects/hourglass_hit_cascade.mp3"
+      }
+    ]
+  },
+  "background_musics": {
+    "files": [
+      {
+        "type": "audio",
+        "key": "ninja_dojo_music",
+        "url": "https://files.catbox.moe/sdq9a1.mp3"
+      }
+    ]
+  },
+  "meta": {
+    "app": "Gambo AI",
+    "version": 1,
+    "showAllFilesInBlocks": false
+  }
+}
