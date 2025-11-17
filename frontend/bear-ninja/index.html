@@ -3,7 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/x-icon" href="/bear-ninja/favicon.ico" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>BEAR Ninja</title>
 
     <!-- BEAR Park Font -->
@@ -156,6 +159,46 @@
       document.addEventListener('touchstart', handleUserInteraction);
       document.addEventListener('mousedown', handleUserInteraction);
       document.addEventListener('touchmove', handleUserInteraction);
+
+      // FULLSCREEN MODE FOR MOBILE
+      let fullscreenRequested = false;
+
+      function requestFullscreen() {
+        if (fullscreenRequested) return;
+
+        // Check if on mobile device
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+        if (isMobile) {
+          const elem = document.documentElement;
+
+          if (elem.requestFullscreen) {
+            elem.requestFullscreen().catch(err => {
+              console.log('Fullscreen request failed:', err);
+            });
+          } else if (elem.webkitRequestFullscreen) { // Safari
+            elem.webkitRequestFullscreen();
+          } else if (elem.mozRequestFullScreen) { // Firefox
+            elem.mozRequestFullScreen();
+          } else if (elem.msRequestFullscreen) { // IE/Edge
+            elem.msRequestFullscreen();
+          }
+
+          fullscreenRequested = true;
+          console.log('📱 Fullscreen mode activated for mobile');
+        }
+      }
+
+      // Request fullscreen on first user interaction (mobile only)
+      const enableFullscreen = () => {
+        requestFullscreen();
+        // Remove listeners after first attempt
+        document.removeEventListener('click', enableFullscreen);
+        document.removeEventListener('touchstart', enableFullscreen);
+      };
+
+      document.addEventListener('click', enableFullscreen);
+      document.addEventListener('touchstart', enableFullscreen);
 
       // Pause when page loses visibility (tab switch)
       document.addEventListener('visibilitychange', () => {
