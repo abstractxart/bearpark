@@ -16635,6 +16635,27 @@
         }
 
         console.log('🔥 ALL STYLES APPLIED IMMEDIATELY FOR', comments.length, 'comments');
+
+        // EXTREME DEBUG - CHECK ACTUAL DOM
+        const allCommentDivs = container.querySelectorAll('div');
+        console.log('📊 Total divs in container:', allCommentDivs.length);
+        allCommentDivs.forEach((div, i) => {
+          const rect = div.getBoundingClientRect();
+          const computed = window.getComputedStyle(div);
+          console.log(`DIV ${i}:`, {
+            width: rect.width,
+            height: rect.height,
+            top: rect.top,
+            left: rect.left,
+            display: computed.display,
+            visibility: computed.visibility,
+            opacity: computed.opacity,
+            position: computed.position,
+            overflow: computed.overflow,
+            border: computed.border,
+            innerHTML: div.innerHTML.substring(0, 50)
+          });
+        });
       } catch (error) {
         console.error('❌ Error loading comments:', error);
         container.innerHTML = `
