@@ -16379,7 +16379,7 @@
           bulletinPosts = stored ? JSON.parse(stored) : [];
           bulletinPosts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
         } else {
-          const response = await fetch(`${API_BASE_URL}/bulletin/posts`);
+          const response = await fetch(`${API_BASE_URL}/api/bulletin/posts`);
           if (!response.ok) throw new Error('Failed to load posts');
           bulletinPosts = await response.json();
         }
@@ -16623,7 +16623,7 @@
           // Also initialize comments storage for this post
           localStorage.setItem(`bearpark_bulletin_comments_${newPost.id}`, JSON.stringify([]));
         } else {
-          const response = await fetch(`${API_BASE_URL}/bulletin/posts`, {
+          const response = await fetch(`${API_BASE_URL}/api/bulletin/posts`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -17538,8 +17538,15 @@
           // Also delete associated comments
           localStorage.removeItem(`bearpark_bulletin_comments_${postId}`);
         } else {
-          const response = await fetch(`${API_BASE_URL}/bulletin/posts/${postId}`, {
-            method: 'DELETE'
+          const currentWallet = localStorage.getItem('bearpark_wallet');
+          const response = await fetch(`${API_BASE_URL}/api/bulletin/posts/${postId}`, {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              wallet_address: currentWallet
+            })
           });
           if (!response.ok) throw new Error('Failed to delete post');
         }
