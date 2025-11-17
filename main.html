@@ -8365,7 +8365,12 @@
             const moveX = offsetX * 20 * depth;
             const moveY = offsetY * 20 * depth;
 
-            btn.style.transform = `translate(${moveX}px, ${moveY}px)`;
+            // Preserve centering for honey points button
+            if (btn.id === 'honeyNavBtn') {
+              btn.style.transform = `translateX(-50%) translate(${moveX}px, ${moveY}px)`;
+            } else {
+              btn.style.transform = `translate(${moveX}px, ${moveY}px)`;
+            }
           });
 
           mouseUpdateTicking = false;
