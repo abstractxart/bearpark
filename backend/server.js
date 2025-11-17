@@ -3764,6 +3764,29 @@ app.get('/api/link-preview', async (req, res) => {
 
       console.log('🎥 YouTube video detected:', videoId);
 
+      // Fetch YouTube metadata using oEmbed API
+      try {
+        const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
+        const oembedResponse = await fetch(oembedUrl);
+
+        if (oembedResponse.ok) {
+          const oembedData = await oembedResponse.json();
+
+          console.log('✅ YouTube metadata fetched:', oembedData.title);
+
+          return res.json({
+            url: url,
+            title: oembedData.title || 'YouTube Video',
+            description: `${oembedData.author_name || 'YouTube'} • Watch on YouTube`,
+            image: thumbnailUrl,
+            type: 'youtube'
+          });
+        }
+      } catch (oembedError) {
+        console.warn('⚠️ YouTube oEmbed failed, using basic preview:', oembedError.message);
+      }
+
+      // Fallback if oEmbed fails
       return res.json({
         url: url,
         title: 'YouTube Video',
