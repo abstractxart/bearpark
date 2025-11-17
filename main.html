@@ -3241,38 +3241,43 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
+    min-height: 50px;
   }
 
-  .comment-item {
+  .bulletin-comments-section .comment-item {
     background: rgba(0, 0, 0, 0.4);
     border: 1px solid rgba(237, 183, 35, 0.2);
     border-radius: 10px;
     padding: 14px;
+    min-height: 80px;
+    display: block !important;
   }
 
-  .comment-header {
-    display: flex;
+  .bulletin-comments-section .comment-header {
+    display: flex !important;
     align-items: center;
     gap: 10px;
     margin-bottom: 8px;
+    min-height: 40px;
   }
 
-  .comment-avatar {
-    width: 36px;
-    height: 36px;
+  .bulletin-comments-section .comment-avatar {
+    width: 36px !important;
+    height: 36px !important;
     border-radius: 50%;
     border: 2px solid var(--gold);
     object-fit: cover;
+    flex-shrink: 0;
   }
 
-  .comment-author {
-    font-size: 14px;
+  .bulletin-comments-section .comment-author {
+    font-size: 14px !important;
     font-weight: 700;
     color: var(--gold);
   }
 
-  .comment-time {
-    font-size: 12px;
+  .bulletin-comments-section .comment-time {
+    font-size: 12px !important;
     color: rgba(255, 255, 255, 0.5);
   }
 
@@ -3302,12 +3307,14 @@
     transform: scale(0.95);
   }
 
-  .comment-text {
+  .bulletin-comments-section .comment-text {
     color: rgba(255, 255, 255, 0.85);
-    font-size: 14px;
+    font-size: 14px !important;
     line-height: 1.5;
     white-space: pre-wrap;
     word-break: break-word;
+    min-height: 20px;
+    display: block !important;
   }
 
   /* Achievements Grid */
