@@ -16357,16 +16357,21 @@
 
           // Try to get from current session first
           const cachedProfile = localStorage.getItem(`bearpark_profile_${currentWallet}`);
+          console.log('🐻 Loading profile for wallet:', currentWallet);
+          console.log('💾 Cached profile:', cachedProfile);
+
           if (cachedProfile) {
             try {
               const profile = JSON.parse(cachedProfile);
               authorName = profile.display_name || 'Anonymous BEAR';
               authorAvatar = profile.avatar_url || 'https://files.catbox.moe/esp426.png';
+              console.log('✅ Using cached profile:', { authorName, authorAvatar });
             } catch (e) {
-              console.log('Failed to parse cached profile');
+              console.log('❌ Failed to parse cached profile:', e);
             }
           } else {
             // Fetch from API
+            console.log('📡 No cached profile, fetching from API...');
             try {
               const apiUrl = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
               const profileResponse = await fetch(`${apiUrl}/api/profile/${currentWallet}`);
@@ -16376,20 +16381,38 @@
                 authorAvatar = profile.avatar_url || profile.profile_picture || 'https://files.catbox.moe/esp426.png';
                 // Cache it
                 localStorage.setItem(`bearpark_profile_${currentWallet}`, JSON.stringify(profile));
+                console.log('✅ Fetched and cached profile:', { authorName, authorAvatar });
               }
             } catch (e) {
-              console.log('Failed to fetch profile, using defaults');
+              console.log('❌ Failed to fetch profile, using defaults:', e);
             }
           }
 
-          // Generate simple link preview for demo mode
+          // Generate link preview for demo mode using microlink.io
           if (urls && urls.length > 0) {
-            linkPreview = {
-              url: urls[0],
-              title: urls[0],
-              description: 'Click to open link',
-              image: null
-            };
+            try {
+              const previewUrl = `https://api.microlink.io/?url=${encodeURIComponent(urls[0])}`;
+              const previewResponse = await fetch(previewUrl);
+              if (previewResponse.ok) {
+                const previewData = await previewResponse.json();
+                if (previewData.status === 'success' && previewData.data) {
+                  linkPreview = {
+                    url: urls[0],
+                    title: previewData.data.title || urls[0],
+                    description: previewData.data.description || 'Click to open link',
+                    image: previewData.data.image?.url || previewData.data.logo?.url || null
+                  };
+                }
+              }
+            } catch (e) {
+              console.log('Link preview fetch failed, using simple preview');
+              linkPreview = {
+                url: urls[0],
+                title: urls[0],
+                description: 'Click to open link',
+                image: null
+              };
+            }
           }
 
           newPost = {
@@ -16503,6 +16526,8 @@
       const container = document.getElementById('commentsList');
       container.innerHTML = '<div class="loading">Loading comments...</div>';
 
+      console.log('📥 Loading comments for post:', postId);
+
       try {
         let comments;
 
@@ -16510,6 +16535,7 @@
           // Load from localStorage in demo mode
           const stored = localStorage.getItem(`bearpark_bulletin_comments_${postId}`);
           comments = stored ? JSON.parse(stored) : [];
+          console.log('💾 Loaded', comments.length, 'comments from localStorage');
         } else {
           const response = await fetch(`${API_BASE_URL}/bulletin/posts/${postId}/comments`);
           if (!response.ok) throw new Error('Failed to load comments');
@@ -16517,6 +16543,7 @@
         }
 
         if (comments.length === 0) {
+          console.log('📝 No comments found for this post');
           container.innerHTML = `
             <div style="text-align:center; padding:40px 20px; color:rgba(255,255,255,0.5);">
               <div style="font-size:32px; margin-bottom:12px;">💬</div>
@@ -16526,9 +16553,10 @@
           return;
         }
 
+        console.log('✅ Rendering', comments.length, 'comments');
         container.innerHTML = comments.map(comment => createCommentHTML(comment)).join('');
       } catch (error) {
-        console.error('Error loading comments:', error);
+        console.error('❌ Error loading comments:', error);
         container.innerHTML = `
           <div style="text-align:center; padding:20px; color:#ff6b6b;">
             Failed to load comments.
@@ -16591,16 +16619,21 @@
 
           // Try to get from current session first
           const cachedProfile = localStorage.getItem(`bearpark_profile_${currentWallet}`);
+          console.log('🐻 Loading profile for wallet:', currentWallet);
+          console.log('💾 Cached profile:', cachedProfile);
+
           if (cachedProfile) {
             try {
               const profile = JSON.parse(cachedProfile);
               authorName = profile.display_name || 'Anonymous BEAR';
               authorAvatar = profile.avatar_url || 'https://files.catbox.moe/esp426.png';
+              console.log('✅ Using cached profile:', { authorName, authorAvatar });
             } catch (e) {
-              console.log('Failed to parse cached profile');
+              console.log('❌ Failed to parse cached profile:', e);
             }
           } else {
             // Fetch from API
+            console.log('📡 No cached profile, fetching from API...');
             try {
               const apiUrl = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
               const profileResponse = await fetch(`${apiUrl}/api/profile/${currentWallet}`);
@@ -16610,9 +16643,10 @@
                 authorAvatar = profile.avatar_url || profile.profile_picture || 'https://files.catbox.moe/esp426.png';
                 // Cache it
                 localStorage.setItem(`bearpark_profile_${currentWallet}`, JSON.stringify(profile));
+                console.log('✅ Fetched and cached profile:', { authorName, authorAvatar });
               }
             } catch (e) {
-              console.log('Failed to fetch profile, using defaults');
+              console.log('❌ Failed to fetch profile, using defaults:', e);
             }
           }
 
@@ -16658,13 +16692,22 @@
         // Clear input
         input.value = '';
 
+        console.log('💬 Comment posted successfully, reloading comments...');
+
         // Reload comments
         await loadComments(currentPostId);
 
-        // Update comment count in feed
-        const post = bulletinPosts.find(p => p.id === currentPostId);
-        if (post) {
-          post.comment_count = (post.comment_count || 0) + 1;
+        console.log('💬 Comments reloaded');
+
+        // Reload the full feed to update comment counts
+        if (DEMO_MODE) {
+          await loadBulletinFeed();
+        } else {
+          // Update comment count in feed for non-demo mode
+          const post = bulletinPosts.find(p => p.id === currentPostId);
+          if (post) {
+            post.comment_count = (post.comment_count || 0) + 1;
+          }
           await loadBulletinFeed();
         }
 
