@@ -1,5 +1,5 @@
 // BEAR Park Service Worker - Push Notifications & Offline Support
-const CACHE_NAME = 'bearpark-v7-bear-ninja-glow'; // FORCE CACHE REFRESH - Bear Ninja with red bomb glow!
+const CACHE_NAME = 'bearpark-v6'; // FORCE CACHE REFRESH - Stats always show now!
 const API_URL = 'https://bearpark.xyz'; // Change to your production URL
 
 // Install event - cache essential assets
@@ -53,20 +53,6 @@ self.addEventListener('fetch', (event) => {
 
   // NEVER cache YOUR API calls - always fetch fresh data
   if (event.request.url.includes('/api/')) {
-    event.respondWith(
-      fetch(event.request).catch(() => {
-        return new Response('Network error', {
-          status: 503,
-          statusText: 'Service Unavailable',
-          headers: new Headers({ 'Content-Type': 'text/plain' })
-        });
-      })
-    );
-    return;
-  }
-
-  // NEVER cache Bear Ninja game files - always fetch latest version
-  if (event.request.url.includes('/bear-ninja/') || event.request.url.includes('bear-ninja.html')) {
     event.respondWith(
       fetch(event.request).catch(() => {
         return new Response('Network error', {
