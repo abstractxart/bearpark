@@ -16595,17 +16595,17 @@
         // FORCE EVERYTHING IMMEDIATELY - NO SETTIMEOUT
         document.querySelectorAll('.loading').forEach(el => el.remove());
 
-        // FORCE THE CONTAINER TO HAVE HEIGHT AND WIDTH
-        container.style.display = 'flex';
-        container.style.flexDirection = 'column';
-        container.style.gap = '16px';
-        container.style.width = '100%';
-        container.style.minHeight = '200px';
-        container.style.height = 'auto';
-        container.style.maxHeight = 'none';
-        container.style.overflow = 'visible';
-        container.style.visibility = 'visible';
-        container.style.opacity = '1';
+        // FORCE THE CONTAINER TO HAVE HEIGHT AND WIDTH - ABSOLUTE BRUTE FORCE
+        container.style.display = 'block !important';
+        container.style.width = '650px !important';
+        container.style.minWidth = '650px !important';
+        container.style.minHeight = '200px !important';
+        container.style.height = 'auto !important';
+        container.style.maxHeight = 'none !important';
+        container.style.overflow = 'visible !important';
+        container.style.visibility = 'visible !important';
+        container.style.opacity = '1 !important';
+        container.style.padding = '16px !important';
 
         // FORCE MODAL TO RECOGNIZE HEIGHT
         const modalBody = document.querySelector('.bulletin-modal-body');
@@ -16627,15 +16627,16 @@
           console.log('🔥 FORCED MODAL CONTENT TO EXPAND WITH VISIBLE OVERFLOW');
         }
 
-        // FORCE COMMENTS SECTION TO EXPAND
+        // FORCE COMMENTS SECTION TO EXPAND - ABSOLUTE BRUTE FORCE
         const commentsSection = document.querySelector('.bulletin-comments-section');
         if (commentsSection) {
-          commentsSection.style.width = '100%';
-          commentsSection.style.minHeight = '300px';
-          commentsSection.style.height = 'auto';
-          commentsSection.style.overflow = 'visible';
-          commentsSection.style.display = 'block';
-          console.log('🔥 FORCED COMMENTS SECTION TO EXPAND WITH WIDTH');
+          commentsSection.style.width = '100% !important';
+          commentsSection.style.minWidth = '650px !important';
+          commentsSection.style.minHeight = '300px !important';
+          commentsSection.style.height = 'auto !important';
+          commentsSection.style.overflow = 'visible !important';
+          commentsSection.style.display = 'block !important';
+          console.log('🔥 FORCED COMMENTS SECTION TO EXPAND - BRUTE FORCE');
         }
 
         console.log('🔥 ALL STYLES APPLIED IMMEDIATELY FOR', comments.length, 'comments');
