@@ -16595,10 +16595,11 @@
         // FORCE EVERYTHING IMMEDIATELY - NO SETTIMEOUT
         document.querySelectorAll('.loading').forEach(el => el.remove());
 
-        // FORCE THE CONTAINER TO HAVE HEIGHT
+        // FORCE THE CONTAINER TO HAVE HEIGHT AND WIDTH
         container.style.display = 'flex';
         container.style.flexDirection = 'column';
         container.style.gap = '16px';
+        container.style.width = '100%';
         container.style.minHeight = '200px';
         container.style.height = 'auto';
         container.style.maxHeight = 'none';
@@ -16609,11 +16610,13 @@
         // FORCE MODAL TO RECOGNIZE HEIGHT
         const modalBody = document.querySelector('.bulletin-modal-body');
         if (modalBody) {
+          modalBody.style.flex = '1';
           modalBody.style.height = 'auto';
           modalBody.style.minHeight = '600px';
           modalBody.style.maxHeight = 'none';
           modalBody.style.overflow = 'visible';
-          console.log('🔥 FORCED MODAL BODY TO EXPAND');
+          modalBody.style.display = 'block';
+          console.log('🔥 FORCED MODAL BODY TO EXPAND WITH FLEX');
         }
 
         const modalContent = document.querySelector('.bulletin-modal-content');
@@ -16627,11 +16630,12 @@
         // FORCE COMMENTS SECTION TO EXPAND
         const commentsSection = document.querySelector('.bulletin-comments-section');
         if (commentsSection) {
+          commentsSection.style.width = '100%';
           commentsSection.style.minHeight = '300px';
           commentsSection.style.height = 'auto';
           commentsSection.style.overflow = 'visible';
           commentsSection.style.display = 'block';
-          console.log('🔥 FORCED COMMENTS SECTION TO EXPAND');
+          console.log('🔥 FORCED COMMENTS SECTION TO EXPAND WITH WIDTH');
         }
 
         console.log('🔥 ALL STYLES APPLIED IMMEDIATELY FOR', comments.length, 'comments');
