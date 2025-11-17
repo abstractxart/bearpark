@@ -16638,7 +16638,7 @@
 
         console.log('🔥 ALL STYLES APPLIED IMMEDIATELY FOR', comments.length, 'comments');
 
-        // FINAL DEBUG - CHECK DIMENSIONS
+        // FINAL DEBUG - CHECK DIMENSIONS OF CONTAINER AND CHILDREN
         const finalRect = container.getBoundingClientRect();
         const finalStyles = window.getComputedStyle(container);
         console.log('📦 FINAL CONTAINER:', {
@@ -16647,6 +16647,18 @@
           display: finalStyles.display,
           background: finalStyles.background,
           childrenCount: container.children.length
+        });
+
+        // Check each comment child element
+        Array.from(container.children).forEach((child, i) => {
+          const childRect = child.getBoundingClientRect();
+          const childStyles = window.getComputedStyle(child);
+          console.log(`📦 COMMENT ${i}:`, {
+            width: childRect.width,
+            height: childRect.height,
+            display: childStyles.display,
+            border: childStyles.border
+          });
         });
 
         const modalBodyEl = document.querySelector('.bulletin-modal-body');
