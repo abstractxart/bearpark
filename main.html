@@ -6662,6 +6662,22 @@
       </div>
     </div>
 
+    <!-- 🎯 FLOATING NAVIGATION BUTTONS 🎯 -->
+    <!-- RAIDS Button (Left) -->
+    <div class="floating-nav-btn" id="raidsNavBtn" data-depth="0.8" style="position: absolute; top: 55%; left: 18%; z-index: 11; perspective: 1000px; cursor: pointer;">
+      <div class="floating-nav-text" data-section="honey-points">RAIDS</div>
+    </div>
+
+    <!-- Honey Points Button (Center-Bottom) -->
+    <div class="floating-nav-btn" id="honeyNavBtn" data-depth="0.8" style="position: absolute; top: 72%; left: 50%; transform: translateX(-50%); z-index: 11; perspective: 1000px; cursor: pointer;">
+      <div class="floating-nav-text" data-section="honey-points">HONEY POINTS</div>
+    </div>
+
+    <!-- GAMES Button (Right) -->
+    <div class="floating-nav-btn" id="gamesNavBtn" data-depth="0.8" style="position: absolute; top: 55%; right: 18%; z-index: 11; perspective: 1000px; cursor: pointer;">
+      <div class="floating-nav-text" data-section="bearcade">GAMES</div>
+    </div>
+
     <!-- 🐻🏙️ BEAR CITY INHABITANTS 🏙️🐻 -->
     <div id="bearCityContainer" aria-hidden="true"></div>
   </header>
@@ -8315,6 +8331,90 @@
     })();
   </script>
 
+  <script>
+    // 🎯 FLOATING NAVIGATION BUTTONS WITH PARALLAX 🎯
+    (function() {
+      const floatingBtns = document.querySelectorAll('.floating-nav-btn');
+
+      if (!floatingBtns.length) return;
+
+      let mouseX = 0;
+      let mouseY = 0;
+      let mouseUpdateTicking = false;
+
+      // Track mouse position
+      document.addEventListener('mousemove', (e) => {
+        mouseX = e.clientX;
+        mouseY = e.clientY;
+
+        if (mouseUpdateTicking) return;
+        mouseUpdateTicking = true;
+
+        requestAnimationFrame(() => {
+          const centerX = window.innerWidth / 2;
+          const centerY = window.innerHeight / 2;
+
+          // Calculate mouse offset from center
+          const offsetX = (mouseX - centerX) / centerX;
+          const offsetY = (mouseY - centerY) / centerY;
+
+          floatingBtns.forEach(btn => {
+            const depth = parseFloat(btn.getAttribute('data-depth')) || 0.8;
+
+            // Apply parallax movement
+            const moveX = offsetX * 20 * depth;
+            const moveY = offsetY * 20 * depth;
+
+            btn.style.transform = `translate(${moveX}px, ${moveY}px)`;
+          });
+
+          mouseUpdateTicking = false;
+        });
+      });
+
+      // Add click handlers for smooth scrolling
+      floatingBtns.forEach(btn => {
+        const textElement = btn.querySelector('.floating-nav-text');
+        if (!textElement) return;
+
+        const sectionId = textElement.getAttribute('data-section');
+
+        btn.addEventListener('click', () => {
+          const targetSection = document.getElementById(sectionId);
+          if (targetSection) {
+            targetSection.scrollIntoView({
+              behavior: 'smooth',
+              block: 'start'
+            });
+          }
+        });
+      });
+
+      // Scroll parallax - fade out as user scrolls
+      let scrollTicking = false;
+      window.addEventListener('scroll', () => {
+        if (scrollTicking) return;
+        scrollTicking = true;
+
+        requestAnimationFrame(() => {
+          const scrollY = window.scrollY || window.pageYOffset;
+          const maxScroll = 800;
+          const scrollProgress = Math.min(scrollY / maxScroll, 1);
+
+          const opacity = Math.max(0, 1 - scrollProgress * 1.5);
+
+          floatingBtns.forEach(btn => {
+            btn.style.opacity = opacity;
+          });
+
+          scrollTicking = false;
+        });
+      });
+
+      console.log('🎯 FLOATING NAV BUTTONS ACTIVE! Click to navigate! 🎯');
+    })();
+  </script>
+
   <style>
     @keyframes signGoNuts {
       0% { transform: scale(1) rotate(0deg); }
@@ -8348,6 +8448,63 @@
       }
       #woodenSignContainer {
         top: 35% !important;
+      }
+    }
+
+    /* 🎯 FLOATING NAVIGATION BUTTONS 🎯 */
+    .floating-nav-btn {
+      will-change: transform, opacity;
+      pointer-events: auto;
+      transition: all 0.3s ease;
+    }
+
+    .floating-nav-text {
+      font-family: 'Luckiest Guy', 'Arial Black', Impact, sans-serif;
+      font-size: clamp(24px, 3vw, 42px);
+      color: #fff;
+      text-shadow:
+        4px 4px 0 #000,
+        -2px -2px 0 #000,
+        2px -2px 0 #000,
+        -2px 2px 0 #000,
+        0 0 20px rgba(237, 183, 35, 0.6),
+        0 0 40px rgba(237, 183, 35, 0.4);
+      cursor: pointer;
+      transition: all 0.3s ease;
+      user-select: none;
+      white-space: nowrap;
+      text-align: center;
+    }
+
+    .floating-nav-text:hover {
+      color: var(--gold);
+      text-shadow:
+        4px 4px 0 #000,
+        -2px -2px 0 #000,
+        2px -2px 0 #000,
+        -2px 2px 0 #000,
+        0 0 30px rgba(237, 183, 35, 0.8),
+        0 0 50px rgba(237, 183, 35, 0.6);
+      transform: scale(1.1);
+    }
+
+    .floating-nav-text:active {
+      transform: scale(0.95);
+    }
+
+    /* Responsive adjustments for floating nav buttons */
+    @media (max-width: 768px) {
+      .floating-nav-btn {
+        display: none !important;
+      }
+    }
+
+    @media (max-width: 1200px) {
+      #raidsNavBtn {
+        left: 8% !important;
+      }
+      #gamesNavBtn {
+        right: 8% !important;
       }
     }
   </style>
