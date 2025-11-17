@@ -3739,6 +3739,81 @@ app.post('/api/bulletin/comments/:commentId/react', async (req, res) => {
   }
 });
 
+// =======================
+// LINK PREVIEW ENDPOINT
+// =======================
+
+// Fetch link preview metadata (Open Graph tags) for URLs
+app.get('/api/link-preview', async (req, res) => {
+  try {
+    const { url } = req.query;
+
+    if (!url) {
+      return res.status(400).json({ error: 'url parameter is required' });
+    }
+
+    console.log('🔗 Fetching link preview for:', url);
+
+    // Special handling for YouTube URLs
+    const youtubeRegex = /(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/;
+    const youtubeMatch = url.match(youtubeRegex);
+
+    if (youtubeMatch) {
+      const videoId = youtubeMatch[1];
+      const thumbnailUrl = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+
+      console.log('🎥 YouTube video detected:', videoId);
+
+      return res.json({
+        url: url,
+        title: 'YouTube Video',
+        description: 'Watch on YouTube',
+        image: thumbnailUrl,
+        type: 'youtube'
+      });
+    }
+
+    // For other URLs, use microlink.io API to fetch Open Graph metadata
+    const microlinkUrl = `https://api.microlink.io/?url=${encodeURIComponent(url)}`;
+    const response = await fetch(microlinkUrl);
+
+    if (!response.ok) {
+      throw new Error(`Microlink API returned ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (data.status === 'success' && data.data) {
+      const preview = {
+        url: url,
+        title: data.data.title || data.data.publisher || new URL(url).hostname,
+        description: data.data.description || 'Click to open link',
+        image: data.data.image?.url || data.data.logo?.url || null,
+        type: 'website'
+      };
+
+      console.log('✅ Link preview fetched successfully');
+      return res.json(preview);
+    } else {
+      throw new Error('Microlink returned invalid data');
+    }
+  } catch (error) {
+    console.error('❌ Error fetching link preview:', error.message);
+
+    // Return a basic preview on error
+    const { url } = req.query;
+    const hostname = url ? new URL(url).hostname : 'Link';
+
+    res.json({
+      url: url,
+      title: hostname,
+      description: 'Click to open link',
+      image: null,
+      type: 'website'
+    });
+  }
+});
+
 // Start server for local development
 if (require.main === module) {
   app.listen(PORT, () => {
