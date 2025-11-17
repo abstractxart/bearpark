@@ -16362,9 +16362,26 @@
 
           if (cachedProfile) {
             try {
-              const profile = JSON.parse(cachedProfile);
+              const profileData = JSON.parse(cachedProfile);
+              // Handle nested structure from API (profile.profile.display_name)
+              const profile = profileData.profile || profileData;
               authorName = profile.display_name || 'Anonymous BEAR';
-              authorAvatar = profile.avatar_url || 'https://files.catbox.moe/esp426.png';
+
+              // Parse avatar_nft JSON to get imageUrl
+              if (profile.avatar_nft) {
+                try {
+                  const avatarData = typeof profile.avatar_nft === 'string'
+                    ? JSON.parse(profile.avatar_nft)
+                    : profile.avatar_nft;
+                  authorAvatar = avatarData.imageUrl || avatarData.fallbackImageUrl || 'https://files.catbox.moe/esp426.png';
+                } catch (e) {
+                  console.log('Failed to parse avatar_nft, using default');
+                  authorAvatar = 'https://files.catbox.moe/esp426.png';
+                }
+              } else {
+                authorAvatar = profile.avatar_url || 'https://files.catbox.moe/esp426.png';
+              }
+
               console.log('✅ Using cached profile:', { authorName, authorAvatar });
             } catch (e) {
               console.log('❌ Failed to parse cached profile:', e);
@@ -16376,11 +16393,26 @@
               const apiUrl = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
               const profileResponse = await fetch(`${apiUrl}/api/profile/${currentWallet}`);
               if (profileResponse.ok) {
-                const profile = await profileResponse.json();
+                const profileData = await profileResponse.json();
+                const profile = profileData.profile || profileData;
                 authorName = profile.display_name || 'Anonymous BEAR';
-                authorAvatar = profile.avatar_url || profile.profile_picture || 'https://files.catbox.moe/esp426.png';
+
+                // Parse avatar_nft JSON to get imageUrl
+                if (profile.avatar_nft) {
+                  try {
+                    const avatarData = typeof profile.avatar_nft === 'string'
+                      ? JSON.parse(profile.avatar_nft)
+                      : profile.avatar_nft;
+                    authorAvatar = avatarData.imageUrl || avatarData.fallbackImageUrl || 'https://files.catbox.moe/esp426.png';
+                  } catch (e) {
+                    authorAvatar = 'https://files.catbox.moe/esp426.png';
+                  }
+                } else {
+                  authorAvatar = profile.avatar_url || profile.profile_picture || 'https://files.catbox.moe/esp426.png';
+                }
+
                 // Cache it
-                localStorage.setItem(`bearpark_profile_${currentWallet}`, JSON.stringify(profile));
+                localStorage.setItem(`bearpark_profile_${currentWallet}`, JSON.stringify(profileData));
                 console.log('✅ Fetched and cached profile:', { authorName, authorAvatar });
               }
             } catch (e) {
@@ -16624,9 +16656,26 @@
 
           if (cachedProfile) {
             try {
-              const profile = JSON.parse(cachedProfile);
+              const profileData = JSON.parse(cachedProfile);
+              // Handle nested structure from API (profile.profile.display_name)
+              const profile = profileData.profile || profileData;
               authorName = profile.display_name || 'Anonymous BEAR';
-              authorAvatar = profile.avatar_url || 'https://files.catbox.moe/esp426.png';
+
+              // Parse avatar_nft JSON to get imageUrl
+              if (profile.avatar_nft) {
+                try {
+                  const avatarData = typeof profile.avatar_nft === 'string'
+                    ? JSON.parse(profile.avatar_nft)
+                    : profile.avatar_nft;
+                  authorAvatar = avatarData.imageUrl || avatarData.fallbackImageUrl || 'https://files.catbox.moe/esp426.png';
+                } catch (e) {
+                  console.log('Failed to parse avatar_nft, using default');
+                  authorAvatar = 'https://files.catbox.moe/esp426.png';
+                }
+              } else {
+                authorAvatar = profile.avatar_url || 'https://files.catbox.moe/esp426.png';
+              }
+
               console.log('✅ Using cached profile:', { authorName, authorAvatar });
             } catch (e) {
               console.log('❌ Failed to parse cached profile:', e);
@@ -16638,11 +16687,26 @@
               const apiUrl = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
               const profileResponse = await fetch(`${apiUrl}/api/profile/${currentWallet}`);
               if (profileResponse.ok) {
-                const profile = await profileResponse.json();
+                const profileData = await profileResponse.json();
+                const profile = profileData.profile || profileData;
                 authorName = profile.display_name || 'Anonymous BEAR';
-                authorAvatar = profile.avatar_url || profile.profile_picture || 'https://files.catbox.moe/esp426.png';
+
+                // Parse avatar_nft JSON to get imageUrl
+                if (profile.avatar_nft) {
+                  try {
+                    const avatarData = typeof profile.avatar_nft === 'string'
+                      ? JSON.parse(profile.avatar_nft)
+                      : profile.avatar_nft;
+                    authorAvatar = avatarData.imageUrl || avatarData.fallbackImageUrl || 'https://files.catbox.moe/esp426.png';
+                  } catch (e) {
+                    authorAvatar = 'https://files.catbox.moe/esp426.png';
+                  }
+                } else {
+                  authorAvatar = profile.avatar_url || profile.profile_picture || 'https://files.catbox.moe/esp426.png';
+                }
+
                 // Cache it
-                localStorage.setItem(`bearpark_profile_${currentWallet}`, JSON.stringify(profile));
+                localStorage.setItem(`bearpark_profile_${currentWallet}`, JSON.stringify(profileData));
                 console.log('✅ Fetched and cached profile:', { authorName, authorAvatar });
               }
             } catch (e) {
