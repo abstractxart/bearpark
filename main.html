@@ -3014,6 +3014,18 @@
     word-break: break-word;
   }
 
+  .bulletin-link {
+    color: var(--gold);
+    text-decoration: underline;
+    transition: all 0.2s ease;
+    word-break: break-all;
+  }
+
+  .bulletin-link:hover {
+    color: #ffd700;
+    text-decoration: none;
+  }
+
   .bulletin-post-link-preview {
     margin-top: 12px;
     border: 2px solid rgba(237, 183, 35, 0.3);
@@ -16239,6 +16251,15 @@
     }
 
     // Create post card HTML
+    // Convert URLs in text to clickable links
+    function linkifyText(text) {
+      // First escape HTML for security
+      const escaped = escapeHtml(text);
+      // Then convert URLs to clickable links
+      const urlRegex = /(https?:\/\/[^\s<]+)/g;
+      return escaped.replace(urlRegex, '<a href="$1" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" class="bulletin-link">$1</a>');
+    }
+
     function createPostCard(post) {
       const timeAgo = getTimeAgo(post.created_at);
       const linkPreview = post.link_preview ? createLinkPreview(post.link_preview) : '';
@@ -16263,7 +16284,7 @@
               </button>
             ` : ''}
           </div>
-          <div class="bulletin-post-content">${escapeHtml(post.content)}</div>
+          <div class="bulletin-post-content">${linkifyText(post.content)}</div>
           ${linkPreview}
           <div class="bulletin-post-footer">
             <div class="bulletin-post-stat">
@@ -16330,14 +16351,45 @@
 
         if (DEMO_MODE) {
           // Demo mode: save to localStorage
-          const profileResponse = await fetch(`${API_BASE_URL}/api/profile/${currentWallet}`);
+          // Get profile from localStorage or fetch from API
           let authorName = 'Anonymous BEAR';
           let authorAvatar = 'https://files.catbox.moe/esp426.png';
 
-          if (profileResponse.ok) {
-            const profile = await profileResponse.json();
-            authorName = profile.display_name || 'Anonymous BEAR';
-            authorAvatar = profile.profile_picture || 'https://files.catbox.moe/esp426.png';
+          // Try to get from current session first
+          const cachedProfile = localStorage.getItem(`bearpark_profile_${currentWallet}`);
+          if (cachedProfile) {
+            try {
+              const profile = JSON.parse(cachedProfile);
+              authorName = profile.display_name || 'Anonymous BEAR';
+              authorAvatar = profile.avatar_url || 'https://files.catbox.moe/esp426.png';
+            } catch (e) {
+              console.log('Failed to parse cached profile');
+            }
+          } else {
+            // Fetch from API
+            try {
+              const apiUrl = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
+              const profileResponse = await fetch(`${apiUrl}/api/profile/${currentWallet}`);
+              if (profileResponse.ok) {
+                const profile = await profileResponse.json();
+                authorName = profile.display_name || 'Anonymous BEAR';
+                authorAvatar = profile.avatar_url || profile.profile_picture || 'https://files.catbox.moe/esp426.png';
+                // Cache it
+                localStorage.setItem(`bearpark_profile_${currentWallet}`, JSON.stringify(profile));
+              }
+            } catch (e) {
+              console.log('Failed to fetch profile, using defaults');
+            }
+          }
+
+          // Generate simple link preview for demo mode
+          if (urls && urls.length > 0) {
+            linkPreview = {
+              url: urls[0],
+              title: urls[0],
+              description: 'Click to open link',
+              image: null
+            };
           }
 
           newPost = {
@@ -16430,7 +16482,7 @@
             <div class="bulletin-post-time">${timeAgo}</div>
           </div>
         </div>
-        <div class="bulletin-post-content">${escapeHtml(post.content)}</div>
+        <div class="bulletin-post-content">${linkifyText(post.content)}</div>
         ${linkPreview}
       `;
 
@@ -16533,14 +16585,35 @@
       try {
         if (DEMO_MODE) {
           // Demo mode: save to localStorage
-          const profileResponse = await fetch(`${API_BASE_URL}/api/profile/${currentWallet}`);
+          // Get profile from localStorage or fetch from API
           let authorName = 'Anonymous BEAR';
           let authorAvatar = 'https://files.catbox.moe/esp426.png';
 
-          if (profileResponse.ok) {
-            const profile = await profileResponse.json();
-            authorName = profile.display_name || 'Anonymous BEAR';
-            authorAvatar = profile.profile_picture || 'https://files.catbox.moe/esp426.png';
+          // Try to get from current session first
+          const cachedProfile = localStorage.getItem(`bearpark_profile_${currentWallet}`);
+          if (cachedProfile) {
+            try {
+              const profile = JSON.parse(cachedProfile);
+              authorName = profile.display_name || 'Anonymous BEAR';
+              authorAvatar = profile.avatar_url || 'https://files.catbox.moe/esp426.png';
+            } catch (e) {
+              console.log('Failed to parse cached profile');
+            }
+          } else {
+            // Fetch from API
+            try {
+              const apiUrl = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
+              const profileResponse = await fetch(`${apiUrl}/api/profile/${currentWallet}`);
+              if (profileResponse.ok) {
+                const profile = await profileResponse.json();
+                authorName = profile.display_name || 'Anonymous BEAR';
+                authorAvatar = profile.avatar_url || profile.profile_picture || 'https://files.catbox.moe/esp426.png';
+                // Cache it
+                localStorage.setItem(`bearpark_profile_${currentWallet}`, JSON.stringify(profile));
+              }
+            } catch (e) {
+              console.log('Failed to fetch profile, using defaults');
+            }
           }
 
           const newComment = {
