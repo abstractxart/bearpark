@@ -2,74 +2,256 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="screen-orientation" content="landscape" />
-    <meta name="orientation" content="landscape" />
-    <title>BEAR SLICE</title>
+    <link rel="icon" type="image/x-icon" href="/bear-ninja/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>BEAR Ninja</title>
+
+    <!-- BEAR Park Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&display=swap" rel="stylesheet" />
+
+    <!-- BEAR Park Authentication - Read URL params and store to localStorage -->
+    <script>
+      (function() {
+        try {
+          // Read URL parameters
+          const urlParams = new URLSearchParams(window.location.search);
+          const wallet = urlParams.get('wallet');
+          const displayName = urlParams.get('display_name');
+          const twitterUsername = urlParams.get('twitter_username');
+
+          // Store to localStorage if provided
+          if (wallet) {
+            localStorage.setItem('xaman_wallet_address', wallet);
+            console.log('✅ Wallet address synced from BEAR Park:', wallet);
+          }
+
+          if (displayName) {
+            localStorage.setItem('display_name', displayName);
+            console.log('✅ Display name synced from BEAR Park:', displayName);
+          }
+
+          if (twitterUsername) {
+            localStorage.setItem('twitter_username', twitterUsername);
+            console.log('✅ Twitter username synced from BEAR Park:', twitterUsername);
+          }
+
+          // Clean URL after reading params (optional - removes params from address bar)
+          if (wallet || displayName || twitterUsername) {
+            const cleanUrl = window.location.origin + window.location.pathname;
+            window.history.replaceState({}, document.title, cleanUrl);
+          }
+        } catch (error) {
+          console.error('Error reading BEAR Park authentication data:', error);
+        }
+      })();
+    </script>
+
 
     <style>
-      html, body {
+      body {
         background: black;
         margin: 0;
         padding: 0;
-        width: 100%;
-        height: 100%;
-        overflow: hidden;
-        overscroll-behavior: none;
-      }
-
-      #game-container {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        width: 100dvw; /* Dynamic viewport width for mobile */
-        height: 100dvh; /* Dynamic viewport height for mobile */
-      }
-
-      #game-container canvas {
-        display: block;
-        width: 100% !important;
-        height: 100% !important;
       }
     </style>
-    <script type="module" crossorigin src="./assets/index-BIeBd-yK.js?v=20251116"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-CKT1wiae.css?v=20251116">
+    <script type="module" crossorigin src="/bear-ninja/assets/index-CZqE4AL6.js"></script>
+    <link rel="stylesheet" crossorigin href="/bear-ninja/assets/index-DhFUbCRh.css">
   </head>
   <body>
     <div id="game-container"></div>
 
+    <!-- BEAR Park Game Points Integration -->
+    <script src="/frontend/game-points-helper.js" onerror="console.error('Failed to load game-points-helper.js')"></script>
     <script>
-      // Try to lock to landscape, but allow portrait if it fails
-      if (screen.orientation && screen.orientation.lock) {
-        screen.orientation.lock('landscape').catch(err => {
-          console.log('Screen orientation lock not supported - allowing both orientations');
-        });
+      // Verify helper loaded
+      if (typeof awardGamePoints === 'undefined') {
+        console.error('⚠️ game-points-helper.js did not load correctly!');
+      } else {
+        console.log('✅ game-points-helper.js loaded successfully');
+      }
+    </script>
+    <script>
+      // ULTRA-SECURE GAMEPLAY TIMER - ONLY counts active gameplay, nothing else!
+      let gameRoundStartTime = null;
+      let waitingForGameStart = true; // Start immediately - first game counts!
+      let readyToStart = false;
+      let pausedAt = null;
+      let totalPausedTime = 0;
+      let lastInteractionTime = null;
+      let idleCheckInterval = null;
+      const IDLE_TIMEOUT_MS = 3000; // 3 seconds of no input = auto-pause
+      const MAX_ROUND_TIME_MS = 300000; // 5 minutes max per round
+
+      // Pause the timer (called by idle detection, visibility, focus loss)
+      function pauseTimer(reason) {
+        if (gameRoundStartTime && !pausedAt) {
+          pausedAt = Date.now();
+          console.log(`⏸️ Timer paused (${reason})`);
+        }
       }
 
-      // Handle orientation changes to ensure game fills screen
-      window.addEventListener('resize', () => {
-        const canvas = document.querySelector('canvas');
-        if (canvas) {
-          canvas.style.width = '100%';
-          canvas.style.height = '100%';
+      // Resume the timer
+      function resumeTimer(reason) {
+        if (pausedAt) {
+          const pauseDuration = Date.now() - pausedAt;
+          totalPausedTime += pauseDuration;
+          pausedAt = null;
+          console.log(`▶️ Timer resumed after ${(pauseDuration/1000).toFixed(1)}s (${reason})`);
+        }
+      }
+
+      // Idle detection - if no input for 3 seconds, pause timer
+      function startIdleCheck() {
+        if (idleCheckInterval) clearInterval(idleCheckInterval);
+        idleCheckInterval = setInterval(() => {
+          if (gameRoundStartTime && lastInteractionTime) {
+            const timeSinceLastInput = Date.now() - lastInteractionTime;
+            if (timeSinceLastInput >= IDLE_TIMEOUT_MS) {
+              pauseTimer('idle - no input for 3s');
+            }
+          }
+        }, 1000); // Check every second
+      }
+
+      function stopIdleCheck() {
+        if (idleCheckInterval) {
+          clearInterval(idleCheckInterval);
+          idleCheckInterval = null;
+        }
+      }
+
+      // Track user interaction to detect idle periods
+      function handleUserInteraction() {
+        lastInteractionTime = Date.now();
+
+        // Resume if paused due to idle
+        if (gameRoundStartTime && pausedAt) {
+          resumeTimer('user input');
+        }
+
+        // Start timer logic (two-interaction system)
+        if (waitingForGameStart && !gameRoundStartTime) {
+          if (!readyToStart) {
+            readyToStart = true;
+            console.log('⏱️ Ready... (next interaction will start timer)');
+          } else {
+            // Start the timer
+            gameRoundStartTime = Date.now();
+            lastInteractionTime = Date.now();
+            totalPausedTime = 0;
+            pausedAt = null;
+            waitingForGameStart = false;
+            readyToStart = false;
+            startIdleCheck();
+            console.log('⏱️ Gameplay started - timer running with idle detection');
+          }
+        }
+      }
+
+      // Listen for ALL user interactions
+      document.addEventListener('click', handleUserInteraction);
+      document.addEventListener('keydown', handleUserInteraction);
+      document.addEventListener('touchstart', handleUserInteraction);
+      document.addEventListener('mousedown', handleUserInteraction);
+      document.addEventListener('touchmove', handleUserInteraction);
+
+      // Pause when page loses visibility (tab switch)
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+          pauseTimer('tab hidden');
+        } else if (!document.hidden && pausedAt) {
+          resumeTimer('tab visible');
+          lastInteractionTime = Date.now(); // Reset idle timer
         }
       });
 
-      window.addEventListener('orientationchange', () => {
-        setTimeout(() => {
-          const canvas = document.querySelector('canvas');
-          if (canvas) {
-            canvas.style.width = '100%';
-            canvas.style.height = '100%';
-          }
-        }, 100);
+      // Pause when window loses focus
+      window.addEventListener('blur', () => {
+        pauseTimer('window blur');
       });
+
+      window.addEventListener('focus', () => {
+        if (pausedAt) {
+          resumeTimer('window focus');
+          lastInteractionTime = Date.now(); // Reset idle timer
+        }
+      });
+
+      // Intercept fetch calls to detect when game submits score
+      const originalFetch = window.fetch;
+      let gameCompletionHandled = false;
+
+      window.fetch = async function(...args) {
+        const response = await originalFetch.apply(this, args);
+
+        // Check if this is a leaderboard submission for bear-ninja
+        const url = args[0];
+        if (typeof url === 'string' && url.includes('/api/leaderboard') && args[1]?.method === 'POST') {
+          console.log('🎮 BEAR NINJA death detected!');
+
+          // IMMEDIATELY stop timer and calculate time (BEFORE any delays or reward screens)
+          if (!gameCompletionHandled) {
+            gameCompletionHandled = true;
+
+            let minutesPlayed = 0;
+
+            if (gameRoundStartTime) {
+              // IMMEDIATELY calculate time (no delay)
+              stopIdleCheck();
+              const roundEndTime = Date.now();
+              const totalElapsed = roundEndTime - gameRoundStartTime;
+              const actualGameplayTime = totalElapsed - totalPausedTime;
+              const secondsPlayed = actualGameplayTime / 1000;
+              minutesPlayed = Math.round((secondsPlayed / 60) * 10) / 10;
+
+              // Cap at max round time (5 minutes)
+              const maxMinutes = MAX_ROUND_TIME_MS / 60000;
+              if (minutesPlayed > maxMinutes) {
+                console.log(`⚠️ Round time capped at ${maxMinutes} minutes (was ${minutesPlayed.toFixed(1)})`);
+                minutesPlayed = maxMinutes;
+              }
+
+              console.log(`⏱️ Round ended - Total: ${(totalElapsed/1000).toFixed(1)}s, Paused: ${(totalPausedTime/1000).toFixed(1)}s`);
+              console.log(`⏱️ Actual gameplay: ${secondsPlayed.toFixed(1)}s (${minutesPlayed.toFixed(1)} minutes)`);
+
+              // Reset timer state BEFORE awarding points
+              gameRoundStartTime = null;
+              totalPausedTime = 0;
+              pausedAt = null;
+              waitingForGameStart = true;
+              readyToStart = false;
+              lastInteractionTime = null;
+            }
+
+            // Award points AFTER timer is stopped and reset
+            if (minutesPlayed >= 0) {
+              console.log('🍯 Awarding honey points for gameplay time...');
+              setTimeout(async () => {
+                await awardGamePoints('bear-ninja', minutesPlayed);
+                console.log('⏱️ Click/tap twice to start next round timer.');
+
+                // Reset flag after awarding
+                setTimeout(() => {
+                  gameCompletionHandled = false;
+                }, 2000);
+              }, 100);
+            } else {
+              setTimeout(() => {
+                gameCompletionHandled = false;
+              }, 2000);
+            }
+          }
+        }
+
+        return response;
+      };
+
+      console.log('🎮 BEAR NINJA ultra-secure honey points integration active!');
+      console.log('⏱️ Timer auto-pauses after 3 seconds of no input');
+      console.log('⏸️ Timer pauses when you tab away, lose focus, or stop playing');
+      console.log('🔒 ONLY actual gameplay time counts - nothing else!');
     </script>
   </body>
 </html>
