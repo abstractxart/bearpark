@@ -16591,17 +16591,21 @@
 
         console.log('✅ Rendering', comments.length, 'comments');
 
-        // NUCLEAR OPTION: Replace entire container with inline styles baked in
-        const commentsHTML = comments.map(comment => createCommentHTML(comment)).join('');
-        container.outerHTML = `
-          <div id="commentsList" class="comments-list" style="display: block !important; width: 650px !important; min-width: 650px !important; min-height: 200px !important; height: auto !important; max-height: none !important; overflow: visible !important; visibility: visible !important; opacity: 1 !important; padding: 16px !important; background: rgba(255,0,0,0.1) !important; border: 5px solid lime !important;">
-            ${commentsHTML}
-          </div>
-        `;
-
-        // Re-query the new container
-        const newContainer = document.getElementById('commentsList');
+        // BYPASS THE CONTAINER ENTIRELY - RENDER DIRECTLY
         document.querySelectorAll('.loading').forEach(el => el.remove());
+
+        // Clear container and insert comments as direct children
+        container.innerHTML = '';
+        comments.forEach(comment => {
+          const div = document.createElement('div');
+          div.innerHTML = createCommentHTML(comment);
+          container.appendChild(div.firstChild);
+        });
+
+        console.log('💥 INSERTED', comments.length, 'comment elements directly');
+
+        // FORCE CONTAINER WITH setAttribute
+        container.setAttribute('style', 'display: block !important; width: 100% !important; min-height: 200px !important; background: yellow !important; padding: 20px !important;');
 
         // FORCE MODAL TO RECOGNIZE HEIGHT
         const modalBody = document.querySelector('.bulletin-modal-body');
@@ -16637,17 +16641,16 @@
 
         console.log('🔥 ALL STYLES APPLIED IMMEDIATELY FOR', comments.length, 'comments');
 
-        // EXTREME DEBUG - CHECK PARENT DIMENSIONS FIRST
-        if (newContainer) {
-          const containerRect = newContainer.getBoundingClientRect();
-          const containerStyles = window.getComputedStyle(newContainer);
-          console.log('📦 NEW CONTAINER (#commentsList):', {
-            width: containerRect.width,
-            height: containerRect.height,
-            display: containerStyles.display,
-            border: containerStyles.border
-          });
-        }
+        // FINAL DEBUG - CHECK DIMENSIONS
+        const finalRect = container.getBoundingClientRect();
+        const finalStyles = window.getComputedStyle(container);
+        console.log('📦 FINAL CONTAINER:', {
+          width: finalRect.width,
+          height: finalRect.height,
+          display: finalStyles.display,
+          background: finalStyles.background,
+          childrenCount: container.children.length
+        });
 
         const modalBodyEl = document.querySelector('.bulletin-modal-body');
         if (modalBodyEl) {
