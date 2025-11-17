@@ -16234,6 +16234,7 @@
         return;
       }
 
+      const currentWallet = localStorage.getItem('bearpark_wallet');
       if (!currentWallet) {
         showBulletinNotification('⚠️ Please connect your wallet first!', 'warning');
         return;
@@ -16411,6 +16412,7 @@
         return;
       }
 
+      const currentWallet = localStorage.getItem('bearpark_wallet');
       if (!currentWallet) {
         showBulletinNotification('⚠️ Please connect your wallet first!', 'warning');
         return;
