@@ -16591,18 +16591,21 @@
 
         console.log('✅ Rendering', comments.length, 'comments');
 
-        // Use insertAdjacentHTML for reliable insertion
+        // NUCLEAR: BYPASS THE CURSED #commentsList - RENDER DIRECTLY TO SECTION
         document.querySelectorAll('.loading').forEach(el => el.remove());
 
-        container.innerHTML = '';
+        const commentsSection = document.querySelector('.bulletin-comments-section');
+
+        // Remove the broken container entirely
+        if (container) container.remove();
+
+        // Render directly to the section with massive inline styles
         comments.forEach(comment => {
-          container.insertAdjacentHTML('beforeend', createCommentHTML(comment));
+          const html = createCommentHTML(comment);
+          commentsSection.insertAdjacentHTML('beforeend', html);
         });
 
-        console.log('💥 INSERTED', comments.length, 'comments via insertAdjacentHTML');
-
-        // FORCE CONTAINER WITH setAttribute
-        container.setAttribute('style', 'display: block !important; width: 100% !important; min-height: 200px !important; background: yellow !important; padding: 20px !important;');
+        console.log('💥 BYPASSED CONTAINER - RENDERED', comments.length, 'comments DIRECTLY to .bulletin-comments-section');
 
         // FORCE MODAL TO RECOGNIZE HEIGHT
         const modalBody = document.querySelector('.bulletin-modal-body');
@@ -16638,25 +16641,18 @@
 
         console.log('🔥 ALL STYLES APPLIED IMMEDIATELY FOR', comments.length, 'comments');
 
-        // FINAL DEBUG - CHECK DIMENSIONS OF CONTAINER AND CHILDREN
-        const finalRect = container.getBoundingClientRect();
-        const finalStyles = window.getComputedStyle(container);
-        console.log('📦 FINAL CONTAINER:', {
-          width: finalRect.width,
-          height: finalRect.height,
-          display: finalStyles.display,
-          background: finalStyles.background,
-          childrenCount: container.children.length
-        });
+        // FINAL DEBUG - CHECK COMMENTS IN SECTION
+        const commentDivs = commentsSection.querySelectorAll('div[style*="border: 2px solid #edb723"]');
+        console.log('📦 FOUND', commentDivs.length, 'comment divs in section');
 
-        // Check each comment child element
-        Array.from(container.children).forEach((child, i) => {
+        commentDivs.forEach((child, i) => {
           const childRect = child.getBoundingClientRect();
           const childStyles = window.getComputedStyle(child);
           console.log(`📦 COMMENT ${i}:`, {
             width: childRect.width,
             height: childRect.height,
             display: childStyles.display,
+            minHeight: childStyles.minHeight,
             border: childStyles.border
           });
         });
