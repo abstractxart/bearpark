@@ -16591,18 +16591,15 @@
 
         console.log('✅ Rendering', comments.length, 'comments');
 
-        // BYPASS THE CONTAINER ENTIRELY - RENDER DIRECTLY
+        // Use insertAdjacentHTML for reliable insertion
         document.querySelectorAll('.loading').forEach(el => el.remove());
 
-        // Clear container and insert comments as direct children
         container.innerHTML = '';
         comments.forEach(comment => {
-          const div = document.createElement('div');
-          div.innerHTML = createCommentHTML(comment);
-          container.appendChild(div.firstChild);
+          container.insertAdjacentHTML('beforeend', createCommentHTML(comment));
         });
 
-        console.log('💥 INSERTED', comments.length, 'comment elements directly');
+        console.log('💥 INSERTED', comments.length, 'comments via insertAdjacentHTML');
 
         // FORCE CONTAINER WITH setAttribute
         container.setAttribute('style', 'display: block !important; width: 100% !important; min-height: 200px !important; background: yellow !important; padding: 20px !important;');
