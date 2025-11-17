@@ -16590,22 +16590,18 @@
         }
 
         console.log('✅ Rendering', comments.length, 'comments');
-        container.innerHTML = comments.map(comment => createCommentHTML(comment)).join('');
 
-        // FORCE EVERYTHING IMMEDIATELY - NO SETTIMEOUT
+        // NUCLEAR OPTION: Replace entire container with inline styles baked in
+        const commentsHTML = comments.map(comment => createCommentHTML(comment)).join('');
+        container.outerHTML = `
+          <div id="commentsList" class="comments-list" style="display: block !important; width: 650px !important; min-width: 650px !important; min-height: 200px !important; height: auto !important; max-height: none !important; overflow: visible !important; visibility: visible !important; opacity: 1 !important; padding: 16px !important; background: rgba(255,0,0,0.1) !important; border: 5px solid lime !important;">
+            ${commentsHTML}
+          </div>
+        `;
+
+        // Re-query the new container
+        const newContainer = document.getElementById('commentsList');
         document.querySelectorAll('.loading').forEach(el => el.remove());
-
-        // FORCE THE CONTAINER - CORRECT !important SYNTAX
-        container.style.setProperty('display', 'block', 'important');
-        container.style.setProperty('width', '650px', 'important');
-        container.style.setProperty('min-width', '650px', 'important');
-        container.style.setProperty('min-height', '200px', 'important');
-        container.style.setProperty('height', 'auto', 'important');
-        container.style.setProperty('max-height', 'none', 'important');
-        container.style.setProperty('overflow', 'visible', 'important');
-        container.style.setProperty('visibility', 'visible', 'important');
-        container.style.setProperty('opacity', '1', 'important');
-        container.style.setProperty('padding', '16px', 'important');
 
         // FORCE MODAL TO RECOGNIZE HEIGHT
         const modalBody = document.querySelector('.bulletin-modal-body');
@@ -16642,14 +16638,16 @@
         console.log('🔥 ALL STYLES APPLIED IMMEDIATELY FOR', comments.length, 'comments');
 
         // EXTREME DEBUG - CHECK PARENT DIMENSIONS FIRST
-        const containerRect = container.getBoundingClientRect();
-        const containerStyles = window.getComputedStyle(container);
-        console.log('📦 CONTAINER (#commentsList):', {
-          width: containerRect.width,
-          height: containerRect.height,
-          display: containerStyles.display,
-          position: containerStyles.position
-        });
+        if (newContainer) {
+          const containerRect = newContainer.getBoundingClientRect();
+          const containerStyles = window.getComputedStyle(newContainer);
+          console.log('📦 NEW CONTAINER (#commentsList):', {
+            width: containerRect.width,
+            height: containerRect.height,
+            display: containerStyles.display,
+            border: containerStyles.border
+          });
+        }
 
         const modalBodyEl = document.querySelector('.bulletin-modal-body');
         if (modalBodyEl) {
