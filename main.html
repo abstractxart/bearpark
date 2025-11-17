@@ -16417,26 +16417,40 @@
       return escaped.replace(urlRegex, '<a href="$1" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" class="bulletin-link">$1</a>');
     }
 
+    // Helper function to parse avatar JSONB data
+    function getAvatarUrl(authorAvatar) {
+      if (!authorAvatar) return 'https://files.catbox.moe/esp426.png';
+
+      try {
+        const avatarData = typeof authorAvatar === 'string' ? JSON.parse(authorAvatar) : authorAvatar;
+        return avatarData.imageUrl || avatarData.fallbackImageUrl || 'https://files.catbox.moe/esp426.png';
+      } catch (e) {
+        return 'https://files.catbox.moe/esp426.png';
+      }
+    }
+
     function createPostCard(post) {
       const timeAgo = getTimeAgo(post.created_at);
       const linkPreview = post.link_preview ? createLinkPreview(post.link_preview) : '';
       const currentWallet = localStorage.getItem('bearpark_wallet');
       const isOwner = currentWallet && post.wallet_address === currentWallet;
+      const avatarUrl = getAvatarUrl(post.author_avatar);
 
       return `
-        <div class="bulletin-post-card" onclick="openBulletinPost('${post.id}')">
+        <div class="bulletin-post-card" onclick="openBulletinPost(${post.id})">
           <div class="bulletin-post-header">
             <img
-              src="${post.author_avatar || 'https://files.catbox.moe/esp426.png'}"
+              src="${avatarUrl}"
               alt="${post.author_name}"
               class="bulletin-post-avatar"
+              onerror="this.src='https://files.catbox.moe/esp426.png';"
             />
             <div class="bulletin-post-info">
               <div class="bulletin-post-author">${escapeHtml(post.author_name)}</div>
               <div class="bulletin-post-time">${timeAgo}</div>
             </div>
             ${isOwner ? `
-              <button class="bulletin-delete-btn" onclick="event.stopPropagation(); deletePost('${post.id}')" title="Delete post">
+              <button class="bulletin-delete-btn" onclick="event.stopPropagation(); deletePost(${post.id})" title="Delete post">
                 🗑️
               </button>
             ` : ''}
@@ -16681,13 +16695,15 @@
       // Render post detail
       const timeAgo = getTimeAgo(post.created_at);
       const linkPreview = post.link_preview ? createLinkPreview(post.link_preview) : '';
+      const avatarUrl = getAvatarUrl(post.author_avatar);
 
       detailContainer.innerHTML = `
         <div class="bulletin-post-header">
           <img
-            src="${post.author_avatar || 'https://files.catbox.moe/esp426.png'}"
+            src="${avatarUrl}"
             alt="${post.author_name}"
             class="bulletin-post-avatar"
+            onerror="this.src='https://files.catbox.moe/esp426.png';"
           />
           <div class="bulletin-post-info">
             <div class="bulletin-post-author">${escapeHtml(post.author_name)}</div>
@@ -17325,19 +17341,9 @@
       const hasReplies = comment.children && comment.children.length > 0;
       const replyCount = hasReplies ? comment.children.length : 0;
 
-      // Parse avatar
-      let avatarHTML = '';
-      if (comment.author_avatar) {
-        try {
-          const avatarData = typeof comment.author_avatar === 'string' ? JSON.parse(comment.author_avatar) : comment.author_avatar;
-          const avatarUrl = avatarData.imageUrl || avatarData.fallbackImageUrl;
-          avatarHTML = `<img src="${avatarUrl}" class="comment-avatar" alt="${comment.author_name}" onerror="this.src='https://files.catbox.moe/esp426.png';">`;
-        } catch (e) {
-          avatarHTML = `<img src="https://files.catbox.moe/esp426.png" class="comment-avatar" alt="${comment.author_name}">`;
-        }
-      } else {
-        avatarHTML = `<img src="https://files.catbox.moe/esp426.png" class="comment-avatar" alt="${comment.author_name}">`;
-      }
+      // Parse avatar using helper function
+      const avatarUrl = getAvatarUrl(comment.author_avatar);
+      const avatarHTML = `<img src="${avatarUrl}" class="comment-avatar" alt="${comment.author_name || 'Anonymous'}" onerror="this.src='https://files.catbox.moe/esp426.png';">`;
 
       // Load reactions
       const reactions = await loadBulletinCommentReactions(comment.id);
