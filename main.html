@@ -16274,7 +16274,66 @@
     // ===== BEAR BULLETIN BOARD JAVASCRIPT =====
     let currentPostId = null;
     let bulletinPosts = [];
-    const DEMO_MODE = true; // Set to false when backend is ready
+    const BULLETIN_DEMO_MODE = false; // Using Supabase backend
+
+    // State storage for bulletin like buttons
+    const bulletinButtonStates = new Map();
+
+    function getBulletinButtonState(btn) {
+      if (!bulletinButtonStates.has(btn)) {
+        bulletinButtonStates.set(btn, {
+          longPressTimer: null,
+          picker: null,
+          currentHoveredItem: null,
+          selectedReaction: null,
+          pickerShown: false
+        });
+      }
+      return bulletinButtonStates.get(btn);
+    }
+
+    // Build nested comment tree from flat array (bulletin version)
+    function buildBulletinCommentTree(comments) {
+      const commentMap = {};
+      const rootComments = [];
+
+      // First pass: create map of all comments
+      comments.forEach(comment => {
+        commentMap[comment.id] = { ...comment, children: [] };
+      });
+
+      // Second pass: build tree structure
+      comments.forEach(comment => {
+        if (comment.parent_id && commentMap[comment.parent_id]) {
+          commentMap[comment.parent_id].children.push(commentMap[comment.id]);
+        } else {
+          rootComments.push(commentMap[comment.id]);
+        }
+      });
+
+      return rootComments;
+    }
+
+    // Toggle collapse/expand thread (bulletin version)
+    window.toggleBulletinThread = function(commentId) {
+      const threadElement = document.querySelector(`.bulletin-comment-thread[data-comment-id="${commentId}"]`);
+      if (!threadElement) return;
+
+      const repliesContainer = threadElement.querySelector('.bulletin-comment-replies');
+      const toggleIcon = threadElement.querySelector('.bulletin-toggle-icon');
+
+      if (!repliesContainer) return;
+
+      if (repliesContainer.style.display === 'none') {
+        repliesContainer.style.display = 'block';
+        toggleIcon.textContent = '▼';
+        threadElement.classList.remove('collapsed');
+      } else {
+        repliesContainer.style.display = 'none';
+        toggleIcon.textContent = '▶';
+        threadElement.classList.add('collapsed');
+      }
+    };
 
     // Open profile modal and highlight bulletin input
     function openPostBulletinHighlight() {
@@ -16651,11 +16710,15 @@
       currentPostId = null;
     }
 
-    // Load comments for a post
+    // Load comments for a post (USING TREE STRUCTURE AND ASYNC RENDERING)
     async function loadComments(postId) {
-      console.log('📥 Loading comments for post:', postId);
+      console.log('📥 Loading bulletin comments for post:', postId);
 
       const commentsSection = document.querySelector('.bulletin-comments-section');
+      if (!commentsSection) {
+        console.error('❌ Comments section not found');
+        return;
+      }
 
       // Clear ALL previous content (comments, empty state, loading)
       const allDivs = Array.from(commentsSection.children).filter(el =>
@@ -16667,18 +16730,10 @@
       commentsSection.insertAdjacentHTML('beforeend', '<div class="loading">Loading comments...</div>');
 
       try {
-        let comments;
-
-        if (DEMO_MODE) {
-          // Load from localStorage in demo mode
-          const stored = localStorage.getItem(`bearpark_bulletin_comments_${postId}`);
-          comments = stored ? JSON.parse(stored) : [];
-          console.log('💾 Loaded', comments.length, 'comments from localStorage');
-        } else {
-          const response = await fetch(`${API_BASE_URL}/bulletin/posts/${postId}/comments`);
-          if (!response.ok) throw new Error('Failed to load comments');
-          comments = await response.json();
-        }
+        // Fetch comments from Supabase API
+        const response = await fetch(`${API_BASE_URL}/api/bulletin/posts/${postId}/comments`);
+        if (!response.ok) throw new Error('Failed to load comments');
+        const comments = await response.json();
 
         // Remove loading indicator
         document.querySelectorAll('.loading').forEach(el => el.remove());
@@ -16694,120 +16749,669 @@
           return;
         }
 
-        console.log('✅ Rendering', comments.length, 'comments');
+        console.log('✅ Building comment tree from', comments.length, 'comments');
 
-        // Render comments directly to section
-        comments.forEach(comment => {
-          const html = createCommentHTML(comment);
-          commentsSection.insertAdjacentHTML('beforeend', html);
-        });
+        // Build nested tree structure
+        const commentTree = buildBulletinCommentTree(comments);
+        console.log('🌳 Comment tree built with', commentTree.length, 'root comments');
 
-        console.log('💥 RENDERED', comments.length, 'comments DIRECTLY to .bulletin-comments-section');
+        // Render root comments and their replies recursively
+        for (const rootComment of commentTree) {
+          const commentHTML = await renderBulletinComment(rootComment, 0, null);
+          commentsSection.insertAdjacentHTML('beforeend', commentHTML);
 
-        // FORCE MODAL TO RECOGNIZE HEIGHT
-        const modalBody = document.querySelector('.bulletin-modal-body');
-        if (modalBody) {
-          modalBody.style.flex = '1';
-          modalBody.style.height = 'auto';
-          modalBody.style.minHeight = '600px';
-          modalBody.style.maxHeight = 'none';
-          modalBody.style.overflow = 'visible';
-          modalBody.style.display = 'block';
-          console.log('🔥 FORCED MODAL BODY TO EXPAND WITH FLEX');
+          // Render nested replies
+          if (rootComment.children && rootComment.children.length > 0) {
+            await renderBulletinReplies(rootComment.children, rootComment.id, 1, rootComment);
+          }
         }
 
-        const modalContent = document.querySelector('.bulletin-modal-content');
-        if (modalContent) {
-          modalContent.style.height = 'auto';
-          modalContent.style.maxHeight = 'none';
-          modalContent.style.overflow = 'visible';
-          console.log('🔥 FORCED MODAL CONTENT TO EXPAND WITH VISIBLE OVERFLOW');
-        }
+        console.log('💥 Rendered all bulletin comments with nested replies');
 
-        // FORCE COMMENTS SECTION - CORRECT !important SYNTAX (reuse variable from above)
-        if (commentsSection) {
-          commentsSection.style.setProperty('width', '100%', 'important');
-          commentsSection.style.setProperty('min-width', '650px', 'important');
-          commentsSection.style.setProperty('min-height', '300px', 'important');
-          commentsSection.style.setProperty('height', 'auto', 'important');
-          commentsSection.style.setProperty('overflow', 'visible', 'important');
-          commentsSection.style.setProperty('display', 'block', 'important');
-          console.log('🔥 FORCED COMMENTS SECTION - CORRECT SYNTAX');
-        }
+        // Attach event listeners for like buttons (only once)
+        attachBulletinLikeListeners();
 
-        console.log('🔥 ALL STYLES APPLIED IMMEDIATELY FOR', comments.length, 'comments');
-
-        // FINAL DEBUG - CHECK COMMENTS IN SECTION
-        const commentDivs = commentsSection.querySelectorAll('div[style*="border: 2px solid #edb723"]');
-        console.log('📦 FOUND', commentDivs.length, 'comment divs in section');
-
-        commentDivs.forEach((child, i) => {
-          const childRect = child.getBoundingClientRect();
-          const childStyles = window.getComputedStyle(child);
-          console.log(`📦 COMMENT ${i}:`, {
-            width: childRect.width,
-            height: childRect.height,
-            display: childStyles.display,
-            minHeight: childStyles.minHeight,
-            border: childStyles.border
-          });
-        });
-
-        const modalBodyEl = document.querySelector('.bulletin-modal-body');
-        if (modalBodyEl) {
-          const mbRect = modalBodyEl.getBoundingClientRect();
-          console.log('📦 MODAL BODY:', {width: mbRect.width, height: mbRect.height});
-        }
-
-        const modalContentEl = document.querySelector('.bulletin-modal-content');
-        if (modalContentEl) {
-          const mcRect = modalContentEl.getBoundingClientRect();
-          console.log('📦 MODAL CONTENT:', {width: mcRect.width, height: mcRect.height});
-        }
-
-        // Re-use commentsSection variable from above
-        if (commentsSection) {
-          const csRect = commentsSection.getBoundingClientRect();
-          console.log('📦 COMMENTS SECTION:', {width: csRect.width, height: csRect.height});
-        }
       } catch (error) {
-        console.error('❌ Error loading comments:', error);
-        container.innerHTML = `
+        console.error('❌ Error loading bulletin comments:', error);
+        document.querySelectorAll('.loading').forEach(el => el.remove());
+        commentsSection.insertAdjacentHTML('beforeend', `
           <div style="text-align:center; padding:20px; color:#ff6b6b;">
-            Failed to load comments.
+            Failed to load comments. Please try again.
+          </div>
+        `);
+      }
+    }
+
+    // ===== BULLETIN REACTION SYSTEM (IDENTICAL to profile modal) =====
+
+    // Load reactions for a bulletin comment
+    async function loadBulletinCommentReactions(commentId) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/bulletin/comments/${commentId}/reactions`);
+        if (!response.ok) return { counts: {}, userReactions: {} };
+
+        const data = await response.json();
+        return data;
+      } catch (error) {
+        console.error('Error loading bulletin reactions:', error);
+        return { counts: {}, userReactions: {} };
+      }
+    }
+
+    // Generate reaction summary pills for bulletin comments
+    function generateBulletinReactionSummary(commentId, reactions, userReactions = []) {
+      const counts = reactions.counts || {};
+      const hasCounts = Object.keys(counts).some(key => counts[key] > 0);
+
+      if (!hasCounts) return '';
+
+      const reactionTypes = [
+        { type: 'like', emoji: '👍' },
+        { type: 'laugh', emoji: '😂' },
+        { type: 'heart', emoji: '❤️' },
+        { type: 'cry', emoji: '😢' },
+        { type: 'thumbs_down', emoji: '👎' },
+        { type: 'troll', emoji: '🤡' }
+      ];
+
+      const pills = reactionTypes
+        .filter(({ type }) => counts[type] > 0)
+        .map(({ type, emoji }) => {
+          const isUserReaction = userReactions.includes(type);
+          // If user already reacted, clicking removes it. Otherwise, clicking adds it.
+          const clickHandler = isUserReaction
+            ? `removeBulletinReaction(${commentId}, '${type}', this)`
+            : `toggleBulletinReaction(${commentId}, '${type}')`;
+          return `
+            <div class="reaction-pill ${isUserReaction ? 'user-reacted' : ''}"
+                 data-comment-id="${commentId}"
+                 data-reaction-type="${type}"
+                 onclick="${clickHandler}">
+              <span class="pill-emoji">${emoji}</span>
+              <span class="pill-count">${counts[type]}</span>
+            </div>
+          `;
+        }).join('');
+
+      return `<div class="reaction-summary">${pills}</div>`;
+    }
+
+    // Generate reaction picker for bulletin comments
+    function generateBulletinReactionPicker(commentId) {
+      const reactionTypes = [
+        { type: 'like', emoji: '👍', label: 'Like' },
+        { type: 'laugh', emoji: '😂', label: 'Laugh' },
+        { type: 'heart', emoji: '❤️', label: 'Love' },
+        { type: 'cry', emoji: '😢', label: 'Sad' },
+        { type: 'thumbs_down', emoji: '👎', label: 'Dislike' },
+        { type: 'troll', emoji: '🤡', label: 'Troll' }
+      ];
+
+      const items = reactionTypes.map(({ type, emoji, label }) => `
+        <div class="reaction-picker-item" data-reaction-type="${type}" data-label="${label}">
+          ${emoji}
+        </div>
+      `).join('');
+
+      return `<div class="reaction-picker" data-comment-id="${commentId}">${items}</div>`;
+    }
+
+    // ===== BULLETIN EVENT DELEGATION FOR LIKE BUTTONS =====
+
+    function showBulletinPicker(btn) {
+      const state = getBulletinButtonState(btn);
+      state.picker = btn.querySelector('.reaction-picker');
+      if (state.picker) {
+        state.picker.classList.add('visible');
+        state.pickerShown = true;
+        if (navigator.vibrate) navigator.vibrate(10);
+      }
+    }
+
+    function hideBulletinPicker(btn) {
+      const state = getBulletinButtonState(btn);
+      if (state.picker) {
+        state.picker.classList.remove('visible');
+        state.pickerShown = false;
+        const items = state.picker.querySelectorAll('.reaction-picker-item');
+        items.forEach(item => { item.style.transform = ''; });
+      }
+    }
+
+    function getBulletinEmojiAtTouch(picker, touch) {
+      const pickerItems = picker?.querySelectorAll('.reaction-picker-item');
+      if (!pickerItems) return null;
+
+      for (const item of pickerItems) {
+        const rect = item.getBoundingClientRect();
+        if (touch.clientX >= rect.left && touch.clientX <= rect.right &&
+            touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
+          return item;
+        }
+      }
+      return null;
+    }
+
+    function updateBulletinHoveredEmoji(btn, touch) {
+      const state = getBulletinButtonState(btn);
+      if (!state.picker || !state.pickerShown) return;
+
+      const hoveredItem = getBulletinEmojiAtTouch(state.picker, touch);
+
+      if (hoveredItem !== state.currentHoveredItem) {
+        if (state.currentHoveredItem) {
+          state.currentHoveredItem.style.transform = '';
+        }
+        if (hoveredItem) {
+          hoveredItem.style.transform = 'scale(1.8) translateY(-12px)';
+          hoveredItem.style.filter = 'drop-shadow(0 8px 20px rgba(237,183,35,0.8))';
+          if (navigator.vibrate) navigator.vibrate(5);
+          state.selectedReaction = hoveredItem.getAttribute('data-reaction-type');
+        } else {
+          state.selectedReaction = null;
+        }
+        state.currentHoveredItem = hoveredItem;
+      }
+    }
+
+    // Attach event listeners to bulletin comments section using delegation
+    function attachBulletinLikeListeners() {
+      const bulletinCommentsSection = document.querySelector('.bulletin-comments-section');
+      if (!bulletinCommentsSection || bulletinCommentsSection.dataset.likeListenersAttached) return;
+
+      bulletinCommentsSection.dataset.likeListenersAttached = 'true';
+
+      // Mousedown - start long press timer
+      bulletinCommentsSection.addEventListener('mousedown', (e) => {
+        const btn = e.target.closest('.like-button');
+        if (!btn) return;
+        const state = getBulletinButtonState(btn);
+        state.longPressTimer = setTimeout(() => showBulletinPicker(btn), 300);
+      });
+
+      // Mouseup - clear timer
+      bulletinCommentsSection.addEventListener('mouseup', (e) => {
+        const btn = e.target.closest('.like-button');
+        if (!btn) return;
+        const state = getBulletinButtonState(btn);
+        clearTimeout(state.longPressTimer);
+      });
+
+      // Mouseleave - clear timer but keep picker open
+      bulletinCommentsSection.addEventListener('mouseleave', (e) => {
+        const btn = e.target.closest('.like-button');
+        if (!btn) return;
+        const state = getBulletinButtonState(btn);
+        clearTimeout(state.longPressTimer);
+      }, true);
+
+      // Click - quick like or picker item selection
+      bulletinCommentsSection.addEventListener('click', async (e) => {
+        // Check if clicked on picker item first
+        const pickerItem = e.target.closest('.reaction-picker-item');
+        if (pickerItem) {
+          e.stopPropagation();
+          const btn = e.target.closest('.like-button');
+          if (btn) {
+            const reactionType = pickerItem.getAttribute('data-reaction-type');
+            const commentId = btn.getAttribute('data-comment-id');
+            await toggleBulletinReaction(commentId, reactionType);
+            hideBulletinPicker(btn);
+          }
+          return;
+        }
+
+        // Otherwise check if clicked on button itself
+        const btn = e.target.closest('.like-button');
+        if (!btn) return;
+
+        const state = getBulletinButtonState(btn);
+        state.picker = btn.querySelector('.reaction-picker');
+        if (!state.picker || !state.picker.classList.contains('visible')) {
+          const commentId = btn.getAttribute('data-comment-id');
+          await toggleBulletinReaction(commentId, 'like');
+        }
+      });
+
+      // Touchstart - start long press
+      bulletinCommentsSection.addEventListener('touchstart', (e) => {
+        const btn = e.target.closest('.like-button');
+        if (!btn) return;
+        e.preventDefault();
+        const state = getBulletinButtonState(btn);
+        state.selectedReaction = null;
+        state.currentHoveredItem = null;
+        state.longPressTimer = setTimeout(() => showBulletinPicker(btn), 300);
+      }, { passive: false });
+
+      // Touchmove - slide to select emoji
+      bulletinCommentsSection.addEventListener('touchmove', (e) => {
+        const btn = e.target.closest('.like-button');
+        if (!btn) return;
+        const state = getBulletinButtonState(btn);
+
+        if (!state.pickerShown) {
+          clearTimeout(state.longPressTimer);
+          return;
+        }
+
+        e.preventDefault();
+        const touch = e.touches[0];
+        updateBulletinHoveredEmoji(btn, touch);
+      }, { passive: false });
+
+      // Touchend - complete reaction
+      bulletinCommentsSection.addEventListener('touchend', async (e) => {
+        const btn = e.target.closest('.like-button');
+        if (!btn) return;
+        const state = getBulletinButtonState(btn);
+        clearTimeout(state.longPressTimer);
+        state.picker = btn.querySelector('.reaction-picker');
+
+        if (state.pickerShown && state.selectedReaction) {
+          const commentId = btn.getAttribute('data-comment-id');
+          await toggleBulletinReaction(commentId, state.selectedReaction);
+          if (navigator.vibrate) navigator.vibrate([10, 20, 10]);
+          hideBulletinPicker(btn);
+          state.selectedReaction = null;
+          state.currentHoveredItem = null;
+        } else if (!state.pickerShown) {
+          const commentId = btn.getAttribute('data-comment-id');
+          await toggleBulletinReaction(commentId, 'like');
+        } else {
+          hideBulletinPicker(btn);
+        }
+      });
+    }
+
+    // ===== BULLETIN REPLY FUNCTIONALITY =====
+
+    // Open Reply Box for bulletin comments
+    window.openBulletinReplyBox = function(commentId) {
+      // Close any other open reply boxes
+      document.querySelectorAll('.reply-box').forEach(box => {
+        box.classList.remove('visible');
+      });
+
+      // Find the comment thread
+      const threadElement = document.querySelector(`.bulletin-comment-thread[data-comment-id="${commentId}"]`);
+      if (!threadElement) return;
+
+      const commentContent = threadElement.querySelector('.comment-content');
+      let replyBox = commentContent.querySelector('.reply-box');
+
+      if (!replyBox) {
+        // Create reply box
+        const replyBoxHTML = `
+          <div class="reply-box visible" data-parent-id="${commentId}">
+            <textarea placeholder="Write a reply..." maxlength="500"></textarea>
+            <div class="reply-box-actions">
+              <button class="reply-cancel-btn" onclick="closeBulletinReplyBox(${commentId})">Cancel</button>
+              <button class="reply-submit-btn" onclick="submitBulletinReply(${commentId})">Reply</button>
+            </div>
           </div>
         `;
+        commentContent.insertAdjacentHTML('beforeend', replyBoxHTML);
+        replyBox = commentContent.querySelector('.reply-box');
+
+        // Focus textarea
+        setTimeout(() => {
+          const textarea = replyBox.querySelector('textarea');
+          textarea.focus();
+        }, 100);
+      } else {
+        replyBox.classList.add('visible');
+        setTimeout(() => {
+          const textarea = replyBox.querySelector('textarea');
+          textarea.focus();
+        }, 100);
+      }
+    };
+
+    // Close Reply Box for bulletin comments
+    window.closeBulletinReplyBox = function(commentId) {
+      const threadElement = document.querySelector(`.bulletin-comment-thread[data-comment-id="${commentId}"]`);
+      if (!threadElement) return;
+
+      const replyBox = threadElement.querySelector('.reply-box');
+      if (replyBox) {
+        replyBox.classList.remove('visible');
+        replyBox.querySelector('textarea').value = '';
+      }
+    };
+
+    // Submit Reply for bulletin comments
+    window.submitBulletinReply = async function(parentCommentId) {
+      const currentWallet = localStorage.getItem('bearpark_wallet');
+      if (!currentWallet) {
+        showBulletinNotification('⚠️ Please connect your wallet first!', 'warning');
+        return;
+      }
+
+      const threadElement = document.querySelector(`.bulletin-comment-thread[data-comment-id="${parentCommentId}"]`);
+      if (!threadElement) return;
+
+      const replyBox = threadElement.querySelector('.reply-box');
+      const textarea = replyBox.querySelector('textarea');
+      const replyText = textarea.value.trim();
+
+      if (!replyText) {
+        showBulletinNotification('⚠️ Please enter a reply!', 'warning');
+        return;
+      }
+
+      try {
+        // Get user profile data
+        const profileKey = `bearpark_profile_${currentWallet}`;
+        const localProfile = JSON.parse(localStorage.getItem(profileKey) || '{}');
+
+        const response = await fetch(`${API_BASE_URL}/api/bulletin/comments`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            post_id: currentPostId,
+            wallet_address: currentWallet,
+            content: replyText,
+            author_name: localProfile.display_name || 'Anonymous',
+            author_avatar: localProfile.avatar_nft || null,
+            parent_id: parentCommentId
+          })
+        });
+
+        if (response.ok) {
+          closeBulletinReplyBox(parentCommentId);
+          await loadComments(currentPostId);
+          showBulletinNotification('✅ Reply posted!', 'success');
+        } else {
+          showBulletinNotification('❌ Failed to post reply.', 'error');
+        }
+      } catch (error) {
+        console.error('Error posting reply:', error);
+        showBulletinNotification('❌ Error posting reply. Please try again.', 'error');
+      }
+    };
+
+    // ===== BULLETIN REACTION API FUNCTIONS =====
+
+    // Prevent double-clicking reactions
+    const bulletinReactionLocks = new Set();
+
+    // Toggle reaction on bulletin comment
+    window.toggleBulletinReaction = async function(commentId, reactionType) {
+      const currentWallet = localStorage.getItem('bearpark_wallet');
+      if (!currentWallet) {
+        showBulletinNotification('⚠️ Please connect your wallet first!', 'warning');
+        return;
+      }
+
+      // Create unique lock key for this specific reaction
+      const lockKey = `${commentId}-${reactionType}`;
+
+      // If already processing this reaction, ignore
+      if (bulletinReactionLocks.has(lockKey)) {
+        console.log('⏳ Already processing this reaction, ignoring duplicate request');
+        return;
+      }
+
+      // Lock this reaction
+      bulletinReactionLocks.add(lockKey);
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/bulletin/comments/${commentId}/react`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            wallet_address: currentWallet,
+            reaction_type: reactionType
+          })
+        });
+
+        let result;
+        try {
+          result = await response.json();
+        } catch (parseError) {
+          console.error('❌ Failed to parse response JSON:', parseError);
+          console.error('❌ Response status:', response.status, response.statusText);
+          showBulletinNotification('❌ Server error - invalid response', 'error');
+          return;
+        }
+
+        if (response.ok && result.success) {
+          console.log('✅ toggleBulletinReaction Backend confirmed:', result.action);
+          console.log('📦 Backend returned updated counts:', result.counts);
+          console.log('📦 Backend returned user reactions:', result.userReactions);
+
+          // Use the fresh data directly from backend response (no fetching needed!)
+          updateBulletinCommentReactionsWithData(commentId, {
+            counts: result.counts || {},
+            userReactions: result.userReactions || {}
+          });
+        } else {
+          console.error('❌ toggleBulletinReaction Backend error:', result);
+          console.error('❌ Response status:', response.status);
+          console.error('❌ Failed request: commentId=' + commentId + ', reactionType=' + reactionType);
+          // Don't show alert for duplicate errors (user probably double-clicked)
+          if (!result.error?.includes('duplicate key')) {
+            showBulletinNotification('❌ Failed to toggle reaction: ' + (result.error || 'Unknown error'), 'error');
+          }
+        }
+      } catch (error) {
+        console.error('Error toggling bulletin reaction:', error);
+        showBulletinNotification('❌ Error adding reaction.', 'error');
+      } finally {
+        // Unlock after a short delay
+        setTimeout(() => bulletinReactionLocks.delete(lockKey), 500);
+      }
+    };
+
+    // Remove reaction from bulletin comment
+    window.removeBulletinReaction = async function(commentId, reactionType, pillElement) {
+      const currentWallet = localStorage.getItem('bearpark_wallet');
+      if (!currentWallet) {
+        showBulletinNotification('⚠️ Please connect your wallet first!', 'warning');
+        return;
+      }
+
+      console.log('🗑️ REMOVING bulletin reaction:', reactionType, 'from comment', commentId);
+
+      // Add the removing animation
+      pillElement.classList.add('removing');
+
+      // Haptic feedback
+      if (navigator.vibrate) {
+        navigator.vibrate([5, 10, 5]);
+      }
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/bulletin/comments/${commentId}/react`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            wallet_address: currentWallet,
+            reaction_type: reactionType
+          })
+        });
+
+        const result = await response.json();
+        console.log('📡 Backend response:', result);
+
+        if (response.ok && result.success) {
+          console.log('✅ Backend confirmed:', result.action);
+          console.log('📦 Backend returned updated counts:', result.counts);
+          console.log('📦 Backend returned user reactions:', result.userReactions);
+
+          // Use the fresh data directly from backend response (no fetching needed!)
+          setTimeout(() => {
+            console.log('⏰ Animation complete, updating UI with backend data...');
+            // Update UI directly with the counts from backend response
+            updateBulletinCommentReactionsWithData(commentId, {
+              counts: result.counts || {},
+              userReactions: result.userReactions || {}
+            });
+          }, 400); // Match animation duration
+        } else {
+          console.error('❌ Backend error:', result);
+          pillElement.classList.remove('removing');
+          showBulletinNotification('❌ Failed to remove reaction: ' + (result.error || 'Unknown error'), 'error');
+        }
+      } catch (error) {
+        pillElement.classList.remove('removing');
+        console.error('Error removing bulletin reaction:', error);
+        showBulletinNotification('❌ Error removing reaction: ' + error.message, 'error');
+      }
+    };
+
+    // Update bulletin comment reactions using data directly (no fetch needed)
+    function updateBulletinCommentReactionsWithData(commentId, reactionsData) {
+      try {
+        const currentWallet = localStorage.getItem('bearpark_wallet');
+        const userReactions = reactionsData.userReactions?.[currentWallet] || [];
+
+        console.log('🔄 Updating bulletin reactions UI for comment', commentId);
+        console.log('📊 Reaction counts:', reactionsData.counts);
+        console.log('👤 User reactions:', userReactions);
+
+        // Find the comment element (data-comment-id is on .bulletin-comment-thread, not .comment-item)
+        const commentThread = document.querySelector(`.bulletin-comment-thread[data-comment-id="${commentId}"]`);
+        if (!commentThread) return;
+        const commentElement = commentThread.querySelector('.comment-item');
+        if (!commentElement) return;
+
+        const commentContent = commentElement.querySelector('.comment-content');
+        const commentActions = commentContent.querySelector('.comment-actions');
+        let existingReactionSummary = commentContent.querySelector('.reaction-summary');
+
+        // Generate the new reaction summary HTML
+        const newReactionHTML = generateBulletinReactionSummary(commentId, reactionsData, userReactions);
+
+        console.log('🎨 New reaction HTML:', newReactionHTML ? 'Generated' : 'Empty (no reactions)');
+
+        if (existingReactionSummary) {
+          // If there's an existing summary and new HTML, replace it
+          if (newReactionHTML) {
+            existingReactionSummary.outerHTML = newReactionHTML;
+          } else {
+            // No reactions left, remove the summary
+            existingReactionSummary.remove();
+          }
+        } else if (newReactionHTML) {
+          // No existing summary but we have reactions, insert before actions
+          commentActions.insertAdjacentHTML('beforebegin', newReactionHTML);
+        }
+
+        // Update the like button state
+        const likeButton = commentElement.querySelector('.like-button');
+        if (likeButton) {
+          if (userReactions.length > 0) {
+            likeButton.classList.add('reacted');
+          } else {
+            likeButton.classList.remove('reacted');
+          }
+        }
+
+        // Event listeners use delegation - no need to re-attach
+      } catch (error) {
+        console.error('Error updating bulletin reactions:', error);
       }
     }
 
     // Create comment HTML
-    function createCommentHTML(comment) {
-      const timeAgo = getTimeAgo(comment.created_at);
+    // Render a single bulletin comment with reactions and replies (IDENTICAL to profile modal)
+    async function renderBulletinComment(comment, depth = 0, parentName = null) {
+      const maxDepth = 8;
       const currentWallet = localStorage.getItem('bearpark_wallet');
-      const isOwner = currentWallet && comment.wallet_address === currentWallet;
+      const isOwner = comment.wallet_address === currentWallet;
+      const timeAgo = getTimeAgo(comment.created_at);
+      const hasReplies = comment.children && comment.children.length > 0;
+      const replyCount = hasReplies ? comment.children.length : 0;
 
-      return `
-        <div style="background: rgba(0,0,0,0.6); border: 2px solid #edb723; border-radius: 10px; padding: 16px; margin: 12px 0; display: block !important; min-height: 100px !important; height: auto !important; visibility: visible !important; opacity: 1 !important; position: relative !important; width: 100%;">
-          <div style="display: flex !important; align-items: center; gap: 10px; margin-bottom: 12px; min-height: 40px !important; height: auto !important;">
-            <img
-              src="${comment.author_avatar || 'https://files.catbox.moe/esp426.png'}"
-              alt="${comment.author_name}"
-              style="width: 36px !important; height: 36px !important; border-radius: 50%; border: 2px solid #edb723; object-fit: cover; flex-shrink: 0; display: block !important;"
-            />
-            <div style="font-size: 14px !important; font-weight: 700; color: #edb723; display: block !important;">${escapeHtml(comment.author_name)}</div>
-            <div style="font-size: 12px !important; color: rgba(255,255,255,0.5); display: block !important;">${timeAgo}</div>
-            ${isOwner ? `
-              <button onclick="deleteComment('${comment.id}')" title="Delete comment" style="width: 28px; height: 28px; border-radius: 50%; background: rgba(255,75,75,0.2); border: 2px solid rgba(255,75,75,0.5); color: #ff4b4b; font-size: 14px; cursor: pointer; margin-left: auto;">
-                🗑️
-              </button>
-            ` : ''}
+      // Parse avatar
+      let avatarHTML = '';
+      if (comment.author_avatar) {
+        try {
+          const avatarData = typeof comment.author_avatar === 'string' ? JSON.parse(comment.author_avatar) : comment.author_avatar;
+          const avatarUrl = avatarData.imageUrl || avatarData.fallbackImageUrl;
+          avatarHTML = `<img src="${avatarUrl}" class="comment-avatar" alt="${comment.author_name}" onerror="this.src='https://files.catbox.moe/esp426.png';">`;
+        } catch (e) {
+          avatarHTML = `<img src="https://files.catbox.moe/esp426.png" class="comment-avatar" alt="${comment.author_name}">`;
+        }
+      } else {
+        avatarHTML = `<img src="https://files.catbox.moe/esp426.png" class="comment-avatar" alt="${comment.author_name}">`;
+      }
+
+      // Load reactions
+      const reactions = await loadBulletinCommentReactions(comment.id);
+      const userReactions = reactions.userReactions?.[currentWallet] || [];
+      const hasReacted = userReactions.length > 0;
+
+      // Reply indicator for nested comments
+      let replyIndicator = '';
+      if (depth > 0 && parentName) {
+        replyIndicator = `<div class="reply-indicator">
+          <span class="reply-arrow">↩</span>
+          <span class="reply-to-text">Replying to <span class="reply-to-name">@${parentName}</span></span>
+        </div>`;
+      }
+
+      const commentHTML = `
+        <div class="bulletin-comment-thread ${depth > 0 ? 'is-reply' : ''}" data-comment-id="${comment.id}" data-depth="${depth}">
+          <div class="comment-item">
+            ${hasReplies ? `<button class="thread-toggle" onclick="toggleBulletinThread(${comment.id})" aria-label="Toggle replies">
+              <span class="bulletin-toggle-icon">▼</span>
+            </button>` : '<div class="thread-spacer"></div>'}
+            <div class="comment-content">
+              ${replyIndicator}
+              <div class="comment-header">
+                <div class="comment-author-clickable" onclick="openProfileModal('${comment.wallet_address}')" style="cursor: pointer; display: flex; align-items: center; gap: 12px; flex: 1;">
+                  ${avatarHTML}
+                  <div class="comment-author-info">
+                    <p class="comment-author-name">${comment.author_name || 'Anonymous'}</p>
+                    <p class="comment-timestamp">${timeAgo}${hasReplies ? `<span class="reply-count">${replyCount} ${replyCount === 1 ? 'reply' : 'replies'}</span>` : ''}</p>
+                  </div>
+                </div>
+                ${isOwner ? `<button class="comment-delete-btn" onclick="deleteBulletinComment('${comment.id}')">Delete</button>` : ''}
+              </div>
+              <p class="comment-text">${escapeHtml(comment.content)}</p>
+              ${generateBulletinReactionSummary(comment.id, reactions, userReactions)}
+              <div class="comment-actions">
+                <button class="like-button ${hasReacted ? 'reacted' : ''}" data-comment-id="${comment.id}">
+                  <span class="like-emoji">👍</span>
+                  <span>Like</span>
+                  ${generateBulletinReactionPicker(comment.id)}
+                </button>
+                <button class="reply-button" data-comment-id="${comment.id}" onclick="openBulletinReplyBox(${comment.id})">
+                  <span class="reply-icon">💬</span>
+                  <span>Reply</span>
+                </button>
+              </div>
+            </div>
           </div>
-          <div style="color: #ffffff; font-size: 16px !important; line-height: 1.6; white-space: pre-wrap; word-break: break-word; min-height: 30px !important; height: auto !important; display: block !important; padding: 8px 0;">${escapeHtml(comment.content)}</div>
+          ${hasReplies ? `<div class="bulletin-comment-replies" data-parent-id="${comment.id}"></div>` : ''}
         </div>
       `;
+
+      return commentHTML;
     }
 
-    // Post a comment
+    // Recursively render bulletin replies
+    async function renderBulletinReplies(replies, parentId, depth, parentComment = null) {
+      const maxDepth = 8;
+      const repliesContainer = document.querySelector(`.bulletin-comment-replies[data-parent-id="${parentId}"]`);
+      if (!repliesContainer) return;
+
+      for (const reply of replies) {
+        const parentName = parentComment ? (parentComment.author_name || 'Anonymous') : 'a bear';
+        const replyHTML = await renderBulletinComment(reply, depth, parentName);
+        repliesContainer.insertAdjacentHTML('beforeend', replyHTML);
+
+        // Render nested replies
+        if (reply.children && reply.children.length > 0 && depth < maxDepth) {
+          await renderBulletinReplies(reply.children, reply.id, depth + 1, reply);
+        }
+      }
+    }
+
+    // Post a comment (using Supabase API)
     async function postComment() {
       if (!currentPostId) return;
 
@@ -16826,115 +17430,26 @@
       }
 
       try {
-        if (DEMO_MODE) {
-          // Demo mode: save to localStorage
-          // Get profile from localStorage or fetch from API
-          let authorName = 'Anonymous BEAR';
-          let authorAvatar = 'https://files.catbox.moe/esp426.png';
+        // Get user profile data
+        const profileKey = `bearpark_profile_${currentWallet}`;
+        const localProfile = JSON.parse(localStorage.getItem(profileKey) || '{}');
 
-          // Try to get from current session first
-          const cachedProfile = localStorage.getItem(`bearpark_profile_${currentWallet}`);
-          console.log('🐻 Loading profile for wallet:', currentWallet);
-          console.log('💾 Cached profile:', cachedProfile);
-
-          if (cachedProfile) {
-            try {
-              const profileData = JSON.parse(cachedProfile);
-              // Handle nested structure from API (profile.profile.display_name)
-              const profile = profileData.profile || profileData;
-              authorName = profile.display_name || 'Anonymous BEAR';
-
-              // Parse avatar_nft JSON to get imageUrl
-              if (profile.avatar_nft) {
-                try {
-                  const avatarData = typeof profile.avatar_nft === 'string'
-                    ? JSON.parse(profile.avatar_nft)
-                    : profile.avatar_nft;
-                  authorAvatar = avatarData.imageUrl || avatarData.fallbackImageUrl || 'https://files.catbox.moe/esp426.png';
-                } catch (e) {
-                  console.log('Failed to parse avatar_nft, using default');
-                  authorAvatar = 'https://files.catbox.moe/esp426.png';
-                }
-              } else {
-                authorAvatar = profile.avatar_url || 'https://files.catbox.moe/esp426.png';
-              }
-
-              console.log('✅ Using cached profile:', { authorName, authorAvatar });
-            } catch (e) {
-              console.log('❌ Failed to parse cached profile:', e);
-            }
-          } else {
-            // Fetch from API
-            console.log('📡 No cached profile, fetching from API...');
-            try {
-              const apiUrl = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
-              const profileResponse = await fetch(`${apiUrl}/api/profile/${currentWallet}`);
-              if (profileResponse.ok) {
-                const profileData = await profileResponse.json();
-                const profile = profileData.profile || profileData;
-                authorName = profile.display_name || 'Anonymous BEAR';
-
-                // Parse avatar_nft JSON to get imageUrl
-                if (profile.avatar_nft) {
-                  try {
-                    const avatarData = typeof profile.avatar_nft === 'string'
-                      ? JSON.parse(profile.avatar_nft)
-                      : profile.avatar_nft;
-                    authorAvatar = avatarData.imageUrl || avatarData.fallbackImageUrl || 'https://files.catbox.moe/esp426.png';
-                  } catch (e) {
-                    authorAvatar = 'https://files.catbox.moe/esp426.png';
-                  }
-                } else {
-                  authorAvatar = profile.avatar_url || profile.profile_picture || 'https://files.catbox.moe/esp426.png';
-                }
-
-                // Cache it
-                localStorage.setItem(`bearpark_profile_${currentWallet}`, JSON.stringify(profileData));
-                console.log('✅ Fetched and cached profile:', { authorName, authorAvatar });
-              }
-            } catch (e) {
-              console.log('❌ Failed to fetch profile, using defaults:', e);
-            }
-          }
-
-          const newComment = {
-            id: Date.now().toString(),
+        const response = await fetch(`${API_BASE_URL}/api/bulletin/comments`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            post_id: currentPostId,
             wallet_address: currentWallet,
-            author_name: authorName,
-            author_avatar: authorAvatar,
             content: content,
-            created_at: new Date().toISOString()
-          };
+            author_name: localProfile.display_name || 'Anonymous',
+            author_avatar: localProfile.avatar_nft || null,
+            parent_id: null  // Top-level comment (no parent)
+          })
+        });
 
-          const stored = localStorage.getItem(`bearpark_bulletin_comments_${currentPostId}`);
-          const comments = stored ? JSON.parse(stored) : [];
-          comments.push(newComment);
-          localStorage.setItem(`bearpark_bulletin_comments_${currentPostId}`, JSON.stringify(comments));
-
-          // Update post comment count
-          const postsStored = localStorage.getItem('bearpark_bulletin_posts');
-          if (postsStored) {
-            const posts = JSON.parse(postsStored);
-            const post = posts.find(p => p.id === currentPostId);
-            if (post) {
-              post.comment_count = (post.comment_count || 0) + 1;
-              localStorage.setItem('bearpark_bulletin_posts', JSON.stringify(posts));
-            }
-          }
-        } else {
-          const response = await fetch(`${API_BASE_URL}/bulletin/posts/${currentPostId}/comments`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              wallet_address: currentWallet,
-              content: content
-            })
-          });
-
-          if (!response.ok) throw new Error('Failed to post comment');
-        }
+        if (!response.ok) throw new Error('Failed to post comment');
 
         // Clear input
         input.value = '';
@@ -16944,26 +17459,66 @@
         // Reload comments
         await loadComments(currentPostId);
 
-        console.log('💬 Comments reloaded');
-
-        // Reload the full feed to update comment counts
-        if (DEMO_MODE) {
-          await loadBulletinFeed();
-        } else {
-          // Update comment count in feed for non-demo mode
-          const post = bulletinPosts.find(p => p.id === currentPostId);
-          if (post) {
-            post.comment_count = (post.comment_count || 0) + 1;
-          }
-          await loadBulletinFeed();
+        // Update comment count in feed
+        const post = bulletinPosts.find(p => p.id === currentPostId);
+        if (post) {
+          post.comment_count = (post.comment_count || 0) + 1;
         }
+        await loadBulletinFeed();
 
-        showBulletinNotification('Your comment has been posted!', 'success');
+        showBulletinNotification('✅ Your comment has been posted!', 'success');
       } catch (error) {
         console.error('Error posting comment:', error);
         showBulletinNotification('❌ Failed to post comment. Please try again.', 'error');
       }
     }
+
+    // Delete a bulletin comment
+    window.deleteBulletinComment = async function(commentId) {
+      const currentWallet = localStorage.getItem('bearpark_wallet');
+      if (!currentWallet) {
+        showBulletinNotification('⚠️ Please connect your wallet first!', 'warning');
+        return;
+      }
+
+      if (!confirm('Are you sure you want to delete this comment?')) {
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/bulletin/comments/${commentId}`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            wallet_address: currentWallet
+          })
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Failed to delete comment');
+        }
+
+        console.log('✅ Comment deleted successfully');
+        showBulletinNotification('✅ Comment deleted!', 'success');
+
+        // Reload comments
+        await loadComments(currentPostId);
+
+        // Update comment count in feed
+        const post = bulletinPosts.find(p => p.id === currentPostId);
+        if (post && post.comment_count > 0) {
+          post.comment_count--;
+        }
+        await loadBulletinFeed();
+
+      } catch (error) {
+        console.error('❌ Error deleting bulletin comment:', error);
+        showBulletinNotification('❌ Failed to delete comment: ' + error.message, 'error');
+      }
+    };
 
     // Delete a post
     async function deletePost(postId) {

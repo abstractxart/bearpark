@@ -3393,6 +3393,345 @@ app.post('/api/cosmetics/unequip', async (req, res) => {
   }
 });
 
+// =====================================================
+// BULLETIN BOARD API ROUTES
+// =====================================================
+
+// Get all bulletin posts (sorted by newest first)
+app.get('/api/bulletin/posts', async (req, res) => {
+  try {
+    const { data: posts, error } = await supabase
+      .from('bulletin_posts')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    res.json(posts || []);
+  } catch (error) {
+    console.error('❌ Error fetching bulletin posts:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create a new bulletin post
+app.post('/api/bulletin/posts', async (req, res) => {
+  try {
+    const { wallet_address, content, link_preview } = req.body;
+
+    if (!wallet_address || !content) {
+      return res.status(400).json({ error: 'wallet_address and content are required' });
+    }
+
+    // Get user profile for author info
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('display_name, avatar_nft')
+      .eq('wallet_address', wallet_address)
+      .single();
+
+    // Insert post into Supabase
+    const { data: newPost, error } = await supabase
+      .from('bulletin_posts')
+      .insert({
+        wallet_address,
+        content,
+        link_preview: link_preview || null,
+        author_name: profile?.display_name || 'Anonymous',
+        author_avatar: profile?.avatar_nft || null,
+        comment_count: 0
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json(newPost);
+  } catch (error) {
+    console.error('❌ Error creating bulletin post:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete a bulletin post
+app.delete('/api/bulletin/posts/:postId', async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const { wallet_address } = req.body;
+
+    if (!wallet_address) {
+      return res.status(400).json({ error: 'wallet_address is required' });
+    }
+
+    // Verify ownership
+    const { data: post, error: fetchError } = await supabase
+      .from('bulletin_posts')
+      .select('wallet_address')
+      .eq('id', postId)
+      .single();
+
+    if (fetchError) throw fetchError;
+
+    if (post.wallet_address !== wallet_address) {
+      return res.status(403).json({ error: 'You can only delete your own posts' });
+    }
+
+    // Delete the post (cascade will delete all comments and reactions)
+    const { error: deleteError } = await supabase
+      .from('bulletin_posts')
+      .delete()
+      .eq('id', postId);
+
+    if (deleteError) throw deleteError;
+
+    res.json({ success: true, message: 'Post deleted successfully' });
+  } catch (error) {
+    console.error('❌ Error deleting bulletin post:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get all comments for a bulletin post (with nested structure)
+app.get('/api/bulletin/posts/:postId/comments', async (req, res) => {
+  try {
+    const { postId } = req.params;
+
+    // Fetch all comments for this post from Supabase
+    const { data: comments, error } = await supabase
+      .from('bulletin_comments')
+      .select('*')
+      .eq('post_id', postId)
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+
+    res.json(comments || []);
+  } catch (error) {
+    console.error('❌ Error fetching bulletin comments:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create a new bulletin comment or reply
+app.post('/api/bulletin/comments', async (req, res) => {
+  try {
+    const { post_id, wallet_address, content, author_name, author_avatar, parent_id } = req.body;
+
+    if (!post_id || !wallet_address || !content) {
+      return res.status(400).json({ error: 'post_id, wallet_address, and content are required' });
+    }
+
+    // Insert comment into Supabase
+    const { data: newComment, error } = await supabase
+      .from('bulletin_comments')
+      .insert({
+        post_id,
+        wallet_address,
+        content,
+        author_name: author_name || 'Anonymous',
+        author_avatar,
+        parent_id: parent_id || null
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json(newComment);
+  } catch (error) {
+    console.error('❌ Error creating bulletin comment:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete a bulletin comment
+app.delete('/api/bulletin/comments/:commentId', async (req, res) => {
+  try {
+    const { commentId } = req.params;
+    const { wallet_address } = req.body;
+
+    if (!wallet_address) {
+      return res.status(400).json({ error: 'wallet_address is required' });
+    }
+
+    // Verify ownership
+    const { data: comment, error: fetchError } = await supabase
+      .from('bulletin_comments')
+      .select('wallet_address')
+      .eq('id', commentId)
+      .single();
+
+    if (fetchError) throw fetchError;
+
+    if (comment.wallet_address !== wallet_address) {
+      return res.status(403).json({ error: 'You can only delete your own comments' });
+    }
+
+    // Delete the comment (cascade will delete reactions and child comments)
+    const { error: deleteError } = await supabase
+      .from('bulletin_comments')
+      .delete()
+      .eq('id', commentId);
+
+    if (deleteError) throw deleteError;
+
+    res.json({ success: true, message: 'Comment deleted successfully' });
+  } catch (error) {
+    console.error('❌ Error deleting bulletin comment:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get reactions for a bulletin comment
+app.get('/api/bulletin/comments/:commentId/reactions', async (req, res) => {
+  try {
+    const { commentId } = req.params;
+
+    // Use direct PostgreSQL query for real-time data (bypass PostgREST cache)
+    if (pgPool) {
+      const result = await pgPool.query(
+        `SELECT reaction_type, wallet_address
+         FROM bulletin_comment_reactions
+         WHERE comment_id = $1`,
+        [commentId]
+      );
+
+      // Aggregate reactions by type
+      const counts = {};
+      const userReactions = {};
+
+      result.rows.forEach(row => {
+        // Count reactions
+        counts[row.reaction_type] = (counts[row.reaction_type] || 0) + 1;
+
+        // Track user reactions
+        if (!userReactions[row.wallet_address]) {
+          userReactions[row.wallet_address] = [];
+        }
+        userReactions[row.wallet_address].push(row.reaction_type);
+      });
+
+      res.json({ counts, userReactions });
+    } else {
+      // Fallback to Supabase if pgPool not available
+      const { data: reactions, error } = await supabase
+        .from('bulletin_comment_reactions')
+        .select('reaction_type, wallet_address')
+        .eq('comment_id', commentId);
+
+      if (error) throw error;
+
+      const counts = {};
+      const userReactions = {};
+
+      reactions.forEach(row => {
+        counts[row.reaction_type] = (counts[row.reaction_type] || 0) + 1;
+        if (!userReactions[row.wallet_address]) {
+          userReactions[row.wallet_address] = [];
+        }
+        userReactions[row.wallet_address].push(row.reaction_type);
+      });
+
+      res.json({ counts, userReactions });
+    }
+  } catch (error) {
+    console.error('❌ Error fetching bulletin reactions:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Toggle reaction on a bulletin comment (add if doesn't exist, remove if exists)
+app.post('/api/bulletin/comments/:commentId/react', async (req, res) => {
+  try {
+    const { commentId } = req.params;
+    const { wallet_address, reaction_type } = req.body;
+
+    if (!wallet_address || !reaction_type) {
+      return res.status(400).json({ error: 'wallet_address and reaction_type are required' });
+    }
+
+    // Check if reaction already exists
+    const { data: existing, error: fetchError } = await supabase
+      .from('bulletin_comment_reactions')
+      .select('id')
+      .eq('comment_id', commentId)
+      .eq('wallet_address', wallet_address)
+      .eq('reaction_type', reaction_type)
+      .maybeSingle();
+
+    if (fetchError) throw fetchError;
+
+    let action;
+    if (existing) {
+      // Remove reaction (toggle off)
+      const { error: deleteError } = await supabase
+        .from('bulletin_comment_reactions')
+        .delete()
+        .eq('id', existing.id);
+
+      if (deleteError) throw deleteError;
+      action = 'removed';
+    } else {
+      // Add reaction (toggle on)
+      const { error: insertError } = await supabase
+        .from('bulletin_comment_reactions')
+        .insert({
+          comment_id: commentId,
+          wallet_address,
+          reaction_type
+        });
+
+      if (insertError) throw insertError;
+      action = 'added';
+    }
+
+    // Fetch updated reaction counts using direct PostgreSQL
+    let counts = {};
+    let userReactions = {};
+
+    if (pgPool) {
+      const result = await pgPool.query(
+        `SELECT reaction_type, wallet_address
+         FROM bulletin_comment_reactions
+         WHERE comment_id = $1`,
+        [commentId]
+      );
+
+      result.rows.forEach(row => {
+        counts[row.reaction_type] = (counts[row.reaction_type] || 0) + 1;
+        if (!userReactions[row.wallet_address]) {
+          userReactions[row.wallet_address] = [];
+        }
+        userReactions[row.wallet_address].push(row.reaction_type);
+      });
+    } else {
+      // Fallback to Supabase
+      const { data: reactions } = await supabase
+        .from('bulletin_comment_reactions')
+        .select('reaction_type, wallet_address')
+        .eq('comment_id', commentId);
+
+      reactions.forEach(row => {
+        counts[row.reaction_type] = (counts[row.reaction_type] || 0) + 1;
+        if (!userReactions[row.wallet_address]) {
+          userReactions[row.wallet_address] = [];
+        }
+        userReactions[row.wallet_address].push(row.reaction_type);
+      });
+    }
+
+    res.json({
+      success: true,
+      action,
+      counts,
+      userReactions
+    });
+  } catch (error) {
+    console.error('❌ Error toggling bulletin reaction:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Start server for local development
 if (require.main === module) {
   app.listen(PORT, () => {
@@ -3401,7 +3740,8 @@ if (require.main === module) {
     console.log(`✅ Ready to handle honey points & leaderboard`);
     console.log(`✅ Ready to handle admin features`);
     console.log(`✅ Ready to handle notifications`);
-    console.log(`✅ Ready to handle cosmetics store\n`);
+    console.log(`✅ Ready to handle cosmetics store`);
+    console.log(`✅ Ready to handle bulletin board comments\n`);
   });
 }
 
