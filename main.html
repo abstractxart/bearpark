@@ -16120,15 +16120,18 @@
         }, 300);
       } else if ((notif.type === 'bulletin_comment' || notif.type === 'bulletin_reply' || notif.type === 'bulletin_post_reaction' || notif.type === 'bulletin_comment_reaction') && notif.data.postId) {
         console.log('📰 Opening bulletin post:', notif.data.postId);
-        // Navigate to bulletin board and open the post
+        // Navigate to bulletin board and open the post DIRECTLY
         toggleNotificationPanel();
         setTimeout(() => {
           navigateTo('bulletin');
-          setTimeout(() => {
-            if (typeof openBulletinPost === 'function') {
-              openBulletinPost(parseInt(notif.data.postId));
+          // Wait for bulletin board to be visible, then open post
+          setTimeout(async () => {
+            if (typeof window.openBulletinPost === 'function') {
+              await window.openBulletinPost(parseInt(notif.data.postId));
+            } else {
+              console.error('❌ openBulletinPost function not available');
             }
-          }, 500);
+          }, 800); // Increased wait time to ensure bulletin board is fully loaded
         }, 300);
       } else {
         console.warn('⚠️ Notification type not handled or missing data:', notif.type, notif.data);
@@ -16869,14 +16872,26 @@
     }
 
     // Open bulletin post modal
-    async function openBulletinPost(postId) {
+    // Make openBulletinPost globally accessible for notifications
+    window.openBulletinPost = async function(postId) {
       currentPostId = postId;
       const modal = document.getElementById('bulletinPostModal');
       const detailContainer = document.getElementById('bulletinPostDetail');
       const commentsContainer = document.getElementById('commentsList');
 
+      if (!modal) {
+        console.error('❌ Bulletin post modal not found - bulletin board may not be initialized');
+        return;
+      }
+
       modal.style.display = 'flex';
       document.body.style.overflow = 'hidden';
+
+      // If bulletinPosts is empty, load it first
+      if (bulletinPosts.length === 0) {
+        console.log('📥 Bulletin posts not loaded yet, loading now...');
+        await loadBulletinFeed();
+      }
 
       // Find the post
       const post = bulletinPosts.find(p => p.id === postId);
