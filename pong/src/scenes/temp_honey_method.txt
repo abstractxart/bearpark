@@ -1,0 +1,17 @@
+
+  /**
+   * Award honey points for gameplay time
+   */
+  private awardHoneyPoints() {
+    try {
+      // Check if the honey points handler exists (from parent window)
+      if (typeof (window as any).handlePongGameCompletion === 'function') {
+        (window as any).handlePongGameCompletion();
+        console.log('✅ Honey points handler called');
+      } else {
+        console.log('⚠️ Honey points handler not found - game may not be embedded in BEARpark site');
+      }
+    } catch (error) {
+      console.error('❌ Error calling honey points handler:', error);
+    }
+  }
