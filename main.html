@@ -5928,13 +5928,15 @@
     position: absolute;
     top: 10px;
     right: 10px;
-    padding: 6px 14px;
+    padding: 6px 12px;
     border-radius: 10px;
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 900;
     text-transform: uppercase;
     box-shadow: 0 3px 10px rgba(0,0,0,0.4);
     z-index: 2;
+    white-space: nowrap;
+    max-width: 90%;
   }
 
   .rarity-common {
@@ -6427,7 +6429,7 @@
     border: 4px solid rgba(255,255,255,0.2);
     box-shadow: 0 4px 16px rgba(0,0,0,0.5);
     position: relative;
-    z-index: 1;
+    z-index: 3;
   }
 
   .banner-profile-preview img {
@@ -13028,37 +13030,62 @@
           if (!container) continue;
 
           if (data.success && data.leaderboard && data.leaderboard.length > 0) {
+            // Fetch equipped cosmetics for all users in leaderboard
+            const walletAddresses = data.leaderboard.map(e => e.wallet_address);
+            const equippedCosmetics = {};
+
+            // Batch fetch equipped items for all users
+            await Promise.all(walletAddresses.map(async (wallet) => {
+              try {
+                const cosmeticRes = await fetch(`${API_BASE_URL}/api/cosmetics/equipped/${wallet}`);
+                const cosmeticData = await cosmeticRes.json();
+                if (cosmeticData.success && cosmeticData.equipped) {
+                  equippedCosmetics[wallet] = cosmeticData.equipped;
+                }
+              } catch (e) {
+                // Ignore errors for individual users
+              }
+            }));
+
             container.innerHTML = data.leaderboard.map((entry, index) => {
               const medal = index === 0 ? '🥇' : (index === 1 ? '🥈' : (index === 2 ? '🥉' : ''));
               const rankClass = index === 0 ? 'rank-1' : (index === 1 ? 'rank-2' : (index === 2 ? 'rank-3' : ''));
               const displayName = entry.display_name || 'Anonymous';
+              const equippedRing = equippedCosmetics[entry.wallet_address]?.ring;
 
-              // Show avatar if available, or default bear avatar
-              let avatarHTML = '';
+              // Get avatar URL
+              let avatarUrl = 'https://files.catbox.moe/ugu1kl.png';
               if (entry.avatar_nft) {
                 try {
                   const avatarData = JSON.parse(entry.avatar_nft);
-                  const avatarUrl = avatarData.imageUrl || avatarData.fallbackImageUrl;
-                  if (avatarUrl) {
-                    avatarHTML = `<img src="${avatarUrl}"
-                         style="width:40px; height:40px; border-radius:50%; object-fit:cover; margin-right:8px;"
-                         alt="${displayName} avatar"
-                         onerror="this.src='https://files.catbox.moe/ugu1kl.png'">`;
-                  }
+                  avatarUrl = avatarData.imageUrl || avatarData.fallbackImageUrl || avatarUrl;
                 } catch (e) {
-                  // If not JSON, try using it directly as NFT ID
-                  avatarHTML = `<img src="https://nft.xrpl-labs.com/${entry.avatar_nft}"
-                       style="width:40px; height:40px; border-radius:50%; object-fit:cover; margin-right:8px;"
-                       alt="${displayName} avatar"
-                       onerror="this.src='https://files.catbox.moe/ugu1kl.png'">`;
+                  avatarUrl = `https://nft.xrpl-labs.com/${entry.avatar_nft}`;
                 }
               }
 
-              // If no avatar_nft, show default bear avatar
-              if (!avatarHTML) {
-                avatarHTML = `<img src="https://files.catbox.moe/ugu1kl.png"
+              // Build avatar HTML with ring if equipped
+              let avatarHTML = '';
+              if (equippedRing && equippedRing.image_url) {
+                const spinAnimation = equippedRing.rarity === 'bearableguy123' ? 'animation: spinRingImage 3s linear infinite;' : '';
+                const ouroborosRotation = equippedRing.ring_type === 'ouroboros' ? ' rotate(180deg)' : '';
+
+                avatarHTML = `
+                  <div class="ring-demo" style="width:40px; height:40px; margin-right:8px; flex-shrink:0;">
+                    <img src="${avatarUrl}"
+                         alt="${displayName} avatar"
+                         style="position:relative; z-index:1; width:100%; height:100%; border-radius:50%; object-fit:cover;"
+                         onerror="this.src='https://files.catbox.moe/ugu1kl.png'">
+                    <img src="${equippedRing.image_url}"
+                         alt="Ring"
+                         style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%)${ouroborosRotation}; width:60px; height:60px; object-fit:contain; z-index:2; pointer-events:none; ${spinAnimation}">
+                  </div>
+                `;
+              } else {
+                avatarHTML = `<img src="${avatarUrl}"
                      style="width:40px; height:40px; border-radius:50%; object-fit:cover; margin-right:8px;"
-                     alt="${displayName} avatar">`;
+                     alt="${displayName} avatar"
+                     onerror="this.src='https://files.catbox.moe/ugu1kl.png'">`;
               }
 
               // For BEAR PONG, show weighted score + W/L stats
@@ -14028,6 +14055,8 @@
                   left: 50%;
                   width: 100%;
                   height: 100%;
+                  min-width: 100%;
+                  min-height: 100%;
                   object-fit: cover;
                   z-index: 0;
                   transform: translate(-50%, -50%);
@@ -18600,13 +18629,13 @@
             // Banner preview with profile picture overlay
             if (item.imageUrl) {
               // Image-based banner (legendary and bearableguy123)
-              const panAnimation = item.rarity === 'bearableguy123'
-                ? `animation: profile-banner-pan 60s ease-in-out infinite; width: 140%; height: 140%;`
-                : `width: 100%; height: 100%;`;
+              const imgStyle = item.rarity === 'bearableguy123'
+                ? `position: absolute; top: 50%; left: 50%; width: 200%; height: 200%; min-width: 200%; min-height: 200%; object-fit: cover; z-index: 0; will-change: transform; animation: profile-banner-pan 60s ease-in-out infinite; transform: translate(-50%, -50%);`
+                : `position: absolute; top: 50%; left: 50%; width: 200%; height: 200%; min-width: 200%; min-height: 200%; object-fit: cover; z-index: 0; transform: translate(-50%, -50%);`;
 
               previewHTML = `
                 <div class="banner-demo" style="background: #000; overflow: hidden; position: relative;">
-                  <img src="${item.imageUrl}" alt="${item.name}" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); object-fit: cover; z-index: 0; ${panAnimation}">
+                  <img src="${item.imageUrl}" alt="${item.name}" style="${imgStyle}">
                   <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: radial-gradient(circle at center, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.6) 100%); z-index: 1;"></div>
                   <div class="banner-profile-preview" style="position: relative; z-index: 2;">
                     <img src="https://files.catbox.moe/2f0v9c.webp" alt="Profile">
@@ -19039,8 +19068,8 @@
             if (item.imageUrl) {
               // Image-based banner (legendary and bearableguy123)
               const panAnimation = item.rarity === 'bearableguy123'
-                ? `animation: profile-banner-pan 60s ease-in-out infinite; width: 140%; height: 140%;`
-                : `width: 100%; height: 100%;`;
+                ? `animation: profile-banner-pan 60s ease-in-out infinite; width: 200%; height: 200%; min-width: 200%; min-height: 200%;`
+                : `width: 200%; height: 200%; min-width: 200%; min-height: 200%;`;
 
               previewHTML = `
                 <div class="banner-demo" style="background: #000; overflow: hidden; position: relative;">
