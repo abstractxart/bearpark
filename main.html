@@ -1359,6 +1359,7 @@
     cursor: pointer;
     transition: all 0.2s;
     position: relative;
+    pointer-events: auto; /* Ensure item can receive clicks even with children having pointer-events: none */
   }
 
   .notification-item:hover {
