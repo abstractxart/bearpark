@@ -16838,7 +16838,9 @@
           <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
             <div id="postReactionSummary"></div>
             <button class="like-button" id="postLikeButton" data-post-id="${postId}">
-              <span>👍</span> <span class="like-text">React</span>
+              <span class="like-emoji">👍</span>
+              <span>Like</span>
+              ${generatePostReactionPicker(postId)}
             </button>
           </div>
         </div>
@@ -16921,6 +16923,26 @@
       }
     }
 
+    // Generate reaction picker for post
+    function generatePostReactionPicker(postId) {
+      const reactionTypes = [
+        { type: 'like', emoji: '👍', label: 'Like' },
+        { type: 'laugh', emoji: '😂', label: 'Laugh' },
+        { type: 'heart', emoji: '❤️', label: 'Love' },
+        { type: 'cry', emoji: '😢', label: 'Sad' },
+        { type: 'thumbs_down', emoji: '👎', label: 'Dislike' },
+        { type: 'troll', emoji: '🤡', label: 'Troll' }
+      ];
+
+      const items = reactionTypes.map(({ type, emoji, label }) => `
+        <div class="reaction-picker-item" data-reaction-type="${type}" data-label="${label}">
+          ${emoji}
+        </div>
+      `).join('');
+
+      return `<div class="reaction-picker" data-post-id="${postId}">${items}</div>`;
+    }
+
     // Toggle reaction on the post
     window.togglePostReaction = async function(postId, reactionType) {
       const currentWallet = localStorage.getItem('bearpark_wallet');
@@ -16954,16 +16976,170 @@
       }
     };
 
-    // Attach event listener to post like button (for emoji picker)
+    // Attach event listeners to post reaction button using delegation (like comments)
     function attachPostReactionListener() {
-      const likeButton = document.getElementById('postLikeButton');
-      if (!likeButton) return;
+      const postReactionContainer = document.getElementById('postReactionContainer');
+      if (!postReactionContainer || postReactionContainer.dataset.likeListenersAttached) return;
 
-      // Simple click: toggle like
-      likeButton.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const postId = likeButton.getAttribute('data-post-id');
-        await togglePostReaction(postId, 'like');
+      postReactionContainer.dataset.likeListenersAttached = 'true';
+
+      const buttonState = {
+        longPressTimer: null,
+        pickerShown: false,
+        selectedReaction: null,
+        currentHoveredItem: null,
+        picker: null
+      };
+
+      function showPicker() {
+        const btn = document.getElementById('postLikeButton');
+        if (!btn) return;
+        buttonState.picker = btn.querySelector('.reaction-picker');
+        if (buttonState.picker) {
+          buttonState.picker.classList.add('visible');
+          buttonState.pickerShown = true;
+          if (navigator.vibrate) navigator.vibrate(10);
+        }
+      }
+
+      function hidePicker() {
+        if (buttonState.picker) {
+          buttonState.picker.classList.remove('visible');
+          buttonState.pickerShown = false;
+          const items = buttonState.picker.querySelectorAll('.reaction-picker-item');
+          items.forEach(item => { item.style.transform = ''; item.style.filter = ''; });
+        }
+      }
+
+      function getEmojiAtTouch(picker, touch) {
+        const pickerItems = picker?.querySelectorAll('.reaction-picker-item');
+        if (!pickerItems) return null;
+
+        for (const item of pickerItems) {
+          const rect = item.getBoundingClientRect();
+          if (touch.clientX >= rect.left && touch.clientX <= rect.right &&
+              touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
+            return item;
+          }
+        }
+        return null;
+      }
+
+      function updateHoveredEmoji(touch) {
+        if (!buttonState.picker || !buttonState.pickerShown) return;
+
+        const hoveredItem = getEmojiAtTouch(buttonState.picker, touch);
+
+        if (hoveredItem !== buttonState.currentHoveredItem) {
+          if (buttonState.currentHoveredItem) {
+            buttonState.currentHoveredItem.style.transform = '';
+            buttonState.currentHoveredItem.style.filter = '';
+          }
+          if (hoveredItem) {
+            hoveredItem.style.transform = 'scale(1.8) translateY(-12px)';
+            hoveredItem.style.filter = 'drop-shadow(0 8px 20px rgba(237,183,35,0.8))';
+            if (navigator.vibrate) navigator.vibrate(5);
+            buttonState.selectedReaction = hoveredItem.getAttribute('data-reaction-type');
+          } else {
+            buttonState.selectedReaction = null;
+          }
+          buttonState.currentHoveredItem = hoveredItem;
+        }
+      }
+
+      // Mousedown - start long press timer
+      postReactionContainer.addEventListener('mousedown', (e) => {
+        const btn = e.target.closest('.like-button');
+        if (!btn) return;
+        buttonState.longPressTimer = setTimeout(() => showPicker(), 300);
+      });
+
+      // Mouseup - clear timer
+      postReactionContainer.addEventListener('mouseup', (e) => {
+        const btn = e.target.closest('.like-button');
+        if (!btn) return;
+        clearTimeout(buttonState.longPressTimer);
+      });
+
+      // Mouseleave - clear timer but keep picker open
+      postReactionContainer.addEventListener('mouseleave', (e) => {
+        const btn = e.target.closest('.like-button');
+        if (!btn) return;
+        clearTimeout(buttonState.longPressTimer);
+      }, true);
+
+      // Click - quick like or picker item selection
+      postReactionContainer.addEventListener('click', async (e) => {
+        // Check if clicked on picker item first
+        const pickerItem = e.target.closest('.reaction-picker-item');
+        if (pickerItem) {
+          e.stopPropagation();
+          const btn = e.target.closest('.like-button');
+          if (btn) {
+            const reactionType = pickerItem.getAttribute('data-reaction-type');
+            const postId = btn.getAttribute('data-post-id');
+            await togglePostReaction(postId, reactionType);
+            hidePicker();
+          }
+          return;
+        }
+
+        // Otherwise check if clicked on button itself
+        const btn = e.target.closest('.like-button');
+        if (!btn) return;
+
+        buttonState.picker = btn.querySelector('.reaction-picker');
+        if (!buttonState.picker || !buttonState.picker.classList.contains('visible')) {
+          const postId = btn.getAttribute('data-post-id');
+          await togglePostReaction(postId, 'like');
+        }
+      });
+
+      // Touchstart - start long press
+      postReactionContainer.addEventListener('touchstart', (e) => {
+        const btn = e.target.closest('.like-button');
+        if (!btn) return;
+        e.preventDefault();
+        buttonState.selectedReaction = null;
+        buttonState.currentHoveredItem = null;
+        buttonState.longPressTimer = setTimeout(() => showPicker(), 300);
+      }, { passive: false });
+
+      // Touchmove - slide to select emoji
+      postReactionContainer.addEventListener('touchmove', (e) => {
+        const btn = e.target.closest('.like-button');
+        if (!btn) return;
+
+        if (!buttonState.pickerShown) {
+          clearTimeout(buttonState.longPressTimer);
+          return;
+        }
+
+        e.preventDefault();
+        const touch = e.touches[0];
+        updateHoveredEmoji(touch);
+      }, { passive: false });
+
+      // Touchend - complete reaction
+      postReactionContainer.addEventListener('touchend', async (e) => {
+        const btn = e.target.closest('.like-button');
+        if (!btn) return;
+        clearTimeout(buttonState.longPressTimer);
+        buttonState.picker = btn.querySelector('.reaction-picker');
+
+        if (buttonState.pickerShown && buttonState.selectedReaction) {
+          const postId = btn.getAttribute('data-post-id');
+          await togglePostReaction(postId, buttonState.selectedReaction);
+          if (navigator.vibrate) navigator.vibrate([10, 20, 10]);
+          hidePicker();
+          buttonState.selectedReaction = null;
+          buttonState.currentHoveredItem = null;
+        } else if (!buttonState.pickerShown) {
+          const postId = btn.getAttribute('data-post-id');
+          await togglePostReaction(postId, 'like');
+        } else {
+          hidePicker();
+        }
       });
     }
 
