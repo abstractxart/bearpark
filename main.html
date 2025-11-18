@@ -2380,6 +2380,8 @@
 
   .profile-info-header {
     text-align: center;
+    position: relative;
+    z-index: 10;
   }
 
   .profile-name {
@@ -2388,6 +2390,8 @@
     color: var(--gold);
     margin: 0 0 8px 0;
     text-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    position: relative;
+    z-index: 10;
   }
 
   .profile-wallet {
@@ -2395,6 +2399,15 @@
     color: rgba(255,255,255,0.6);
     margin: 0;
     font-family: monospace;
+    position: relative;
+    z-index: 10;
+  }
+
+  /* Mobile: Move edit button up to avoid covering wallet address */
+  @media (max-width: 640px) {
+    #editProfilePictureBtn {
+      bottom: 45px !important;
+    }
   }
 
   /* Follow Section */
