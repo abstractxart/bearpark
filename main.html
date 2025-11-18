@@ -16135,7 +16135,7 @@
           // Wait for scroll to complete, then open post
           setTimeout(async () => {
             if (typeof window.openBulletinPost === 'function') {
-              await window.openBulletinPost(parseInt(notif.data.postId));
+              await window.openBulletinPost(parseInt(notif.data.postId), notif.data.commentId ? parseInt(notif.data.commentId) : null);
             } else {
               console.error('❌ openBulletinPost function not available');
             }
@@ -16881,7 +16881,7 @@
 
     // Open bulletin post modal
     // Make openBulletinPost globally accessible for notifications
-    window.openBulletinPost = async function(postId) {
+    window.openBulletinPost = async function(postId, scrollToCommentId = null) {
       currentPostId = postId;
       const modal = document.getElementById('bulletinPostModal');
       const detailContainer = document.getElementById('bulletinPostDetail');
@@ -16948,6 +16948,60 @@
 
       // Load comments
       await loadComments(postId);
+
+      // Scroll to specific comment if provided (from notification)
+      if (scrollToCommentId) {
+        setTimeout(() => {
+          const commentThread = document.querySelector(`.bulletin-comment-thread[data-comment-id="${scrollToCommentId}"]`);
+          if (commentThread) {
+            // If this is a reply, we need to expand all parent threads first
+            if (commentThread.classList.contains('is-reply')) {
+              // Find all ancestor reply containers and expand them
+              let currentElement = commentThread.parentElement;
+              while (currentElement && currentElement !== modal) {
+                if (currentElement.classList.contains('bulletin-comment-replies')) {
+                  // This is a replies container - make sure it's visible
+                  if (currentElement.style.display === 'none') {
+                    currentElement.style.display = 'block';
+                    // Update the toggle icon
+                    const parentThread = currentElement.parentElement;
+                    if (parentThread) {
+                      const toggleIcon = parentThread.querySelector('.bulletin-toggle-icon');
+                      if (toggleIcon) {
+                        toggleIcon.textContent = '▼';
+                      }
+                      parentThread.classList.remove('collapsed');
+                    }
+                  }
+                }
+                currentElement = currentElement.parentElement;
+              }
+            }
+
+            // Now scroll to the comment
+            setTimeout(() => {
+              const modalBody = modal.querySelector('.bulletin-modal-body');
+              if (modalBody) {
+                const commentTop = commentThread.offsetTop;
+                modalBody.scrollTo({
+                  top: commentTop - 100,
+                  behavior: 'smooth'
+                });
+                // Add gold glow highlight effect
+                commentThread.style.backgroundColor = 'rgba(237, 183, 35, 0.3)';
+                commentThread.style.boxShadow = '0 0 20px rgba(237, 183, 35, 0.5)';
+                commentThread.style.transition = 'all 0.3s ease';
+                setTimeout(() => {
+                  commentThread.style.backgroundColor = '';
+                  commentThread.style.boxShadow = '';
+                }, 2500);
+              }
+            }, 200);
+          } else {
+            console.warn('⚠️ Comment not found:', scrollToCommentId);
+          }
+        }, 500);
+      }
     }
 
     // Close bulletin post modal
