@@ -3407,7 +3407,28 @@ app.get('/api/bulletin/posts', async (req, res) => {
 
     if (error) throw error;
 
-    res.json(posts || []);
+    // Add reaction counts to each post
+    const postsWithReactions = await Promise.all((posts || []).map(async (post) => {
+      try {
+        const { data: reactions } = await supabase
+          .from('bulletin_post_reactions')
+          .select('id')
+          .eq('post_id', post.id);
+
+        return {
+          ...post,
+          reaction_count: reactions?.length || 0
+        };
+      } catch (err) {
+        console.error(`Error fetching reactions for post ${post.id}:`, err);
+        return {
+          ...post,
+          reaction_count: 0
+        };
+      }
+    }));
+
+    res.json(postsWithReactions);
   } catch (error) {
     console.error('❌ Error fetching bulletin posts:', error);
     res.status(500).json({ error: error.message });
@@ -3759,6 +3780,160 @@ app.post('/api/bulletin/comments/:commentId/react', async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Error toggling bulletin reaction:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// =======================
+// BULLETIN POST REACTIONS
+// =======================
+
+// Get reactions for a bulletin post
+app.get('/api/bulletin/posts/:postId/reactions', async (req, res) => {
+  try {
+    const { postId } = req.params;
+
+    let reactions = [];
+
+    // Try direct PostgreSQL first, fall back to Supabase if it fails
+    try {
+      if (pgPool) {
+        const result = await pgPool.query(
+          `SELECT reaction_type, wallet_address
+           FROM bulletin_post_reactions
+           WHERE post_id = $1`,
+          [postId]
+        );
+        reactions = result.rows;
+        console.log(`✅ [pgPool] Fetched ${reactions.length} reactions for bulletin post ${postId}`);
+      } else {
+        throw new Error('pgPool not available');
+      }
+    } catch (pgError) {
+      console.warn(`⚠️ pgPool failed (${pgError.message}), falling back to Supabase...`);
+
+      // Fallback to Supabase
+      const { data, error } = await supabase
+        .from('bulletin_post_reactions')
+        .select('reaction_type, wallet_address')
+        .eq('post_id', postId);
+
+      if (error) throw error;
+      reactions = data || [];
+    }
+
+    // Aggregate reactions by type
+    const counts = {};
+    const userReactions = {};
+
+    reactions.forEach(row => {
+      counts[row.reaction_type] = (counts[row.reaction_type] || 0) + 1;
+      if (!userReactions[row.wallet_address]) {
+        userReactions[row.wallet_address] = [];
+      }
+      userReactions[row.wallet_address].push(row.reaction_type);
+    });
+
+    res.json({ counts, userReactions });
+  } catch (error) {
+    console.error('❌ Error fetching bulletin post reactions:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Toggle reaction on a bulletin post (add if doesn't exist, remove if exists)
+app.post('/api/bulletin/posts/:postId/react', async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const { wallet_address, reaction_type } = req.body;
+
+    if (!wallet_address || !reaction_type) {
+      return res.status(400).json({ error: 'wallet_address and reaction_type are required' });
+    }
+
+    // Check if reaction already exists
+    const { data: existing, error: fetchError } = await supabase
+      .from('bulletin_post_reactions')
+      .select('id')
+      .eq('post_id', postId)
+      .eq('wallet_address', wallet_address)
+      .eq('reaction_type', reaction_type)
+      .maybeSingle();
+
+    if (fetchError) throw fetchError;
+
+    let action;
+    if (existing) {
+      // Remove reaction (toggle off)
+      const { error: deleteError } = await supabase
+        .from('bulletin_post_reactions')
+        .delete()
+        .eq('id', existing.id);
+
+      if (deleteError) throw deleteError;
+      action = 'removed';
+    } else {
+      // Add reaction (toggle on)
+      const { error: insertError } = await supabase
+        .from('bulletin_post_reactions')
+        .insert({
+          post_id: postId,
+          wallet_address,
+          reaction_type
+        });
+
+      if (insertError) throw insertError;
+      action = 'added';
+    }
+
+    // Fetch updated reaction counts
+    let reactions = [];
+
+    // Try direct PostgreSQL first, fall back to Supabase if it fails
+    try {
+      if (pgPool) {
+        const result = await pgPool.query(
+          `SELECT reaction_type, wallet_address
+           FROM bulletin_post_reactions
+           WHERE post_id = $1`,
+          [postId]
+        );
+        reactions = result.rows;
+      } else {
+        throw new Error('pgPool not available');
+      }
+    } catch (pgError) {
+      console.warn(`⚠️ pgPool failed in post reaction toggle, falling back to Supabase...`);
+
+      // Fallback to Supabase
+      const { data } = await supabase
+        .from('bulletin_post_reactions')
+        .select('reaction_type, wallet_address')
+        .eq('post_id', postId);
+
+      reactions = data || [];
+    }
+
+    // Aggregate reactions
+    const counts = {};
+    const userReactions = {};
+
+    reactions.forEach(row => {
+      counts[row.reaction_type] = (counts[row.reaction_type] || 0) + 1;
+      if (!userReactions[row.wallet_address]) {
+        userReactions[row.wallet_address] = [];
+      }
+      userReactions[row.wallet_address].push(row.reaction_type);
+    });
+
+    res.json({
+      success: true,
+      action,
+      counts,
+      userReactions
+    });
+  } catch (error) {
+    console.error('❌ Error toggling bulletin post reaction:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
