@@ -14906,6 +14906,16 @@
           });
         }
       });
+
+      // Event delegation for delete buttons
+      commentsList.addEventListener('click', (e) => {
+        const deleteBtn = e.target.closest('.comment-delete-btn');
+        if (deleteBtn) {
+          const commentId = parseInt(deleteBtn.getAttribute('data-comment-id'));
+          console.log('🗑️ Delete button clicked for comment:', commentId);
+          deleteProfileComment(commentId);
+        }
+      });
     }
 
     // No-op function for compatibility (in case it's called somewhere)
@@ -14953,11 +14963,12 @@
       }
     });
 
-    window.deleteComment = async function(commentId) {
+    // Profile comment delete function
+    window.deleteProfileComment = async function(commentId) {
       if (!confirm('Are you sure you want to delete this comment?')) return;
 
       try {
-        console.log('🔵 [Delete] Deleting comment:', commentId);
+        console.log('🔵 [Delete Profile Comment] Deleting comment:', commentId);
         console.log('🔵 [Delete] Current user wallet:', currentUserWallet);
 
         if (!currentUserWallet) {
@@ -14991,14 +15002,6 @@
         alert('Error deleting comment.');
       }
     };
-
-    // Event delegation for delete buttons
-    commentsList.addEventListener('click', (e) => {
-      if (e.target.classList.contains('comment-delete-btn')) {
-        const commentId = parseInt(e.target.getAttribute('data-comment-id'));
-        deleteComment(commentId);
-      }
-    });
 
     // Open Reply Box
     window.openReplyBox = function(commentId) {
