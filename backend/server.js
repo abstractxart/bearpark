@@ -1450,6 +1450,63 @@ app.post('/api/comments', validateWallet, validateTextLengths, async (req, res) 
 
     if (error) throw error;
 
+    // Send notification to profile owner or parent comment author
+    try {
+      if (parent_id) {
+        // This is a reply to another comment
+        // Get the parent comment to find the author
+        const { data: parentComment, error: parentError } = await supabase
+          .from('profile_comments')
+          .select('commenter_wallet, commenter_name, commenter_avatar')
+          .eq('id', parent_id)
+          .single();
+
+        if (!parentError && parentComment && parentComment.commenter_wallet !== commenter_wallet) {
+          // Send notification to parent comment author (don't notify yourself)
+          await supabase
+            .from('notifications')
+            .insert({
+              wallet_address: parentComment.commenter_wallet,
+              type: 'profile_reply',
+              data: {
+                profileWallet: profile_wallet,
+                commentId: data.id,
+                commentText: comment_text.substring(0, 100),
+                displayName: commenter_name || 'Anonymous',
+                wallet: commenter_wallet,
+                avatarNft: commenter_avatar
+              },
+              read: false
+            });
+          console.log(`✅ Sent profile_reply notification to ${parentComment.commenter_wallet}`);
+        }
+      } else {
+        // This is a top-level comment on the profile
+        if (profile_wallet !== commenter_wallet) {
+          // Send notification to profile owner (don't notify yourself)
+          await supabase
+            .from('notifications')
+            .insert({
+              wallet_address: profile_wallet,
+              type: 'profile_comment',
+              data: {
+                profileWallet: profile_wallet,
+                commentId: data.id,
+                commentText: comment_text.substring(0, 100),
+                displayName: commenter_name || 'Anonymous',
+                wallet: commenter_wallet,
+                avatarNft: commenter_avatar
+              },
+              read: false
+            });
+          console.log(`✅ Sent profile_comment notification to ${profile_wallet}`);
+        }
+      }
+    } catch (notifError) {
+      console.error('Error sending notification:', notifError);
+      // Don't fail the request if notification fails
+    }
+
     res.json({ success: true, comment: data });
   } catch (error) {
     console.error('Error posting comment:', error);
