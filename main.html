@@ -16124,15 +16124,22 @@
         // Navigate to bulletin board and open the post DIRECTLY
         toggleNotificationPanel();
         setTimeout(() => {
-          navigateTo('bulletin');
-          // Wait for bulletin board to be visible, then open post
+          // Scroll to bulletin board section
+          const bulletinSection = document.getElementById('bulletin-board');
+          if (bulletinSection) {
+            bulletinSection.scrollIntoView({
+              behavior: 'smooth',
+              block: 'start'
+            });
+          }
+          // Wait for scroll to complete, then open post
           setTimeout(async () => {
             if (typeof window.openBulletinPost === 'function') {
               await window.openBulletinPost(parseInt(notif.data.postId));
             } else {
               console.error('❌ openBulletinPost function not available');
             }
-          }, 800); // Increased wait time to ensure bulletin board is fully loaded
+          }, 1000); // Wait for smooth scroll to complete
         }, 300);
       } else {
         console.warn('⚠️ Notification type not handled or missing data:', notif.type, notif.data);
