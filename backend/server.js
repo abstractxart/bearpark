@@ -1371,7 +1371,14 @@ app.get('/api/comments/:wallet', async (req, res) => {
     try {
       if (pgPool) {
         const result = await pgPool.query(
-          'SELECT * FROM profile_comments WHERE profile_wallet = $1 ORDER BY created_at DESC',
+          `SELECT
+            pc.*,
+            COALESCE(p.display_name, pc.commenter_name, 'Anonymous') as commenter_name,
+            COALESCE(p.avatar_nft, pc.commenter_avatar) as commenter_avatar
+          FROM profile_comments pc
+          LEFT JOIN profiles p ON pc.commenter_wallet = p.wallet_address
+          WHERE pc.profile_wallet = $1
+          ORDER BY pc.created_at DESC`,
           [wallet]
         );
         comments = result.rows || [];
@@ -1382,14 +1389,30 @@ app.get('/api/comments/:wallet', async (req, res) => {
     } catch (pgError) {
       console.warn(`⚠️ pgPool failed (${pgError.message}), falling back to Supabase...`);
 
-      const { data, error } = await supabase
+      // Supabase doesn't support LEFT JOIN in the same way, so we'll fetch and enrich manually
+      const { data: commentsData, error: commentsError } = await supabase
         .from('profile_comments')
         .select('*')
         .eq('profile_wallet', wallet)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      comments = data || [];
+      if (commentsError) throw commentsError;
+
+      // Enrich comments with current profile data
+      comments = await Promise.all((commentsData || []).map(async (comment) => {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('display_name, avatar_nft')
+          .eq('wallet_address', comment.commenter_wallet)
+          .single();
+
+        return {
+          ...comment,
+          commenter_name: profile?.display_name || comment.commenter_name || 'Anonymous',
+          commenter_avatar: profile?.avatar_nft || comment.commenter_avatar
+        };
+      }));
+
       console.log(`✅ [Supabase] Fetched ${comments.length} comments for ${wallet}`);
     }
 
