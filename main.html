@@ -16537,6 +16537,9 @@
       const isOwner = currentWallet && post.wallet_address === currentWallet;
       const avatarUrl = getAvatarUrl(post.author_avatar);
 
+      // Calculate total reaction count
+      const reactionCount = post.reaction_count || 0;
+
       return `
         <div class="bulletin-post-card" onclick="openBulletinPost(${post.id})">
           <div class="bulletin-post-header">
@@ -16559,6 +16562,11 @@
           <div class="bulletin-post-content">${linkifyText(post.content)}</div>
           ${linkPreview}
           <div class="bulletin-post-footer">
+            ${reactionCount > 0 ? `
+              <div class="bulletin-post-stat">
+                ❤️ ${reactionCount} ${reactionCount === 1 ? 'reaction' : 'reactions'}
+              </div>
+            ` : ''}
             <div class="bulletin-post-stat">
               💬 ${post.comment_count || 0} ${post.comment_count === 1 ? 'comment' : 'comments'}
             </div>
@@ -16826,7 +16834,21 @@
         </div>
         <div class="bulletin-post-content">${linkifyText(post.content)}</div>
         ${linkPreview}
+        <div id="postReactionContainer" style="margin-top: 20px; padding-top: 16px; border-top: 1px solid rgba(237, 183, 35, 0.2);">
+          <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+            <div id="postReactionSummary"></div>
+            <button class="like-button" id="postLikeButton" data-post-id="${postId}">
+              <span>👍</span> <span class="like-text">React</span>
+            </button>
+          </div>
+        </div>
       `;
+
+      // Load post reactions
+      await loadPostReactions(postId);
+
+      // Attach post reaction listener
+      attachPostReactionListener();
 
       // Load comments
       await loadComments(postId);
@@ -16838,6 +16860,111 @@
       modal.style.display = 'none';
       document.body.style.overflow = '';
       currentPostId = null;
+    }
+
+    // Load reactions for the bulletin post
+    async function loadPostReactions(postId) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/bulletin/posts/${postId}/reactions`);
+        if (!response.ok) return;
+
+        const data = await response.json();
+        updatePostReactionSummary(postId, data);
+      } catch (error) {
+        console.error('Error loading post reactions:', error);
+      }
+    }
+
+    // Update post reaction summary display
+    function updatePostReactionSummary(postId, reactionsData) {
+      const currentWallet = localStorage.getItem('bearpark_wallet');
+      const userReactions = reactionsData.userReactions?.[currentWallet] || [];
+      const counts = reactionsData.counts || {};
+
+      const summaryContainer = document.getElementById('postReactionSummary');
+      if (!summaryContainer) return;
+
+      // Generate reaction pills
+      const reactionTypes = [
+        { type: 'like', emoji: '👍' },
+        { type: 'laugh', emoji: '😂' },
+        { type: 'heart', emoji: '❤️' },
+        { type: 'cry', emoji: '😢' },
+        { type: 'thumbs_down', emoji: '👎' },
+        { type: 'troll', emoji: '🤡' }
+      ];
+
+      const pills = reactionTypes
+        .filter(({ type }) => counts[type] > 0)
+        .map(({ type, emoji }) => {
+          const isUserReaction = userReactions.includes(type);
+          const clickHandler = `togglePostReaction(${postId}, '${type}')`;
+          return `
+            <div class="reaction-pill ${isUserReaction ? 'user-reacted' : ''}"
+                 data-post-id="${postId}"
+                 data-reaction-type="${type}"
+                 onclick="${clickHandler}">
+              <span class="pill-emoji">${emoji}</span>
+              <span class="pill-count">${counts[type]}</span>
+            </div>
+          `;
+        }).join('');
+
+      summaryContainer.innerHTML = pills;
+
+      // Update like button state
+      const likeButton = document.getElementById('postLikeButton');
+      if (likeButton && userReactions.length > 0) {
+        likeButton.classList.add('reacted');
+      } else if (likeButton) {
+        likeButton.classList.remove('reacted');
+      }
+    }
+
+    // Toggle reaction on the post
+    window.togglePostReaction = async function(postId, reactionType) {
+      const currentWallet = localStorage.getItem('bearpark_wallet');
+      if (!currentWallet) {
+        showBulletinNotification('⚠️ Please connect your wallet first!', 'warning');
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/bulletin/posts/${postId}/react`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            wallet_address: currentWallet,
+            reaction_type: reactionType
+          })
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+          // Update UI with new counts
+          updatePostReactionSummary(postId, {
+            counts: result.counts || {},
+            userReactions: result.userReactions || {}
+          });
+        }
+      } catch (error) {
+        console.error('Error toggling post reaction:', error);
+        showBulletinNotification('❌ Failed to add reaction.', 'error');
+      }
+    };
+
+    // Attach event listener to post like button (for emoji picker)
+    function attachPostReactionListener() {
+      const likeButton = document.getElementById('postLikeButton');
+      if (!likeButton) return;
+
+      // Simple click: toggle like
+      likeButton.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const postId = likeButton.getAttribute('data-post-id');
+        await togglePostReaction(postId, 'like');
+      });
     }
 
     // Load comments for a post (USING TREE STRUCTURE AND ASYNC RENDERING)
