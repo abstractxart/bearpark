@@ -3072,8 +3072,7 @@ app.post('/api/push/test', async (req, res) => {
 });
 
 // ===== NOTIFICATION SYSTEM =====
-// In-memory notification storage (for quick MVP - could be moved to database later)
-const notificationStore = new Map(); // wallet => notifications[]
+// Persistent notification storage in Supabase
 
 // Get notifications for a user
 app.get('/api/notifications/:wallet', async (req, res) => {
@@ -3084,47 +3083,69 @@ app.get('/api/notifications/:wallet', async (req, res) => {
       return res.status(400).json({ error: 'Wallet address required' });
     }
 
-    const notifications = notificationStore.get(wallet) || [];
+    // Fetch from database (newest first, limit to 50)
+    const { data: notifications, error } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('wallet_address', wallet)
+      .order('created_at', { ascending: false })
+      .limit(50);
 
-    // Clean old notifications (older than 7 days)
-    const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
-    const validNotifications = notifications.filter(n =>
-      new Date(n.created_at).getTime() > sevenDaysAgo
-    );
+    if (error) throw error;
 
-    // Update store if we filtered any
-    if (validNotifications.length !== notifications.length) {
-      notificationStore.set(wallet, validNotifications);
-    }
+    // Transform database format to match frontend expectations
+    const transformedNotifications = (notifications || []).map(n => ({
+      id: n.id.toString(),
+      type: n.type,
+      data: n.data,
+      read: n.is_read,
+      created_at: n.created_at
+    }));
 
-    res.json({ success: true, notifications: validNotifications });
+    res.json({ success: true, notifications: transformedNotifications });
   } catch (error) {
     console.error('Error fetching notifications:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// Helper function to add a notification
-function addNotification(targetWallet, type, data) {
+// Mark notification as read
+app.post('/api/notifications/:notificationId/read', async (req, res) => {
   try {
-    const notifications = notificationStore.get(targetWallet) || [];
+    const { notificationId } = req.params;
 
-    const notification = {
-      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-      type,
-      data,
-      read: false,
-      created_at: new Date().toISOString()
-    };
+    const { error } = await supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('id', notificationId);
 
-    notifications.unshift(notification);
+    if (error) throw error;
 
-    // Limit to 50 notifications per user
-    if (notifications.length > 50) {
-      notifications.splice(50);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error marking notification as read:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Helper function to add a notification (now uses database)
+async function addNotification(targetWallet, type, data) {
+  try {
+    // Don't send notification to yourself
+    if (data.wallet && data.wallet === targetWallet) {
+      return;
     }
 
-    notificationStore.set(targetWallet, notifications);
+    const { error } = await supabase
+      .from('notifications')
+      .insert({
+        wallet_address: targetWallet,
+        type,
+        data,
+        is_read: false
+      });
+
+    if (error) throw error;
 
     console.log(`📬 Notification added for ${targetWallet}: ${type}`);
   } catch (error) {
@@ -3565,6 +3586,52 @@ app.post('/api/bulletin/comments', async (req, res) => {
 
     if (error) throw error;
 
+    // Send notifications
+    try {
+      if (parent_id) {
+        // This is a reply - notify the parent comment author
+        const { data: parentComment } = await supabase
+          .from('bulletin_comments')
+          .select('wallet_address')
+          .eq('id', parent_id)
+          .single();
+
+        if (parentComment && parentComment.wallet_address !== wallet_address) {
+          await addNotification(parentComment.wallet_address, 'bulletin_reply', {
+            wallet: wallet_address,
+            displayName: profile?.display_name || 'Anonymous',
+            avatarNft: profile?.avatar_nft || null,
+            commentText: content.substring(0, 100),
+            commentId: newComment.id.toString(),
+            postId: post_id.toString()
+          });
+          console.log(`📬 Reply notification sent to ${parentComment.wallet_address}`);
+        }
+      } else {
+        // This is a top-level comment - notify the post author
+        const { data: post } = await supabase
+          .from('bulletin_posts')
+          .select('wallet_address')
+          .eq('id', post_id)
+          .single();
+
+        if (post && post.wallet_address !== wallet_address) {
+          await addNotification(post.wallet_address, 'bulletin_comment', {
+            wallet: wallet_address,
+            displayName: profile?.display_name || 'Anonymous',
+            avatarNft: profile?.avatar_nft || null,
+            commentText: content.substring(0, 100),
+            commentId: newComment.id.toString(),
+            postId: post_id.toString()
+          });
+          console.log(`📬 Comment notification sent to ${post.wallet_address}`);
+        }
+      }
+    } catch (notifError) {
+      console.error('⚠️ Failed to send notification:', notifError);
+      // Don't fail the request if notification fails
+    }
+
     res.json(newComment);
   } catch (error) {
     console.error('❌ Error creating bulletin comment:', error);
@@ -3730,6 +3797,40 @@ app.post('/api/bulletin/comments/:commentId/react', async (req, res) => {
 
       if (insertError) throw insertError;
       action = 'added';
+
+      // Send notification to comment author
+      try {
+        const { data: comment } = await supabase
+          .from('bulletin_comments')
+          .select('wallet_address, content, post_id')
+          .eq('id', commentId)
+          .single();
+
+        if (comment && comment.wallet_address !== wallet_address) {
+          // Get reactor's profile
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('display_name, avatar_nft')
+            .eq('wallet_address', wallet_address)
+            .single();
+
+          const reactionEmojis = { like: '👍', laugh: '😂', heart: '❤️', cry: '😢', thumbs_down: '👎', troll: '🤡' };
+
+          await addNotification(comment.wallet_address, 'bulletin_comment_reaction', {
+            wallet: wallet_address,
+            displayName: profile?.display_name || 'Anonymous',
+            avatarNft: profile?.avatar_nft || null,
+            reactions: [reactionEmojis[reaction_type]],
+            commentText: comment.content?.substring(0, 100),
+            commentId: commentId.toString(),
+            postId: comment.post_id.toString()
+          });
+          console.log(`📬 Comment reaction notification sent to ${comment.wallet_address}`);
+        }
+      } catch (notifError) {
+        console.error('⚠️ Failed to send notification:', notifError);
+        // Don't fail the request if notification fails
+      }
     }
 
     // Fetch updated reaction counts
@@ -3884,6 +3985,38 @@ app.post('/api/bulletin/posts/:postId/react', async (req, res) => {
 
       if (insertError) throw insertError;
       action = 'added';
+
+      // Send notification to post author
+      try {
+        const { data: post } = await supabase
+          .from('bulletin_posts')
+          .select('wallet_address')
+          .eq('id', postId)
+          .single();
+
+        if (post && post.wallet_address !== wallet_address) {
+          // Get reactor's profile
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('display_name, avatar_nft')
+            .eq('wallet_address', wallet_address)
+            .single();
+
+          const reactionEmojis = { like: '👍', laugh: '😂', heart: '❤️', cry: '😢', thumbs_down: '👎', troll: '🤡' };
+
+          await addNotification(post.wallet_address, 'bulletin_post_reaction', {
+            wallet: wallet_address,
+            displayName: profile?.display_name || 'Anonymous',
+            avatarNft: profile?.avatar_nft || null,
+            reactions: [reactionEmojis[reaction_type]],
+            postId: postId.toString()
+          });
+          console.log(`📬 Post reaction notification sent to ${post.wallet_address}`);
+        }
+      } catch (notifError) {
+        console.error('⚠️ Failed to send notification:', notifError);
+        // Don't fail the request if notification fails
+      }
     }
 
     // Fetch updated reaction counts
