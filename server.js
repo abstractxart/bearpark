@@ -4,6 +4,9 @@ const cors = require('cors');
 const path = require('path');
 const fetch = require('node-fetch');
 const { createClient } = require('@supabase/supabase-js');
+const rateLimit = require('express-rate-limit');
+const helmet = require('helmet');
+const { body, param, validationResult } = require('express-validator');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -13,6 +16,47 @@ const XAMAN_API_KEY = process.env.XAMAN_API_KEY;
 const XAMAN_API_SECRET = process.env.XAMAN_API_SECRET;
 const XAMAN_API_URL = 'https://xumm.app/api/v1/platform';
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:8080';
+
+// 🔒 ADMIN AUTHENTICATION - Set this in your .env file
+const ADMIN_API_KEY = process.env.ADMIN_API_KEY || 'change-this-in-production-' + Math.random().toString(36);
+
+if (!process.env.ADMIN_API_KEY) {
+  console.warn('⚠️  WARNING: ADMIN_API_KEY not set in .env! Using random key:', ADMIN_API_KEY);
+  console.warn('⚠️  Set ADMIN_API_KEY in your .env file for production!');
+}
+
+// 🔒 SECURITY: Game-specific max scores (prevents impossible scores)
+const MAX_SCORES = {
+  'flappy-bear': 1000000,    // Max reasonable score for Flappy Bear
+  'bear-pong': 1000,         // Max wins in Bear Pong
+  'bear-slice': 500000,      // Max score for BearSlice
+  'bear-jumpventure': 500000 // Max score for Jump Venture
+};
+
+// 🔒 SECURITY: Track suspicious activity
+const suspiciousActivity = new Map(); // wallet -> { count, lastSeen, ips }
+
+function logSuspiciousActivity(wallet, reason, ip) {
+  const key = wallet || ip || 'unknown';
+  const activity = suspiciousActivity.get(key) || { count: 0, reasons: [], ips: new Set(), firstSeen: Date.now() };
+
+  activity.count++;
+  activity.lastSeen = Date.now();
+  activity.reasons.push({ reason, timestamp: Date.now() });
+  if (ip) activity.ips.add(ip);
+
+  suspiciousActivity.set(key, activity);
+
+  console.log(`🚨 SUSPICIOUS ACTIVITY: ${reason}`);
+  console.log(`   Wallet: ${wallet || 'unknown'}`);
+  console.log(`   IP: ${ip || 'unknown'}`);
+  console.log(`   Total incidents: ${activity.count}`);
+
+  // Alert if more than 5 suspicious actions
+  if (activity.count > 5) {
+    console.log(`⚠️⚠️⚠️ HIGH ALERT: ${key} has ${activity.count} suspicious actions!`);
+  }
+}
 
 // Supabase Configuration
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -33,7 +77,73 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY
   ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
   : null;
 
-// Middleware
+// ============================================
+// 🔒 SECURITY MIDDLEWARE
+// ============================================
+
+// 1. HELMET - Security headers
+app.use(helmet({
+  contentSecurityPolicy: false, // Allow external resources for games
+  crossOriginEmbedderPolicy: false // Allow iframes
+}));
+
+// 2. RATE LIMITING - Prevent API abuse
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: { error: 'Too many requests, please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const strictLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20, // Limit each IP to 20 requests per windowMs
+  message: { error: 'Too many requests, please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const scoreLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 10, // Max 10 score submissions per minute
+  message: { error: 'Too many score submissions, please slow down.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Apply general rate limiting to all routes
+app.use(generalLimiter);
+
+// 3. ADMIN AUTHENTICATION MIDDLEWARE
+function requireAdmin(req, res, next) {
+  const apiKey = req.headers['x-admin-key'] || req.query.admin_key;
+
+  if (!apiKey || apiKey !== ADMIN_API_KEY) {
+    logSuspiciousActivity(null, 'Unauthorized admin access attempt', req.ip);
+    return res.status(403).json({
+      error: 'Forbidden',
+      message: 'Admin authentication required. Include X-Admin-Key header.'
+    });
+  }
+
+  console.log(`✅ Admin authenticated from IP: ${req.ip}`);
+  next();
+}
+
+// 4. WALLET ADDRESS VALIDATION MIDDLEWARE
+function validateWalletAddress(req, res, next) {
+  const walletAddress = req.body.wallet_address || req.params.wallet_address;
+
+  if (walletAddress && !walletAddress.match(/^r[1-9A-HJ-NP-Za-km-z]{25,34}$/)) {
+    logSuspiciousActivity(walletAddress, 'Invalid wallet address format', req.ip);
+    return res.status(400).json({ error: 'Invalid XRP wallet address format' });
+  }
+
+  next();
+}
+
+// 5. CORS
 app.use(cors({
   origin: [
     FRONTEND_URL,
@@ -47,9 +157,11 @@ app.use(cors({
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Admin-Key']
 }));
-app.use(express.json());
+
+// 6. JSON parsing with size limit
+app.use(express.json({ limit: '10kb' })); // Prevent large payload attacks
 
 // Serve static files from current directory
 app.use(express.static(__dirname));
@@ -240,44 +352,80 @@ app.get('/api/points/:wallet_address', async (req, res) => {
   }
 });
 
-// Update/sync user's honey points
-app.post('/api/points', async (req, res) => {
-  if (!supabase) {
-    return res.status(503).json({ error: 'Database not configured' });
-  }
-
-  try {
-    const { wallet_address, total_points, raiding_points, games_points } = req.body;
-
-    if (!wallet_address) {
-      return res.status(400).json({ error: 'wallet_address is required' });
+// Update/sync user's honey points - WITH SECURITY VALIDATION
+app.post('/api/points',
+  strictLimiter, // Strict rate limit for points
+  validateWalletAddress,
+  [
+    body('wallet_address').isString().trim().notEmpty(),
+    body('total_points').optional().isInt({ min: 0 }),
+    body('raiding_points').optional().isInt({ min: 0 }),
+    body('games_points').optional().isInt({ min: 0 })
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      logSuspiciousActivity(req.body.wallet_address, 'Invalid points submission', req.ip);
+      return res.status(400).json({ error: 'Validation failed', details: errors.array() });
     }
 
-    // Upsert points (insert or update if exists)
-    const { data, error } = await supabase
-      .from('honey_points')
-      .upsert({
-        wallet_address,
-        total_points: total_points || 0,
-        raiding_points: raiding_points || 0,
-        games_points: games_points || 0,
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: 'wallet_address'
-      })
-      .select()
-      .single();
-
-    if (error) {
-      throw error;
+    if (!supabase) {
+      return res.status(503).json({ error: 'Database not configured' });
     }
 
-    res.json({ success: true, points: data });
-  } catch (error) {
-    console.error('Error syncing points:', error);
-    res.status(500).json({ error: 'Failed to sync points', details: error.message });
-  }
-});
+    try {
+      const { wallet_address, total_points, raiding_points, games_points } = req.body;
+
+      // 🔒 SECURITY: Validate points don't exceed reasonable limits
+      const maxPoints = 10000000; // 10 million max
+      if ((total_points || 0) > maxPoints || (raiding_points || 0) > maxPoints || (games_points || 0) > maxPoints) {
+        logSuspiciousActivity(wallet_address, `Excessive points submitted: total=${total_points}, raiding=${raiding_points}, games=${games_points}`, req.ip);
+        return res.status(400).json({ error: 'Points exceed maximum allowed' });
+      }
+
+      // 🔒 SECURITY: Get current points to detect suspicious changes
+      const { data: currentData } = await supabase
+        .from('honey_points')
+        .select('*')
+        .eq('wallet_address', wallet_address)
+        .maybeSingle();
+
+      if (currentData) {
+        const currentTotal = currentData.total_points || 0;
+        const newTotal = total_points || 0;
+
+        // Detect massive point jumps (more than 100k in one update)
+        if (newTotal > currentTotal + 100000) {
+          logSuspiciousActivity(wallet_address, `Massive point increase: ${currentTotal} -> ${newTotal}`, req.ip);
+          console.log(`⚠️  WARNING: ${wallet_address} increased points by ${newTotal - currentTotal}`);
+        }
+      }
+
+      // Upsert points (insert or update if exists)
+      const { data, error } = await supabase
+        .from('honey_points')
+        .upsert({
+          wallet_address,
+          total_points: total_points || 0,
+          raiding_points: raiding_points || 0,
+          games_points: games_points || 0,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'wallet_address'
+        })
+        .select()
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      res.json({ success: true, points: data });
+    } catch (error) {
+      console.error('Error syncing points:', error);
+      res.status(500).json({ error: 'Failed to sync points', details: error.message });
+    }
+  });
 
 // Complete a raid and award points
 // SECURITY: Check if user already completed a raid
@@ -521,55 +669,115 @@ app.get('/api/leaderboard/:game_id', async (req, res) => {
   }
 });
 
-// Submit or update score
-app.post('/api/leaderboard', async (req, res) => {
-  if (!supabase) {
-    return res.status(503).json({ error: 'Database not configured' });
-  }
-
-  try {
-    const { wallet_address, game_id, score, metadata } = req.body;
-
-    if (!wallet_address || !game_id || score === undefined) {
-      return res.status(400).json({ error: 'wallet_address, game_id, and score are required' });
+// Submit or update score - WITH SECURITY VALIDATION
+app.post('/api/leaderboard',
+  scoreLimiter, // Rate limit score submissions
+  validateWalletAddress, // Validate wallet format
+  [
+    body('wallet_address').isString().trim().notEmpty(),
+    body('game_id').isString().trim().isIn(['flappy-bear', 'bear-pong', 'bear-slice', 'bear-jumpventure', 'bear-ninja']),
+    body('score').isInt({ min: 0 }).toInt(),
+  ],
+  async (req, res) => {
+    // Check validation results
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      logSuspiciousActivity(req.body.wallet_address, 'Invalid leaderboard submission: ' + JSON.stringify(errors.array()), req.ip);
+      return res.status(400).json({ error: 'Validation failed', details: errors.array() });
     }
 
-    // Check if existing score is higher
-    const { data: existing } = await supabase
-      .from('game_leaderboards')
-      .select('score')
-      .eq('wallet_address', wallet_address)
-      .eq('game_id', game_id)
-      .single();
+    if (!supabase) {
+      return res.status(503).json({ error: 'Database not configured' });
+    }
 
-    // Only update if new score is higher or no existing score
-    if (!existing || score > existing.score) {
-      const { data, error } = await supabase
-        .from('game_leaderboards')
-        .upsert({
-          wallet_address,
-          game_id,
-          score,
-          metadata: metadata || {}
-        }, {
-          onConflict: 'wallet_address,game_id'
-        })
-        .select()
-        .single();
+    try {
+      const { wallet_address, game_id, score, metadata } = req.body;
 
-      if (error) {
-        throw error;
+      // 🔒 SECURITY: Validate score against max for this game
+      const maxScore = MAX_SCORES[game_id] || 1000000;
+      if (score > maxScore) {
+        logSuspiciousActivity(wallet_address, `Impossible score submitted: ${score} for ${game_id} (max: ${maxScore})`, req.ip);
+        return res.status(400).json({
+          error: 'Invalid score',
+          message: `Score ${score} exceeds maximum possible score of ${maxScore} for ${game_id}`
+        });
       }
 
-      res.json({ success: true, entry: data, is_high_score: true });
-    } else {
-      res.json({ success: true, is_high_score: false, message: 'Score not higher than existing' });
+      // Check if existing score is higher (also fetch metadata for bear-pong)
+      const { data: existing } = await supabase
+        .from('game_leaderboards')
+        .select('score, metadata')
+        .eq('wallet_address', wallet_address)
+        .eq('game_id', game_id)
+        .single();
+
+      // 🔒 SECURITY: Detect suspicious rapid score increases
+      if (existing && score > existing.score * 10 && existing.score > 0) {
+        logSuspiciousActivity(wallet_address, `Suspicious score jump: ${existing.score} -> ${score} for ${game_id}`, req.ip);
+        console.log(`⚠️  WARNING: ${wallet_address} score jumped 10x in ${game_id}`);
+      }
+
+      // 🎯 BEAR PONG: Increment wins/losses in metadata
+      let finalMetadata = metadata || {};
+      let finalScore = score;
+
+      if (game_id === 'bear-pong') {
+        // Get current wins/losses from existing metadata
+        const currentWins = existing?.metadata?.wins || existing?.score || 0;
+        const currentLosses = existing?.metadata?.losses || 0;
+
+        // Increment based on result
+        let newWins = currentWins;
+        let newLosses = currentLosses;
+
+        if (metadata?.result === 'win') {
+          newWins = currentWins + 1;
+          console.log(`🎯 [BEAR PONG] Win recorded: ${currentWins} -> ${newWins} wins`);
+        } else if (metadata?.result === 'loss') {
+          newLosses = currentLosses + 1;
+          console.log(`🎯 [BEAR PONG] Loss recorded: ${currentLosses} -> ${newLosses} losses`);
+        }
+
+        // Update metadata with new wins/losses
+        finalMetadata = {
+          ...metadata,
+          wins: newWins,
+          losses: newLosses
+        };
+
+        // Score field = total wins for bear-pong
+        finalScore = newWins;
+      }
+
+      // Only update if new score is higher or no existing score (or if it's bear-pong with a loss)
+      if (!existing || score > existing.score || (game_id === 'bear-pong' && metadata?.result === 'loss')) {
+        const { data, error } = await supabase
+          .from('game_leaderboards')
+          .upsert({
+            wallet_address,
+            game_id,
+            score: finalScore,
+            metadata: finalMetadata
+          }, {
+            onConflict: 'wallet_address,game_id'
+          })
+          .select()
+          .single();
+
+        if (error) {
+          throw error;
+        }
+
+        console.log(`✅ Score submitted: ${wallet_address.substring(0, 8)}... scored ${finalScore} in ${game_id}`);
+        res.json({ success: true, entry: data, is_high_score: true });
+      } else {
+        res.json({ success: true, is_high_score: false, message: 'Score not higher than existing' });
+      }
+    } catch (error) {
+      console.error('Error submitting score:', error);
+      res.status(500).json({ error: 'Failed to submit score', details: error.message });
     }
-  } catch (error) {
-    console.error('Error submitting score:', error);
-    res.status(500).json({ error: 'Failed to submit score', details: error.message });
-  }
-});
+  });
 
 // Get user's score for a specific game
 app.get('/api/leaderboard/:game_id/:wallet_address', async (req, res) => {
@@ -627,95 +835,109 @@ app.get('/api/raids/current', async (req, res) => {
   }
 });
 
-// Create new raid
-app.post('/api/raids', async (req, res) => {
-  if (!supabase) {
-    return res.status(503).json({ error: 'Database not configured' });
-  }
-
-  try {
-    const { description, twitter_url, reward, profile_name, profile_handle, profile_emoji, expires_at } = req.body;
-
-    if (!description || !twitter_url || !expires_at) {
-      return res.status(400).json({ error: 'Missing required fields: description, twitter_url, expires_at' });
+// Create new raid - ADMIN ONLY
+app.post('/api/raids',
+  requireAdmin, // 🔒 Require admin authentication
+  strictLimiter,
+  [
+    body('description').isString().trim().isLength({ min: 1, max: 500 }),
+    body('twitter_url').isURL(),
+    body('reward').optional().isInt({ min: 1, max: 1000 }),
+    body('expires_at').isISO8601()
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ error: 'Validation failed', details: errors.array() });
     }
 
-    const { data, error } = await supabase
-      .from('raids')
-      .insert({
-        description,
-        twitter_url,
-        reward: reward || 20,
-        profile_name: profile_name || 'BearXRPL',
-        profile_handle: profile_handle || '@BearXRPL',
-        profile_emoji: profile_emoji || '🐻',
-        expires_at,
-        is_active: true
-      })
-      .select()
-      .single();
-
-    if (error) {
-      throw error;
+    if (!supabase) {
+      return res.status(503).json({ error: 'Database not configured' });
     }
 
-    console.log(`✅ Created raid: ${description.substring(0, 50)}...`);
-    res.json({ success: true, raid: data });
-  } catch (error) {
-    console.error('Error creating raid:', error);
-    res.status(500).json({ error: 'Failed to create raid', details: error.message });
-  }
-});
+    try {
+      const { description, twitter_url, reward, profile_name, profile_handle, profile_emoji, expires_at } = req.body;
 
-// Delete raid
-app.delete('/api/raids/:id', async (req, res) => {
-  if (!supabase) {
-    return res.status(503).json({ error: 'Database not configured' });
-  }
+      const { data, error } = await supabase
+        .from('raids')
+        .insert({
+          description,
+          twitter_url,
+          reward: reward || 20,
+          profile_name: profile_name || 'BearXRPL',
+          profile_handle: profile_handle || '@BearXRPL',
+          profile_emoji: profile_emoji || '🐻',
+          expires_at,
+          is_active: true
+        })
+        .select()
+        .single();
 
-  try {
-    const { id } = req.params;
+      if (error) {
+        throw error;
+      }
 
-    const { error } = await supabase
-      .from('raids')
-      .delete()
-      .eq('id', id);
+      console.log(`✅ [ADMIN] Created raid: ${description.substring(0, 50)}... by IP ${req.ip}`);
+      res.json({ success: true, raid: data });
+    } catch (error) {
+      console.error('Error creating raid:', error);
+      res.status(500).json({ error: 'Failed to create raid', details: error.message });
+    }
+  });
 
-    if (error) {
-      throw error;
+// Delete raid - ADMIN ONLY
+app.delete('/api/raids/:id',
+  requireAdmin, // 🔒 Require admin authentication
+  async (req, res) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Database not configured' });
     }
 
-    console.log(`✅ Deleted raid ID: ${id}`);
-    res.json({ success: true, message: 'Raid deleted' });
-  } catch (error) {
-    console.error('Error deleting raid:', error);
-    res.status(500).json({ error: 'Failed to delete raid', details: error.message });
-  }
-});
+    try {
+      const { id } = req.params;
 
-// Clear all raids (admin only - be careful!)
-app.post('/api/raids/clear', async (req, res) => {
-  if (!supabase) {
-    return res.status(503).json({ error: 'Database not configured' });
-  }
+      const { error } = await supabase
+        .from('raids')
+        .delete()
+        .eq('id', id);
 
-  try {
-    const { error } = await supabase
-      .from('raids')
-      .delete()
-      .neq('id', 0); // Delete all rows
+      if (error) {
+        throw error;
+      }
 
-    if (error) {
-      throw error;
+      console.log(`✅ [ADMIN] Deleted raid ID: ${id} by IP ${req.ip}`);
+      res.json({ success: true, message: 'Raid deleted' });
+    } catch (error) {
+      console.error('Error deleting raid:', error);
+      res.status(500).json({ error: 'Failed to delete raid', details: error.message });
+    }
+  });
+
+// Clear all raids - ADMIN ONLY (DANGEROUS!)
+app.post('/api/raids/clear',
+  requireAdmin, // 🔒 Require admin authentication
+  async (req, res) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Database not configured' });
     }
 
-    console.log('⚠️  All raids cleared from database');
-    res.json({ success: true, message: 'All raids cleared' });
-  } catch (error) {
-    console.error('Error clearing raids:', error);
-    res.status(500).json({ error: 'Failed to clear raids', details: error.message });
-  }
-});
+    try {
+      const { error } = await supabase
+        .from('raids')
+        .delete()
+        .neq('id', 0); // Delete all rows
+
+      if (error) {
+        throw error;
+      }
+
+      console.log(`⚠️⚠️⚠️  [ADMIN] All raids cleared from database by IP ${req.ip}`);
+      res.json({ success: true, message: 'All raids cleared' });
+    } catch (error) {
+      console.error('Error clearing raids:', error);
+      res.status(500).json({ error: 'Failed to clear raids', details: error.message });
+    }
+  });
 
 // ============================================
 // TWITTER EMBED API
@@ -759,24 +981,98 @@ app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
     message: 'BEAR Park API server running',
+    version: '2.0.0-secured',
     features: {
       xaman: !!XAMAN_API_KEY,
-      database: !!supabase
+      database: !!supabase,
+      security: {
+        rateLimiting: true,
+        helmet: true,
+        inputValidation: true,
+        adminAuth: true,
+        suspiciousActivityTracking: true
+      }
     }
   });
 });
 
+// 🔒 SECURITY MONITORING - View suspicious activity (ADMIN ONLY)
+app.get('/api/security/suspicious-activity',
+  requireAdmin,
+  (req, res) => {
+    const activities = Array.from(suspiciousActivity.entries()).map(([key, data]) => ({
+      identifier: key,
+      totalIncidents: data.count,
+      firstSeen: new Date(data.firstSeen).toISOString(),
+      lastSeen: new Date(data.lastSeen).toISOString(),
+      uniqueIPs: Array.from(data.ips),
+      recentReasons: data.reasons.slice(-5).map(r => ({
+        reason: r.reason,
+        timestamp: new Date(r.timestamp).toISOString()
+      }))
+    }));
+
+    // Sort by incident count (most suspicious first)
+    activities.sort((a, b) => b.totalIncidents - a.totalIncidents);
+
+    console.log(`✅ [ADMIN] Security report accessed by IP ${req.ip}`);
+    res.json({
+      success: true,
+      totalSuspiciousEntities: activities.length,
+      activities: activities
+    });
+  });
+
+// 🔒 SECURITY MONITORING - Clear suspicious activity log (ADMIN ONLY)
+app.post('/api/security/clear-log',
+  requireAdmin,
+  (req, res) => {
+    const previousCount = suspiciousActivity.size;
+    suspiciousActivity.clear();
+    console.log(`✅ [ADMIN] Cleared ${previousCount} suspicious activity entries by IP ${req.ip}`);
+    res.json({
+      success: true,
+      message: `Cleared ${previousCount} entries from suspicious activity log`
+    });
+  });
+
 app.listen(PORT, () => {
-  console.log(`\n🚀 BEAR Park API Server running on http://localhost:${PORT}`);
-  console.log(`✅ XAMAN authentication: ${XAMAN_API_KEY ? 'ENABLED' : 'DISABLED'}`);
-  console.log(`✅ Database (Supabase): ${supabase ? 'CONNECTED' : 'DISABLED'}`);
-  console.log(`\n📍 API Endpoints:`);
-  console.log(`   - GET  /health`);
-  console.log(`   - POST /api/xaman/payload`);
-  console.log(`   - GET  /api/xaman/payload/:uuid`);
-  console.log(`   - GET  /api/profile/:wallet_address`);
-  console.log(`   - POST /api/profile`);
-  console.log(`   - GET  /api/leaderboard/:game_id`);
-  console.log(`   - POST /api/leaderboard`);
-  console.log(`   - GET  /api/leaderboard/:game_id/:wallet_address\n`);
+  console.log(`\n${'='.repeat(60)}`);
+  console.log(`🚀 BEAR Park API Server v2.0.0-SECURED`);
+  console.log(`${'='.repeat(60)}`);
+  console.log(`\n🌐 Server: http://localhost:${PORT}`);
+  console.log(`\n🔐 SECURITY FEATURES:`);
+  console.log(`   ✅ Rate Limiting (100 req/15min general, 10 req/min scores)`);
+  console.log(`   ✅ Helmet Security Headers`);
+  console.log(`   ✅ Input Validation & Sanitization`);
+  console.log(`   ✅ Admin Authentication (X-Admin-Key required)`);
+  console.log(`   ✅ Suspicious Activity Tracking & Logging`);
+  console.log(`   ✅ Max Score Validation per Game`);
+  console.log(`   ✅ Wallet Address Format Validation`);
+  console.log(`   ✅ 10KB Request Size Limit`);
+  console.log(`\n🔧 FEATURES:`);
+  console.log(`   ✅ XAMAN Authentication: ${XAMAN_API_KEY ? 'ENABLED' : 'DISABLED'}`);
+  console.log(`   ✅ Database (Supabase): ${supabase ? 'CONNECTED' : 'DISABLED'}`);
+  console.log(`   ✅ Admin API Key: ${process.env.ADMIN_API_KEY ? 'CONFIGURED' : 'RANDOM (SET IN .env!)'}`);
+  console.log(`\n📍 PUBLIC ENDPOINTS:`);
+  console.log(`   - GET  /health - Server health & security status`);
+  console.log(`   - POST /api/xaman/payload - Create XAMAN auth payload`);
+  console.log(`   - GET  /api/xaman/payload/:uuid - Check XAMAN auth status`);
+  console.log(`   - GET  /api/profile/:wallet - Get user profile`);
+  console.log(`   - POST /api/profile - Update user profile`);
+  console.log(`   - GET  /api/points/:wallet - Get HONEY points`);
+  console.log(`   - POST /api/points - Update HONEY points (validated)`);
+  console.log(`   - GET  /api/leaderboard/:game_id - Get game leaderboard`);
+  console.log(`   - POST /api/leaderboard - Submit score (validated, rate-limited)`);
+  console.log(`   - GET  /api/raids/current - Get active raids`);
+  console.log(`   - POST /api/raids/complete - Complete raid (duplicate-protected)`);
+  console.log(`\n🔒 ADMIN-ONLY ENDPOINTS (Require X-Admin-Key header):`);
+  console.log(`   - POST /api/raids - Create new raid`);
+  console.log(`   - DELETE /api/raids/:id - Delete raid`);
+  console.log(`   - POST /api/raids/clear - Clear all raids (DANGEROUS)`);
+  console.log(`   - GET  /api/security/suspicious-activity - View security log`);
+  console.log(`   - POST /api/security/clear-log - Clear security log`);
+  console.log(`\n💡 To use admin endpoints, add header:`);
+  console.log(`   X-Admin-Key: ${process.env.ADMIN_API_KEY || '[Set ADMIN_API_KEY in .env]'}`);
+  console.log(`\n${'='.repeat(60)}\n`);
 });
