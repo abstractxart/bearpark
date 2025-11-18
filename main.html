@@ -13642,11 +13642,14 @@
             });
           }
 
-          // Add highlight effect
-          commentElement.style.animation = 'highlight-flash 2s ease-out';
+          // Add gold glow highlight effect (same as bulletin board)
+          commentElement.style.backgroundColor = 'rgba(237, 183, 35, 0.3)';
+          commentElement.style.boxShadow = '0 0 20px rgba(237, 183, 35, 0.5)';
+          commentElement.style.transition = 'all 0.3s ease';
           setTimeout(() => {
-            commentElement.style.animation = '';
-          }, 2000);
+            commentElement.style.backgroundColor = '';
+            commentElement.style.boxShadow = '';
+          }, 2500);
         } else {
           console.warn('❌ Comment not found:', commentId);
           // Log all comment IDs to help debug
@@ -16055,6 +16058,28 @@
               </div>
             </div>
           `;
+        } else if (notif.type === 'profile_comment') {
+          return `
+            <div class="notification-item ${unreadClass}" data-notification-id="${notif.id}">
+              ${renderAvatar(notif.data.avatarNft, notif.data.displayName || 'Anonymous')}
+              <div class="notification-content">
+                <p class="notification-text"><strong>${notif.data.displayName || notif.data.wallet}</strong> commented on your profile</p>
+                ${notif.data.commentText ? `<p class="notification-preview">"${notif.data.commentText}"</p>` : ''}
+                <p class="notification-time">${formatRelativeTime(notif.created_at)}</p>
+              </div>
+            </div>
+          `;
+        } else if (notif.type === 'profile_reply') {
+          return `
+            <div class="notification-item ${unreadClass}" data-notification-id="${notif.id}">
+              ${renderAvatar(notif.data.avatarNft, notif.data.displayName || 'Anonymous')}
+              <div class="notification-content">
+                <p class="notification-text"><strong>${notif.data.displayName || notif.data.wallet}</strong> replied to your profile comment</p>
+                ${notif.data.commentText ? `<p class="notification-preview">"${notif.data.commentText}"</p>` : ''}
+                <p class="notification-time">${formatRelativeTime(notif.created_at)}</p>
+              </div>
+            </div>
+          `;
         }
         return '';
       }).join('');
@@ -16114,6 +16139,15 @@
         toggleNotificationPanel();
         setTimeout(() => openProfileModal(notif.data.wallet), 300);
       } else if (notif.type === 'reaction' && notif.data.profileWallet && notif.data.commentId) {
+        console.log('💬 Opening profile with comment:', notif.data.profileWallet, notif.data.commentId);
+        // Open the profile where the comment was posted and scroll to that comment
+        toggleNotificationPanel();
+        setTimeout(async () => {
+          await openProfileModal(notif.data.profileWallet, true, {
+            scrollToCommentId: notif.data.commentId
+          });
+        }, 300);
+      } else if ((notif.type === 'profile_comment' || notif.type === 'profile_reply') && notif.data.profileWallet && notif.data.commentId) {
         console.log('💬 Opening profile with comment:', notif.data.profileWallet, notif.data.commentId);
         // Open the profile where the comment was posted and scroll to that comment
         toggleNotificationPanel();
