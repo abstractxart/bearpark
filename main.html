@@ -8149,22 +8149,22 @@
       <!-- Profile Body -->
       <div class="profile-modal-body">
         <!-- Profile Picture Section -->
-        <div id="profilePictureSection" class="profile-picture-section">
-          <div id="profilePictureContainer" class="profile-picture-container" style="position: relative;">
+        <div id="profilePictureSection" class="profile-picture-section" style="position: relative;">
+          <div id="profilePictureContainer" class="profile-picture-container">
             <img id="profilePictureDisplay" src="" alt="Profile Picture" class="profile-picture">
             <div class="profile-picture-placeholder" id="profilePicturePlaceholder">
               <span style="font-size:48px;">🐻</span>
             </div>
-            <button id="editProfilePictureBtn" class="edit-profile-picture-btn" onclick="editProfileFromModal()" style="position: absolute; bottom: 8px; right: 8px; width: 40px; height: 40px; border-radius: 50%; background: var(--gold); border: 3px solid #000; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s ease;">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
-              </svg>
-            </button>
           </div>
           <div class="profile-info-header">
             <h3 id="profileDisplayName" class="profile-name">Loading...</h3>
             <p id="profileWalletAddress" class="profile-wallet">Loading...</p>
           </div>
+          <button id="editProfilePictureBtn" class="edit-profile-picture-btn" onclick="editProfileFromModal()" style="position: absolute !important; bottom: 12px !important; right: 12px !important; width: 40px; height: 40px; border-radius: 50%; background: var(--gold); border: 3px solid #000; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s ease; z-index: 10; box-shadow: 0 4px 12px rgba(0,0,0,0.4); margin: 0 !important;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
+            </svg>
+          </button>
         </div>
 
         <!-- Follow Stats & Button -->
