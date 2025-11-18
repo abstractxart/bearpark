@@ -1434,6 +1434,14 @@
     border: 1px solid rgba(255,255,255,0.1);
   }
 
+  .notification-preview {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.7);
+    font-style: italic;
+    margin: 6px 0 0 0;
+    line-height: 1.3;
+  }
+
   /* Make sure child elements don't block notification clicks */
   .notification-item img,
   .notification-item .notification-content * {
@@ -15992,6 +16000,57 @@
               </div>
             </div>
           `;
+        } else if (notif.type === 'bulletin_comment') {
+          return `
+            <div class="notification-item ${unreadClass}" data-notification-id="${notif.id}">
+              ${renderAvatar(notif.data.avatarNft, notif.data.displayName || 'Anonymous')}
+              <div class="notification-content">
+                <p class="notification-text"><strong>${notif.data.displayName || notif.data.wallet}</strong> commented on your bulletin post</p>
+                ${notif.data.commentText ? `<p class="notification-preview">"${notif.data.commentText}"</p>` : ''}
+                <p class="notification-time">${formatRelativeTime(notif.created_at)}</p>
+              </div>
+            </div>
+          `;
+        } else if (notif.type === 'bulletin_reply') {
+          return `
+            <div class="notification-item ${unreadClass}" data-notification-id="${notif.id}">
+              ${renderAvatar(notif.data.avatarNft, notif.data.displayName || 'Anonymous')}
+              <div class="notification-content">
+                <p class="notification-text"><strong>${notif.data.displayName || notif.data.wallet}</strong> replied to your comment</p>
+                ${notif.data.commentText ? `<p class="notification-preview">"${notif.data.commentText}"</p>` : ''}
+                <p class="notification-time">${formatRelativeTime(notif.created_at)}</p>
+              </div>
+            </div>
+          `;
+        } else if (notif.type === 'bulletin_post_reaction') {
+          const emojis = notif.data.reactions || [];
+          return `
+            <div class="notification-item ${unreadClass}" data-notification-id="${notif.id}">
+              ${renderAvatar(notif.data.avatarNft, notif.data.displayName || 'Anonymous')}
+              <div class="notification-content">
+                <p class="notification-text"><strong>${notif.data.displayName || notif.data.wallet}</strong> reacted to your bulletin post</p>
+                <div class="notification-reactions">
+                  ${emojis.map(emoji => `<span class="notification-reaction-emoji">${emoji}</span>`).join('')}
+                </div>
+                <p class="notification-time">${formatRelativeTime(notif.created_at)}</p>
+              </div>
+            </div>
+          `;
+        } else if (notif.type === 'bulletin_comment_reaction') {
+          const emojis = notif.data.reactions || [];
+          return `
+            <div class="notification-item ${unreadClass}" data-notification-id="${notif.id}">
+              ${renderAvatar(notif.data.avatarNft, notif.data.displayName || 'Anonymous')}
+              <div class="notification-content">
+                <p class="notification-text"><strong>${notif.data.displayName || notif.data.wallet}</strong> reacted to your bulletin comment</p>
+                <div class="notification-reactions">
+                  ${emojis.map(emoji => `<span class="notification-reaction-emoji">${emoji}</span>`).join('')}
+                </div>
+                ${notif.data.commentText ? `<p class="notification-preview">"${notif.data.commentText}"</p>` : ''}
+                <p class="notification-time">${formatRelativeTime(notif.created_at)}</p>
+              </div>
+            </div>
+          `;
         }
         return '';
       }).join('');
@@ -16058,6 +16117,18 @@
           await openProfileModal(notif.data.profileWallet, true, {
             scrollToCommentId: notif.data.commentId
           });
+        }, 300);
+      } else if ((notif.type === 'bulletin_comment' || notif.type === 'bulletin_reply' || notif.type === 'bulletin_post_reaction' || notif.type === 'bulletin_comment_reaction') && notif.data.postId) {
+        console.log('📰 Opening bulletin post:', notif.data.postId);
+        // Navigate to bulletin board and open the post
+        toggleNotificationPanel();
+        setTimeout(() => {
+          navigateTo('bulletin');
+          setTimeout(() => {
+            if (typeof openBulletinPost === 'function') {
+              openBulletinPost(parseInt(notif.data.postId));
+            }
+          }, 500);
         }, 300);
       } else {
         console.warn('⚠️ Notification type not handled or missing data:', notif.type, notif.data);
