@@ -81,6 +81,9 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY
 // 🔒 SECURITY MIDDLEWARE
 // ============================================
 
+// 0. TRUST PROXY - Required for Railway/reverse proxies to properly identify users
+app.set('trust proxy', true);
+
 // 1. HELMET - Security headers
 app.use(helmet({
   contentSecurityPolicy: false, // Allow external resources for games
