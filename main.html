@@ -11292,9 +11292,9 @@
       const walletAddress = localStorage.getItem('bearpark_wallet');
       const isAuthenticated = localStorage.getItem('bearpark_auth') === 'true';
 
-      const pointsKey = `honey_points_${walletAddress}`;
+      // ❌ localStorage no longer used for honey points - backend is ONLY source of truth
 
-      // Show loading state initially - DO NOT display cached points before backend verification
+      // Show loading state initially - fetch from backend only
       // This prevents stale cached data from being displayed after admin resets
       const navHoneyPoints = document.getElementById('navHoneyPoints');
       const welcomePoints = document.getElementById('welcomePoints');
@@ -11337,23 +11337,19 @@
             welcomePoints.textContent = backendTotal.toFixed(1);
           }
 
-          // Sync localStorage with backend data (backend is always correct)
-          localStorage.setItem(pointsKey, JSON.stringify({
-            total: backendTotal,
-            raiding: backendRaiding,
-            games: backendGames
-          }));
+          // ❌ REMOVED localStorage caching - backend is ONLY source of truth
+          // Never cache honey points locally to prevent stale data exploits
         }
 
         // Load leaderboard to get rank
         loadHoneyLeaderboard(walletAddress);
       } catch (err) {
         console.error('Backend not available:', err);
-        // Only use cached points as fallback if backend is completely unreachable
-        const localPoints = JSON.parse(localStorage.getItem(pointsKey) || '{"total":0,"raiding":0,"games":0}');
-        updatePointsDisplay(localPoints.total, localPoints.raiding, localPoints.games);
-        if (navHoneyPoints) navHoneyPoints.textContent = localPoints.total.toFixed(1) + ' PTS';
-        if (welcomePoints) welcomePoints.textContent = localPoints.total.toFixed(1);
+        // ❌ NO localStorage fallback - if backend is down, show offline state
+        // NEVER use cached points to prevent exploits and stale data
+        updatePointsDisplay(0, 0, 0);
+        if (navHoneyPoints) navHoneyPoints.textContent = 'Offline';
+        if (welcomePoints) welcomePoints.textContent = '0.0';
       }
     }
 
@@ -12218,13 +12214,8 @@
             if (data.success && !data.alreadyCompleted) {
               console.log('✅ SECURITY: Backend approved points award');
 
-              // Award points locally
-              const pointsKey = `honey_points_${walletAddress}`;
-              const currentPoints = JSON.parse(localStorage.getItem(pointsKey) || '{"total":0,"raiding":0,"games":0}');
-
-              currentPoints.total += pointsAwarded;
-              currentPoints.raiding += pointsAwarded;
-              localStorage.setItem(pointsKey, JSON.stringify(currentPoints));
+              // ❌ REMOVED localStorage updates - backend is ONLY source of truth
+              // Points are updated in backend database, UI will refresh from backend
 
               console.log(`✅ Points awarded! +${pointsAwarded} New balance:`, currentPoints);
 
@@ -13119,11 +13110,10 @@
         return;
       }
 
-      // Load points from localStorage first (instant)
-      const pointsKey = `honey_points_${walletAddress}`;
-      const localPoints = JSON.parse(localStorage.getItem(pointsKey) || '{"total":0,"raiding":0,"games":0}');
-      welcomePoints.textContent = localPoints.total.toFixed(1);
-      if (navHoneyPoints) navHoneyPoints.textContent = `${localPoints.total.toFixed(1)} PTS`;
+      // ❌ REMOVED localStorage caching - show loading state instead
+      // Backend is ONLY source of truth, never use cached values
+      welcomePoints.textContent = 'Loading...';
+      if (navHoneyPoints) navHoneyPoints.textContent = 'Loading...';
 
       // Load username from localStorage
       const profileKey = `bear_profile_${walletAddress}`;
@@ -19086,11 +19076,8 @@
             honeyPointsEl.textContent = currentBalance.toFixed(1);
           }
 
-          // Update localStorage to prevent sync from reverting purchase!
-          const pointsKey = `honey_points_${walletAddress}`;
-          const currentPoints = JSON.parse(localStorage.getItem(pointsKey) || '{"total":0,"raiding":0,"games":0}');
-          currentPoints.total = data.new_balance;
-          localStorage.setItem(pointsKey, JSON.stringify(currentPoints));
+          // ❌ REMOVED localStorage updates - backend is ONLY source of truth
+          // Points are updated in backend database, UI will refresh from backend
           console.log('💾 Updated localStorage with new balance:', data.new_balance);
 
           // Update welcomePoints button
