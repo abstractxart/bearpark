@@ -7135,19 +7135,19 @@
     }
 
     .leaderboard-avatar-ring.large-ring-container {
-      width: 63px !important;
-      height: 63px !important;
+      width: 50px !important;
+      height: 50px !important;
     }
 
     .leaderboard-avatar-simple {
-      width: 28px !important;
-      height: 28px !important;
+      width: 30px !important;
+      height: 30px !important;
       margin-right: 6px !important;
     }
 
     .leaderboard-avatar-img {
-      width: 28px !important;
-      height: 28px !important;
+      width: 30px !important;
+      height: 30px !important;
     }
 
     .leaderboard-ring-img {
@@ -7156,8 +7156,8 @@
     }
 
     .leaderboard-ring-img-large {
-      width: 63px !important;
-      height: 63px !important;
+      width: 50px !important;
+      height: 50px !important;
     }
 
     .celebration-icon {
@@ -13103,13 +13103,13 @@
                 const spinAnimation = equippedRing.rarity === 'bearableguy123' ? 'animation: spinRingImage 3s linear infinite;' : '';
                 const ouroborosRotation = equippedRing.ring_type === 'ouroboros' ? ' rotate(180deg)' : '';
 
-                // 50% larger for castle and ouroboros rings
+                // Castle and ouroboros rings
                 const isCastleOrOuroboros = equippedRing.ring_type === 'castle' ||
                                            equippedRing.ring_type === 'castle-static' ||
                                            equippedRing.ring_type === 'ouroboros';
-                const ringSize = isCastleOrOuroboros ? '90px' : '60px';
-                const containerSize = isCastleOrOuroboros ? '90px' : '60px';
-                const avatarSize = '40px';
+                const ringSize = isCastleOrOuroboros ? '72px' : '60px';
+                const containerSize = isCastleOrOuroboros ? '72px' : '60px';
+                const avatarSize = '43px';
                 const ringClass = isCastleOrOuroboros ? 'leaderboard-ring-img-large' : 'leaderboard-ring-img';
 
                 avatarHTML = `
