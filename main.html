@@ -14258,15 +14258,20 @@
             ring.className = `profile-cosmetic-ring ${equippedRing.ring_type}`;
             ring.src = equippedRing.image_url;
             ring.alt = equippedRing.name;
+
+            // Castle ring gets special size (200px), all others are 180px
+            const isCastleRing = equippedRing.ring_type === 'castle' || equippedRing.ring_type === 'castle-static';
+            const ringSize = isCastleRing ? '200px' : '180px';
+
             ring.style.cssText = `
               position: absolute;
               top: 50%;
               left: 50%;
               transform: translate(-50%, -50%) ${equippedRing.ring_type === 'ouroboros' ? 'rotate(180deg)' : ''};
-              width: 180px !important;
-              height: 180px !important;
-              max-width: 180px !important;
-              max-height: 180px !important;
+              width: ${ringSize} !important;
+              height: ${ringSize} !important;
+              max-width: ${ringSize} !important;
+              max-height: ${ringSize} !important;
               object-fit: contain;
               pointer-events: none;
               z-index: 1;
