@@ -11479,13 +11479,8 @@
             const equippedRing = equipped?.ring;
 
             if (equippedRing && equippedRing.image_url) {
-              // Check if it's a BEARABLEGUY123 ring
-              const isBEARABLEGUY = equippedRing.ring_type && equippedRing.ring_type.toLowerCase().includes('bearableguy');
-              const spinAnimation = isBEARABLEGUY ? 'animation: spinRingImage 3s linear infinite;' : '';
-
-              // Check if it's an ouroboros ring (needs 180-degree rotation)
-              const isOuroboros = equippedRing.ring_type === 'ouroboros';
-              const ouroborosRotation = isOuroboros ? ' rotate(180deg)' : '';
+              const spinAnimation = equippedRing.rarity === 'bearableguy123' ? 'animation: spinRingImage 3s linear infinite;' : '';
+              const ouroborosRotation = equippedRing.ring_type === 'ouroboros' ? ' rotate(180deg)' : '';
 
               // Different sizes for different ring types
               const isCastle = equippedRing.ring_type === 'castle' || equippedRing.ring_type === 'castle-static';
