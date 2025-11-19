@@ -1201,6 +1201,115 @@ app.post('/api/games/reset-daily/:wallet', async (req, res) => {
   }
 });
 
+// ===== PONG BETTING ENDPOINT (SECURE) =====
+// Process Pong betting transaction - ALL calculations done SERVER-SIDE
+// Client sends ONLY: win/loss result and bet amount
+// Server calculates and updates points - NEVER trusts client values
+app.post('/api/pong/betting', validateWallet, async (req, res) => {
+  try {
+    const { wallet_address, did_win, bet_amount } = req.body;
+
+    console.log(`🎮 [PONG BETTING] Processing - wallet: ${wallet_address}, win: ${did_win}, bet: ${bet_amount}`);
+
+    // Validation
+    if (!wallet_address || did_win === undefined || bet_amount === undefined) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: wallet_address, did_win, bet_amount'
+      });
+    }
+
+    if (bet_amount < 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid bet amount - must be non-negative'
+      });
+    }
+
+    // If bet is 0, no transaction needed
+    if (bet_amount === 0) {
+      console.log(`💰 [PONG BETTING] Bet is 0 - no transaction needed`);
+      return res.json({
+        success: true,
+        message: 'No bet - no transaction',
+        new_total: 0,
+        new_games_points: 0
+      });
+    }
+
+    // 🔒 STEP 1: Fetch current points from DATABASE (single source of truth)
+    const { data: currentPoints, error: fetchError } = await supabase
+      .from('honey_points')
+      .select('*')
+      .eq('wallet_address', wallet_address)
+      .single();
+
+    if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 = not found
+      console.error('❌ [PONG BETTING] Error fetching points:', fetchError);
+      return res.status(500).json({ success: false, error: 'Failed to fetch current points' });
+    }
+
+    const currentRaidingPoints = currentPoints?.raiding_points || 0;
+    const currentGamesPoints = currentPoints?.games_points || 0;
+    const currentTotalPoints = currentPoints?.total_points || 0;
+
+    console.log(`💰 [PONG BETTING] Current: Raiding=${currentRaidingPoints}, Games=${currentGamesPoints}, Total=${currentTotalPoints}`);
+
+    // 🔒 STEP 2: Calculate new points SERVER-SIDE (NEVER trust client!)
+    let newGamesPoints;
+
+    if (did_win) {
+      // Winner: Add bet amount to games_points
+      newGamesPoints = currentGamesPoints + bet_amount;
+      console.log(`💰 [PONG BETTING] WIN: ${currentGamesPoints} + ${bet_amount} = ${newGamesPoints}`);
+    } else {
+      // Loser: Subtract bet amount from games_points (can't go below 0)
+      newGamesPoints = Math.max(0, currentGamesPoints - bet_amount);
+      console.log(`💰 [PONG BETTING] LOSS: ${currentGamesPoints} - ${bet_amount} = ${newGamesPoints}`);
+    }
+
+    // Calculate new total = raiding + games
+    const newTotalPoints = currentRaidingPoints + newGamesPoints;
+
+    console.log(`💰 [PONG BETTING] New total: ${currentRaidingPoints} (raiding) + ${newGamesPoints} (games) = ${newTotalPoints}`);
+
+    // 🔒 STEP 3: Update database with SERVER-CALCULATED values
+    const { data: updatedPoints, error: updateError } = await supabase
+      .from('honey_points')
+      .upsert({
+        wallet_address,
+        total_points: newTotalPoints,
+        raiding_points: currentRaidingPoints, // Preserve raiding points
+        games_points: newGamesPoints,
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'wallet_address'
+      })
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('❌ [PONG BETTING] Error updating points:', updateError);
+      return res.status(500).json({ success: false, error: 'Failed to update points' });
+    }
+
+    console.log(`✅ [PONG BETTING] Transaction complete! New total: ${newTotalPoints} HONEY`);
+
+    res.json({
+      success: true,
+      message: did_win ? 'Bet won! Points added.' : 'Bet lost. Points deducted.',
+      new_total: newTotalPoints,
+      new_games_points: newGamesPoints,
+      new_raiding_points: currentRaidingPoints,
+      change: did_win ? `+${bet_amount}` : `-${bet_amount}`
+    });
+
+  } catch (error) {
+    console.error('❌ [PONG BETTING] Error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // ===== PROFILE ENDPOINTS =====
 
 // Get User Profile
