@@ -3104,7 +3104,7 @@ app.post('/api/admin/reset-economy', verifyAdmin, async (req, res) => {
     const { error: inventoryError } = await supabase
       .from('user_cosmetics')
       .delete()
-      .neq('wallet_address', 'dummy'); // Delete all rows
+      .gte('id', 0); // Delete all rows (id >= 0 matches everything)
 
     if (inventoryError) {
       console.error('Error clearing inventories:', inventoryError);
@@ -3118,7 +3118,7 @@ app.post('/api/admin/reset-economy', verifyAdmin, async (req, res) => {
         equipped_ring_id: null,
         equipped_banner_id: null
       })
-      .neq('wallet_address', 'dummy'); // Update all rows
+      .gte('id', 0); // Update all rows (id >= 0 matches everything)
 
     if (equippedError) {
       console.error('Error clearing equipped cosmetics:', equippedError);
