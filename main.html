@@ -7127,6 +7127,24 @@
       height: 100px !important;
     }
 
+    /* Smaller leaderboard avatars and rings on mobile */
+    .leaderboard-avatar-ring {
+      width: 28px !important;
+      height: 28px !important;
+      margin-right: 6px !important;
+    }
+
+    .leaderboard-avatar-simple {
+      width: 28px !important;
+      height: 28px !important;
+      margin-right: 6px !important;
+    }
+
+    .leaderboard-ring-img {
+      width: 42px !important;
+      height: 42px !important;
+    }
+
     .celebration-icon {
       font-size: 80px;
     }
@@ -13071,18 +13089,21 @@
                 const ouroborosRotation = equippedRing.ring_type === 'ouroboros' ? ' rotate(180deg)' : '';
 
                 avatarHTML = `
-                  <div class="ring-demo" style="width:40px; height:40px; margin-right:8px; flex-shrink:0;">
+                  <div class="leaderboard-avatar-ring" style="width:40px; height:40px; margin-right:8px; flex-shrink:0; position:relative;">
                     <img src="${avatarUrl}"
                          alt="${displayName} avatar"
+                         class="leaderboard-avatar-img"
                          style="position:relative; z-index:1; width:100%; height:100%; border-radius:50%; object-fit:cover;"
                          onerror="this.src='https://files.catbox.moe/ugu1kl.png'">
                     <img src="${equippedRing.image_url}"
                          alt="Ring"
+                         class="leaderboard-ring-img"
                          style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%)${ouroborosRotation}; width:60px; height:60px; object-fit:contain; z-index:2; pointer-events:none; ${spinAnimation}">
                   </div>
                 `;
               } else {
                 avatarHTML = `<img src="${avatarUrl}"
+                     class="leaderboard-avatar-simple"
                      style="width:40px; height:40px; border-radius:50%; object-fit:cover; margin-right:8px;"
                      alt="${displayName} avatar"
                      onerror="this.src='https://files.catbox.moe/ugu1kl.png'">`;
