@@ -17124,7 +17124,7 @@
                 class="bulletin-post-avatar"
                 onerror="this.src='https://files.catbox.moe/esp426.png';"
               />
-              ${equippedRing ? `<img src="${equippedRing.image_url}" class="bulletin-post-cosmetic-ring ${equippedRing.ring_type}" alt="${equippedRing.name}">` : ''}
+              ${equippedRing ? `<img src="${equippedRing.image_url}" class="bulletin-post-cosmetic-ring ${equippedRing.ring_type}" alt="${equippedRing.name}" style="${equippedRing.rarity === 'bearableguy123' ? 'animation: spinRingImage 3s linear infinite !important;' : ''}">` : ''}
             </div>
             <div class="bulletin-post-info">
               <div class="bulletin-post-author">${escapeHtml(post.author_name)}</div>
@@ -17429,7 +17429,7 @@
               class="bulletin-post-avatar"
               onerror="this.src='https://files.catbox.moe/esp426.png';"
             />
-            ${equippedRing ? `<img src="${equippedRing.image_url}" class="bulletin-post-cosmetic-ring ${equippedRing.ring_type}" alt="${equippedRing.name}">` : ''}
+            ${equippedRing ? `<img src="${equippedRing.image_url}" class="bulletin-post-cosmetic-ring ${equippedRing.ring_type}" alt="${equippedRing.name}" style="${equippedRing.rarity === 'bearableguy123' ? 'animation: spinRingImage 3s linear infinite !important;' : ''}">` : ''}
           </div>
           <div class="bulletin-post-info">
             <div class="bulletin-post-author">${escapeHtml(post.author_name)}</div>
@@ -18430,7 +18430,7 @@
       const avatarHTML = `
         <div class="bulletin-comment-avatar-container">
           <img src="${avatarUrl}" class="comment-avatar" alt="${comment.author_name || 'Anonymous'}" onerror="this.src='https://files.catbox.moe/esp426.png';">
-          ${equippedRing ? `<img src="${equippedRing.image_url}" class="bulletin-comment-cosmetic-ring ${equippedRing.ring_type}" alt="${equippedRing.name}">` : ''}
+          ${equippedRing ? `<img src="${equippedRing.image_url}" class="bulletin-comment-cosmetic-ring ${equippedRing.ring_type}" alt="${equippedRing.name}" style="${equippedRing.rarity === 'bearableguy123' ? 'animation: spinRingImage 3s linear infinite !important;' : ''}">` : ''}
         </div>
       `;
 
