@@ -17051,7 +17051,23 @@
           return;
         }
 
-        feed.innerHTML = bulletinPosts.map(post => createPostCard(post)).join('');
+        // Fetch equipped cosmetics for all post authors
+        const walletAddresses = [...new Set(bulletinPosts.map(p => p.wallet_address))];
+        const equippedCosmetics = {};
+
+        await Promise.all(walletAddresses.map(async (wallet) => {
+          try {
+            const cosmeticRes = await fetch(`${API_BASE_URL}/api/cosmetics/equipped/${wallet}`);
+            const cosmeticData = await cosmeticRes.json();
+            if (cosmeticData.success && cosmeticData.equipped) {
+              equippedCosmetics[wallet] = cosmeticData.equipped;
+            }
+          } catch (e) {
+            // Ignore errors for individual users
+          }
+        }));
+
+        feed.innerHTML = bulletinPosts.map(post => createPostCard(post, equippedCosmetics)).join('');
       } catch (error) {
         console.error('Error loading bulletin feed:', error);
         feed.innerHTML = `
@@ -17085,12 +17101,15 @@
       }
     }
 
-    function createPostCard(post) {
+    function createPostCard(post, equippedCosmetics) {
       const timeAgo = getTimeAgo(post.created_at);
       const linkPreview = post.link_preview ? createLinkPreview(post.link_preview) : '';
       const currentWallet = localStorage.getItem('bearpark_wallet');
       const isOwner = currentWallet && post.wallet_address === currentWallet;
       const avatarUrl = getAvatarUrl(post.author_avatar);
+
+      // Get equipped ring for this post author
+      const equippedRing = equippedCosmetics && equippedCosmetics[post.wallet_address]?.ring || null;
 
       // Calculate total reaction count
       const reactionCount = post.reaction_count || 0;
@@ -17098,12 +17117,15 @@
       return `
         <div class="bulletin-post-card" onclick="openBulletinPost(${post.id})">
           <div class="bulletin-post-header">
-            <img
-              src="${avatarUrl}"
-              alt="${post.author_name}"
-              class="bulletin-post-avatar"
-              onerror="this.src='https://files.catbox.moe/esp426.png';"
-            />
+            <div class="bulletin-post-avatar-container">
+              <img
+                src="${avatarUrl}"
+                alt="${post.author_name}"
+                class="bulletin-post-avatar"
+                onerror="this.src='https://files.catbox.moe/esp426.png';"
+              />
+              ${equippedRing ? `<img src="${equippedRing.image_url}" class="bulletin-post-cosmetic-ring ${equippedRing.ring_type}" alt="${equippedRing.name}">` : ''}
+            </div>
             <div class="bulletin-post-info">
               <div class="bulletin-post-author">${escapeHtml(post.author_name)}</div>
               <div class="bulletin-post-time">${timeAgo}</div>
@@ -17386,14 +17408,29 @@
       const linkPreview = post.link_preview ? createLinkPreview(post.link_preview) : '';
       const avatarUrl = getAvatarUrl(post.author_avatar);
 
+      // Fetch equipped cosmetics for post author
+      let equippedRing = null;
+      try {
+        const cosmeticRes = await fetch(`${API_BASE_URL}/api/cosmetics/equipped/${post.wallet_address}`);
+        const cosmeticData = await cosmeticRes.json();
+        if (cosmeticData.success && cosmeticData.equipped) {
+          equippedRing = cosmeticData.equipped.ring || null;
+        }
+      } catch (e) {
+        // Ignore errors
+      }
+
       detailContainer.innerHTML = `
         <div class="bulletin-post-header">
-          <img
-            src="${avatarUrl}"
-            alt="${post.author_name}"
-            class="bulletin-post-avatar"
-            onerror="this.src='https://files.catbox.moe/esp426.png';"
-          />
+          <div class="bulletin-post-avatar-container">
+            <img
+              src="${avatarUrl}"
+              alt="${post.author_name}"
+              class="bulletin-post-avatar"
+              onerror="this.src='https://files.catbox.moe/esp426.png';"
+            />
+            ${equippedRing ? `<img src="${equippedRing.image_url}" class="bulletin-post-cosmetic-ring ${equippedRing.ring_type}" alt="${equippedRing.name}">` : ''}
+          </div>
           <div class="bulletin-post-info">
             <div class="bulletin-post-author">${escapeHtml(post.author_name)}</div>
             <div class="bulletin-post-time">${timeAgo}</div>
@@ -18377,7 +18414,25 @@
 
       // Parse avatar using helper function
       const avatarUrl = getAvatarUrl(comment.author_avatar);
-      const avatarHTML = `<img src="${avatarUrl}" class="comment-avatar" alt="${comment.author_name || 'Anonymous'}" onerror="this.src='https://files.catbox.moe/esp426.png';">`;
+
+      // Fetch equipped cosmetics for comment author
+      let equippedRing = null;
+      try {
+        const cosmeticRes = await fetch(`${API_BASE_URL}/api/cosmetics/equipped/${comment.wallet_address}`);
+        const cosmeticData = await cosmeticRes.json();
+        if (cosmeticData.success && cosmeticData.equipped) {
+          equippedRing = cosmeticData.equipped.ring || null;
+        }
+      } catch (e) {
+        // Ignore errors
+      }
+
+      const avatarHTML = `
+        <div class="bulletin-comment-avatar-container">
+          <img src="${avatarUrl}" class="comment-avatar" alt="${comment.author_name || 'Anonymous'}" onerror="this.src='https://files.catbox.moe/esp426.png';">
+          ${equippedRing ? `<img src="${equippedRing.image_url}" class="bulletin-comment-cosmetic-ring ${equippedRing.ring_type}" alt="${equippedRing.name}">` : ''}
+        </div>
+      `;
 
       // Load reactions
       const reactions = await loadBulletinCommentReactions(comment.id);
