@@ -1201,6 +1201,7 @@
     transform: translate(-50%, -50%);
     pointer-events: none;
     z-index: 10;
+    object-fit: contain;
   }
 
   .welcome-cosmetic-ring.castle,
@@ -13157,10 +13158,10 @@
               ring.className = `welcome-cosmetic-ring ${equippedRing.ring_type}`;
               ring.src = equippedRing.image_url;
               ring.alt = equippedRing.name;
-              ring.style.cssText = `
-                object-fit: contain;
-                ${equippedRing.rarity === 'bearableguy123' ? 'animation: spinRingImage 3s linear infinite;' : ''}
-              `;
+              ring.style.objectFit = 'contain';
+              if (equippedRing.rarity === 'bearableguy123') {
+                ring.style.animation = 'spinRingImage 3s linear infinite';
+              }
               welcomeAvatarContainer.appendChild(ring);
               console.log('✅ [Welcome] Applied ring:', equippedRing.name);
             }
