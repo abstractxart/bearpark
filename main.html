@@ -7129,15 +7129,25 @@
 
     /* Smaller leaderboard avatars and rings on mobile */
     .leaderboard-avatar-ring {
-      width: 28px !important;
-      height: 28px !important;
+      width: 42px !important;
+      height: 42px !important;
       margin-right: 6px !important;
+    }
+
+    .leaderboard-avatar-ring.large-ring-container {
+      width: 63px !important;
+      height: 63px !important;
     }
 
     .leaderboard-avatar-simple {
       width: 28px !important;
       height: 28px !important;
       margin-right: 6px !important;
+    }
+
+    .leaderboard-avatar-img {
+      width: 28px !important;
+      height: 28px !important;
     }
 
     .leaderboard-ring-img {
@@ -13098,14 +13108,16 @@
                                            equippedRing.ring_type === 'castle-static' ||
                                            equippedRing.ring_type === 'ouroboros';
                 const ringSize = isCastleOrOuroboros ? '90px' : '60px';
+                const containerSize = isCastleOrOuroboros ? '90px' : '60px';
+                const avatarSize = '40px';
                 const ringClass = isCastleOrOuroboros ? 'leaderboard-ring-img-large' : 'leaderboard-ring-img';
 
                 avatarHTML = `
-                  <div class="leaderboard-avatar-ring" style="width:40px; height:40px; margin-right:8px; flex-shrink:0; position:relative;">
+                  <div class="leaderboard-avatar-ring ${isCastleOrOuroboros ? 'large-ring-container' : ''}" style="width:${containerSize}; height:${containerSize}; margin-right:8px; flex-shrink:0; position:relative;">
                     <img src="${avatarUrl}"
                          alt="${displayName} avatar"
                          class="leaderboard-avatar-img"
-                         style="position:relative; z-index:1; width:100%; height:100%; border-radius:50%; object-fit:cover;"
+                         style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:1; width:${avatarSize}; height:${avatarSize}; border-radius:50%; object-fit:cover;"
                          onerror="this.src='https://files.catbox.moe/ugu1kl.png'">
                     <img src="${equippedRing.image_url}"
                          alt="Ring"
