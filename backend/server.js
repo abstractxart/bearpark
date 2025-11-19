@@ -15,6 +15,9 @@ const webpush = require('web-push');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust proxy - Required for Railway/reverse proxies to properly identify user IPs
+app.set('trust proxy', true);
+
 // XAMAN API Credentials from environment variables (trim any whitespace)
 const XAMAN_API_KEY = process.env.XAMAN_API_KEY?.trim();
 const XAMAN_API_SECRET = process.env.XAMAN_API_SECRET?.trim();
@@ -92,6 +95,8 @@ try {
 app.use(compression());
 
 // Rate limiting to prevent API abuse and brute force attacks
+// TEMPORARILY DISABLED - Fixing rate limiting issues
+/*
 const apiLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute window
   max: 300, // 300 requests per minute per IP (5 per second - allows normal use, blocks spam)
@@ -100,6 +105,8 @@ const apiLimiter = rateLimit({
   legacyHeaders: false
 });
 app.use('/api/', apiLimiter);
+*/
+console.log('🚨 RATE LIMITING DISABLED - ALL API ROUTES UNRESTRICTED 🚨');
 
 app.use(cors({
   origin: [FRONTEND_URL, 'https://bearpark.xyz', 'https://www.bearpark.xyz', 'http://localhost:8080', 'http://127.0.0.1:8080'],
