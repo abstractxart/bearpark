@@ -571,9 +571,8 @@
           localStorage.setItem('bearpark_auth', 'true');
           localStorage.setItem('bearpark_wallet', walletAddress);
 
-          // CLEAR OLD CACHED POINTS TO PREVENT STALE DATA AFTER RESETS
-          const pointsKey = `honey_points_${walletAddress}`;
-          localStorage.removeItem(pointsKey);
+          // ❌ localStorage is NEVER used for honey points anymore
+          // Backend database is the ONLY source of truth
 
           // SYNC TO LOCALSTORAGE FOR GAME INTEGRATION
           localStorage.setItem('xaman_wallet_address', walletAddress);

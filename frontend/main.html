@@ -4698,20 +4698,17 @@
       const walletAddress = localStorage.getItem('bearpark_wallet');
       const isAuthenticated = localStorage.getItem('bearpark_auth') === 'true';
 
-      // Load from localStorage first
-      const pointsKey = `honey_points_${walletAddress}`;
-      const localPoints = JSON.parse(localStorage.getItem(pointsKey) || '{"total":0,"raiding":0,"games":0}');
+      // ❌ REMOVED CRITICAL SECURITY EXPLOIT: Never trust localStorage!
+      // ❌ Old code would sync LOCAL points to backend if local > backend - HUGE EXPLOIT!
+      // ✅ Backend database is the ONLY source of truth
 
-      // Update display with local points immediately
-      updatePointsDisplay(localPoints.total, localPoints.raiding, localPoints.games);
-
-      // Update nav bar
+      // Show loading state
       const navHoneyPoints = document.getElementById('navHoneyPoints');
       if (navHoneyPoints) {
-        navHoneyPoints.textContent = localPoints.total.toFixed(1) + ' PTS';
+        navHoneyPoints.textContent = 'Loading...';
       }
 
-      // Try to sync with backend
+      // Fetch ONLY from backend - never trust localStorage
       try {
         const response = await fetch(`${API_BASE_URL}/api/points/${walletAddress}`);
         if (response.ok) {
@@ -4721,51 +4718,26 @@
           const backendRaiding = data.raiding_points || 0;
           const backendGames = data.games_points || 0;
 
-          // If local points are higher than backend, sync local TO backend
-          if (localPoints.total > backendTotal) {
-            console.log('📤 Syncing local points to backend...', localPoints);
-            const syncResponse = await fetch(`${API_BASE_URL}/api/points`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                wallet_address: walletAddress,
-                total_points: localPoints.total,
-                raiding_points: localPoints.raiding,
-                games_points: localPoints.games
-              })
-            });
+          // ALWAYS use backend data - NEVER localStorage
+          updatePointsDisplay(backendTotal, backendRaiding, backendGames);
+          if (navHoneyPoints) navHoneyPoints.textContent = backendTotal.toFixed(1) + ' PTS';
 
-            if (syncResponse.ok) {
-              console.log('✅ Local points synced to backend successfully!');
-            }
-
-            // Keep local points displayed
-            updatePointsDisplay(localPoints.total, localPoints.raiding, localPoints.games);
-            if (navHoneyPoints) navHoneyPoints.textContent = localPoints.total.toFixed(1) + ' PTS';
-          } else {
-            // Backend has more points, use backend data
-            updatePointsDisplay(backendTotal, backendRaiding, backendGames);
-            if (navHoneyPoints) navHoneyPoints.textContent = backendTotal.toFixed(1) + ' PTS';
-
-            // Update header welcome points
-            const welcomePoints = document.getElementById('welcomePoints');
-            if (welcomePoints) {
-              welcomePoints.innerHTML = `HONEY <img src="https://files.catbox.moe/j89mri.png" alt="honey" style="height:1em; width:auto; vertical-align:middle; display:inline-block;">: ${backendTotal.toFixed(1)} PTS`;
-            }
-
-            // Sync localStorage with backend data
-            localStorage.setItem(pointsKey, JSON.stringify({
-              total: backendTotal,
-              raiding: backendRaiding,
-              games: backendGames
-            }));
+          // Update header welcome points
+          const welcomePoints = document.getElementById('welcomePoints');
+          if (welcomePoints) {
+            welcomePoints.innerHTML = `HONEY <img src="https://files.catbox.moe/j89mri.png" alt="honey" style="height:1em; width:auto; vertical-align:middle; display:inline-block;">: ${backendTotal.toFixed(1)} PTS`;
           }
+
+          // ❌ REMOVED localStorage caching - backend is ONLY source of truth
         }
 
         // Load leaderboard to get rank
         loadHoneyLeaderboard(walletAddress);
       } catch (err) {
-        console.debug('Backend not available - using local points');
+        console.error('Backend not available:', err);
+        // ❌ NO localStorage fallback - if backend is down, show offline state
+        updatePointsDisplay(0, 0, 0);
+        if (navHoneyPoints) navHoneyPoints.textContent = 'Offline';
       }
     }
 
