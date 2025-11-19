@@ -117,7 +117,8 @@ const scoreLimiter = rateLimit({
 });
 
 // Apply general rate limiting to all routes
-app.use(generalLimiter);
+// TEMPORARILY DISABLED - Fixing rate limiting issues
+// app.use(generalLimiter);
 
 // 3. ADMIN AUTHENTICATION MIDDLEWARE
 function requireAdmin(req, res, next) {
@@ -358,7 +359,7 @@ app.get('/api/points/:wallet_address', async (req, res) => {
 
 // Update/sync user's honey points - WITH SECURITY VALIDATION
 app.post('/api/points',
-  strictLimiter, // Strict rate limit for points
+  // strictLimiter, // Strict rate limit for points - TEMPORARILY DISABLED
   validateWalletAddress,
   [
     body('wallet_address').isString().trim().notEmpty(),
@@ -675,7 +676,7 @@ app.get('/api/leaderboard/:game_id', async (req, res) => {
 
 // Submit or update score - WITH SECURITY VALIDATION
 app.post('/api/leaderboard',
-  scoreLimiter, // Rate limit score submissions
+  // scoreLimiter, // Rate limit score submissions - TEMPORARILY DISABLED
   validateWalletAddress, // Validate wallet format
   [
     body('wallet_address').isString().trim().notEmpty(),
@@ -842,7 +843,7 @@ app.get('/api/raids/current', async (req, res) => {
 // Create new raid - ADMIN ONLY
 app.post('/api/raids',
   requireAdmin, // 🔒 Require admin authentication
-  strictLimiter,
+  // strictLimiter, // TEMPORARILY DISABLED
   [
     body('description').isString().trim().isLength({ min: 1, max: 500 }),
     body('twitter_url').isURL(),
