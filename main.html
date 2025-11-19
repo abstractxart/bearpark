@@ -1177,8 +1177,47 @@
     height: 40px;
     border-radius: 50%;
     object-fit: cover;
-    margin-left: 8px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+  }
+
+  .welcome-avatar-container {
+    position: relative;
+    width: 40px;
+    height: 40px;
+    margin-left: 8px;
+    flex-shrink: 0;
+  }
+
+  .welcome-cosmetic-ring {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .welcome-cosmetic-ring.castle,
+  .welcome-cosmetic-ring.castle-static {
+    width: 56px !important;
+    height: 56px !important;
+  }
+
+  .welcome-cosmetic-ring.ouroboros {
+    width: 52px !important;
+    height: 52px !important;
+    transform: translate(-50%, -50%) rotate(180deg);
+  }
+
+  .welcome-cosmetic-ring.waves,
+  .welcome-cosmetic-ring.waves-static {
+    width: 48px !important;
+    height: 48px !important;
+  }
+
+  .welcome-cosmetic-ring:not(.castle):not(.castle-static):not(.ouroboros):not(.waves):not(.waves-static) {
+    width: 50px !important;
+    height: 50px !important;
   }
 
   /* ===== NOTIFICATION BELL ===== */
@@ -7242,7 +7281,9 @@
         </button>
         <button class="welcome-profile-btn" id="welcomeBtn">
           <span id="welcomeUsername">WELCOME BEAR (click me!)</span>
-          <img class="welcome-avatar" id="welcomeAvatar" style="display: none;" alt="Profile Avatar" width="40" height="40">
+          <div class="welcome-avatar-container" id="welcomeAvatarContainer" style="display: none;">
+            <img class="welcome-avatar" id="welcomeAvatar" alt="Profile Avatar" width="40" height="40">
+          </div>
         </button>
 
         <!-- Notification Panel -->
@@ -13003,16 +13044,18 @@
 
       // Update avatar if available, or show default bear avatar
       const welcomeAvatar = document.getElementById('welcomeAvatar');
+      const welcomeAvatarContainer = document.getElementById('welcomeAvatarContainer');
+
       if (localProfile.avatar_url) {
         welcomeAvatar.src = localProfile.avatar_url;
-        welcomeAvatar.style.display = 'block';
+        welcomeAvatarContainer.style.display = 'block';
         welcomeAvatar.onerror = function() {
           this.src = 'https://files.catbox.moe/ugu1kl.png';
         };
       } else {
         // Show default bear avatar if no avatar is set
         welcomeAvatar.src = 'https://files.catbox.moe/ugu1kl.png';
-        welcomeAvatar.style.display = 'block';
+        welcomeAvatarContainer.style.display = 'block';
       }
 
       // Try to sync with backend (optional)
@@ -13068,7 +13111,7 @@
                 const avatarData = JSON.parse(profile.avatar_nft);
                 if (avatarData.imageUrl) {
                   welcomeAvatar.src = avatarData.imageUrl;
-                  welcomeAvatar.style.display = 'block';
+                  welcomeAvatarContainer.style.display = 'block';
                   localProfile.avatar_url = avatarData.imageUrl;
                   localStorage.setItem(profileKey, JSON.stringify(localProfile));
 
@@ -13088,6 +13131,37 @@
         }
       } catch (error) {
         console.log('[Welcome] Backend not available - using local profile');
+      }
+
+      // Load and apply equipped cosmetics (ring)
+      try {
+        const cosmeticResponse = await fetch(`${API_BASE_URL}/api/cosmetics/equipped/${walletAddress}`);
+        if (cosmeticResponse.ok) {
+          const cosmeticData = await cosmeticResponse.json();
+          if (cosmeticData.success && cosmeticData.equipped) {
+            const equippedRing = cosmeticData.equipped.ring;
+
+            // Remove any existing ring
+            const existingRing = welcomeAvatarContainer.querySelector('.welcome-cosmetic-ring');
+            if (existingRing) existingRing.remove();
+
+            // Apply ring if equipped
+            if (equippedRing && equippedRing.image_url) {
+              const ring = document.createElement('img');
+              ring.className = `welcome-cosmetic-ring ${equippedRing.ring_type}`;
+              ring.src = equippedRing.image_url;
+              ring.alt = equippedRing.name;
+              ring.style.cssText = `
+                object-fit: contain;
+                ${equippedRing.rarity === 'bearableguy123' ? 'animation: spinRingImage 3s linear infinite;' : ''}
+              `;
+              welcomeAvatarContainer.appendChild(ring);
+              console.log('✅ [Welcome] Applied ring:', equippedRing.name);
+            }
+          }
+        }
+      } catch (error) {
+        console.log('[Welcome] Could not load equipped cosmetics');
       }
     }
 
