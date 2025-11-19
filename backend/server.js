@@ -2374,8 +2374,11 @@ app.get('/api/twitter/oembed', async (req, res) => {
 
 // ===== HEALTH & DEBUG =====
 
-// Serve main.html at root
+// Serve main.html at root (with cache-busting headers to prevent old cached exploits)
 app.get('/', (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
   res.sendFile(path.join(__dirname, '..', 'main.html'));
 });
 
