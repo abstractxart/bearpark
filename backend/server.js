@@ -3052,6 +3052,97 @@ app.delete('/api/admin/roles/:wallet', verifyAdmin, async (req, res) => {
   }
 });
 
+// Reset all user points and inventories (master only)
+app.post('/api/admin/reset-economy', verifyAdmin, async (req, res) => {
+  try {
+    const { admin_wallet, reset_amount } = req.body;
+
+    if (!admin_wallet) {
+      return res.status(401).json({
+        success: false,
+        error: 'Admin wallet required'
+      });
+    }
+
+    // Verify the admin is master
+    const { data: adminRole } = await supabase
+      .from('admin_roles')
+      .select('role')
+      .eq('wallet_address', admin_wallet)
+      .eq('is_active', true)
+      .single();
+
+    if (!adminRole || adminRole.role !== 'master') {
+      return res.status(403).json({
+        success: false,
+        error: 'Only MASTER accounts can reset the economy'
+      });
+    }
+
+    const resetPoints = reset_amount || 5000;
+
+    console.log(`🔄 ECONOMY RESET initiated by MASTER: ${admin_wallet}`);
+    console.log(`   Resetting all users to ${resetPoints} honey points`);
+    console.log(`   Clearing all cosmetic inventories`);
+
+    // 1. Reset all honey points to specified amount (default 5000)
+    const { error: pointsError } = await supabase
+      .from('honey_points')
+      .update({
+        total_points: resetPoints,
+        raiding_points: 0,
+        games_points: 0
+      })
+      .neq('wallet_address', 'dummy'); // Update all rows
+
+    if (pointsError) {
+      console.error('Error resetting honey points:', pointsError);
+      throw pointsError;
+    }
+
+    // 2. Clear all cosmetic inventories
+    const { error: inventoryError } = await supabase
+      .from('cosmetic_inventory')
+      .delete()
+      .neq('wallet_address', 'dummy'); // Delete all rows
+
+    if (inventoryError) {
+      console.error('Error clearing inventories:', inventoryError);
+      throw inventoryError;
+    }
+
+    // 3. Clear all equipped cosmetics
+    const { error: equippedError } = await supabase
+      .from('equipped_cosmetics')
+      .delete()
+      .neq('wallet_address', 'dummy'); // Delete all rows
+
+    if (equippedError) {
+      console.error('Error clearing equipped cosmetics:', equippedError);
+      throw equippedError;
+    }
+
+    // Log admin activity
+    await logAdminActivity(admin_wallet, 'reset_economy', {
+      reset_amount: resetPoints,
+      timestamp: new Date().toISOString()
+    });
+
+    console.log(`✅ ECONOMY RESET COMPLETE!`);
+    console.log(`   All users reset to ${resetPoints} honey points`);
+    console.log(`   All inventories cleared`);
+    console.log(`   All equipped cosmetics cleared`);
+
+    res.json({
+      success: true,
+      message: `Economy reset successful - all users now have ${resetPoints} HP with empty inventories`
+    });
+  } catch (error) {
+    console.error('Error in economy reset:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // ====================================================================
 // PUSH NOTIFICATIONS
 // ====================================================================
