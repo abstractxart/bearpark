@@ -11,6 +11,8 @@ const { body, param, validationResult } = require('express-validator');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+console.log('🚨 RATE LIMITING IS COMPLETELY DISABLED - ALL ROUTES UNRESTRICTED 🚨');
+
 // XAMAN API Credentials from environment variables
 const XAMAN_API_KEY = process.env.XAMAN_API_KEY;
 const XAMAN_API_SECRET = process.env.XAMAN_API_SECRET;
