@@ -31,12 +31,30 @@ console.log('  XAMAN_API_SECRET exists:', !!XAMAN_API_SECRET);
 console.log('  SUPABASE_URL exists:', !!process.env.SUPABASE_URL);
 console.log('  DATABASE_URL exists:', !!process.env.DATABASE_URL);
 
-// Initialize Supabase
+// Initialize Supabase (public client - respects RLS)
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_ANON_KEY
 );
 console.log('✅ Supabase initialized:', process.env.SUPABASE_URL);
+
+// Initialize Supabase Admin Client (bypasses RLS for admin operations)
+let supabaseAdmin = null;
+if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  supabaseAdmin = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    }
+  );
+  console.log('✅ Supabase Admin Client initialized (bypasses RLS)');
+} else {
+  console.warn('⚠️ SUPABASE_SERVICE_ROLE_KEY not set - Admin operations may fail');
+}
 
 // Initialize Direct PostgreSQL Pool (for reactions to bypass PostgREST cache)
 let pgPool;
@@ -3081,12 +3099,21 @@ app.post('/api/admin/reset-economy', verifyAdmin, async (req, res) => {
 
     const resetPoints = reset_amount || 5000;
 
+    // Ensure admin client is available
+    if (!supabaseAdmin) {
+      return res.status(500).json({
+        success: false,
+        error: 'Admin client not initialized - SUPABASE_SERVICE_ROLE_KEY missing'
+      });
+    }
+
     console.log(`🔄 ECONOMY RESET initiated by MASTER: ${admin_wallet}`);
     console.log(`   Resetting all users to ${resetPoints} honey points`);
     console.log(`   Clearing all cosmetic inventories`);
+    console.log(`   Using ADMIN CLIENT (bypasses RLS)`);
 
-    // 1. Reset all honey points to specified amount (default 5000)
-    const { error: pointsError } = await supabase
+    // 1. Reset all honey points to specified amount (default 5000) - USE ADMIN CLIENT
+    const { error: pointsError } = await supabaseAdmin
       .from('honey_points')
       .update({
         total_points: resetPoints,
@@ -3100,8 +3127,8 @@ app.post('/api/admin/reset-economy', verifyAdmin, async (req, res) => {
       throw pointsError;
     }
 
-    // 2. Clear all cosmetic inventories (user_cosmetics table)
-    const { error: inventoryError } = await supabase
+    // 2. Clear all cosmetic inventories (user_cosmetics table) - USE ADMIN CLIENT
+    const { error: inventoryError } = await supabaseAdmin
       .from('user_cosmetics')
       .delete()
       .gte('id', 0); // Delete all rows (id >= 0 matches everything)
@@ -3111,8 +3138,8 @@ app.post('/api/admin/reset-economy', verifyAdmin, async (req, res) => {
       throw inventoryError;
     }
 
-    // 3. Clear all equipped cosmetics (stored in profiles table)
-    const { error: equippedError } = await supabase
+    // 3. Clear all equipped cosmetics (stored in profiles table) - USE ADMIN CLIENT
+    const { error: equippedError } = await supabaseAdmin
       .from('profiles')
       .update({
         equipped_ring_id: null,
