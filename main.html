@@ -7146,8 +7146,8 @@
     }
 
     .leaderboard-ring-img-large {
-      width: 50px !important;
-      height: 50px !important;
+      width: 63px !important;
+      height: 63px !important;
     }
 
     .celebration-icon {
@@ -13093,11 +13093,11 @@
                 const spinAnimation = equippedRing.rarity === 'bearableguy123' ? 'animation: spinRingImage 3s linear infinite;' : '';
                 const ouroborosRotation = equippedRing.ring_type === 'ouroboros' ? ' rotate(180deg)' : '';
 
-                // 20% larger for castle and ouroboros rings
+                // 50% larger for castle and ouroboros rings
                 const isCastleOrOuroboros = equippedRing.ring_type === 'castle' ||
                                            equippedRing.ring_type === 'castle-static' ||
                                            equippedRing.ring_type === 'ouroboros';
-                const ringSize = isCastleOrOuroboros ? '72px' : '60px';
+                const ringSize = isCastleOrOuroboros ? '90px' : '60px';
                 const ringClass = isCastleOrOuroboros ? 'leaderboard-ring-img-large' : 'leaderboard-ring-img';
 
                 avatarHTML = `
