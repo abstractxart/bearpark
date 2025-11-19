@@ -8230,54 +8230,6 @@
         </div>
       </div>
 
-      <!-- PROFIT & LOSS CHART -->
-      <div id="plSection" class="pl-card" style="display:none;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
-          <h4 style="margin:0; font-size:18px; font-weight:900; color:var(--gold); text-transform:uppercase; letter-spacing:0.5px;">📈 Profit & Loss</h4>
-          <div class="pl-toggle-group">
-            <button id="plToggleXRP" class="pl-toggle-btn active" onclick="switchPLCurrency('XRP')">XRP</button>
-            <button id="plToggleUSD" class="pl-toggle-btn" onclick="switchPLCurrency('USD')">USD</button>
-          </div>
-        </div>
-
-
-        <!-- Summary Stats -->
-        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:12px; margin-bottom:20px;">
-          <div class="pl-stat-box">
-            <div class="pl-stat-label">Total P&L</div>
-            <div id="plTotalValue" class="pl-stat-value">—</div>
-          </div>
-          <div class="pl-stat-box">
-            <div class="pl-stat-label">Unrealized</div>
-            <div id="plUnrealizedValue" class="pl-stat-value">—</div>
-          </div>
-          <div class="pl-stat-box">
-            <div class="pl-stat-label">Realized</div>
-            <div id="plRealizedValue" class="pl-stat-value">—</div>
-          </div>
-          <div class="pl-stat-box">
-            <div class="pl-stat-label">ROI</div>
-            <div id="plROIValue" class="pl-stat-value">—</div>
-          </div>
-        </div>
-
-        <!-- Chart Canvas -->
-        <div style="position:relative; height:300px; background:rgba(0,0,0,0.3); border-radius:12px; padding:16px;">
-          <div id="plLoadingIndicator" style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); text-align:center; display:none;">
-            <div style="font-size:40px; margin-bottom:10px;">📊</div>
-            <div style="font-size:16px; font-weight:700; color:var(--gold); margin-bottom:8px;">Analyzing Transactions...</div>
-            <div id="plLoadingProgress" style="font-size:13px; color:rgba(255,255,255,0.6);">Fetching data...</div>
-          </div>
-          <div id="plNoDataIndicator" style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); text-align:center; display:none;">
-            <div style="font-size:40px; margin-bottom:10px;">📭</div>
-            <div style="font-size:16px; font-weight:700; color:rgba(255,255,255,0.6); margin-bottom:8px;">Insufficient Data</div>
-            <div style="font-size:13px; color:rgba(255,255,255,0.4);">No transactions in this timeframe. Try a longer period.</div>
-          </div>
-          <canvas id="plChart"></canvas>
-        </div>
-
-      </div>
-
       <!-- USER PROFILE CUSTOMIZATION -->
       <div id="profileSection" class="profile-card" style="display:none;">
         <div id="profileSetupSection">
@@ -10574,9 +10526,6 @@
 
       // Load LP position data
       loadLPData(walletAddress);
-
-      // Load P&L chart
-      loadPLChart(walletAddress);
     }
 
     async function loadLPData(walletAddress) {
