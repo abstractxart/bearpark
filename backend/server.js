@@ -3100,9 +3100,9 @@ app.post('/api/admin/reset-economy', verifyAdmin, async (req, res) => {
       throw pointsError;
     }
 
-    // 2. Clear all cosmetic inventories
+    // 2. Clear all cosmetic inventories (user_cosmetics table)
     const { error: inventoryError } = await supabase
-      .from('cosmetic_inventory')
+      .from('user_cosmetics')
       .delete()
       .neq('wallet_address', 'dummy'); // Delete all rows
 
@@ -3111,11 +3111,14 @@ app.post('/api/admin/reset-economy', verifyAdmin, async (req, res) => {
       throw inventoryError;
     }
 
-    // 3. Clear all equipped cosmetics
+    // 3. Clear all equipped cosmetics (stored in profiles table)
     const { error: equippedError } = await supabase
-      .from('equipped_cosmetics')
-      .delete()
-      .neq('wallet_address', 'dummy'); // Delete all rows
+      .from('profiles')
+      .update({
+        equipped_ring_id: null,
+        equipped_banner_id: null
+      })
+      .neq('wallet_address', 'dummy'); // Update all rows
 
     if (equippedError) {
       console.error('Error clearing equipped cosmetics:', equippedError);
