@@ -11717,22 +11717,34 @@
       loadHoneyPoints(); // Also refresh total points
     });
 
+    // Debounce mechanism to prevent constant refreshing
+    let lastRefreshTime = 0;
+    const REFRESH_COOLDOWN = 5000; // 5 seconds minimum between refreshes
+
+    function refreshPointsIfNeeded(reason) {
+      const now = Date.now();
+      if (now - lastRefreshTime < REFRESH_COOLDOWN) {
+        console.log(`⏭️ Skipping refresh (${reason}) - cooldown active`);
+        return;
+      }
+      console.log(`🔄 Refreshing honey points data (${reason})`);
+      lastRefreshTime = now;
+      loadDailyGameProgress();
+      loadHoneyPoints();
+      const wallet = localStorage.getItem('bearpark_wallet');
+      if (wallet) loadHoneyLeaderboard(wallet);
+    }
+
     // Refresh data when page becomes visible (e.g., returning from game page)
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) {
-        console.log('Page became visible - refreshing honey points data');
-        loadDailyGameProgress();
-        loadHoneyPoints();
-        const wallet = localStorage.getItem('bearpark_wallet');
-        if (wallet) loadHoneyLeaderboard(wallet);
+        refreshPointsIfNeeded('page visible');
       }
     });
 
     // Also refresh when window gains focus
     window.addEventListener('focus', () => {
-      console.log('Window gained focus - refreshing honey points data');
-      loadDailyGameProgress();
-      loadHoneyPoints();
+      refreshPointsIfNeeded('window focus');
     });
 
     // Show admin button if user is admin
