@@ -7145,6 +7145,11 @@
       height: 42px !important;
     }
 
+    .leaderboard-ring-img-large {
+      width: 50px !important;
+      height: 50px !important;
+    }
+
     .celebration-icon {
       font-size: 80px;
     }
@@ -13088,6 +13093,13 @@
                 const spinAnimation = equippedRing.rarity === 'bearableguy123' ? 'animation: spinRingImage 3s linear infinite;' : '';
                 const ouroborosRotation = equippedRing.ring_type === 'ouroboros' ? ' rotate(180deg)' : '';
 
+                // 20% larger for castle and ouroboros rings
+                const isCastleOrOuroboros = equippedRing.ring_type === 'castle' ||
+                                           equippedRing.ring_type === 'castle-static' ||
+                                           equippedRing.ring_type === 'ouroboros';
+                const ringSize = isCastleOrOuroboros ? '72px' : '60px';
+                const ringClass = isCastleOrOuroboros ? 'leaderboard-ring-img-large' : 'leaderboard-ring-img';
+
                 avatarHTML = `
                   <div class="leaderboard-avatar-ring" style="width:40px; height:40px; margin-right:8px; flex-shrink:0; position:relative;">
                     <img src="${avatarUrl}"
@@ -13097,8 +13109,8 @@
                          onerror="this.src='https://files.catbox.moe/ugu1kl.png'">
                     <img src="${equippedRing.image_url}"
                          alt="Ring"
-                         class="leaderboard-ring-img"
-                         style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%)${ouroborosRotation}; width:60px; height:60px; object-fit:contain; z-index:2; pointer-events:none; ${spinAnimation}">
+                         class="${ringClass}"
+                         style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%)${ouroborosRotation}; width:${ringSize}; height:${ringSize}; object-fit:contain; z-index:2; pointer-events:none; ${spinAnimation}">
                   </div>
                 `;
               } else {
