@@ -11206,47 +11206,26 @@
           const backendRaiding = data.raiding_points || 0;
           const backendGames = data.games_points || 0;
 
-          // If local points are higher than backend, sync local TO backend
-          if (localPoints.total > backendTotal) {
-            console.log('📤 Syncing local points to backend...', localPoints);
-            const syncResponse = await fetch(`${API_BASE_URL}/api/points`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                wallet_address: walletAddress,
-                total_points: localPoints.total,
-                raiding_points: localPoints.raiding,
-                games_points: localPoints.games
-              })
-            });
+          // 🔒 ALWAYS trust backend as source of truth to prevent multi-tab exploits
+          // If local is higher, it might be stale data from an old tab before a purchase
+          // Backend is the single source of truth - always use backend value
+          console.log('📥 Using backend as source of truth:', backendTotal);
 
-            if (syncResponse.ok) {
-              console.log('✅ Local points synced to backend successfully!');
-            }
+          updatePointsDisplay(backendTotal, backendRaiding, backendGames);
+          if (navHoneyPoints) navHoneyPoints.textContent = backendTotal.toFixed(1) + ' PTS';
 
-            // Keep local points displayed
-            updatePointsDisplay(localPoints.total, localPoints.raiding, localPoints.games);
-            if (navHoneyPoints) navHoneyPoints.textContent = localPoints.total.toFixed(1) + ' PTS';
-            const welcomePointsLocal = document.getElementById('welcomePoints');
-            if (welcomePointsLocal) welcomePointsLocal.textContent = localPoints.total.toFixed(1);
-          } else {
-            // Backend has more points, use backend data
-            updatePointsDisplay(backendTotal, backendRaiding, backendGames);
-            if (navHoneyPoints) navHoneyPoints.textContent = backendTotal.toFixed(1) + ' PTS';
-
-            // Update compact honey button
-            const welcomePoints = document.getElementById('welcomePoints');
-            if (welcomePoints) {
-              welcomePoints.textContent = backendTotal.toFixed(1);
-            }
-
-            // Sync localStorage with backend data
-            localStorage.setItem(pointsKey, JSON.stringify({
-              total: backendTotal,
-              raiding: backendRaiding,
-              games: backendGames
-            }));
+          // Update compact honey button
+          const welcomePoints = document.getElementById('welcomePoints');
+          if (welcomePoints) {
+            welcomePoints.textContent = backendTotal.toFixed(1);
           }
+
+          // Sync localStorage with backend data (backend is always correct)
+          localStorage.setItem(pointsKey, JSON.stringify({
+            total: backendTotal,
+            raiding: backendRaiding,
+            games: backendGames
+          }));
         }
 
         // Load leaderboard to get rank
