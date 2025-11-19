@@ -18880,6 +18880,19 @@
             honeyPointsEl.textContent = currentBalance.toFixed(1);
           }
 
+          // Update localStorage to prevent sync from reverting purchase!
+          const pointsKey = `honey_points_${walletAddress}`;
+          const currentPoints = JSON.parse(localStorage.getItem(pointsKey) || '{"total":0,"raiding":0,"games":0}');
+          currentPoints.total = data.new_balance;
+          localStorage.setItem(pointsKey, JSON.stringify(currentPoints));
+          console.log('💾 Updated localStorage with new balance:', data.new_balance);
+
+          // Update welcomePoints button
+          const welcomePoints = document.getElementById('welcomePoints');
+          if (welcomePoints) {
+            welcomePoints.textContent = currentBalance.toFixed(1);
+          }
+
           // Add to user inventory
           userInventory.push(id);
 
