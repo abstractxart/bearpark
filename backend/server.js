@@ -743,39 +743,19 @@ app.get('/api/points/:wallet', async (req, res) => {
   }
 });
 
-// Update/sync user's honey points (for games to award HONEY)
+// ❌ DISABLED - CRITICAL SECURITY EXPLOIT!
+// This endpoint allowed ANY user to set ANY honey points value by sending fake data
+// NEVER TRUST CLIENT-SUBMITTED POINT VALUES!
+// Points are now ONLY awarded through:
+// - /api/raids/complete (for raiding points)
+// - /api/games/complete (for game points)
+// - Admin endpoints with verifyAdmin middleware
 app.post('/api/points', validateWallet, validateAmount, async (req, res) => {
-  try {
-    const { wallet_address, total_points, raiding_points, games_points } = req.body;
-
-    if (!wallet_address) {
-      return res.status(400).json({ success: false, error: 'wallet_address is required' });
-    }
-
-    // Upsert points (insert or update if exists)
-    const { data, error } = await supabase
-      .from('honey_points')
-      .upsert({
-        wallet_address,
-        total_points: total_points || 0,
-        raiding_points: raiding_points || 0,
-        games_points: games_points || 0,
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: 'wallet_address'
-      })
-      .select()
-      .single();
-
-    if (error) {
-      throw error;
-    }
-
-    res.json({ success: true, points: data });
-  } catch (error) {
-    console.error('Error syncing points:', error);
-    res.status(500).json({ success: false, error: 'Failed to sync points', details: error.message });
-  }
+  // ENDPOINT DISABLED FOR SECURITY
+  return res.status(403).json({
+    success: false,
+    error: 'This endpoint has been disabled for security. Points are awarded automatically through game/raid completion.'
+  });
 });
 
 // Create New Raid

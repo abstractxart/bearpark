@@ -5414,19 +5414,13 @@
             localStorage.setItem(`completed_raids_data_${walletAddress}`, JSON.stringify(completedRaidsData));
           }
 
-          // SECURITY: Award points with guard check
-          const pointsKey = `honey_points_${walletAddress}`;
-          const currentPoints = JSON.parse(localStorage.getItem(pointsKey) || '{"total":0,"raiding":0,"games":0}');
+          // ❌ REMOVED localStorage updates - backend is ONLY source of truth
+          // Points are awarded in backend via API call, UI will refresh from backend
 
-          // Only award points ONCE
-          currentPoints.total += pointsAwarded;
-          currentPoints.raiding += pointsAwarded;
-          localStorage.setItem(pointsKey, JSON.stringify(currentPoints));
+          console.log(`✅ Points awarded via backend! +${pointsAwarded}`);
 
-          console.log(`✅ Points awarded! +${pointsAwarded} New balance:`, currentPoints);
-
-          // Update all points displays immediately
-          updatePointsDisplay(currentPoints.total, currentPoints.raiding, currentPoints.games);
+          // Reload points from backend to get accurate balance
+          loadHoneyPoints();
 
           // Update navigation bar honey points AND welcome button
           updateWelcomeButton();
@@ -6279,11 +6273,9 @@
         return;
       }
 
-      // Load points from localStorage first (instant)
-      const pointsKey = `honey_points_${walletAddress}`;
-      const localPoints = JSON.parse(localStorage.getItem(pointsKey) || '{"total":0,"raiding":0,"games":0}');
-      welcomePoints.innerHTML = `HONEY <img src="https://files.catbox.moe/j89mri.png" alt="honey" style="height:1em; width:auto; vertical-align:middle; display:inline-block;">: ${localPoints.total.toFixed(1)} PTS`;
-      if (navHoneyPoints) navHoneyPoints.textContent = `${localPoints.total.toFixed(1)} PTS`;
+      // ❌ REMOVED localStorage - show loading state, fetch from backend only
+      welcomePoints.innerHTML = `HONEY <img src="https://files.catbox.moe/j89mri.png" alt="honey" style="height:1em; width:auto; vertical-align:middle; display:inline-block;">: Loading...`;
+      if (navHoneyPoints) navHoneyPoints.textContent = 'Loading...';
 
       // Load username from localStorage
       const profileKey = `bear_profile_${walletAddress}`;
@@ -6325,12 +6317,7 @@
           if (raidingEl) raidingEl.textContent = raidingPoints.toFixed(1) + ' PTS';
           if (gamesEl) gamesEl.textContent = gamesPoints.toFixed(1) + ' PTS';
 
-          // Sync localStorage with backend data
-          localStorage.setItem(pointsKey, JSON.stringify({
-            total: totalPoints,
-            raiding: raidingPoints,
-            games: gamesPoints
-          }));
+          // ❌ REMOVED localStorage caching - backend is ONLY source of truth
         }
       } catch (error) {
         console.log('[Welcome] Backend not available - using local points');
