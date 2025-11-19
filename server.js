@@ -82,6 +82,7 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY
 // ============================================
 
 // 0. TRUST PROXY - Required for Railway/reverse proxies to properly identify users
+// This fixes rate limiting by allowing Express to see real user IPs through Railway's proxy
 app.set('trust proxy', true);
 
 // 1. HELMET - Security headers
