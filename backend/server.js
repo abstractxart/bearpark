@@ -1061,7 +1061,7 @@ app.post('/api/games/complete', validateWallet, async (req, res) => {
       });
     }
 
-    const MAX_DAILY_MINUTES = 20; // 20 minutes per day max
+    const MAX_DAILY_MINUTES = 123; // 123 minutes per day max
     const MIN_SESSION_SECONDS = 10; // Minimum 10 seconds to count
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
@@ -1147,7 +1147,7 @@ app.get('/api/games/daily-status/:wallet/:game_id', async (req, res) => {
         return res.status(500).json({ success: false, error: error.message });
       }
 
-      const MAX_DAILY_MINUTES = 20;
+      const MAX_DAILY_MINUTES = 123;
       const totalMinutes = data?.reduce((sum, record) => sum + (record.minutes_played || 0), 0) || 0;
       const totalPoints = data?.reduce((sum, record) => sum + (record.points_earned || 0), 0) || 0;
 
@@ -1170,7 +1170,7 @@ app.get('/api/games/daily-status/:wallet/:game_id', async (req, res) => {
       .eq('play_date', today)
       .single();
 
-    const MAX_DAILY_MINUTES = 20;
+    const MAX_DAILY_MINUTES = 123;
     const minutesToday = data?.minutes_played || 0;
 
     res.json({
