@@ -575,7 +575,7 @@ app.post('/api/leaderboard', validateWallet, validateAmount, async (req, res) =>
     // Check if user already has a score for this game
     const { data: existingScore, error: fetchError } = await supabase
       .from('game_leaderboards')
-      .select('score')
+      .select('score, metadata')
       .eq('wallet_address', wallet_address)
       .eq('game_id', game_id)
       .single();
@@ -589,8 +589,34 @@ app.post('/api/leaderboard', validateWallet, validateAmount, async (req, res) =>
     let result;
 
     if (existingScore) {
-      // User has existing score - only update if new score is higher
-      if (score > existingScore.score) {
+      // 🎯 BEAR PONG SPECIAL CASE: Always update metadata (wins/losses) even if wins didn't increase
+      // For bear-pong, score = wins. When you lose, wins stay same but losses need to increment!
+      if (game_id === 'bear-pong') {
+        console.log(`🏓 Bear Pong: Updating metadata (wins/losses)`);
+
+        const { data, error: updateError } = await supabase
+          .from('game_leaderboards')
+          .update({
+            score: score,
+            metadata: metadata || {},
+            updated_at: new Date().toISOString()
+          })
+          .eq('wallet_address', wallet_address)
+          .eq('game_id', game_id)
+          .select()
+          .single();
+
+        if (updateError) {
+          console.error('Error updating Bear Pong stats:', updateError);
+          return res.status(500).json({ success: false, error: updateError.message });
+        }
+
+        // Mark as high score only if wins increased
+        is_high_score = score > existingScore.score;
+        result = data;
+      }
+      // User has existing score - only update if new score is higher (for non-bear-pong games)
+      else if (score > existingScore.score) {
         console.log(`🎉 New high score! Old: ${existingScore.score}, New: ${score}`);
         is_high_score = true;
 
