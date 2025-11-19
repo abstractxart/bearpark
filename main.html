@@ -7134,9 +7134,19 @@
       margin-right: 6px !important;
     }
 
-    .leaderboard-avatar-ring.large-ring-container {
+    .leaderboard-avatar-ring.castle-ring-container {
       width: 50px !important;
       height: 50px !important;
+    }
+
+    .leaderboard-avatar-ring.ouroboros-ring-container {
+      width: 45px !important;
+      height: 45px !important;
+    }
+
+    .leaderboard-avatar-ring.waves-ring-container {
+      width: 40px !important;
+      height: 40px !important;
     }
 
     .leaderboard-avatar-simple {
@@ -7155,9 +7165,19 @@
       height: 42px !important;
     }
 
-    .leaderboard-ring-img-large {
+    .leaderboard-ring-img-castle {
       width: 50px !important;
       height: 50px !important;
+    }
+
+    .leaderboard-ring-img-ouroboros {
+      width: 45px !important;
+      height: 45px !important;
+    }
+
+    .leaderboard-ring-img-waves {
+      width: 40px !important;
+      height: 40px !important;
     }
 
     .celebration-icon {
@@ -13103,17 +13123,35 @@
                 const spinAnimation = equippedRing.rarity === 'bearableguy123' ? 'animation: spinRingImage 3s linear infinite;' : '';
                 const ouroborosRotation = equippedRing.ring_type === 'ouroboros' ? ' rotate(180deg)' : '';
 
-                // Castle and ouroboros rings
-                const isCastleOrOuroboros = equippedRing.ring_type === 'castle' ||
-                                           equippedRing.ring_type === 'castle-static' ||
-                                           equippedRing.ring_type === 'ouroboros';
-                const ringSize = isCastleOrOuroboros ? '72px' : '60px';
-                const containerSize = isCastleOrOuroboros ? '72px' : '60px';
+                // Different sizes for different ring types
+                const isCastle = equippedRing.ring_type === 'castle' || equippedRing.ring_type === 'castle-static';
+                const isOuroboros = equippedRing.ring_type === 'ouroboros';
+                const isWaves = equippedRing.ring_type === 'waves' || equippedRing.ring_type === 'waves-static';
+
+                let ringSize, containerSize, ringClass;
+                if (isCastle) {
+                  ringSize = '72px';
+                  containerSize = '72px';
+                  ringClass = 'leaderboard-ring-img-castle';
+                } else if (isOuroboros) {
+                  ringSize = '65px';
+                  containerSize = '65px';
+                  ringClass = 'leaderboard-ring-img-ouroboros';
+                } else if (isWaves) {
+                  ringSize = '57px';
+                  containerSize = '57px';
+                  ringClass = 'leaderboard-ring-img-waves';
+                } else {
+                  ringSize = '60px';
+                  containerSize = '60px';
+                  ringClass = 'leaderboard-ring-img';
+                }
                 const avatarSize = '43px';
-                const ringClass = isCastleOrOuroboros ? 'leaderboard-ring-img-large' : 'leaderboard-ring-img';
+
+                const containerClass = isCastle ? 'castle-ring-container' : (isOuroboros ? 'ouroboros-ring-container' : (isWaves ? 'waves-ring-container' : ''));
 
                 avatarHTML = `
-                  <div class="leaderboard-avatar-ring ${isCastleOrOuroboros ? 'large-ring-container' : ''}" style="width:${containerSize}; height:${containerSize}; margin-right:8px; flex-shrink:0; position:relative;">
+                  <div class="leaderboard-avatar-ring ${containerClass}" style="width:${containerSize}; height:${containerSize}; margin-right:8px; flex-shrink:0; position:relative;">
                     <img src="${avatarUrl}"
                          alt="${displayName} avatar"
                          class="leaderboard-avatar-img"
