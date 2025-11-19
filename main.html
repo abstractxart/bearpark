@@ -11343,26 +11343,21 @@
       const walletAddress = localStorage.getItem('bearpark_wallet');
       const isAuthenticated = localStorage.getItem('bearpark_auth') === 'true';
 
-      // Load from localStorage first
       const pointsKey = `honey_points_${walletAddress}`;
-      const localPoints = JSON.parse(localStorage.getItem(pointsKey) || '{"total":0,"raiding":0,"games":0}');
 
-      // Update display with local points immediately
-      updatePointsDisplay(localPoints.total, localPoints.raiding, localPoints.games);
-
-      // Update nav bar
+      // Show loading state initially - DO NOT display cached points before backend verification
+      // This prevents stale cached data from being displayed after admin resets
       const navHoneyPoints = document.getElementById('navHoneyPoints');
-      if (navHoneyPoints) {
-        navHoneyPoints.textContent = localPoints.total.toFixed(1) + ' PTS';
-      }
-
-      // Update compact honey button
       const welcomePoints = document.getElementById('welcomePoints');
+
+      if (navHoneyPoints) {
+        navHoneyPoints.textContent = 'Loading...';
+      }
       if (welcomePoints) {
-        welcomePoints.textContent = localPoints.total.toFixed(1);
+        welcomePoints.textContent = '...';
       }
 
-      // Try to sync with backend
+      // Fetch from backend FIRST - backend is the ONLY source of truth
       try {
         // Add cache-busting timestamp to force fresh data
         const response = await fetch(`${API_BASE_URL}/api/points/${walletAddress}?_t=${Date.now()}`, {
@@ -11404,7 +11399,12 @@
         // Load leaderboard to get rank
         loadHoneyLeaderboard(walletAddress);
       } catch (err) {
-        console.debug('Backend not available - using local points');
+        console.error('Backend not available:', err);
+        // Only use cached points as fallback if backend is completely unreachable
+        const localPoints = JSON.parse(localStorage.getItem(pointsKey) || '{"total":0,"raiding":0,"games":0}');
+        updatePointsDisplay(localPoints.total, localPoints.raiding, localPoints.games);
+        if (navHoneyPoints) navHoneyPoints.textContent = localPoints.total.toFixed(1) + ' PTS';
+        if (welcomePoints) welcomePoints.textContent = localPoints.total.toFixed(1);
       }
     }
 
