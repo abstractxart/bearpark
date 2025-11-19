@@ -13161,12 +13161,7 @@
           if (raidingEl) raidingEl.textContent = raidingPoints.toFixed(1) + ' PTS';
           if (gamesEl) gamesEl.textContent = gamesPoints.toFixed(1) + ' PTS';
 
-          // Sync localStorage with backend data
-          localStorage.setItem(pointsKey, JSON.stringify({
-            total: totalPoints,
-            raiding: raidingPoints,
-            games: gamesPoints
-          }));
+          // ❌ REMOVED localStorage caching - backend is ONLY source of truth
         }
       } catch (error) {
         console.log('[Welcome] Backend not available - using local points');
