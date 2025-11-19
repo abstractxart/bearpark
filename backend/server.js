@@ -3176,6 +3176,80 @@ app.post('/api/admin/reset-economy', verifyAdmin, async (req, res) => {
   }
 });
 
+// Set a specific user's honey points (master only)
+app.post('/api/admin/set-user-points', verifyAdmin, async (req, res) => {
+  try {
+    const { admin_wallet, target_wallet, points } = req.body;
+
+    if (!admin_wallet || !target_wallet || points === undefined) {
+      return res.status(400).json({
+        success: false,
+        error: 'Admin wallet, target wallet, and points are required'
+      });
+    }
+
+    // Verify the admin is master
+    const { data: adminRole } = await supabase
+      .from('admin_roles')
+      .select('role')
+      .eq('wallet_address', admin_wallet)
+      .eq('is_active', true)
+      .single();
+
+    if (!adminRole || adminRole.role !== 'master') {
+      return res.status(403).json({
+        success: false,
+        error: 'Only MASTER accounts can set user points'
+      });
+    }
+
+    // Ensure admin client is available
+    if (!supabaseAdmin) {
+      return res.status(500).json({
+        success: false,
+        error: 'Admin client not initialized - SUPABASE_SERVICE_ROLE_KEY missing'
+      });
+    }
+
+    console.log(`🔧 SET USER POINTS initiated by MASTER: ${admin_wallet}`);
+    console.log(`   Target: ${target_wallet}`);
+    console.log(`   New points: ${points}`);
+
+    // Update the user's honey points
+    const { error: updateError } = await supabaseAdmin
+      .from('honey_points')
+      .update({
+        total_points: points,
+        games_points: points, // Assume all points are from games
+        raiding_points: 0
+      })
+      .eq('wallet_address', target_wallet);
+
+    if (updateError) {
+      console.error('Error updating user points:', updateError);
+      throw updateError;
+    }
+
+    // Log admin activity
+    await logAdminActivity(admin_wallet, 'set_user_points', {
+      target_wallet,
+      points,
+      timestamp: new Date().toISOString()
+    });
+
+    console.log(`✅ USER POINTS UPDATED!`);
+    console.log(`   ${target_wallet} now has ${points} HP`);
+
+    res.json({
+      success: true,
+      message: `Successfully set ${target_wallet} to ${points} HP`
+    });
+  } catch (error) {
+    console.error('Error setting user points:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // ====================================================================
 // PUSH NOTIFICATIONS
 // ====================================================================
