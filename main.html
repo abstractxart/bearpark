@@ -11436,6 +11436,22 @@
         }
 
         if (data.success && data.leaderboard && data.leaderboard.length > 0) {
+          // Fetch equipped cosmetics for all users in leaderboard
+          const walletAddresses = data.leaderboard.map(e => e.wallet_address);
+          const equippedCosmetics = {};
+
+          await Promise.all(walletAddresses.map(async (wallet) => {
+            try {
+              const cosmeticRes = await fetch(`${API_BASE_URL}/api/cosmetics/equipped/${wallet}`);
+              const cosmeticData = await cosmeticRes.json();
+              if (cosmeticData.success && cosmeticData.equipped) {
+                equippedCosmetics[wallet] = cosmeticData.equipped;
+              }
+            } catch (e) {
+              // Ignore errors for individual users
+            }
+          }));
+
           leaderboardEl.innerHTML = data.leaderboard.map((entry, index) => {
             const rank = index + 1;
             const isCurrentUser = currentWallet && entry.wallet_address === currentWallet;
@@ -11445,32 +11461,77 @@
             // Use custom display name or show abbreviated wallet
             const displayName = entry.display_name || `${entry.wallet_address.substring(0, 6)}...${entry.wallet_address.substring(entry.wallet_address.length - 4)}`;
 
-            // Show avatar if available, or default bear avatar
-            let avatarHTML = '';
+            // Get avatar URL
+            let avatarUrl = 'https://files.catbox.moe/ugu1kl.png'; // default
             if (entry.avatar_nft) {
               try {
                 const avatarData = JSON.parse(entry.avatar_nft);
-                const avatarUrl = avatarData.imageUrl || avatarData.fallbackImageUrl;
-                if (avatarUrl) {
-                  avatarHTML = `<img src="${avatarUrl}"
-                       style="width:40px; height:40px; border-radius:50%; object-fit:cover; margin-right:8px;"
-                       alt="${displayName} avatar"
-                       onerror="this.src='https://files.catbox.moe/ugu1kl.png'">`;
-                }
+                avatarUrl = avatarData.imageUrl || avatarData.fallbackImageUrl || avatarUrl;
               } catch (e) {
                 // If not JSON, try using it directly as NFT ID
-                avatarHTML = `<img src="https://nft.xrpl-labs.com/${entry.avatar_nft}"
-                     style="width:40px; height:40px; border-radius:50%; object-fit:cover; margin-right:8px;"
-                     alt="${displayName} avatar"
-                     onerror="this.src='https://files.catbox.moe/ugu1kl.png'">`;
+                avatarUrl = `https://nft.xrpl-labs.com/${entry.avatar_nft}`;
               }
             }
 
-            // If no avatar_nft, show default bear avatar
-            if (!avatarHTML) {
-              avatarHTML = `<img src="https://files.catbox.moe/ugu1kl.png"
+            // Show avatar with ring if equipped
+            let avatarHTML = '';
+            const equipped = equippedCosmetics[entry.wallet_address];
+            const equippedRing = equipped?.ring;
+
+            if (equippedRing && equippedRing.image_url) {
+              // Check if it's a BEARABLEGUY123 ring
+              const isBEARABLEGUY = equippedRing.ring_type && equippedRing.ring_type.toLowerCase().includes('bearableguy');
+              const spinAnimation = isBEARABLEGUY ? 'animation: spinRingImage 3s linear infinite;' : '';
+
+              // Check if it's an ouroboros ring (needs 180-degree rotation)
+              const isOuroboros = equippedRing.ring_type === 'ouroboros';
+              const ouroborosRotation = isOuroboros ? ' rotate(180deg)' : '';
+
+              // Different sizes for different ring types
+              const isCastle = equippedRing.ring_type === 'castle' || equippedRing.ring_type === 'castle-static';
+              const isWaves = equippedRing.ring_type === 'waves' || equippedRing.ring_type === 'waves-static';
+
+              let ringSize, containerSize, ringClass;
+              if (isCastle) {
+                ringSize = '72px';
+                containerSize = '72px';
+                ringClass = 'leaderboard-ring-img-castle';
+              } else if (isOuroboros) {
+                ringSize = '65px';
+                containerSize = '65px';
+                ringClass = 'leaderboard-ring-img-ouroboros';
+              } else if (isWaves) {
+                ringSize = '57px';
+                containerSize = '57px';
+                ringClass = 'leaderboard-ring-img-waves';
+              } else {
+                ringSize = '60px';
+                containerSize = '60px';
+                ringClass = 'leaderboard-ring-img';
+              }
+              const avatarSize = '43px';
+
+              const containerClass = isCastle ? 'castle-ring-container' : (isOuroboros ? 'ouroboros-ring-container' : (isWaves ? 'waves-ring-container' : ''));
+
+              avatarHTML = `
+                <div class="leaderboard-avatar-ring ${containerClass}" style="width:${containerSize}; height:${containerSize}; margin-right:8px; flex-shrink:0; position:relative;">
+                  <img src="${avatarUrl}"
+                       alt="${displayName} avatar"
+                       class="leaderboard-avatar-img"
+                       style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:1; width:${avatarSize}; height:${avatarSize}; border-radius:50%; object-fit:cover;"
+                       onerror="this.src='https://files.catbox.moe/ugu1kl.png'">
+                  <img src="${equippedRing.image_url}"
+                       alt="Ring"
+                       class="${ringClass}"
+                       style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%)${ouroborosRotation}; width:${ringSize}; height:${ringSize}; object-fit:contain; z-index:2; pointer-events:none; ${spinAnimation}">
+                </div>
+              `;
+            } else {
+              // No ring, just avatar
+              avatarHTML = `<img src="${avatarUrl}"
                    style="width:40px; height:40px; border-radius:50%; object-fit:cover; margin-right:8px;"
-                   alt="${displayName} avatar">`;
+                   alt="${displayName} avatar"
+                   onerror="this.src='https://files.catbox.moe/ugu1kl.png'">`;
             }
 
             return `
