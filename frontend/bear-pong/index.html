@@ -119,6 +119,12 @@
 
           console.log('👆 User interaction detected:', event.type);
           enterFullscreen();
+
+          // CRITICAL: Remove listeners after first trigger so they don't interfere with game
+          document.removeEventListener('touchstart', triggerFullscreen);
+          document.removeEventListener('click', triggerFullscreen);
+          document.removeEventListener('pointerdown', triggerFullscreen);
+          console.log('✅ Fullscreen listeners removed - game input unblocked');
         };
 
         // Listen for first touch or click (required for user gesture)
