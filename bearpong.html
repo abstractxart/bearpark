@@ -251,6 +251,7 @@
       // Build game URL with authentication parameters (use production build)
       let gameUrl = '/pong/index.html';
       const params = new URLSearchParams();
+      params.set('v', Date.now()); // Cache-busting parameter
       params.set('wallet', walletAddress);
       if (fetchedDisplayName) params.set('display_name', fetchedDisplayName);
       if (twitterUsername) params.set('twitter_username', twitterUsername);
