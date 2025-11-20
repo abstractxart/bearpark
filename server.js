@@ -170,8 +170,16 @@ app.use(cors({
 // 6. JSON parsing with size limit
 app.use(express.json({ limit: '10kb' })); // Prevent large payload attacks
 
-// Serve static files from current directory
-app.use(express.static(__dirname));
+// Serve static files from current directory (NO CACHE for HTML)
+app.use(express.static(__dirname, {
+  setHeaders: (res, path) => {
+    if (path.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
+  }
+}));
 // Serve static files from public directory
 app.use(express.static(path.join(__dirname, 'public')));
 
