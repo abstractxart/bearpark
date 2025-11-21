@@ -67,9 +67,7 @@ public class MainActivity extends BridgeActivity implements ComponentCallbacks2 
         // ===== 🔥 GODMODE CACHING - AGGRESSIVE AF =====
         s.setCacheMode(WebSettings.LOAD_CACHE_ELSE_NETWORK); // Cache first, network second
         s.setDatabaseEnabled(true);
-        s.setAppCacheEnabled(true);
-        s.setAppCachePath(getApplicationContext().getCacheDir().getAbsolutePath());
-        s.setAppCacheMaxSize(1024 * 1024 * 100); // 100MB cache
+        // Note: AppCache APIs removed in API 33+, using standard cache instead
 
         // ===== 🔥 GODMODE MEDIA =====
         s.setMediaPlaybackRequiresUserGesture(false);
