@@ -2,10 +2,9 @@
 <html lang="en" id="top" class="no-js">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-  <meta http-equiv="Pragma" content="no-cache" />
-  <meta http-equiv="Expires" content="0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover" />
+  <!-- 🐻❄️ COCAINE BEAR: Cache for 1 year -->
+  <meta http-equiv="Cache-Control" content="public, max-age=31536000" />
   <title>BEAR Park — BEARcade</title>
   <meta name="description" content="Welcome to BEAR Park — play BEARcade games, explore the lore of Bearableguy123, view BEAR NFTs, watch the live stream, and join the $BEAR community." />
   <meta name="theme-color" content="#edb723" />
@@ -38,8 +37,13 @@
   <link rel="preload" as="image" href="https://files.catbox.moe/qnd2tx.png" fetchpriority="high" />
   <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&display=swap" rel="stylesheet" />
 
-  <!-- XRPL Library -->
-  <script src="https://unpkg.com/xrpl@3.0.0/build/xrpl-latest-min.js"></script>
+  <!-- 🐻❄️ COCAINE BEAR: Kill console + preconnect -->
+  <script>if(location.hostname!=='localhost')console.log=console.warn=console.info=console.debug=function(){};</script>
+  <link rel="preconnect" href="https://unpkg.com" crossorigin />
+  <link rel="preconnect" href="https://files.catbox.moe" crossorigin />
+
+  <!-- XRPL Library (deferred) -->
+  <script defer src="https://unpkg.com/xrpl@3.0.0/build/xrpl-latest-min.js"></script>
 
   <style>
   /* ==== THEME =========================================================== */
