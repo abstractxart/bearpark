@@ -1,0 +1,16 @@
+{
+  "appId": "com.bearpark.app",
+  "appName": "BEARpark",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": true,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": true
+  },
+  "plugins": {
+    "StatusBar": {
+      "backgroundColor": "#6B1FA8",
+      "style": "dark"
+    }
+  }
+}
