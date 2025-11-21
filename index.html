@@ -2,17 +2,23 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
+  <meta http-equiv="Cache-Control" content="public, max-age=31536000" />
   <title>BEAR Park — Wallet Authentication</title>
   <meta name="description" content="Connect your XAMAN wallet to access BEAR Park" />
   <meta name="theme-color" content="#edb723" />
   <link rel="icon" href="/favicon.ico">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <!-- 🐻❄️ COCAINE BEAR: Preconnect + defer -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&display=swap" rel="stylesheet" />
-
+  <!-- 🐻❄️ COCAINE BEAR: Kill console in production -->
+  <script>if(location.hostname!=='localhost')console.log=console.warn=console.info=console.debug=function(){};</script>
   <!-- Capacitor for Android App -->
-  <script type="module" src="https://cdn.jsdelivr.net/npm/@capacitor/core@latest/dist/capacitor.js"></script>
-  <script type="module" src="https://cdn.jsdelivr.net/npm/@capacitor/status-bar@latest/dist/esm/index.js"></script>
+  <script defer type="module" src="https://cdn.jsdelivr.net/npm/@capacitor/core@latest/dist/capacitor.js"></script>
+  <script defer type="module" src="https://cdn.jsdelivr.net/npm/@capacitor/status-bar@latest/dist/esm/index.js"></script>
 
   <style>
   :root{
