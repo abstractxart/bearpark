@@ -10,6 +10,10 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&display=swap" rel="stylesheet" />
 
+  <!-- Capacitor for Android App -->
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@capacitor/core@latest/dist/capacitor.js"></script>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@capacitor/status-bar@latest/dist/esm/index.js"></script>
+
   <style>
   :root{
     --gold:#edb723;
@@ -832,6 +836,43 @@
     });
 
   })();
+  </script>
+
+  <!-- Capacitor Status Bar & Deep Links for Android App -->
+  <script>
+    // Detect if running in Capacitor (Android app)
+    if (window.Capacitor) {
+      console.log('Running in Capacitor - setting up status bar and deep links');
+
+      // Set purple status bar
+      document.addEventListener('DOMContentLoaded', function() {
+        if (window.StatusBar) {
+          window.StatusBar.setBackgroundColor({ color: '#6B1FA8' }); // BEARpark purple
+          window.StatusBar.setStyle({ style: 'DARK' }); // White text/icons
+          console.log('✅ Status bar set to BEARpark purple');
+        }
+      });
+
+      // Handle deep links (e.g., Xaman app links)
+      document.addEventListener('DOMContentLoaded', function() {
+        // Intercept all link clicks
+        document.addEventListener('click', function(e) {
+          const target = e.target.closest('a');
+          if (target && target.href) {
+            const href = target.href;
+
+            // Check if it's a Xaman deep link
+            if (href.includes('xumm.app') || href.includes('xaman.app') || href.startsWith('xumm://') || href.startsWith('xaman://')) {
+              e.preventDefault();
+              console.log('🔗 Opening Xaman app:', href);
+
+              // Try to open in Xaman app
+              window.location.href = href.replace('https://xumm.app/', 'xumm://').replace('https://xaman.app/', 'xaman://');
+            }
+          }
+        }, true);
+      });
+    }
   </script>
 </body>
 </html>
