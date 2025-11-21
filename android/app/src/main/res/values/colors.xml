@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- BEARpark Brand Colors -->
+    <color name="colorPrimary">#6B1FA8</color> <!-- Purple -->
+    <color name="colorPrimaryDark">#6B1FA8</color> <!-- Purple (status bar) -->
+    <color name="colorAccent">#FFD700</color> <!-- Yellow/Gold -->
+    <color name="bearpark_purple">#6B1FA8</color>
+    <color name="bearpark_yellow">#FFD700</color>
+    <color name="bearpark_green">#00D400</color>
+</resources>
