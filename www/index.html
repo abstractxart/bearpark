@@ -1,88 +1,93 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#6B1FA8">
+  <meta name="format-detection" content="telephone=no">
   <title>BEARpark</title>
 
-  <!-- 🚀 PERFORMANCE: Preconnect to main domain -->
+  <!-- 🔥 GODMODE: Preconnect EVERYTHING -->
   <link rel="preconnect" href="https://bearpark.xyz" crossorigin>
+  <link rel="preconnect" href="https://files.catbox.moe" crossorigin>
   <link rel="dns-prefetch" href="https://bearpark.xyz">
+  <link rel="dns-prefetch" href="https://files.catbox.moe">
 
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      border: 0;
-      box-sizing: border-box;
-      -webkit-tap-highlight-color: transparent;
-    }
-    html, body {
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      background: #6B1FA8;
-      /* 🚀 PERFORMANCE: GPU acceleration */
-      -webkit-transform: translateZ(0);
-      transform: translateZ(0);
-      -webkit-backface-visibility: hidden;
-      backface-visibility: hidden;
+    /* 🔥 GODMODE: Reset with zero overhead */
+    *,*::before,*::after{margin:0;padding:0;border:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+
+    /* 🔥 GODMODE: Root optimizations */
+    html{
+      width:100%;height:100%;overflow:hidden;
+      background:#6B1FA8;
+      -webkit-text-size-adjust:100%;
+      text-size-adjust:100%;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
     }
 
-    /* Purple status bar area */
-    .status-bar-spacer {
-      width: 100%;
-      height: env(safe-area-inset-top, 24px);
-      background: #6B1FA8;
-      position: fixed;
-      top: 0;
-      left: 0;
-      z-index: 9999;
-      /* 🚀 PERFORMANCE: GPU layer */
-      will-change: transform;
-      -webkit-transform: translateZ(0);
-      transform: translateZ(0);
+    body{
+      width:100%;height:100%;overflow:hidden;
+      background:#6B1FA8;
+      /* 🔥 GODMODE: Force GPU composite layer */
+      transform:translateZ(0);
+      -webkit-transform:translateZ(0);
+      backface-visibility:hidden;
+      -webkit-backface-visibility:hidden;
+      perspective:1000px;
+      -webkit-perspective:1000px;
     }
 
-    .content {
-      width: 100%;
-      height: calc(100% - env(safe-area-inset-top, 24px));
-      margin-top: env(safe-area-inset-top, 24px);
-      /* 🚀 PERFORMANCE: GPU acceleration */
-      -webkit-transform: translateZ(0);
-      transform: translateZ(0);
-      -webkit-overflow-scrolling: touch;
+    /* 🔥 GODMODE: Status bar spacer */
+    .sb{
+      position:fixed;top:0;left:0;right:0;z-index:9999;
+      height:env(safe-area-inset-top,24px);
+      background:#6B1FA8;
+      transform:translateZ(0);
+      -webkit-transform:translateZ(0);
+      will-change:transform;
+      contain:strict;
     }
 
-    iframe {
-      width: 100%;
-      height: 100%;
-      border: none;
-      /* 🚀 PERFORMANCE: GPU layer for iframe */
-      -webkit-transform: translateZ(0);
-      transform: translateZ(0);
-      will-change: transform;
+    /* 🔥 GODMODE: Content container */
+    .c{
+      position:fixed;
+      top:env(safe-area-inset-top,24px);
+      left:0;right:0;bottom:0;
+      transform:translateZ(0);
+      -webkit-transform:translateZ(0);
+      will-change:transform;
+      contain:layout style;
+      -webkit-overflow-scrolling:touch;
+    }
+
+    /* 🔥 GODMODE: iframe with max performance */
+    iframe{
+      position:absolute;
+      top:0;left:0;
+      width:100%;height:100%;
+      border:0;
+      /* GPU acceleration */
+      transform:translateZ(0);
+      -webkit-transform:translateZ(0);
+      will-change:transform,contents;
+      /* Contain paint operations */
+      contain:strict;
+      /* Optimize rendering */
+      image-rendering:optimizeSpeed;
+      -webkit-backface-visibility:hidden;
+      backface-visibility:hidden;
     }
   </style>
 </head>
 <body>
-  <!-- Purple status bar area -->
-  <div class="status-bar-spacer"></div>
-
-  <!-- Website content -->
-  <div class="content">
-    <iframe
-      id="bearpark-frame"
-      src="https://bearpark.xyz"
-      frameborder="0"
-      allowfullscreen
-      loading="eager"
-      importance="high"
-      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen">
-    </iframe>
+  <div class="sb"></div>
+  <div class="c">
+    <iframe src="https://bearpark.xyz" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture;fullscreen" loading="eager" importance="high" referrerpolicy="no-referrer-when-downgrade"></iframe>
   </div>
 </body>
 </html>

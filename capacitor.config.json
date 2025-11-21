@@ -5,7 +5,10 @@
   "android": {
     "allowMixedContent": true,
     "captureInput": true,
-    "webContentsDebuggingEnabled": true
+    "webContentsDebuggingEnabled": false,
+    "backgroundColor": "#6B1FA8",
+    "initialFocus": false,
+    "useLegacyBridge": false
   },
   "plugins": {
     "StatusBar": {
