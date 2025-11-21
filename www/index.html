@@ -2,42 +2,69 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>BEARpark</title>
+
+  <!-- 🚀 PERFORMANCE: Preconnect to main domain -->
+  <link rel="preconnect" href="https://bearpark.xyz" crossorigin>
+  <link rel="dns-prefetch" href="https://bearpark.xyz">
+
   <style>
     * {
       margin: 0;
       padding: 0;
       border: 0;
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
     }
     html, body {
       width: 100%;
       height: 100%;
       overflow: hidden;
-      background: #6B1FA8; /* BEARpark purple */
+      background: #6B1FA8;
+      /* 🚀 PERFORMANCE: GPU acceleration */
+      -webkit-transform: translateZ(0);
+      transform: translateZ(0);
+      -webkit-backface-visibility: hidden;
+      backface-visibility: hidden;
     }
 
     /* Purple status bar area */
     .status-bar-spacer {
       width: 100%;
-      height: env(safe-area-inset-top, 24px); /* Use safe area or fallback to 24px */
+      height: env(safe-area-inset-top, 24px);
       background: #6B1FA8;
       position: fixed;
       top: 0;
       left: 0;
       z-index: 9999;
+      /* 🚀 PERFORMANCE: GPU layer */
+      will-change: transform;
+      -webkit-transform: translateZ(0);
+      transform: translateZ(0);
     }
 
     .content {
       width: 100%;
-      height: calc(100% - env(safe-area-inset-top, 24px)); /* Subtract status bar height */
-      margin-top: env(safe-area-inset-top, 24px); /* Push below status bar */
+      height: calc(100% - env(safe-area-inset-top, 24px));
+      margin-top: env(safe-area-inset-top, 24px);
+      /* 🚀 PERFORMANCE: GPU acceleration */
+      -webkit-transform: translateZ(0);
+      transform: translateZ(0);
+      -webkit-overflow-scrolling: touch;
     }
 
     iframe {
       width: 100%;
       height: 100%;
       border: none;
+      /* 🚀 PERFORMANCE: GPU layer for iframe */
+      -webkit-transform: translateZ(0);
+      transform: translateZ(0);
+      will-change: transform;
     }
   </style>
 </head>
@@ -47,30 +74,15 @@
 
   <!-- Website content -->
   <div class="content">
-    <iframe id="bearpark-frame" src="https://bearpark.xyz" frameborder="0" allowfullscreen></iframe>
+    <iframe
+      id="bearpark-frame"
+      src="https://bearpark.xyz"
+      frameborder="0"
+      allowfullscreen
+      loading="eager"
+      importance="high"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen">
+    </iframe>
   </div>
-
-  <script>
-    // Intercept all link clicks in the iframe to prevent new tabs
-    window.addEventListener('message', function(e) {
-      // Handle messages from iframe if needed
-    });
-
-    // Override window.open for the iframe (if accessible)
-    var iframe = document.getElementById('bearpark-frame');
-    iframe.onload = function() {
-      try {
-        // Try to override window.open inside iframe (only works if same-origin)
-        iframe.contentWindow.open = function(url, target, features) {
-          // Redirect in same window instead of opening new tab
-          iframe.contentWindow.location.href = url;
-          return iframe.contentWindow;
-        };
-      } catch(e) {
-        // Cross-origin iframe - can't access contentWindow
-        console.log('Cannot override iframe window.open (cross-origin)');
-      }
-    };
-  </script>
 </body>
 </html>
