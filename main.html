@@ -48,6 +48,13 @@
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
   <link rel="preconnect" href="https://files.catbox.moe" crossorigin />
 
+  <!-- 🐻❄️ COCAINE BEAR: KILL ALL DEBUG OVERHEAD IN PRODUCTION -->
+  <script>
+  if(location.hostname!=='localhost'&&!location.hostname.includes('127.0.0.1')){
+    console.log=console.warn=console.info=console.debug=console.trace=function(){};
+  }
+  </script>
+
   <!-- 🐻❄️ COCAINE BEAR: Defer ALL scripts (non-blocking) -->
   <script defer src="https://unpkg.com/xrpl@3.0.0/build/xrpl-latest-min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
