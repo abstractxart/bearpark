@@ -48,6 +48,45 @@
       })();
     </script>
 
+
+    <!-- Make entire viewport clickable for flapping (including black bars) -->
+    <script>
+      window.addEventListener('DOMContentLoaded', () => {
+        // Wait for canvas to be created
+        setTimeout(() => {
+          const canvas = document.querySelector('canvas');
+          if (!canvas) return;
+
+          // Forward all clicks/touches on the page to the canvas
+          document.body.addEventListener('pointerdown', (e) => {
+            // Don't forward if clicking on a button or interactive element
+            const target = e.target;
+            if (target.tagName === 'BUTTON' || target.tagName === 'INPUT' || target.closest('button')) {
+              return;
+            }
+
+            // If click was outside canvas, dispatch a fake click on the canvas
+            if (e.target !== canvas) {
+              const rect = canvas.getBoundingClientRect();
+              const centerX = rect.left + rect.width / 2;
+              const centerY = rect.top + rect.height / 2;
+
+              // Create and dispatch a synthetic pointer event on the canvas
+              const syntheticEvent = new PointerEvent('pointerdown', {
+                bubbles: true,
+                cancelable: true,
+                view: window,
+                clientX: centerX,
+                clientY: centerY,
+                pointerId: e.pointerId,
+                pointerType: e.pointerType
+              });
+              canvas.dispatchEvent(syntheticEvent);
+            }
+          });
+        }, 100);
+      });
+    </script>
     <script type="module" crossorigin src="./assets/index-DKz13A5W.js"></script>
     <link rel="stylesheet" crossorigin href="./assets/index-B82uLamp.css">
   </head>
