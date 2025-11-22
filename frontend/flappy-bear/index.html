@@ -51,66 +51,69 @@
 
     <!-- Make entire viewport clickable for flapping (including black bars) -->
     <script>
-      window.addEventListener('load', () => {
-        // Wait for game to fully initialize
-        setTimeout(() => {
-          const canvas = document.querySelector('canvas');
-          if (!canvas) {
-            console.warn('Canvas not found');
+      console.log('🎮 Click forwarding script loaded');
+
+      // Try to set up click forwarding - keep trying until canvas is ready
+      let setupAttempts = 0;
+      const maxAttempts = 20;
+
+      function setupClickForwarding() {
+        setupAttempts++;
+        console.log(`🎮 Attempt ${setupAttempts} to find canvas...`);
+
+        const canvas = document.querySelector('canvas');
+        if (!canvas) {
+          if (setupAttempts < maxAttempts) {
+            setTimeout(setupClickForwarding, 200);
+          } else {
+            console.error('❌ Canvas not found after 20 attempts');
+          }
+          return;
+        }
+
+        console.log('✅ Canvas found! Setting up click forwarding');
+
+        // Handle input from anywhere on the page
+        const handleInput = (e) => {
+          // Don't forward if clicking on a button or interactive element
+          const target = e.target;
+          if (target.tagName === 'BUTTON' || target.tagName === 'INPUT' || target.closest('button')) {
             return;
           }
 
-          console.log('Setting up global click forwarding');
+          // If click was outside canvas, simulate a click on the canvas
+          if (e.target !== canvas) {
+            console.log('📍 Click outside canvas, forwarding...');
+            const rect = canvas.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
 
-          // Handle both touch and pointer events for maximum compatibility
-          const handleInput = (e) => {
-            // Don't forward if clicking on a button or interactive element
-            const target = e.target;
-            if (target.tagName === 'BUTTON' || target.tagName === 'INPUT' || target.closest('button')) {
-              return;
-            }
+            // Dispatch pointer event
+            const pointerEvent = new PointerEvent('pointerdown', {
+              bubbles: true,
+              cancelable: true,
+              view: window,
+              clientX: centerX,
+              clientY: centerY,
+            });
+            canvas.dispatchEvent(pointerEvent);
+          }
+        };
 
-            // If click was outside canvas, simulate a click on the canvas
-            if (e.target !== canvas) {
-              console.log('Click outside canvas, forwarding to canvas');
-              const rect = canvas.getBoundingClientRect();
-              const centerX = rect.left + rect.width / 2;
-              const centerY = rect.top + rect.height / 2;
+        // Add listeners
+        document.addEventListener('pointerdown', handleInput, {passive: false});
+        document.addEventListener('touchstart', handleInput, {passive: false});
+        document.addEventListener('mousedown', handleInput, {passive: false});
 
-              // Try multiple event types for compatibility
-              ['pointerdown', 'mousedown', 'touchstart'].forEach(eventType => {
-                try {
-                  const syntheticEvent = new PointerEvent(eventType, {
-                    bubbles: true,
-                    cancelable: true,
-                    view: window,
-                    clientX: centerX,
-                    clientY: centerY,
-                  });
-                  canvas.dispatchEvent(syntheticEvent);
-                } catch (err) {
-                  // Fallback for touch events
-                  if (eventType === 'touchstart') {
-                    const touchEvent = new TouchEvent('touchstart', {
-                      bubbles: true,
-                      cancelable: true,
-                      touches: [{clientX: centerX, clientY: centerY}],
-                    });
-                    canvas.dispatchEvent(touchEvent);
-                  }
-                }
-              });
-            }
-          };
+        console.log('✅ Global click forwarding enabled');
+      }
 
-          // Add listeners for all input types
-          document.addEventListener('pointerdown', handleInput, {passive: false});
-          document.addEventListener('touchstart', handleInput, {passive: false});
-          document.addEventListener('mousedown', handleInput, {passive: false});
-
-          console.log('Global click forwarding enabled');
-        }, 500);
-      });
+      // Start trying to set up immediately
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', setupClickForwarding);
+      } else {
+        setupClickForwarding();
+      }
     </script>
     <script type="module" crossorigin src="./assets/index-DKz13A5W.js"></script>
     <link rel="stylesheet" crossorigin href="./assets/index-B82uLamp.css">
