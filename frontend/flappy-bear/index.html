@@ -51,40 +51,65 @@
 
     <!-- Make entire viewport clickable for flapping (including black bars) -->
     <script>
-      window.addEventListener('DOMContentLoaded', () => {
-        // Wait for canvas to be created
+      window.addEventListener('load', () => {
+        // Wait for game to fully initialize
         setTimeout(() => {
           const canvas = document.querySelector('canvas');
-          if (!canvas) return;
+          if (!canvas) {
+            console.warn('Canvas not found');
+            return;
+          }
 
-          // Forward all clicks/touches on the page to the canvas
-          document.body.addEventListener('pointerdown', (e) => {
+          console.log('Setting up global click forwarding');
+
+          // Handle both touch and pointer events for maximum compatibility
+          const handleInput = (e) => {
             // Don't forward if clicking on a button or interactive element
             const target = e.target;
             if (target.tagName === 'BUTTON' || target.tagName === 'INPUT' || target.closest('button')) {
               return;
             }
 
-            // If click was outside canvas, dispatch a fake click on the canvas
+            // If click was outside canvas, simulate a click on the canvas
             if (e.target !== canvas) {
+              console.log('Click outside canvas, forwarding to canvas');
               const rect = canvas.getBoundingClientRect();
               const centerX = rect.left + rect.width / 2;
               const centerY = rect.top + rect.height / 2;
 
-              // Create and dispatch a synthetic pointer event on the canvas
-              const syntheticEvent = new PointerEvent('pointerdown', {
-                bubbles: true,
-                cancelable: true,
-                view: window,
-                clientX: centerX,
-                clientY: centerY,
-                pointerId: e.pointerId,
-                pointerType: e.pointerType
+              // Try multiple event types for compatibility
+              ['pointerdown', 'mousedown', 'touchstart'].forEach(eventType => {
+                try {
+                  const syntheticEvent = new PointerEvent(eventType, {
+                    bubbles: true,
+                    cancelable: true,
+                    view: window,
+                    clientX: centerX,
+                    clientY: centerY,
+                  });
+                  canvas.dispatchEvent(syntheticEvent);
+                } catch (err) {
+                  // Fallback for touch events
+                  if (eventType === 'touchstart') {
+                    const touchEvent = new TouchEvent('touchstart', {
+                      bubbles: true,
+                      cancelable: true,
+                      touches: [{clientX: centerX, clientY: centerY}],
+                    });
+                    canvas.dispatchEvent(touchEvent);
+                  }
+                }
               });
-              canvas.dispatchEvent(syntheticEvent);
             }
-          });
-        }, 100);
+          };
+
+          // Add listeners for all input types
+          document.addEventListener('pointerdown', handleInput, {passive: false});
+          document.addEventListener('touchstart', handleInput, {passive: false});
+          document.addEventListener('mousedown', handleInput, {passive: false});
+
+          console.log('Global click forwarding enabled');
+        }, 500);
       });
     </script>
     <script type="module" crossorigin src="./assets/index-DKz13A5W.js"></script>
