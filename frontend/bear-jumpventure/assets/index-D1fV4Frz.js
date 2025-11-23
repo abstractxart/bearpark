@@ -6921,6 +6921,35 @@ Stomp enemies! Collect coins!`,{fontFamily:"Arial, sans-serif",fontSize:Math.min
             MAIN MENU
           </button>
 
+          <!-- Back to BEAR Park Button -->
+          <button
+            id="bearpark-button"
+            style="
+              width: 100%;
+              padding: 12px;
+              font-size: 20px;
+              font-family: 'Luckiest Guy', cursive;
+              background: linear-gradient(135deg, ${X.purple} 0%, ${X.green} 100%);
+              color: #fff;
+              border: 3px solid ${X.gold};
+              border-radius: 10px;
+              cursor: pointer;
+              transition: all 0.2s ease;
+              text-shadow: 2px 2px 0px #000;
+              box-shadow: 0 4px 16px rgba(104, 12, 217, 0.5);
+              pointer-events: auto;
+              touch-action: manipulation;
+            "
+            onmouseover="this.style.transform='scale(1.03)'; this.style.boxShadow='0 5px 20px rgba(104, 12, 217, 0.7)';"
+            onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 4px 16px rgba(104, 12, 217, 0.5)';"
+            onmousedown="this.style.transform='scale(0.97)';"
+            onmouseup="this.style.transform='scale(1.03)';"
+            ontouchstart="this.style.transform='scale(0.97)';"
+            ontouchend="this.style.transform='scale(1)';"
+          >
+            🐻 BACK TO BEARPARK
+          </button>
+
         </div>
 
         <!-- Custom Animations -->
@@ -6947,7 +6976,7 @@ Stomp enemies! Collect coins!`,{fontFamily:"Arial, sans-serif",fontSize:Math.min
           }
         </style>
       </div>
-    `,J=document.createElement("div");J.innerHTML=K,document.body.appendChild(J.firstElementChild),this.gameOverContainer=document.getElementById("game-over-container"),this.setupNameSubmission()}setupInputs(){const X=document.getElementById("restart-button"),W=document.getElementById("menu-button");X&&X.addEventListener("click",K=>{K.preventDefault(),K.stopPropagation(),this.restartGame()}),W&&W.addEventListener("click",K=>{K.preventDefault(),K.stopPropagation(),this.returnToTitle()}),this.enterKey=this.input.keyboard.addKey(st.Input.Keyboard.KeyCodes.ENTER),this.spaceKey=this.input.keyboard.addKey(st.Input.Keyboard.KeyCodes.SPACE),this.escKey=this.input.keyboard.addKey(st.Input.Keyboard.KeyCodes.ESC),this.enterKey.on("down",()=>{const K=document.getElementById("player-name-input");K&&document.activeElement===K||this.restartGame()}),this.spaceKey.on("down",()=>{const K=document.getElementById("player-name-input");K&&document.activeElement===K||this.restartGame()}),this.escKey.on("down",()=>{this.returnToTitle()})}setupNameSubmission(){const X=document.getElementById("submit-name-btn"),W=document.getElementById("player-name-input");X&&W&&(X.addEventListener("click",K=>{K.preventDefault(),K.stopPropagation();const J=W.value.trim();J.length>0&&this.submitScore(J)}),W.addEventListener("keydown",K=>{K.stopPropagation()}),W.addEventListener("keypress",K=>{if(K.stopPropagation(),K.key==="Enter"){K.preventDefault();const J=W.value.trim();J.length>0&&this.submitScore(J)}}),W.addEventListener("keyup",K=>{K.stopPropagation()}))}async submitScore(X){if(this.nameSubmitted)return;console.log("🔍 submitScore called with name:",X),this.nameSubmitted=!0;try{console.log("🔍 Submitting score to BEAR Park API...");const K=await Tt.submitScore(this.totalScore,{max_height:this.maxHeight,player_name:X});console.log("🔍 Submit score result:",K),K.success&&K.is_high_score?(console.log("🎉 New BEAR Park high score!"),this.showSuccessMessage("🎉 NEW HIGH SCORE! Score saved to BEAR Park!")):K.success?(console.log("✅ Score submitted successfully"),this.showSuccessMessage("✅ Score submitted to BEAR Park!")):K.error&&(console.error("❌ Error from API:",K.error),this.showSuccessMessage(`⚠️ Error: ${K.message||K.error}`)),console.log("🔍 Reloading leaderboard after submission..."),await this.loadLeaderboard(),console.log("🔍 Recreating UI..."),this.gameOverContainer&&this.gameOverContainer.parentNode&&this.gameOverContainer.parentNode.removeChild(this.gameOverContainer),this.createUI(),this.setupInputs(),console.log("🔍 UI recreated successfully")}catch(K){console.error("❌ Error submitting to BEAR Park:",K)}Tt.isAuthenticated()||this.sound.add("ui_click",{volume:.3}).play();const W=document.getElementById("name-entry-container");W&&(W.style.display="none")}showSuccessMessage(X){const W=document.createElement("div");W.textContent=X,W.style.cssText=`
+    `,J=document.createElement("div");J.innerHTML=K,document.body.appendChild(J.firstElementChild),this.gameOverContainer=document.getElementById("game-over-container"),this.setupNameSubmission()}setupInputs(){const X=document.getElementById("restart-button"),W=document.getElementById("menu-button"),K=document.getElementById("bearpark-button");X&&X.addEventListener("click",J=>{J.preventDefault(),J.stopPropagation(),this.restartGame()}),W&&W.addEventListener("click",J=>{J.preventDefault(),J.stopPropagation(),this.returnToTitle()}),K&&K.addEventListener("click",J=>{J.preventDefault(),J.stopPropagation(),this.sound.add("ui_click",{volume:.3}).play(),window.location.href="https://bearpark.xyz"}),this.enterKey=this.input.keyboard.addKey(st.Input.Keyboard.KeyCodes.ENTER),this.spaceKey=this.input.keyboard.addKey(st.Input.Keyboard.KeyCodes.SPACE),this.escKey=this.input.keyboard.addKey(st.Input.Keyboard.KeyCodes.ESC),this.enterKey.on("down",()=>{const J=document.getElementById("player-name-input");J&&document.activeElement===J||this.restartGame()}),this.spaceKey.on("down",()=>{const J=document.getElementById("player-name-input");J&&document.activeElement===J||this.restartGame()}),this.escKey.on("down",()=>{this.returnToTitle()})}setupNameSubmission(){const X=document.getElementById("submit-name-btn"),W=document.getElementById("player-name-input");X&&W&&(X.addEventListener("click",K=>{K.preventDefault(),K.stopPropagation();const J=W.value.trim();J.length>0&&this.submitScore(J)}),W.addEventListener("keydown",K=>{K.stopPropagation()}),W.addEventListener("keypress",K=>{if(K.stopPropagation(),K.key==="Enter"){K.preventDefault();const J=W.value.trim();J.length>0&&this.submitScore(J)}}),W.addEventListener("keyup",K=>{K.stopPropagation()}))}async submitScore(X){if(this.nameSubmitted)return;console.log("🔍 submitScore called with name:",X),this.nameSubmitted=!0;try{console.log("🔍 Submitting score to BEAR Park API...");const K=await Tt.submitScore(this.totalScore,{max_height:this.maxHeight,player_name:X});console.log("🔍 Submit score result:",K),K.success&&K.is_high_score?(console.log("🎉 New BEAR Park high score!"),this.showSuccessMessage("🎉 NEW HIGH SCORE! Score saved to BEAR Park!")):K.success?(console.log("✅ Score submitted successfully"),this.showSuccessMessage("✅ Score submitted to BEAR Park!")):K.error&&(console.error("❌ Error from API:",K.error),this.showSuccessMessage(`⚠️ Error: ${K.message||K.error}`)),console.log("🔍 Reloading leaderboard after submission..."),await this.loadLeaderboard(),console.log("🔍 Recreating UI..."),this.gameOverContainer&&this.gameOverContainer.parentNode&&this.gameOverContainer.parentNode.removeChild(this.gameOverContainer),this.createUI(),this.setupInputs(),console.log("🔍 UI recreated successfully")}catch(K){console.error("❌ Error submitting to BEAR Park:",K)}Tt.isAuthenticated()||this.sound.add("ui_click",{volume:.3}).play();const W=document.getElementById("name-entry-container");W&&(W.style.display="none")}showSuccessMessage(X){const W=document.createElement("div");W.textContent=X,W.style.cssText=`
       position: fixed;
       top: 20px;
       left: 50%;
