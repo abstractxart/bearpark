@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/x-icon" href="/bear-jumpventure/favicon.ico" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>BEAR Jumpventure</title>
 
     <!-- BEAR Park Font -->
@@ -52,76 +52,28 @@
     <script src="/bear-jumpventure/game-points-helper.js"></script>
 
 
-    <!-- Make entire viewport clickable for flapping (including black bars) -->
+    <script
+      async
+      data-adbreak-test="on"
+      crossorigin="anonymous"
+      src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=pub-3086347538258327"
+    ></script>
     <script>
-      console.log('🎮 Click forwarding script loaded');
-
-      // Try to set up click forwarding - keep trying until canvas is ready
-      let setupAttempts = 0;
-      const maxAttempts = 20;
-
-      function setupClickForwarding() {
-        setupAttempts++;
-        console.log(`🎮 Attempt ${setupAttempts} to find canvas...`);
-
-        const canvas = document.querySelector('canvas');
-        if (!canvas) {
-          if (setupAttempts < maxAttempts) {
-            setTimeout(setupClickForwarding, 200);
-          } else {
-            console.error('❌ Canvas not found after 20 attempts');
-          }
-          return;
-        }
-
-        console.log('✅ Canvas found! Setting up click forwarding');
-
-        // Handle input from anywhere on the page
-        const handleInput = (e) => {
-          // Don't forward if clicking on a button or interactive element
-          const target = e.target;
-          if (target.tagName === 'BUTTON' || target.tagName === 'INPUT' || target.closest('button')) {
-            return;
-          }
-
-          // If click was outside canvas, simulate a click on the canvas
-          if (e.target !== canvas) {
-            console.log('📍 Click outside canvas, forwarding...');
-            const rect = canvas.getBoundingClientRect();
-            const centerX = rect.left + rect.width / 2;
-            const centerY = rect.top + rect.height / 2;
-
-            // Dispatch pointer event
-            const pointerEvent = new PointerEvent('pointerdown', {
-              bubbles: true,
-              cancelable: true,
-              view: window,
-              clientX: centerX,
-              clientY: centerY,
-            });
-            canvas.dispatchEvent(pointerEvent);
-          }
-        };
-
-        // Add listeners
-        document.addEventListener('pointerdown', handleInput, {passive: false});
-        document.addEventListener('touchstart', handleInput, {passive: false});
-        document.addEventListener('mousedown', handleInput, {passive: false});
-
-        console.log('✅ Global click forwarding enabled');
-      }
-
-      // Start trying to set up immediately
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', setupClickForwarding);
-      } else {
-        setupClickForwarding();
-      }
+      window.adsbygoogle = window.adsbygoogle || []
+      var adBreak = (adConfig = function (o) {
+        adsbygoogle.push(o)
+      })
+      adConfig({ sound: "on", preloadAdBreaks: "on" })
     </script>
-    <script type="module" crossorigin src="/bear-jumpventure/assets/index-Bo_yBg8R.js"></script>
-    <link rel="stylesheet" crossorigin href="/bear-jumpventure/assets/index-BiLaFBKR.css">
+
+    <style>
+      body {
+        background: black;
+        margin: 0;
+        padding: 0;
+      }
+    </style>
+    <script type="module" crossorigin src="/bear-jumpventure/assets/index-C8zpaY1g.js"></script>
   </head>
-  <body>
-    <div id="game-container"></div>
-  </body>
+  <body></body>
 </html>
