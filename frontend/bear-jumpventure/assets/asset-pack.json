@@ -1,11 +1,78 @@
 {
+  "animation_json": {
+    "files": [
+      {
+        "url": "assets/animations.json",
+        "type": "animation",
+        "key": "animations"
+      }
+    ]
+  },
   "fonts": {
     "files": [
       {
-        "url": "https://cdn-game-mcp-test.gambo.ai/shared/supercell-magic_0.ttf",
+        "url": "assets/fronts/supercell-magic_0.ttf",
         "type": "font",
         "key": "SupercellMagic",
-        "fontType": "truetype"
+        "fontType": "opentype"
+      }
+    ]
+  },
+  "bear_animations": {
+    "files": [
+      {
+        "type": "image",
+        "key": "bear_idle_frame1",
+        "url": "https://cdn-game-mcp.gambo.ai/891228cd-bf8b-415a-a483-16a2e9a90b78/animations/pixel_bear_idle_R/frame_1.png"
+      },
+      {
+        "type": "image",
+        "key": "bear_idle_frame2",
+        "url": "https://cdn-game-mcp.gambo.ai/9ec8d30a-a488-4257-810b-ddbf27399afe/animations/pixel_bear_idle_R/frame_2.png"
+      },
+      {
+        "type": "image",
+        "key": "bear_flap_frame1",
+        "url": "https://cdn-game-mcp.gambo.ai/adb7e43a-f847-45d4-9ebb-0f1be8d95200/animations/pixel_bear_flap_R/frame_1.png"
+      },
+      {
+        "type": "image",
+        "key": "bear_flap_frame2",
+        "url": "https://cdn-game-mcp.gambo.ai/8cff4332-223d-40b4-b672-571f6d6260ce/animations/pixel_bear_flap_R/frame_2.png"
+      },
+      {
+        "type": "image",
+        "key": "bear_jester_idle_frame1",
+        "url": "https://cdn-game-mcp.gambo.ai/379f43f0-62b1-4c92-98bd-be36e32ac0f5/animations/bear_jester_idle_R/frame_1.png"
+      },
+      {
+        "type": "image",
+        "key": "bear_jester_idle_frame2",
+        "url": "https://cdn-game-mcp.gambo.ai/668827fe-e394-4ca9-b1bb-4342625faafc/animations/bear_jester_idle_R/frame_2.png"
+      },
+      {
+        "type": "image",
+        "key": "bear_jester_flap_frame1",
+        "url": "https://cdn-game-mcp.gambo.ai/34e0a988-e644-4ba0-b2c4-7fe43a594f98/animations/bear_jester_flap_R/frame_1.png"
+      },
+      {
+        "type": "image",
+        "key": "bear_jester_flap_frame2",
+        "url": "https://cdn-game-mcp.gambo.ai/f4e9d458-15eb-4bda-a0d7-d324bb767cdb/animations/bear_jester_flap_R/frame_2.png"
+      }
+    ]
+  },
+  "enemy_animations": {
+    "files": [
+      {
+        "type": "image",
+        "key": "bee_fly_frame1",
+        "url": "https://files.catbox.moe/ujd4fh.gif"
+      },
+      {
+        "type": "image",
+        "key": "bee_fly_frame2",
+        "url": "https://files.catbox.moe/ujd4fh.gif"
       }
     ]
   },
@@ -13,119 +80,42 @@
     "files": [
       {
         "type": "image",
-        "key": "sunrise_canyon_bg",
-        "url": "https://cdn-game-mcp.gambo.ai/f0ab6c68-79de-4646-ba4e-fef112dce50a/images/sunrise_canyon_bg.png"
+        "key": "sky_background",
+        "url": "https://cdn-game-mcp.gambo.ai/31d8cdb1-92ce-4309-adf3-047cee8e1f5d/images/sky_background.png"
       },
       {
         "type": "image",
-        "key": "citadel_sky_bg",
-        "url": "https://cdn-game-mcp.gambo.ai/6b2e92fb-f671-4d1e-80d5-8b527dd30a23/images/citadel_sky_bg.png"
+        "key": "pixel_castle_background",
+        "url": "https://cdn-gambo-public.gambo.ai/assets/_zNtNaRV5B3jIBJgihJFr.png"
       },
       {
         "type": "image",
-        "key": "cosmos_night_bg",
-        "url": "https://cdn-game-mcp.gambo.ai/86bf53bc-3219-4c0e-a7de-5f3ffd8709fc/images/cosmos_night_bg.png"
-      },
-      {
-        "type": "image",
-        "key": "castle_clouds_bg",
-        "url": "https://cdn-gambo-public.gambo.ai/assets/jpqSll9JPxA2AGwPpQEa6.png"
-      },
-      {
-        "type": "image",
-        "key": "bear_jumpventure_title_bg",
-        "url": "https://cdn-gambo-public.gambo.ai/assets/SXLSTiDzOfnAvhjLF1txo.png"
+        "key": "title_screen_background",
+        "url": "https://cdn-gambo-public.gambo.ai/assets/vj2DCPjSdHO19GmKww2wE.png"
       }
     ]
   },
-  "characters": {
+  "obstacles": {
     "files": [
       {
         "type": "image",
-        "key": "bear_hero_idle",
-        "url": "https://cdn-game-mcp.gambo.ai/f887a685-cb1e-4197-9f13-a05b7a4164de/images/bear_hero_idle.png"
+        "key": "bitcoin_pipe_top",
+        "url": "https://cdn-game-mcp.gambo.ai/2c6a3e7c-c910-4ffb-bb67-51471c16bffd/images/bitcoin_pipe_top.png"
       },
       {
         "type": "image",
-        "key": "bear_hero_jumping",
-        "url": "https://cdn-game-mcp.gambo.ai/4b208f51-3171-44a6-9a73-c7996ac02446/images/bear_hero_jumping.png"
+        "key": "bitcoin_pipe_bottom",
+        "url": "https://cdn-game-mcp.gambo.ai/f6ed1fcb-47c9-4bf3-94d8-88daea3c65f5/images/bitcoin_pipe_bottom.png"
       },
       {
         "type": "image",
-        "key": "bear_hero_falling",
-        "url": "https://cdn-game-mcp.gambo.ai/05639d50-bdee-4ac7-a8ef-621f513dc7aa/images/bear_hero_falling.png"
+        "key": "ethereum_pipe_top",
+        "url": "https://cdn-game-mcp.gambo.ai/20852767-2557-4955-91d0-ad3fbc3017b6/images/ethereum_pipe_top.png"
       },
       {
         "type": "image",
-        "key": "bear_hero_jetpack",
-        "url": "https://cdn-game-mcp.gambo.ai/4b20f3e0-6a27-4e47-b4b1-eaa95a74720f/images/bear_hero_jetpack.png"
-      }
-    ]
-  },
-  "enemies": {
-    "files": [
-      {
-        "type": "image",
-        "key": "pepe_flying_frame1",
-        "url": "https://cdn-game-mcp.gambo.ai/7c6ba513-e3ff-451f-9d27-c1c1aaff885e/animations/pepe_flying_anim_R/frame_1.png"
-      },
-      {
-        "type": "image",
-        "key": "pepe_flying_frame2",
-        "url": "https://cdn-game-mcp.gambo.ai/5e987a63-0786-42e2-b0e8-1259ed82dbbc/animations/pepe_flying_anim_R/frame_2.png"
-      },
-      {
-        "type": "image",
-        "key": "doge_walk_frame1",
-        "url": "https://cdn-game-mcp.gambo.ai/c4cb7b66-171d-4a44-9501-876ea39c0116/animations/doge_walk_anim_R/frame_1.png"
-      },
-      {
-        "type": "image",
-        "key": "doge_walk_frame2",
-        "url": "https://cdn-game-mcp.gambo.ai/6d5541bd-3ca5-47c1-8a62-37341fa4edbf/animations/doge_walk_anim_R/frame_2.png"
-      },
-      {
-        "type": "image",
-        "key": "blue_bouncer_enemy",
-        "url": "https://cdn-game-mcp.gambo.ai/7fd212c6-f743-4e46-98a7-8c946dfad293/uploads/7fd212c6-f743-4e46-98a7-8c946dfad293.png"
-      },
-      {
-        "type": "image",
-        "key": "gary_enemy",
-        "url": "https://cdn-game-mcp.gambo.ai/7f95eeae-60f3-433c-9e3b-3b6ffdf100ea/uploads/7f95eeae-60f3-433c-9e3b-3b6ffdf100ea.png"
-      }
-    ]
-  },
-  "projectiles": {
-    "files": [
-      {
-        "type": "image",
-        "key": "fireball_projectile",
-        "url": "https://cdn-game-mcp.gambo.ai/bdfb071c-96f5-44b8-8f1f-45f48da27694/images/fireball_projectile.png"
-      }
-    ]
-  },
-  "platforms": {
-    "files": [
-      {
-        "type": "image",
-        "key": "golden_platform_normal",
-        "url": "https://cdn-game-mcp.gambo.ai/f3b08a06-0ae3-455a-8701-a0353a9d3f65/images/golden_platform_normal.png"
-      },
-      {
-        "type": "image",
-        "key": "golden_platform_spring",
-        "url": "https://cdn-game-mcp.gambo.ai/474b2a71-7dbc-46a4-817a-8167070e4c2c/images/golden_platform_spring.png"
-      },
-      {
-        "type": "image",
-        "key": "golden_platform_breaking",
-        "url": "https://cdn-game-mcp.gambo.ai/27a8a483-a96a-4c11-b8d0-3bc6fc6f5306/images/golden_platform_breaking.png"
-      },
-      {
-        "type": "image",
-        "key": "golden_platform_spring_compressed",
-        "url": "https://cdn-game-mcp.gambo.ai/ace762de-fc6a-44c4-9346-5ef81d224c1a/images/golden_platform_spring_compressed.png"
+        "key": "ethereum_pipe_bottom",
+        "url": "https://cdn-game-mcp.gambo.ai/28ec68c2-b91e-4a1b-bd34-e40f3ed2c318/images/ethereum_pipe_bottom.png"
       }
     ]
   },
@@ -133,33 +123,52 @@
     "files": [
       {
         "type": "image",
-        "key": "xrp_coin",
-        "url": "https://cdn-game-mcp.gambo.ai/c22d77a0-70c1-4e1d-972f-c41ce91dd9fe/uploads/c22d77a0-70c1-4e1d-972f-c41ce91dd9fe.png"
+        "key": "xrp_token",
+        "url": "https://cdn-gambo-public.gambo.ai/assets/RSVyjF5r7nKcjp2vZtT3U.png"
       },
       {
         "type": "image",
-        "key": "golden_bear_coin",
-        "url": "https://cdn-game-mcp.gambo.ai/2ae0ace9-fad1-4add-8c2d-15c8b1bd3d4d/uploads/2ae0ace9-fad1-4add-8c2d-15c8b1bd3d4d.png"
-      },
-      {
-        "type": "image",
-        "key": "jetpack_powerup",
-        "url": "https://cdn-game-mcp.gambo.ai/e206031a-9852-48fe-ac21-ea70c2a6e0ca/images/jetpack_powerup.png"
+        "key": "golden_bear_token",
+        "url": "https://cdn-gambo-public.gambo.ai/assets/uaW9Wby8l5fm3yzJZa-JQ.png"
       },
       {
         "type": "image",
         "key": "jester_hat_powerup",
-        "url": "https://cdn-game-mcp.gambo.ai/828d8865-bb73-4e0d-8e69-58f3efaeb42c/images/jester_hat_collectible_new.png"
+        "url": "https://cdn-gambo-public.gambo.ai/assets/eF-B2PB9GKl-9XXRf40Es.png"
+      }
+    ]
+  },
+  "boss_assets": {
+    "files": [
+      {
+        "type": "image",
+        "key": "gary_gensler_phase1",
+        "url": "https://cdn-game-mcp.gambo.ai/49e3f0b8-fb89-4059-b300-d3656b08e278/uploads/49e3f0b8-fb89-4059-b300-d3656b08e278.png"
       },
       {
         "type": "image",
-        "key": "bear_hero_with_jester_hat",
-        "url": "https://cdn-game-mcp.gambo.ai/fac00e02-8c3c-4c58-a790-bab21c496b0a/images/bear_wearing_jester_hat.png"
+        "key": "gary_gensler_phase2",
+        "url": "https://cdn-game-mcp.gambo.ai/16f899da-07f2-47c6-8ab5-14c571e946e6/uploads/16f899da-07f2-47c6-8ab5-14c571e946e6.png"
       },
       {
         "type": "image",
-        "key": "bear_jester_hat_jetpack",
-        "url": "https://cdn-game-mcp.gambo.ai/24bc1ff6-10d4-419d-b6d9-ef0d74c07725/images/bear_jester_hat_jetpack.png"
+        "key": "gary_gensler_phase3",
+        "url": "https://cdn-game-mcp.gambo.ai/f3419f23-26ef-4a9b-b145-6293ae531cbb/uploads/f3419f23-26ef-4a9b-b145-6293ae531cbb.png"
+      },
+      {
+        "type": "image",
+        "key": "missile_projectile",
+        "url": "https://cdn-game-mcp.gambo.ai/92f52921-81c3-427e-bbd1-b6c984e2107a/images/missile_projectile.png"
+      },
+      {
+        "type": "image",
+        "key": "red_laser_beam",
+        "url": "https://cdn-game-mcp.gambo.ai/413d6853-ea66-41fc-b991-2dda867d395c/images/red_laser_beam.png"
+      },
+      {
+        "type": "image",
+        "key": "explosion_effect",
+        "url": "https://cdn-game-mcp.gambo.ai/228b6692-a521-4b16-a9fe-5c08f2e4dc43/images/explosion_effect.png"
       }
     ]
   },
@@ -167,13 +176,13 @@
     "files": [
       {
         "type": "image",
-        "key": "pixel_game_title",
-        "url": "https://cdn-game-mcp.gambo.ai/7c6ff13e-814b-42fc-a761-74efad215bd7/images/pixel_game_title.png"
+        "key": "game_title",
+        "url": "https://cdn-gambo-public.gambo.ai/assets/bOrJvKX990-4wH9aHMUqQ.png"
       },
       {
         "type": "image",
-        "key": "jetpack_button_icon",
-        "url": "https://cdn-gambo-public.gambo.ai/assets/2KJbWZpTHm9XNkG4aLjlt.png"
+        "key": "mobile_missile_button",
+        "url": "https://cdn-game-mcp.gambo.ai/375765b5-6398-4858-8581-3d0fdff4c7b5/images/mobile_missile_button.png"
       }
     ]
   },
@@ -181,53 +190,68 @@
     "files": [
       {
         "type": "audio",
-        "key": "jump_sound",
-        "url": "https://cdn-game-mcp.gambo.ai/7559d547-b680-476d-94fd-2de1a71ff8f1/sound_effects/jump_sound.mp3"
+        "key": "wing_flap",
+        "url": "https://cdn-game-mcp.gambo.ai/968a779e-3662-4578-9d90-a723c39c442d/sound_effects/wing_flap.mp3"
       },
       {
         "type": "audio",
         "key": "xrp_coin_pickup",
-        "url": "https://cdn-game-mcp.gambo.ai/247a71ea-91bf-4b12-af97-ea72b33906ef/sound_effects/xrp_coin_pickup.mp3"
+        "url": "https://cdn-game-mcp.gambo.ai/d90f33b9-f927-4d2d-ae44-2288a6aefae5/sound_effects/xrp_coin_pickup.mp3"
       },
       {
         "type": "audio",
-        "key": "bear_coin_pickup",
-        "url": "https://cdn-game-mcp.gambo.ai/352549ea-922e-4261-9a6b-3ba8ddb6c399/sound_effects/bear_coin_pickup.mp3"
+        "key": "combo_pickup",
+        "url": "https://cdn-game-mcp.gambo.ai/c668e8f3-8c1e-40a1-8acb-2944a5f63951/sound_effects/combo_pickup.mp3"
       },
       {
         "type": "audio",
-        "key": "enemy_defeat",
-        "url": "https://cdn-game-mcp.gambo.ai/c416be27-8861-4ae1-afcd-ab5cbf9d97e9/sound_effects/enemy_defeat.mp3"
+        "key": "tube_hit",
+        "url": "https://cdn-game-mcp.gambo.ai/ca0520b4-70fe-4854-8966-ee92c8c09503/sound_effects/tube_hit.mp3"
       },
       {
         "type": "audio",
-        "key": "platform_break",
-        "url": "https://cdn-game-mcp.gambo.ai/5094a7cb-e403-471c-a479-8960a115e7d1/sound_effects/platform_break.mp3"
+        "key": "new_high_score",
+        "url": "https://cdn-game-mcp.gambo.ai/ab700c24-73d0-4b29-889e-877280afa5a5/sound_effects/new_high_score.mp3"
       },
       {
         "type": "audio",
-        "key": "spring_boing",
-        "url": "https://cdn-game-mcp.gambo.ai/a6d70fbd-961f-40af-bdff-fc26784235ae/sound_effects/spring_boing.mp3"
-      },
-      {
-        "type": "audio",
-        "key": "doge_bark",
-        "url": "https://cdn-game-mcp.gambo.ai/08cdff40-4dc2-4fa3-8eff-952159cc324f/sound_effects/doge_bark.mp3"
-      },
-      {
-        "type": "audio",
-        "key": "game_over",
-        "url": "https://cdn-game-mcp.gambo.ai/da977384-4a06-484e-b513-3018c0dd2f3a/sound_effects/game_over.mp3"
+        "key": "game_over_sound",
+        "url": "https://cdn-game-mcp.gambo.ai/affcc458-1a49-464f-b77c-b2c0bb02c9d9/sound_effects/game_over_sound.mp3"
       },
       {
         "type": "audio",
         "key": "ui_click",
-        "url": "https://cdn-game-mcp.gambo.ai/def9eab2-1b8c-4fd3-b2e7-8b9c28453cfe/sound_effects/ui_click.mp3"
+        "url": "https://cdn-game-mcp.gambo.ai/83fbea37-6b01-48ec-8dba-efb994c01eee/sound_effects/ui_click.mp3"
       },
       {
         "type": "audio",
-        "key": "jetpack_thrust",
-        "url": "https://cdn-game-mcp.gambo.ai/9a9d47c4-9a03-41ab-9594-d620d99cfc10/sound_effects/jetpack_thrust.mp3"
+        "key": "pipe_pass_success",
+        "url": "https://cdn-game-mcp.gambo.ai/2a410013-9e10-4e8c-bda9-fb67770bf316/sound_effects/pipe_pass_success.mp3"
+      },
+      {
+        "type": "audio",
+        "key": "missile_launch",
+        "url": "https://cdn-game-mcp.gambo.ai/22d74f5b-6c5d-43a1-be34-70765df5a208/sound_effects/missile_launch.mp3"
+      },
+      {
+        "type": "audio",
+        "key": "laser_fire",
+        "url": "https://cdn-game-mcp.gambo.ai/6893dba0-6082-4357-98c9-28c9498b265e/sound_effects/laser_fire.mp3"
+      },
+      {
+        "type": "audio",
+        "key": "explosion_impact",
+        "url": "https://cdn-game-mcp.gambo.ai/95b40d38-fe1e-4298-a538-c107126c355d/sound_effects/explosion_impact.mp3"
+      },
+      {
+        "type": "audio",
+        "key": "boss_damage",
+        "url": "https://cdn-game-mcp.gambo.ai/9f4d17a5-4e84-4e5c-8ed4-80a9beeb9ca0/sound_effects/boss_damage.mp3"
+      },
+      {
+        "type": "audio",
+        "key": "boss_phase_change",
+        "url": "https://cdn-game-mcp.gambo.ai/ad9716c7-1d1c-4182-93ef-99306117e200/sound_effects/boss_phase_change.mp3"
       }
     ]
   },
@@ -235,8 +259,18 @@
     "files": [
       {
         "type": "audio",
-        "key": "bearverse_anthem_chiptune",
-        "url": "https://files.catbox.moe/kx66ep.mp3"
+        "key": "sky_flight_theme",
+        "url": "https://cdn-game-mcp.gambo.ai/acc3e400-73e9-47c4-9576-4daa7831ff5a/music/sky_flight_theme.wav"
+      },
+      {
+        "type": "audio",
+        "key": "custom_background_music",
+        "url": "https://files.catbox.moe/cxc1b0.mp3"
+      },
+      {
+        "type": "audio",
+        "key": "boss_battle_theme",
+        "url": "https://files.catbox.moe/5soy7i.mp3"
       }
     ]
   },
