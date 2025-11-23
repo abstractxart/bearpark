@@ -2,9 +2,9 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/x-icon" href="/bear-jumpventure/favicon.ico" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>BEAR Jumpventure</title>
+    <link rel="icon" type="image/x-icon" href="./favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>FLAPPY BEAR</title>
 
     <!-- BEAR Park Font -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -49,32 +49,79 @@
     </script>
 
     <!-- Honey Points Helper -->
-    <script src="/bear-jumpventure/game-points-helper.js"></script>
+    <script src="./game-points-helper.js"></script>
 
 
-    <script
-      async
-      data-adbreak-test="on"
-      crossorigin="anonymous"
-      src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=pub-3086347538258327"
-    ></script>
+    <!-- Make entire viewport clickable for flapping (including black bars) -->
     <script>
-      window.adsbygoogle = window.adsbygoogle || []
-      var adBreak = (adConfig = function (o) {
-        adsbygoogle.push(o)
-      })
-      adConfig({ sound: "on", preloadAdBreaks: "on" })
-    </script>
+      console.log('🎮 Click forwarding script loaded');
 
-    <style>
-      body {
-        background: black;
-        margin: 0;
-        padding: 0;
+      // Try to set up click forwarding - keep trying until canvas is ready
+      let setupAttempts = 0;
+      const maxAttempts = 20;
+
+      function setupClickForwarding() {
+        setupAttempts++;
+        console.log(`🎮 Attempt ${setupAttempts} to find canvas...`);
+
+        const canvas = document.querySelector('canvas');
+        if (!canvas) {
+          if (setupAttempts < maxAttempts) {
+            setTimeout(setupClickForwarding, 200);
+          } else {
+            console.error('❌ Canvas not found after 20 attempts');
+          }
+          return;
+        }
+
+        console.log('✅ Canvas found! Setting up click forwarding');
+
+        // Handle input from anywhere on the page
+        const handleInput = (e) => {
+          // Don't forward if clicking on a button or interactive element
+          const target = e.target;
+          if (target.tagName === 'BUTTON' || target.tagName === 'INPUT' || target.closest('button')) {
+            return;
+          }
+
+          // If click was outside canvas, simulate a click on the canvas
+          if (e.target !== canvas) {
+            console.log('📍 Click outside canvas, forwarding...');
+            const rect = canvas.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+
+            // Dispatch pointer event
+            const pointerEvent = new PointerEvent('pointerdown', {
+              bubbles: true,
+              cancelable: true,
+              view: window,
+              clientX: centerX,
+              clientY: centerY,
+            });
+            canvas.dispatchEvent(pointerEvent);
+          }
+        };
+
+        // Add listeners
+        document.addEventListener('pointerdown', handleInput, {passive: false});
+        document.addEventListener('touchstart', handleInput, {passive: false});
+        document.addEventListener('mousedown', handleInput, {passive: false});
+
+        console.log('✅ Global click forwarding enabled');
       }
-    </style>
-    <script type="module" crossorigin src="/bear-jumpventure/assets/index-BaLnX04A.js"></script>
-  </head>
-  <body></body>
-</html>
 
+      // Start trying to set up immediately
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', setupClickForwarding);
+      } else {
+        setupClickForwarding();
+      }
+    </script>
+    <script type="module" crossorigin src="./assets/index-Cq3Eyeth.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-B82uLamp.css">
+  </head>
+  <body>
+    <div id="game-container"></div>
+  </body>
+</html>
