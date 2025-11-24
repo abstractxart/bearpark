@@ -7673,16 +7673,15 @@
   }
 
   .carousel-track {
-    display: flex;
-    transition: transform 0.6s var(--ease-spring);
+    display: block;
+    position: relative;
   }
 
   .meme-slide {
-    min-width: 100%;
     display: none;
     flex-direction: column;
     gap: 24px;
-    transition: all 0.3s ease;
+    width: 100%;
   }
 
   .meme-slide.active {
