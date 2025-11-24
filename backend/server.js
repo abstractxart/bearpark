@@ -4628,7 +4628,7 @@ app.get('/api/memes/current-week', async (req, res) => {
         vote_count,
         created_at,
         wallet_address,
-        users:wallet_address (username, avatar_url)
+        users:wallet_address (twitter_username)
       `)
       .eq('week_id', weekData.id)
       .order('created_at', { ascending: true });
@@ -4643,8 +4643,8 @@ app.get('/api/memes/current-week', async (req, res) => {
       vote_count: meme.vote_count || 0,
       created_at: meme.created_at,
       wallet_address: meme.wallet_address,
-      username: meme.users?.username || 'Anonymous',
-      avatar_url: meme.users?.avatar_url || null
+      username: meme.users?.twitter_username || 'Anonymous',
+      avatar_url: null
     }));
 
     res.json({
@@ -4679,7 +4679,7 @@ app.get('/api/memes/leaderboard', async (req, res) => {
         image_url,
         vote_count,
         wallet_address,
-        users:wallet_address (username, avatar_url)
+        users:wallet_address (twitter_username)
       `)
       .eq('week_id', weekData.id)
       .order('vote_count', { ascending: false })
@@ -4692,8 +4692,8 @@ app.get('/api/memes/leaderboard', async (req, res) => {
       id: meme.id,
       image_url: meme.image_url,
       vote_count: meme.vote_count || 0,
-      username: meme.users?.username || 'Anonymous',
-      avatar_url: meme.users?.avatar_url || null
+      username: meme.users?.twitter_username || 'Anonymous',
+      avatar_url: null
     }));
 
     res.json({
