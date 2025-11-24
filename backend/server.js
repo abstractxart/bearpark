@@ -4621,21 +4621,13 @@ app.get('/api/memes/current-week', async (req, res) => {
     // Get memes for current week with vote counts
     const { data: memes, error: memesError } = await supabase
       .from('memes')
-      .select(`
-        id,
-        image_url,
-        caption,
-        vote_count,
-        created_at,
-        wallet_address,
-        users:wallet_address (twitter_username)
-      `)
+      .select('id, image_url, caption, vote_count, created_at, wallet_address')
       .eq('week_id', weekData.id)
       .order('created_at', { ascending: true });
 
     if (memesError) throw memesError;
 
-    // Format memes with user data
+    // Format memes with truncated wallet address as username
     const formattedMemes = memes.map(meme => ({
       id: meme.id,
       image_url: meme.image_url,
@@ -4643,7 +4635,7 @@ app.get('/api/memes/current-week', async (req, res) => {
       vote_count: meme.vote_count || 0,
       created_at: meme.created_at,
       wallet_address: meme.wallet_address,
-      username: meme.users?.twitter_username || 'Anonymous',
+      username: meme.wallet_address.substring(0, 8) + '...',
       avatar_url: null
     }));
 
@@ -4672,15 +4664,9 @@ app.get('/api/memes/leaderboard', async (req, res) => {
     if (weekError) throw weekError;
 
     // Get top memes
-    const { data: memes, error: memesError } = await supabase
+    const { data: memes, error: memesError} = await supabase
       .from('memes')
-      .select(`
-        id,
-        image_url,
-        vote_count,
-        wallet_address,
-        users:wallet_address (twitter_username)
-      `)
+      .select('id, image_url, vote_count, wallet_address')
       .eq('week_id', weekData.id)
       .order('vote_count', { ascending: false })
       .order('created_at', { ascending: true })
@@ -4692,7 +4678,7 @@ app.get('/api/memes/leaderboard', async (req, res) => {
       id: meme.id,
       image_url: meme.image_url,
       vote_count: meme.vote_count || 0,
-      username: meme.users?.twitter_username || 'Anonymous',
+      username: meme.wallet_address.substring(0, 8) + '...',
       avatar_url: null
     }));
 
