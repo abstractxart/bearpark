@@ -11,6 +11,8 @@ const { XummSdk } = require('xumm-sdk');
 const { createClient } = require('@supabase/supabase-js');
 const { Pool } = require('pg');
 const webpush = require('web-push');
+const multer = require('multer');
+const upload = multer({ storage: multer.memoryStorage() });
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -4569,6 +4571,343 @@ app.get('/api/link-preview', async (req, res) => {
   }
 });
 
+// ============================================
+// 🎭 MEME OF THE WEEK API ENDPOINTS
+// ============================================
+
+// 📅 Get current week timer
+app.get('/api/memes/timer', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('meme_weeks')
+      .select('*')
+      .order('week_start', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (error) throw error;
+
+    const now = new Date();
+    const weekEnd = new Date(data.week_end);
+    const nextWeekStart = new Date(weekEnd.getTime() + 1);
+
+    res.json({
+      success: true,
+      current_week_id: data.id,
+      week_start: data.week_start,
+      week_end: data.week_end,
+      next_week_start: nextWeekStart.toISOString(),
+      time_remaining_ms: Math.max(0, weekEnd - now)
+    });
+  } catch (error) {
+    console.error('❌ Timer error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 📥 Get current week's memes
+app.get('/api/memes/current-week', async (req, res) => {
+  try {
+    // Get current week
+    const { data: weekData, error: weekError } = await supabase
+      .from('meme_weeks')
+      .select('id')
+      .order('week_start', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (weekError) throw weekError;
+
+    // Get memes for current week with vote counts
+    const { data: memes, error: memesError } = await supabase
+      .from('memes')
+      .select(`
+        id,
+        image_url,
+        caption,
+        vote_count,
+        created_at,
+        wallet_address,
+        users:wallet_address (username, avatar_url)
+      `)
+      .eq('week_id', weekData.id)
+      .order('created_at', { ascending: true });
+
+    if (memesError) throw memesError;
+
+    // Format memes with user data
+    const formattedMemes = memes.map(meme => ({
+      id: meme.id,
+      image_url: meme.image_url,
+      caption: meme.caption,
+      vote_count: meme.vote_count || 0,
+      created_at: meme.created_at,
+      wallet_address: meme.wallet_address,
+      username: meme.users?.username || 'Anonymous',
+      avatar_url: meme.users?.avatar_url || null
+    }));
+
+    res.json({
+      success: true,
+      week_id: weekData.id,
+      memes: formattedMemes
+    });
+  } catch (error) {
+    console.error('❌ Load memes error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 📊 Get leaderboard for current week
+app.get('/api/memes/leaderboard', async (req, res) => {
+  try {
+    // Get current week
+    const { data: weekData, error: weekError } = await supabase
+      .from('meme_weeks')
+      .select('id')
+      .order('week_start', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (weekError) throw weekError;
+
+    // Get top memes
+    const { data: memes, error: memesError } = await supabase
+      .from('memes')
+      .select(`
+        id,
+        image_url,
+        vote_count,
+        wallet_address,
+        users:wallet_address (username, avatar_url)
+      `)
+      .eq('week_id', weekData.id)
+      .order('vote_count', { ascending: false })
+      .order('created_at', { ascending: true })
+      .limit(10);
+
+    if (memesError) throw memesError;
+
+    const leaderboard = memes.map(meme => ({
+      id: meme.id,
+      image_url: meme.image_url,
+      vote_count: meme.vote_count || 0,
+      username: meme.users?.username || 'Anonymous',
+      avatar_url: meme.users?.avatar_url || null
+    }));
+
+    res.json({
+      success: true,
+      leaderboard
+    });
+  } catch (error) {
+    console.error('❌ Leaderboard error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 🗳️ Get user's votes
+app.get('/api/memes/user-votes/:wallet', async (req, res) => {
+  try {
+    const { wallet } = req.params;
+
+    // Get current week
+    const { data: weekData, error: weekError } = await supabase
+      .from('meme_weeks')
+      .select('id')
+      .order('week_start', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (weekError) throw weekError;
+
+    // Get user's votes for current week
+    const { data: votes, error: votesError } = await supabase
+      .from('meme_votes')
+      .select('meme_id')
+      .eq('wallet_address', wallet)
+      .eq('week_id', weekData.id);
+
+    if (votesError) throw votesError;
+
+    res.json({
+      success: true,
+      votes: votes || []
+    });
+  } catch (error) {
+    console.error('❌ User votes error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 📤 Submit a meme
+app.post('/api/memes/submit', upload.single('file'), async (req, res) => {
+  try {
+    const { wallet_address, file_name } = req.body;
+    const file = req.file;
+
+    if (!wallet_address || !file) {
+      return res.status(400).json({ success: false, error: 'Missing required fields' });
+    }
+
+    // Validate file type
+    const validTypes = [
+      'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+      'video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo', 'video/mpeg'
+    ];
+    if (!validTypes.includes(file.mimetype)) {
+      return res.status(400).json({ success: false, error: 'Invalid file type' });
+    }
+
+    // Get current week
+    const { data: weekData, error: weekError } = await supabase
+      .from('meme_weeks')
+      .select('id')
+      .order('week_start', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (weekError) throw weekError;
+
+    // Check if user already submitted this week
+    const { data: existingMeme, error: checkError } = await supabase
+      .from('memes')
+      .select('id')
+      .eq('wallet_address', wallet_address)
+      .eq('week_id', weekData.id)
+      .single();
+
+    if (existingMeme) {
+      return res.status(400).json({
+        success: false,
+        error: 'You have already submitted a meme this week!'
+      });
+    }
+
+    // Upload to Supabase Storage
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('bearpark-memes')
+      .upload(file_name, file.buffer, {
+        contentType: file.mimetype,
+        upsert: false
+      });
+
+    if (uploadError) throw uploadError;
+
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from('bearpark-memes')
+      .getPublicUrl(file_name);
+
+    // Insert meme record
+    const { data: memeData, error: memeError } = await supabase
+      .from('memes')
+      .insert({
+        week_id: weekData.id,
+        wallet_address: wallet_address,
+        image_url: urlData.publicUrl,
+        vote_count: 0
+      })
+      .select()
+      .single();
+
+    if (memeError) throw memeError;
+
+    // Award 50 honey points for submission
+    const { error: pointsError } = await supabase.rpc('add_honey_points', {
+      p_wallet_address: wallet_address,
+      p_amount: 50,
+      p_source: 'meme_submission',
+      p_game_id: null
+    });
+
+    if (pointsError) {
+      console.warn('⚠️ Failed to award honey points:', pointsError);
+    }
+
+    res.json({
+      success: true,
+      meme: memeData,
+      points_awarded: 50
+    });
+  } catch (error) {
+    console.error('❌ Submit meme error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 🗳️ Vote for a meme
+app.post('/api/memes/:id/vote', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { wallet_address } = req.body;
+
+    if (!wallet_address) {
+      return res.status(400).json({ success: false, error: 'Wallet address required' });
+    }
+
+    // Get meme and verify it exists
+    const { data: meme, error: memeError } = await supabase
+      .from('memes')
+      .select('wallet_address, week_id')
+      .eq('id', id)
+      .single();
+
+    if (memeError || !meme) {
+      return res.status(404).json({ success: false, error: 'Meme not found' });
+    }
+
+    // Prevent voting for own meme
+    if (meme.wallet_address.toLowerCase() === wallet_address.toLowerCase()) {
+      return res.status(400).json({
+        success: false,
+        error: 'You cannot vote for your own meme!'
+      });
+    }
+
+    // Check if user already voted for this meme
+    const { data: existingVote, error: checkError } = await supabase
+      .from('meme_votes')
+      .select('id')
+      .eq('meme_id', id)
+      .eq('wallet_address', wallet_address)
+      .single();
+
+    if (existingVote) {
+      return res.status(400).json({
+        success: false,
+        error: 'You have already voted for this meme!'
+      });
+    }
+
+    // Insert vote
+    const { error: voteError } = await supabase
+      .from('meme_votes')
+      .insert({
+        meme_id: id,
+        wallet_address: wallet_address,
+        week_id: meme.week_id
+      });
+
+    if (voteError) throw voteError;
+
+    // Increment vote count
+    const { error: updateError } = await supabase.rpc('increment_meme_votes', {
+      meme_id: id
+    });
+
+    if (updateError) throw updateError;
+
+    res.json({
+      success: true,
+      message: 'Vote recorded successfully'
+    });
+  } catch (error) {
+    console.error('❌ Vote error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Start server for local development
 if (require.main === module) {
   app.listen(PORT, () => {
@@ -4578,7 +4917,8 @@ if (require.main === module) {
     console.log(`✅ Ready to handle admin features`);
     console.log(`✅ Ready to handle notifications`);
     console.log(`✅ Ready to handle cosmetics store`);
-    console.log(`✅ Ready to handle bulletin board comments\n`);
+    console.log(`✅ Ready to handle bulletin board comments`);
+    console.log(`✅ Ready to handle Meme of the Week\n`);
   });
 }
 
