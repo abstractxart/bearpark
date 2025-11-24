@@ -7679,16 +7679,14 @@
 
   .meme-slide {
     min-width: 100%;
-    display: flex;
+    display: none;
     flex-direction: column;
     gap: 24px;
-    opacity: 0.3;
-    transform: scale(0.9);
-    transition: all 0.6s var(--ease-spring);
-    pointer-events: none;
+    transition: all 0.3s ease;
   }
 
   .meme-slide.active {
+    display: flex;
     opacity: 1;
     transform: scale(1);
     pointer-events: all;
