@@ -7758,8 +7758,62 @@
   }
 
   .meme-author {
+    display: flex;
+    align-items: center;
+    gap: 12px;
     font-size: 18px;
     color: var(--honey);
+  }
+
+  .meme-avatar-container {
+    position: relative;
+    width: 48px;
+    height: 48px;
+    flex-shrink: 0;
+  }
+
+  .meme-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid var(--gold);
+  }
+
+  .meme-cosmetic-ring {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .meme-cosmetic-ring.castle,
+  .meme-cosmetic-ring.castle-static {
+    width: 72px !important;
+    height: 72px !important;
+  }
+
+  .meme-cosmetic-ring.ouroboros {
+    width: 65px !important;
+    height: 65px !important;
+  }
+
+  .meme-cosmetic-ring.waves,
+  .meme-cosmetic-ring.waves-static {
+    width: 57px !important;
+    height: 57px !important;
+  }
+
+  .meme-cosmetic-ring:not(.castle):not(.castle-static):not(.ouroboros):not(.waves):not(.waves-static) {
+    width: 60px !important;
+    height: 60px !important;
+  }
+
+  .meme-username {
+    font-weight: bold;
+    color: var(--gold);
   }
 
   .author-label {
@@ -20791,6 +20845,21 @@ function renderCarousel() {
     const isCurrentUser = walletAddress && meme.wallet_address.toLowerCase() === walletAddress.toLowerCase();
     const isVideo = meme.image_url.match(/\.(mp4|webm|mov|avi|mpeg)$/i);
 
+    // Parse avatar NFT
+    let avatarUrl = 'https://files.catbox.moe/1z14d9.jpg';
+    if (meme.avatar_nft) {
+      try {
+        const avatarData = typeof meme.avatar_nft === 'string' ? JSON.parse(meme.avatar_nft) : meme.avatar_nft;
+        avatarUrl = avatarData.imageUrl || avatarData.fallbackImageUrl || avatarUrl;
+      } catch (e) {
+        console.error('Failed to parse avatar_nft:', e);
+      }
+    }
+
+    // Build avatar HTML with ring
+    const equippedRing = meme.equipped_ring;
+    const ringHTML = equippedRing ? `<img src="${equippedRing.image_url}" class="meme-cosmetic-ring ${equippedRing.ring_type}" alt="${equippedRing.name}" style="${equippedRing.rarity === 'bearableguy123' ? 'animation: spinRingImage 3s linear infinite !important;' : ''}">` : '';
+
     return `
       <div class="meme-slide ${index === currentSlide ? 'active' : ''}" data-slide="${index}">
         <div class="meme-image-container">
@@ -20801,7 +20870,10 @@ function renderCarousel() {
         </div>
         <div class="meme-info">
           <div class="meme-author">
-            <img src="${meme.avatar_url || 'https://files.catbox.moe/1z14d9.jpg'}" alt="${meme.username || 'Anonymous'}" class="meme-avatar">
+            <div class="meme-avatar-container">
+              <img src="${avatarUrl}" alt="${meme.username || 'Anonymous'}" class="meme-avatar" onerror="this.src='https://files.catbox.moe/1z14d9.jpg';">
+              ${ringHTML}
+            </div>
             <span class="meme-username">${meme.username || 'Anonymous'}</span>
           </div>
           ${meme.caption ? `<p class="meme-caption">${escapeHtml(meme.caption)}</p>` : ''}
