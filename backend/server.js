@@ -4972,6 +4972,64 @@ app.post('/api/memes/:id/vote', async (req, res) => {
   }
 });
 
+// 🗳️ Unvote (remove vote from a meme)
+app.delete('/api/memes/:id/vote', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { wallet_address } = req.body;
+
+    if (!wallet_address) {
+      return res.status(400).json({ success: false, error: 'Wallet address required' });
+    }
+
+    // Check if user has voted for this meme
+    const { data: existingVote, error: checkError } = await supabase
+      .from('meme_votes')
+      .select('id, week_id')
+      .eq('meme_id', id)
+      .eq('wallet_address', wallet_address)
+      .single();
+
+    if (!existingVote) {
+      return res.status(400).json({
+        success: false,
+        error: 'You have not voted for this meme!'
+      });
+    }
+
+    // Delete the vote
+    const { error: deleteError } = await supabase
+      .from('meme_votes')
+      .delete()
+      .eq('id', existingVote.id);
+
+    if (deleteError) throw deleteError;
+
+    // Decrement meme's vote count
+    const { data: meme } = await supabase
+      .from('memes')
+      .select('vote_count')
+      .eq('id', id)
+      .single();
+
+    if (meme) {
+      await supabase
+        .from('memes')
+        .update({ vote_count: Math.max(0, meme.vote_count - 1) })
+        .eq('id', id);
+    }
+
+    res.json({
+      success: true,
+      message: 'Vote removed successfully',
+      memeId: parseInt(id)
+    });
+  } catch (error) {
+    console.error('❌ Unvote error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Start server for local development
 if (require.main === module) {
   app.listen(PORT, () => {
