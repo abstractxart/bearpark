@@ -7859,9 +7859,17 @@
     gap: 8px;
   }
 
+  .meme-info {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+
   .meme-author {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 12px;
     font-size: 18px;
     color: var(--honey);
@@ -7920,6 +7928,71 @@
   .meme-username {
     font-weight: bold;
     color: var(--gold);
+  }
+
+  .meme-caption {
+    font-size: 16px;
+    color: var(--honey);
+    text-align: center;
+    margin: 0;
+    padding: 0 20px;
+  }
+
+  .meme-actions {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+  }
+
+  .meme-vote-btn {
+    background: linear-gradient(135deg, var(--gold) 0%, #ffc933 100%);
+    color: var(--ink);
+    font-size: 20px;
+    font-weight: bold;
+    font-family: "Luckiest Guy", sans-serif;
+    padding: 14px 32px;
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 6px 20px rgba(255,174,0,0.4), 0 0 0 3px var(--ink), 0 0 0 5px var(--gold);
+    transition: all 0.3s var(--ease-spring);
+  }
+
+  .meme-vote-btn:hover:not(:disabled) {
+    transform: scale(1.08) translateY(-3px);
+    box-shadow: 0 10px 28px rgba(255,174,0,0.6), 0 0 0 3px var(--ink), 0 0 0 5px var(--gold);
+  }
+
+  .meme-vote-btn.voted {
+    background: linear-gradient(135deg, var(--stripe-green) 0%, #09d40a 100%);
+    color: #ffffff;
+    box-shadow: 0 6px 20px rgba(7,174,8,0.5), 0 0 0 3px var(--ink), 0 0 0 5px var(--stripe-green);
+  }
+
+  .meme-vote-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .vote-icon {
+    font-size: 24px;
+  }
+
+  .vote-count {
+    font-size: 22px;
+    min-width: 30px;
+    text-align: center;
+  }
+
+  .meme-counter {
+    text-align: center;
+    font-size: 18px;
+    font-weight: bold;
+    color: var(--honey);
+    padding: 8px 0;
   }
 
   .author-label {
