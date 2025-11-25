@@ -8105,6 +8105,39 @@
     border: 2px solid var(--honey);
   }
 
+  /* Bear Troll Floating Faces */
+  .bear-troll-container {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .bear-troll-face {
+    position: absolute;
+    width: 80px;
+    height: 80px;
+    pointer-events: auto;
+    cursor: grab;
+    user-select: none;
+    transition: transform 0.2s ease;
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
+  }
+
+  .bear-troll-face:active {
+    cursor: grabbing;
+  }
+
+  .bear-troll-face:hover {
+    transform: scale(1.1);
+  }
+
+  /* Ensure meme content is above bear faces */
+  .meme-section {
+    position: relative;
+    z-index: 1;
+  }
+
   /* Upload Modal */
   .meme-upload-modal {
     position: fixed;
@@ -9371,7 +9404,15 @@
   </section>
 
   <!-- 🐻 MEME OF THE WEEK 🏆 -->
-  <section class="alt" id="meme-of-the-week" style="padding: 0;">
+  <section class="alt" id="meme-of-the-week" style="padding: 0; position: relative; overflow: hidden;">
+    <!-- Floating Bear Troll Faces -->
+    <div class="bear-troll-container">
+      <img class="bear-troll-face" src="https://files.catbox.moe/zqn2i1.png" alt="" data-index="0">
+      <img class="bear-troll-face" src="https://files.catbox.moe/zqn2i1.png" alt="" data-index="1">
+      <img class="bear-troll-face" src="https://files.catbox.moe/zqn2i1.png" alt="" data-index="2">
+      <img class="bear-troll-face" src="https://files.catbox.moe/zqn2i1.png" alt="" data-index="3">
+      <img class="bear-troll-face" src="https://files.catbox.moe/zqn2i1.png" alt="" data-index="4">
+    </div>
     <div class="wrap reveal">
       <div class="meme-section tri-border-rounded">
         <!-- Header -->
@@ -21900,6 +21941,164 @@ if (typeof window.addEventListener !== 'undefined') {
 
   </script>
   <!-- ===== END MEME OF THE WEEK JAVASCRIPT ===== -->
+
+  <!-- 🐻 BEAR TROLL FLOATING FACES ANIMATION ===== -->
+  <script>
+  (function() {
+    'use strict';
+
+    const section = document.getElementById('meme-of-the-week');
+    if (!section) return;
+
+    const bears = document.querySelectorAll('.bear-troll-face');
+    if (!bears.length) return;
+
+    // Physics properties for each bear
+    const bearData = Array.from(bears).map((bear, i) => ({
+      el: bear,
+      x: Math.random() * (section.offsetWidth - 80),
+      y: Math.random() * (section.offsetHeight - 80),
+      vx: (Math.random() - 0.5) * 3,
+      vy: (Math.random() - 0.5) * 3,
+      rotation: Math.random() * 360,
+      rotationSpeed: (Math.random() - 0.5) * 2,
+      isDragging: false,
+      dragStartX: 0,
+      dragStartY: 0
+    }));
+
+    // Animation loop
+    function animate() {
+      const bounds = section.getBoundingClientRect();
+      const width = bounds.width;
+      const height = bounds.height;
+
+      bearData.forEach(bear => {
+        if (bear.isDragging) return;
+
+        // Update position
+        bear.x += bear.vx;
+        bear.y += bear.vy;
+
+        // Bounce off edges with some randomness
+        if (bear.x <= 0 || bear.x >= width - 80) {
+          bear.vx *= -1;
+          bear.vx += (Math.random() - 0.5) * 0.5;
+          bear.rotationSpeed *= -1;
+        }
+        if (bear.y <= 0 || bear.y >= height - 80) {
+          bear.vy *= -1;
+          bear.vy += (Math.random() - 0.5) * 0.5;
+          bear.rotationSpeed *= -1;
+        }
+
+        // Keep within bounds
+        bear.x = Math.max(0, Math.min(width - 80, bear.x));
+        bear.y = Math.max(0, Math.min(height - 80, bear.y));
+
+        // Update rotation
+        bear.rotation += bear.rotationSpeed;
+
+        // Apply transforms
+        bear.el.style.transform = `translate(${bear.x}px, ${bear.y}px) rotate(${bear.rotation}deg)`;
+      });
+
+      requestAnimationFrame(animate);
+    }
+
+    // Drag functionality
+    bearData.forEach(bear => {
+      let mouseX = 0, mouseY = 0;
+
+      bear.el.addEventListener('mousedown', (e) => {
+        bear.isDragging = true;
+        mouseX = e.clientX;
+        mouseY = e.clientY;
+        bear.el.style.transition = 'none';
+      });
+
+      document.addEventListener('mousemove', (e) => {
+        if (!bear.isDragging) return;
+
+        const bounds = section.getBoundingClientRect();
+        const dx = e.clientX - mouseX;
+        const dy = e.clientY - mouseY;
+
+        mouseX = e.clientX;
+        mouseY = e.clientY;
+
+        bear.x += dx;
+        bear.y += dy;
+
+        // Keep within bounds
+        const width = bounds.width;
+        const height = bounds.height;
+        bear.x = Math.max(0, Math.min(width - 80, bear.x));
+        bear.y = Math.max(0, Math.min(height - 80, bear.y));
+
+        bear.el.style.transform = `translate(${bear.x}px, ${bear.y}px) rotate(${bear.rotation}deg)`;
+      });
+
+      document.addEventListener('mouseup', () => {
+        if (bear.isDragging) {
+          bear.isDragging = false;
+          bear.el.style.transition = 'transform 0.2s ease';
+
+          // Give it a random velocity when released
+          bear.vx = (Math.random() - 0.5) * 4;
+          bear.vy = (Math.random() - 0.5) * 4;
+          bear.rotationSpeed = (Math.random() - 0.5) * 3;
+        }
+      });
+
+      // Touch support
+      bear.el.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        bear.isDragging = true;
+        const touch = e.touches[0];
+        mouseX = touch.clientX;
+        mouseY = touch.clientY;
+        bear.el.style.transition = 'none';
+      });
+
+      document.addEventListener('touchmove', (e) => {
+        if (!bear.isDragging) return;
+
+        const touch = e.touches[0];
+        const bounds = section.getBoundingClientRect();
+        const dx = touch.clientX - mouseX;
+        const dy = touch.clientY - mouseY;
+
+        mouseX = touch.clientX;
+        mouseY = touch.clientY;
+
+        bear.x += dx;
+        bear.y += dy;
+
+        const width = bounds.width;
+        const height = bounds.height;
+        bear.x = Math.max(0, Math.min(width - 80, bear.x));
+        bear.y = Math.max(0, Math.min(height - 80, bear.y));
+
+        bear.el.style.transform = `translate(${bear.x}px, ${bear.y}px) rotate(${bear.rotation}deg)`;
+      });
+
+      document.addEventListener('touchend', () => {
+        if (bear.isDragging) {
+          bear.isDragging = false;
+          bear.el.style.transition = 'transform 0.2s ease';
+          bear.vx = (Math.random() - 0.5) * 4;
+          bear.vy = (Math.random() - 0.5) * 4;
+          bear.rotationSpeed = (Math.random() - 0.5) * 3;
+        }
+      });
+    });
+
+    // Start animation
+    animate();
+  })();
+  </script>
+  <!-- ===== END BEAR TROLL ANIMATION ===== -->
 
   <!-- 🐻❄️ COCAINE BEAR PERFORMANCE SCRIPT ===== -->
   <script>
