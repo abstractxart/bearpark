@@ -5128,6 +5128,133 @@ app.delete('/api/memes/:id', async (req, res) => {
   }
 });
 
+// 🔄 WEEK RESET: Award winners and create new week
+app.post('/api/memes/reset-week', async (req, res) => {
+  try {
+    console.log('🔄 Week reset triggered...');
+
+    // Get current week
+    const { data: currentWeek, error: weekError } = await supabase
+      .from('meme_weeks')
+      .select('*')
+      .order('week_start', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (weekError) throw weekError;
+
+    const now = new Date();
+    const weekEnd = new Date(currentWeek.week_end);
+
+    console.log(`📅 Current week: ${currentWeek.week_start} to ${currentWeek.week_end}`);
+    console.log(`⏰ Now: ${now.toISOString()}`);
+    console.log(`🔚 Week ends: ${weekEnd.toISOString()}`);
+
+    // Check if week has ended
+    if (now < weekEnd) {
+      return res.json({
+        success: false,
+        message: 'Current week has not ended yet',
+        week_end: currentWeek.week_end,
+        time_remaining_ms: weekEnd - now
+      });
+    }
+
+    console.log('✅ Week has ended, processing winners...');
+
+    // Get top 3 memes from the ended week
+    const { data: topMemes, error: memesError } = await supabase
+      .from('memes')
+      .select('id, wallet_address, vote_count, caption')
+      .eq('week_id', currentWeek.id)
+      .order('vote_count', { ascending: false })
+      .limit(3);
+
+    if (memesError) throw memesError;
+
+    const rewards = [50, 35, 20];
+    const medals = ['🥇', '🥈', '🥉'];
+    const winners = [];
+
+    // Award points to top 3
+    for (let i = 0; i < Math.min(topMemes.length, 3); i++) {
+      const meme = topMemes[i];
+      const reward = rewards[i];
+      const medal = medals[i];
+
+      console.log(`${medal} Awarding ${reward} honey to ${meme.wallet_address} (${meme.vote_count} votes)`);
+
+      const { error: pointsError } = await supabase.rpc('add_honey_points', {
+        p_wallet_address: meme.wallet_address,
+        p_amount: reward,
+        p_source: 'meme_winner',
+        p_game_id: null
+      });
+
+      if (pointsError) {
+        console.error(`❌ Failed to award points to ${meme.wallet_address}:`, pointsError);
+      } else {
+        winners.push({
+          rank: i + 1,
+          medal,
+          wallet_address: meme.wallet_address,
+          vote_count: meme.vote_count,
+          reward,
+          caption: meme.caption
+        });
+      }
+    }
+
+    console.log('🆕 Creating new week...');
+
+    // Create new week (Monday to Sunday)
+    const newWeekStart = new Date(weekEnd.getTime() + 1000); // 1 second after old week ends
+    const nextMonday = new Date(newWeekStart);
+
+    // Calculate next Monday at 00:00:00
+    const daysUntilMonday = (8 - nextMonday.getDay()) % 7;
+    nextMonday.setDate(nextMonday.getDate() + daysUntilMonday);
+    nextMonday.setHours(0, 0, 0, 0);
+
+    const newWeekEnd = new Date(nextMonday);
+    newWeekEnd.setDate(newWeekEnd.getDate() + 6);
+    newWeekEnd.setHours(23, 59, 59, 999);
+
+    const { data: newWeek, error: createError } = await supabase
+      .from('meme_weeks')
+      .insert({
+        week_start: nextMonday.toISOString(),
+        week_end: newWeekEnd.toISOString()
+      })
+      .select()
+      .single();
+
+    if (createError) throw createError;
+
+    console.log(`✅ New week created: ${newWeek.week_start} to ${newWeek.week_end}`);
+
+    res.json({
+      success: true,
+      message: 'Week reset complete!',
+      old_week: {
+        id: currentWeek.id,
+        week_start: currentWeek.week_start,
+        week_end: currentWeek.week_end
+      },
+      winners,
+      new_week: {
+        id: newWeek.id,
+        week_start: newWeek.week_start,
+        week_end: newWeek.week_end
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Week reset error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Start server for local development
 if (require.main === module) {
   app.listen(PORT, () => {
