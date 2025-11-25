@@ -4688,12 +4688,28 @@ app.get('/api/memes/leaderboard', async (req, res) => {
 
     if (memesError) throw memesError;
 
-    const leaderboard = memes.map(meme => ({
-      id: meme.id,
-      image_url: meme.image_url,
-      vote_count: meme.vote_count || 0,
-      username: meme.wallet_address.substring(0, 8) + '...',
-      avatar_url: null
+    // Fetch profile and cosmetics for each meme
+    const leaderboard = await Promise.all(memes.map(async (meme) => {
+      // Get user profile with equipped cosmetics
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select(`
+          display_name,
+          avatar_nft,
+          equipped_ring:cosmetics_catalog!profiles_equipped_ring_id_fkey(*)
+        `)
+        .eq('wallet_address', meme.wallet_address)
+        .maybeSingle();
+
+      return {
+        id: meme.id,
+        image_url: meme.image_url,
+        vote_count: meme.vote_count || 0,
+        wallet_address: meme.wallet_address,
+        username: profile?.display_name || (meme.wallet_address.substring(0, 8) + '...'),
+        avatar_nft: profile?.avatar_nft || null,
+        equipped_ring: profile?.equipped_ring || null
+      };
     }));
 
     res.json({
