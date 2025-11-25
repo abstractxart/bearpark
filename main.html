@@ -21353,7 +21353,7 @@ function renderCarousel() {
       <div class="meme-slide ${index === currentSlide ? 'active' : ''}" data-slide="${index}">
         <div class="meme-image-container">
           ${isVideo ?
-            `<video src="${meme.image_url}" controls class="meme-image" style="max-width: 100%; max-height: 600px; object-fit: contain;"></video>` :
+            `<video src="${meme.image_url}" controls class="meme-image"></video>` :
             `<img src="${meme.image_url}" alt="Meme by ${meme.username || 'Anonymous'}" class="meme-image">`
           }
         </div>
