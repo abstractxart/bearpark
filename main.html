@@ -21446,6 +21446,7 @@ async function voteMeme(memeId) {
   console.log('🎭 Found meme:', meme);
   if (!meme) {
     console.error('❌ Meme not found in currentMemes');
+    alert('DEBUG: Meme not found in currentMemes!');
     return;
   }
 
@@ -21473,6 +21474,11 @@ async function voteMeme(memeId) {
     const data = await response.json();
     console.log('📦 Response data:', data);
 
+    // TEMPORARY DEBUG ALERT
+    if (!response.ok) {
+      alert(`VOTE FAILED!\nStatus: ${response.status}\nError: ${data.error || 'Unknown'}\n\nDID YOU RUN THE SQL SCRIPT IN SUPABASE?`);
+    }
+
     if (!response.ok || !data.success) {
       throw new Error(data.error || 'Failed to vote');
     }
@@ -21497,9 +21503,12 @@ async function voteMeme(memeId) {
     loadLeaderboard();
 
     console.log(data.switched ? '🔄 Vote switched successfully!' : '✅ Vote recorded!');
+
+    // TEMPORARY DEBUG ALERT
+    alert(`✅ VOTE SUCCESS!\nMeme ID: ${memeId}\nNew vote count: ${meme.vote_count}`);
   } catch (error) {
     console.error('❌ Vote error:', error);
-    alert(`Failed to vote: ${error.message}`);
+    alert(`❌ VOTE ERROR!\n${error.message}\n\nCheck if database tables exist in Supabase!`);
   }
 }
 
