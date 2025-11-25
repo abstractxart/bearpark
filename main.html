@@ -8138,6 +8138,93 @@
     z-index: 1;
   }
 
+  /* Bear Heads Floating Animation - BEAR FRIENDS */
+  .bear-heads-container {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .bear-head {
+    position: absolute;
+    width: 100px;
+    height: 100px;
+    pointer-events: auto;
+    cursor: grab;
+    user-select: none;
+    transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    filter: drop-shadow(0 6px 12px rgba(0,0,0,0.4));
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  .bear-head:active {
+    cursor: grabbing;
+  }
+
+  .bear-head:hover {
+    transform: scale(1.2) !important;
+    animation: wiggle 0.5s ease-in-out infinite;
+  }
+
+  /* Bubbly spawn animation */
+  @keyframes bear-spawn {
+    0% {
+      opacity: 0;
+      transform: scale(0) rotate(0deg);
+    }
+    50% {
+      transform: scale(1.3) rotate(180deg);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1) rotate(360deg);
+    }
+  }
+
+  /* Bubbly despawn animation */
+  @keyframes bear-despawn {
+    0% {
+      opacity: 1;
+      transform: scale(1) rotate(0deg);
+    }
+    50% {
+      transform: scale(1.4) rotate(-180deg);
+    }
+    100% {
+      opacity: 0;
+      transform: scale(0) rotate(-360deg);
+    }
+  }
+
+  /* Pulse animation */
+  @keyframes pulse {
+    0%, 100% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.05);
+    }
+  }
+
+  /* Wiggle animation */
+  @keyframes wiggle {
+    0%, 100% {
+      transform: rotate(-5deg) scale(1.2);
+    }
+    50% {
+      transform: rotate(5deg) scale(1.2);
+    }
+  }
+
+  .bear-head.spawning {
+    animation: bear-spawn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+  }
+
+  .bear-head.despawning {
+    animation: bear-despawn 0.5s cubic-bezier(0.6, -0.28, 0.735, 0.045) forwards;
+  }
+
   /* Upload Modal */
   .meme-upload-modal {
     position: fixed;
@@ -9561,7 +9648,9 @@
   </section>
 
   <!-- BEAR FRIENDS -->
-  <section class="alt" id="community">
+  <section class="alt" id="community" style="position: relative; overflow: hidden;">
+    <!-- Floating Bear Heads -->
+    <div class="bear-heads-container"></div>
     <div class="wrap reveal">
       <h2 class="h2">BEAR FRIENDS</h2>
       <p style="text-align:center;margin:-6px 0 32px;">Discover all the BEARs in the park! Search and explore the growing community.</p>
@@ -22099,6 +22188,324 @@ if (typeof window.addEventListener !== 'undefined') {
   })();
   </script>
   <!-- ===== END BEAR TROLL ANIMATION ===== -->
+
+  <!-- 🐻 BEAR HEADS FLOATING ANIMATION - BEAR FRIENDS ===== -->
+  <script>
+  (function() {
+    'use strict';
+
+    const BEAR_IMAGES = [
+      'https://files.catbox.moe/r200gp.png',
+      'https://files.catbox.moe/589p6r.png',
+      'https://files.catbox.moe/yyz3vq.png',
+      'https://files.catbox.moe/zoa3fb.png',
+      'https://files.catbox.moe/pnn9pt.png',
+      'https://files.catbox.moe/hkdkri.png',
+      'https://files.catbox.moe/xbnhl7.png',
+      'https://files.catbox.moe/cld9fy.png',
+      'https://files.catbox.moe/aovok8.png',
+      'https://files.catbox.moe/w9cq2b.png',
+      'https://files.catbox.moe/hqcuoy.png',
+      'https://files.catbox.moe/omd3h3.png',
+      'https://files.catbox.moe/rvj8d0.png',
+      'https://files.catbox.moe/tzufdx.png',
+      'https://files.catbox.moe/bl8tog.png',
+      'https://files.catbox.moe/ohccct.png',
+      'https://files.catbox.moe/5tqgpv.png',
+      'https://files.catbox.moe/59lai6.png',
+      'https://files.catbox.moe/ybzsk2.png',
+      'https://files.catbox.moe/igefo9.png',
+      'https://files.catbox.moe/i40edm.png',
+      'https://files.catbox.moe/h1j81z.png',
+      'https://files.catbox.moe/vhbxp5.png',
+      'https://files.catbox.moe/9zvr1o.png',
+      'https://files.catbox.moe/9o9os7.png',
+      'https://files.catbox.moe/c3ltc5.png',
+      'https://files.catbox.moe/suxp5j.png',
+      'https://files.catbox.moe/kkqyyd.png',
+      'https://files.catbox.moe/wbcxb5.png',
+      'https://files.catbox.moe/3xuks0.png',
+      'https://files.catbox.moe/32tpgd.png',
+      'https://files.catbox.moe/om0rdb.png',
+      'https://files.catbox.moe/greqgo.png',
+      'https://files.catbox.moe/8javcj.png',
+      'https://files.catbox.moe/mr1lk9.png',
+      'https://files.catbox.moe/ldgio9.png',
+      'https://files.catbox.moe/9344fv.png',
+      'https://files.catbox.moe/6i74zc.png',
+      'https://files.catbox.moe/rbtqp1.png',
+      'https://files.catbox.moe/nbb05k.png',
+      'https://files.catbox.moe/ptg9qj.png',
+      'https://files.catbox.moe/6zm638.png',
+      'https://files.catbox.moe/mmew3l.png',
+      'https://files.catbox.moe/f4jnzq.png',
+      'https://files.catbox.moe/ihrh1m.png',
+      'https://files.catbox.moe/1s2f0r.png',
+      'https://files.catbox.moe/4x17oh.png',
+      'https://files.catbox.moe/4jnpdq.png',
+      'https://files.catbox.moe/mzo6zn.png',
+      'https://files.catbox.moe/biihrz.png',
+      'https://files.catbox.moe/jm4rh5.png',
+      'https://files.catbox.moe/17fh0s.png',
+      'https://files.catbox.moe/mxwiet.png',
+      'https://files.catbox.moe/823pds.png',
+      'https://files.catbox.moe/ptgqho.png',
+      'https://files.catbox.moe/uhgfb7.png',
+      'https://files.catbox.moe/ujk28i.png',
+      'https://files.catbox.moe/codjlu.png',
+      'https://files.catbox.moe/4fht2m.png',
+      'https://files.catbox.moe/jm5nuv.png',
+      'https://files.catbox.moe/opsj3v.png',
+      'https://files.catbox.moe/n3m7c7.png',
+      'https://files.catbox.moe/lou30d.png',
+      'https://files.catbox.moe/lp2wpw.png'
+    ];
+
+    const section = document.getElementById('community');
+    if (!section) return;
+
+    const container = section.querySelector('.bear-heads-container');
+    if (!container) return;
+
+    const MAX_BEARS = 10;
+    const activeBears = [];
+    let nextId = 0;
+
+    // Create bear element
+    function createBear() {
+      const bear = {
+        id: nextId++,
+        el: null,
+        x: Math.random() * (section.offsetWidth - 100),
+        y: Math.random() * (section.offsetHeight - 100),
+        vx: (Math.random() - 0.5) * 5,
+        vy: (Math.random() - 0.5) * 5,
+        rotation: Math.random() * 360,
+        rotationSpeed: (Math.random() - 0.5) * 4,
+        scale: 0.7 + Math.random() * 0.6,
+        isDragging: false,
+        lifeTime: 3000 + Math.random() * 4000
+      };
+
+      const img = document.createElement('img');
+      img.src = BEAR_IMAGES[Math.floor(Math.random() * BEAR_IMAGES.length)];
+      img.className = 'bear-head spawning';
+      img.alt = '';
+      img.draggable = false;
+      img.style.transform = `translate(${bear.x}px, ${bear.y}px) rotate(${bear.rotation}deg) scale(${bear.scale})`;
+
+      container.appendChild(img);
+      bear.el = img;
+
+      // Remove spawning class after animation
+      setTimeout(() => {
+        img.classList.remove('spawning');
+      }, 600);
+
+      // Setup drag
+      setupDrag(bear);
+
+      // Schedule despawn
+      bear.despawnTimeout = setTimeout(() => {
+        despawnBear(bear);
+      }, bear.lifeTime);
+
+      return bear;
+    }
+
+    // Despawn bear with animation
+    function despawnBear(bear) {
+      if (!bear.el || !bear.el.parentNode) return;
+
+      bear.el.classList.add('despawning');
+
+      setTimeout(() => {
+        if (bear.el && bear.el.parentNode) {
+          bear.el.remove();
+        }
+        const index = activeBears.indexOf(bear);
+        if (index > -1) activeBears.splice(index, 1);
+      }, 500);
+
+      if (bear.despawnTimeout) {
+        clearTimeout(bear.despawnTimeout);
+      }
+    }
+
+    // Setup drag functionality
+    function setupDrag(bear) {
+      let mouseX = 0, mouseY = 0;
+
+      bear.el.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        bear.isDragging = true;
+        mouseX = e.clientX;
+        mouseY = e.clientY;
+        bear.el.style.transition = 'none';
+        bear.el.style.animation = 'none';
+
+        // Clear despawn timeout while dragging
+        if (bear.despawnTimeout) {
+          clearTimeout(bear.despawnTimeout);
+        }
+      });
+
+      document.addEventListener('mousemove', (e) => {
+        if (!bear.isDragging) return;
+
+        const bounds = section.getBoundingClientRect();
+        const dx = e.clientX - mouseX;
+        const dy = e.clientY - mouseY;
+
+        mouseX = e.clientX;
+        mouseY = e.clientY;
+
+        bear.x += dx;
+        bear.y += dy;
+
+        const width = bounds.width;
+        const height = bounds.height;
+        bear.x = Math.max(0, Math.min(width - 100, bear.x));
+        bear.y = Math.max(0, Math.min(height - 100, bear.y));
+
+        bear.el.style.transform = `translate(${bear.x}px, ${bear.y}px) rotate(${bear.rotation}deg) scale(${bear.scale})`;
+      });
+
+      document.addEventListener('mouseup', () => {
+        if (bear.isDragging) {
+          bear.isDragging = false;
+          bear.el.style.transition = 'transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+          bear.el.style.animation = 'pulse 2s ease-in-out infinite';
+
+          // Fling it!
+          bear.vx = (Math.random() - 0.5) * 8;
+          bear.vy = (Math.random() - 0.5) * 8;
+          bear.rotationSpeed = (Math.random() - 0.5) * 6;
+
+          // Restart despawn timer
+          bear.despawnTimeout = setTimeout(() => {
+            despawnBear(bear);
+          }, 2000 + Math.random() * 3000);
+        }
+      });
+
+      // Touch support
+      bear.el.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        bear.isDragging = true;
+        const touch = e.touches[0];
+        mouseX = touch.clientX;
+        mouseY = touch.clientY;
+        bear.el.style.transition = 'none';
+        bear.el.style.animation = 'none';
+
+        if (bear.despawnTimeout) {
+          clearTimeout(bear.despawnTimeout);
+        }
+      });
+
+      document.addEventListener('touchmove', (e) => {
+        if (!bear.isDragging) return;
+
+        const touch = e.touches[0];
+        const bounds = section.getBoundingClientRect();
+        const dx = touch.clientX - mouseX;
+        const dy = touch.clientY - mouseY;
+
+        mouseX = touch.clientX;
+        mouseY = touch.clientY;
+
+        bear.x += dx;
+        bear.y += dy;
+
+        const width = bounds.width;
+        const height = bounds.height;
+        bear.x = Math.max(0, Math.min(width - 100, bear.x));
+        bear.y = Math.max(0, Math.min(height - 100, bear.y));
+
+        bear.el.style.transform = `translate(${bear.x}px, ${bear.y}px) rotate(${bear.rotation}deg) scale(${bear.scale})`;
+      });
+
+      document.addEventListener('touchend', () => {
+        if (bear.isDragging) {
+          bear.isDragging = false;
+          bear.el.style.transition = 'transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+          bear.el.style.animation = 'pulse 2s ease-in-out infinite';
+
+          bear.vx = (Math.random() - 0.5) * 8;
+          bear.vy = (Math.random() - 0.5) * 8;
+          bear.rotationSpeed = (Math.random() - 0.5) * 6;
+
+          bear.despawnTimeout = setTimeout(() => {
+            despawnBear(bear);
+          }, 2000 + Math.random() * 3000);
+        }
+      });
+    }
+
+    // Animation loop
+    function animate() {
+      const bounds = section.getBoundingClientRect();
+      const width = bounds.width;
+      const height = bounds.height;
+
+      activeBears.forEach(bear => {
+        if (bear.isDragging || !bear.el) return;
+
+        // Update position
+        bear.x += bear.vx;
+        bear.y += bear.vy;
+
+        // Bounce with elasticity
+        if (bear.x <= 0 || bear.x >= width - 100) {
+          bear.vx *= -0.9;
+          bear.vx += (Math.random() - 0.5) * 2;
+          bear.rotationSpeed *= -1;
+        }
+        if (bear.y <= 0 || bear.y >= height - 100) {
+          bear.vy *= -0.9;
+          bear.vy += (Math.random() - 0.5) * 2;
+          bear.rotationSpeed *= -1;
+        }
+
+        bear.x = Math.max(0, Math.min(width - 100, bear.x));
+        bear.y = Math.max(0, Math.min(height - 100, bear.y));
+
+        bear.rotation += bear.rotationSpeed;
+
+        bear.el.style.transform = `translate(${bear.x}px, ${bear.y}px) rotate(${bear.rotation}deg) scale(${bear.scale})`;
+      });
+
+      requestAnimationFrame(animate);
+    }
+
+    // Spawn bears randomly
+    function spawnLoop() {
+      if (activeBears.length < MAX_BEARS && Math.random() < 0.3) {
+        const bear = createBear();
+        activeBears.push(bear);
+      }
+
+      // Random spawn timing (1-3 seconds)
+      setTimeout(spawnLoop, 1000 + Math.random() * 2000);
+    }
+
+    // Start everything
+    animate();
+    spawnLoop();
+
+    // Spawn initial bears
+    for (let i = 0; i < 3; i++) {
+      setTimeout(() => {
+        if (activeBears.length < MAX_BEARS) {
+          const bear = createBear();
+          activeBears.push(bear);
+        }
+      }, i * 500);
+    }
+  })();
+  </script>
+  <!-- ===== END BEAR HEADS ANIMATION ===== -->
 
   <!-- 🐻❄️ COCAINE BEAR PERFORMANCE SCRIPT ===== -->
   <script>
