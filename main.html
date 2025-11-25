@@ -21051,8 +21051,8 @@ function renderCarousel() {
             <button
               class="meme-vote-btn ${hasVoted ? 'voted' : ''}"
               onclick="voteMeme(${meme.id})"
-              ${!walletAddress || isCurrentUser || hasVoted ? 'disabled' : ''}
-              title="${!walletAddress ? 'Connect wallet to vote' : isCurrentUser ? 'Cannot vote for your own meme' : hasVoted ? 'Already voted' : 'Vote for this meme'}"
+              ${!walletAddress || isCurrentUser ? 'disabled' : ''}
+              title="${!walletAddress ? 'Connect wallet to vote' : isCurrentUser ? 'Cannot vote for your own meme' : hasVoted ? 'You voted for this one' : 'Vote for this meme'}"
             >
               <span class="vote-icon">${hasVoted ? '✅' : '⬆️'}</span>
               <span class="vote-count">${meme.vote_count || 0}</span>
@@ -21092,7 +21092,7 @@ function jumpToMeme(memeId) {
   }
 }
 
-// 🗳️ Vote for Meme
+// 🗳️ Vote for Meme (with vote switching support)
 async function voteMeme(memeId) {
   const walletAddress = localStorage.getItem('bearpark_wallet');
   if (!walletAddress) {
@@ -21101,7 +21101,7 @@ async function voteMeme(memeId) {
   }
 
   if (userVotes.has(memeId)) {
-    return; // Already voted
+    return; // Already voted for THIS specific meme
   }
 
   // Find the meme
@@ -21131,15 +21131,32 @@ async function voteMeme(memeId) {
       throw new Error(data.error || 'Failed to vote');
     }
 
-    // Update local state
+    // Handle vote switching
+    if (data.switched && data.oldMemeId) {
+      // Remove old vote from userVotes Set
+      userVotes.delete(data.oldMemeId);
+
+      // Find old meme and decrement its vote count
+      const oldMeme = currentMemes.find(m => m.id === data.oldMemeId);
+      if (oldMeme) {
+        oldMeme.vote_count = Math.max(0, (oldMeme.vote_count || 0) - 1);
+      }
+
+      console.log('🔄 Vote switched from meme', data.oldMemeId, 'to meme', data.newMemeId);
+    }
+
+    // Add new vote to userVotes Set
+    userVotes.clear(); // Clear all votes (user can only have 1 vote per week)
     userVotes.add(memeId);
+
+    // Increment new meme's vote count
     meme.vote_count = (meme.vote_count || 0) + 1;
 
     // Re-render
     renderCarousel();
     loadLeaderboard();
 
-    console.log('✅ Vote recorded!');
+    console.log(data.switched ? '🔄 Vote switched successfully!' : '✅ Vote recorded!');
   } catch (error) {
     console.error('❌ Vote error:', error);
     alert(`Failed to vote: ${error.message}`);
