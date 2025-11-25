@@ -21231,7 +21231,7 @@ async function initMemeOfTheWeek() {
     const dropZone = document.getElementById('meme-dropzone');
     const fileInput = document.getElementById('meme-file-input');
 
-    dropZone?.addEventListener('click', () => fileInput?.click());
+    // Don't add click listener to dropzone - buttons handle it
 
     dropZone?.addEventListener('dragover', (e) => {
       e.preventDefault();
@@ -21781,6 +21781,13 @@ function handleMemeFileSelect(file) {
 
   // Store file reference
   window.selectedMemeFile = file;
+
+  // Update browse button text to show file selected
+  const browseBtn = document.querySelector('.browse-btn');
+  if (browseBtn) {
+    browseBtn.textContent = isVideo ? '✅ VIDEO SELECTED' : '✅ IMAGE SELECTED';
+    browseBtn.style.background = 'linear-gradient(135deg, #4ade80 0%, #22c55e 100%)';
+  }
 
   // Enable submit button
   const submitBtn = document.getElementById('meme-submit-btn');
