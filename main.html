@@ -21015,21 +21015,6 @@ function renderCarousel() {
     const isCurrentUser = walletAddress && meme.wallet_address.toLowerCase() === walletAddress.toLowerCase();
     const isVideo = meme.image_url.match(/\.(mp4|webm|mov|avi|mpeg)$/i);
 
-    // Parse avatar NFT
-    let avatarUrl = 'https://files.catbox.moe/1z14d9.jpg';
-    if (meme.avatar_nft) {
-      try {
-        const avatarData = typeof meme.avatar_nft === 'string' ? JSON.parse(meme.avatar_nft) : meme.avatar_nft;
-        avatarUrl = avatarData.imageUrl || avatarData.fallbackImageUrl || avatarUrl;
-      } catch (e) {
-        console.error('Failed to parse avatar_nft:', e);
-      }
-    }
-
-    // Build avatar HTML with ring
-    const equippedRing = meme.equipped_ring;
-    const ringHTML = equippedRing ? `<img src="${equippedRing.image_url}" class="meme-cosmetic-ring ${equippedRing.ring_type}" alt="${equippedRing.name}" style="${equippedRing.rarity === 'bearableguy123' ? 'animation: spinRingImage 3s linear infinite !important;' : ''}">` : '';
-
     return `
       <div class="meme-slide ${index === currentSlide ? 'active' : ''}" data-slide="${index}">
         <div class="meme-image-container">
@@ -21040,10 +21025,7 @@ function renderCarousel() {
         </div>
         <div class="meme-info">
           <div class="meme-author">
-            <div class="meme-avatar-container">
-              <img src="${avatarUrl}" alt="${meme.username || 'Anonymous'}" class="meme-avatar" onerror="this.src='https://files.catbox.moe/1z14d9.jpg';">
-              ${ringHTML}
-            </div>
+            <img src="${meme.avatar_url || 'https://files.catbox.moe/1z14d9.jpg'}" alt="${meme.username || 'Anonymous'}" class="meme-avatar">
             <span class="meme-username">${meme.username || 'Anonymous'}</span>
           </div>
           ${meme.caption ? `<p class="meme-caption">${escapeHtml(meme.caption)}</p>` : ''}
@@ -21051,8 +21033,8 @@ function renderCarousel() {
             <button
               class="meme-vote-btn ${hasVoted ? 'voted' : ''}"
               onclick="voteMeme(${meme.id})"
-              ${!walletAddress || isCurrentUser ? 'disabled' : ''}
-              title="${!walletAddress ? 'Connect wallet to vote' : isCurrentUser ? 'Cannot vote for your own meme' : hasVoted ? 'You voted for this one' : 'Vote for this meme'}"
+              ${!walletAddress || isCurrentUser || hasVoted ? 'disabled' : ''}
+              title="${!walletAddress ? 'Connect wallet to vote' : isCurrentUser ? 'Cannot vote for your own meme' : hasVoted ? 'Already voted' : 'Vote for this meme'}"
             >
               <span class="vote-icon">${hasVoted ? '✅' : '⬆️'}</span>
               <span class="vote-count">${meme.vote_count || 0}</span>
@@ -21081,18 +21063,7 @@ function nextMemeSlide() {
   }
 }
 
-// 🎯 Jump to Meme from Leaderboard
-function jumpToMeme(memeId) {
-  const memeIndex = currentMemes.findIndex(m => m.id === memeId);
-  if (memeIndex !== -1) {
-    currentSlide = memeIndex;
-    renderCarousel();
-    // Scroll to carousel
-    document.querySelector('.meme-carousel')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }
-}
-
-// 🗳️ Vote for Meme (with vote switching support)
+// 🗳️ Vote for Meme
 async function voteMeme(memeId) {
   const walletAddress = localStorage.getItem('bearpark_wallet');
   if (!walletAddress) {
@@ -21100,8 +21071,10 @@ async function voteMeme(memeId) {
     return;
   }
 
+  // If user already voted for THIS meme, unvote it
   if (userVotes.has(memeId)) {
-    return; // Already voted for THIS specific meme
+    await unvoteMeme(memeId);
+    return;
   }
 
   // Find the meme
@@ -21133,23 +21106,17 @@ async function voteMeme(memeId) {
 
     // Handle vote switching
     if (data.switched && data.oldMemeId) {
-      // Remove old vote from userVotes Set
       userVotes.delete(data.oldMemeId);
-
-      // Find old meme and decrement its vote count
       const oldMeme = currentMemes.find(m => m.id === data.oldMemeId);
       if (oldMeme) {
         oldMeme.vote_count = Math.max(0, (oldMeme.vote_count || 0) - 1);
       }
-
       console.log('🔄 Vote switched from meme', data.oldMemeId, 'to meme', data.newMemeId);
     }
 
-    // Add new vote to userVotes Set
-    userVotes.clear(); // Clear all votes (user can only have 1 vote per week)
+    // Add new vote
+    userVotes.clear();
     userVotes.add(memeId);
-
-    // Increment new meme's vote count
     meme.vote_count = (meme.vote_count || 0) + 1;
 
     // Re-render
@@ -21160,6 +21127,50 @@ async function voteMeme(memeId) {
   } catch (error) {
     console.error('❌ Vote error:', error);
     alert(`Failed to vote: ${error.message}`);
+  }
+}
+
+// 🗳️ Unvote (remove vote from a meme)
+async function unvoteMeme(memeId) {
+  const walletAddress = localStorage.getItem('bearpark_wallet');
+  if (!walletAddress) {
+    alert('Please connect your wallet!');
+    return;
+  }
+
+  // Find the meme
+  const meme = currentMemes.find(m => m.id === memeId);
+  if (!meme) return;
+
+  try {
+    const response = await fetch(`/api/memes/${memeId}/vote`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        wallet_address: walletAddress
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      throw new Error(data.error || 'Failed to remove vote');
+    }
+
+    // Remove vote from local state
+    userVotes.delete(memeId);
+    meme.vote_count = Math.max(0, (meme.vote_count || 0) - 1);
+
+    // Re-render
+    renderCarousel();
+    loadLeaderboard();
+
+    console.log('❌ Vote removed!');
+  } catch (error) {
+    console.error('❌ Unvote error:', error);
+    alert(`Failed to remove vote: ${error.message}`);
   }
 }
 
@@ -21182,48 +21193,22 @@ async function loadLeaderboard() {
     const medals = ['🥇', '🥈', '🥉'];
     const rewards = [50, 35, 20];
 
-    container.innerHTML = data.leaderboard.map((meme, index) => {
-      // Parse avatar NFT
-      let avatarUrl = 'https://files.catbox.moe/1z14d9.jpg';
-      if (meme.avatar_nft) {
-        try {
-          const avatarData = typeof meme.avatar_nft === 'string' ? JSON.parse(meme.avatar_nft) : meme.avatar_nft;
-          avatarUrl = avatarData.imageUrl || avatarData.fallbackImageUrl || avatarUrl;
-        } catch (e) {
-          console.error('Failed to parse avatar_nft:', e);
-        }
-      }
-
-      // Build avatar HTML with ring
-      const equippedRing = meme.equipped_ring;
-      const ringHTML = equippedRing ? `<img src="${equippedRing.image_url}" class="leaderboard-cosmetic-ring ${equippedRing.ring_type}" alt="${equippedRing.name}" style="${equippedRing.rarity === 'bearableguy123' ? 'animation: spinRingImage 3s linear infinite !important;' : ''}">` : '';
-
-      // Check if meme is a video
-      const isVideo = meme.image_url.match(/\.(mp4|webm|mov|avi|mpeg)$/i);
-
-      return `
-        <div class="leaderboard-item" onclick="jumpToMeme(${meme.id})">
-          <div class="leaderboard-rank">${medals[index] || `#${index + 1}`}</div>
-          ${isVideo ?
-            `<video src="${meme.image_url}" class="leaderboard-meme-thumb" style="object-fit: cover;"></video>` :
-            `<img src="${meme.image_url}" alt="Meme" class="leaderboard-meme-thumb">`
-          }
-          <div class="leaderboard-info">
-            <div class="leaderboard-user">
-              <div class="leaderboard-avatar-container">
-                <img src="${avatarUrl}" alt="${meme.username || 'Anonymous'}" class="leaderboard-avatar" onerror="this.src='https://files.catbox.moe/1z14d9.jpg';">
-                ${ringHTML}
-              </div>
-              <span class="leaderboard-username">${meme.username || 'Anonymous'}</span>
-            </div>
-            <div class="leaderboard-stats">
-              <span class="leaderboard-votes">⬆️ ${meme.vote_count || 0}</span>
-              ${index < 3 ? `<span class="leaderboard-reward">+${rewards[index]} 🍯</span>` : ''}
-            </div>
+    container.innerHTML = data.leaderboard.map((meme, index) => `
+      <div class="leaderboard-item">
+        <div class="leaderboard-rank">${medals[index] || `#${index + 1}`}</div>
+        <img src="${meme.image_url}" alt="Meme" class="leaderboard-meme-thumb">
+        <div class="leaderboard-info">
+          <div class="leaderboard-user">
+            <img src="${meme.avatar_url || 'https://files.catbox.moe/1z14d9.jpg'}" alt="${meme.username || 'Anonymous'}" class="leaderboard-avatar">
+            <span class="leaderboard-username">${meme.username || 'Anonymous'}</span>
+          </div>
+          <div class="leaderboard-stats">
+            <span class="leaderboard-votes">⬆️ ${meme.vote_count || 0}</span>
+            ${index < 3 ? `<span class="leaderboard-reward">+${rewards[index]} 🍯</span>` : ''}
           </div>
         </div>
-      `;
-    }).join('');
+      </div>
+    `).join('');
 
   } catch (error) {
     console.error('❌ Failed to load leaderboard:', error);
