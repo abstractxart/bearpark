@@ -7787,30 +7787,30 @@
     transform: translate(-50%, -50%);
     pointer-events: none;
     z-index: 1;
-    aspect-ratio: 1 / 1;
-    object-fit: contain;
+    width: auto !important;
+    height: auto !important;
   }
 
   .meme-cosmetic-ring.castle,
   .meme-cosmetic-ring.castle-static {
-    width: 72px !important;
-    height: 72px !important;
+    max-width: 72px !important;
+    max-height: 72px !important;
   }
 
   .meme-cosmetic-ring.ouroboros {
-    width: 65px !important;
-    height: 65px !important;
+    max-width: 65px !important;
+    max-height: 65px !important;
   }
 
   .meme-cosmetic-ring.waves,
   .meme-cosmetic-ring.waves-static {
-    width: 57px !important;
-    height: 57px !important;
+    max-width: 57px !important;
+    max-height: 57px !important;
   }
 
   .meme-cosmetic-ring:not(.castle):not(.castle-static):not(.ouroboros):not(.waves):not(.waves-static) {
-    width: 60px !important;
-    height: 60px !important;
+    max-width: 60px !important;
+    max-height: 60px !important;
   }
 
   .meme-username {
