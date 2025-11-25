@@ -21423,6 +21423,9 @@ function nextMemeSlide() {
 
 // 🗳️ Vote for Meme
 async function voteMeme(memeId) {
+  // IMMEDIATE ALERT TO CONFIRM FUNCTION IS CALLED
+  alert(`🗳️ VOTE BUTTON CLICKED!\nMeme ID: ${memeId}`);
+
   console.log('🗳️ voteMeme called for meme ID:', memeId);
   console.log('📋 Current userVotes:', Array.from(userVotes));
 
