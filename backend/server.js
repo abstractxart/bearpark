@@ -4881,36 +4881,39 @@ app.post('/api/memes/:id/vote', async (req, res) => {
       });
     }
 
-    // Check if user already voted for THIS specific meme
-    const { data: existingVote, error: checkError } = await supabase
-      .from('meme_votes')
-      .select('id')
-      .eq('meme_id', id)
-      .eq('wallet_address', wallet_address)
-      .single();
+    console.log('🗳️ Vote request for meme', id, 'from wallet', wallet_address);
 
-    if (existingVote) {
-      return res.status(400).json({
-        success: false,
-        error: 'You have already voted for this meme!'
-      });
-    }
-
-    // Check if user voted for a DIFFERENT meme this week (vote switching)
+    // Check if user has ANY vote this week (for vote switching)
     const { data: previousVote, error: prevCheckError } = await supabase
       .from('meme_votes')
       .select('id, meme_id')
       .eq('wallet_address', wallet_address)
       .eq('week_id', meme.week_id)
-      .single();
+      .maybeSingle();
+
+    console.log('🔍 Previous vote found:', previousVote);
 
     let switched = false;
     let oldMemeId = null;
 
-    // If user has a previous vote for a different meme, remove it
+    // If user already voted for THIS same meme, do nothing (already voted)
+    if (previousVote && previousVote.meme_id === parseInt(id)) {
+      console.log('⚠️ User already voted for this meme, no action needed');
+      return res.json({
+        success: true,
+        message: 'Already voted for this meme',
+        switched: false,
+        alreadyVoted: true,
+        memeId: parseInt(id)
+      });
+    }
+
+    // If user has a previous vote for a DIFFERENT meme, remove it (vote switching)
     if (previousVote && previousVote.meme_id !== parseInt(id)) {
       oldMemeId = previousVote.meme_id;
       switched = true;
+
+      console.log('🔄 Switching vote from meme', oldMemeId, 'to meme', id);
 
       // Delete old vote
       const { error: deleteError } = await supabase
@@ -4918,15 +4921,12 @@ app.post('/api/memes/:id/vote', async (req, res) => {
         .delete()
         .eq('id', previousVote.id);
 
-      if (deleteError) throw deleteError;
+      if (deleteError) {
+        console.error('❌ Failed to delete old vote:', deleteError);
+        throw deleteError;
+      }
 
       // Decrement old meme's vote count
-      const { error: decrementError } = await supabase
-        .from('memes')
-        .update({ vote_count: supabase.rpc('vote_count') - 1 })
-        .eq('id', oldMemeId);
-
-      // Better way: direct decrement
       const { data: oldMeme } = await supabase
         .from('memes')
         .select('vote_count')
@@ -4941,6 +4941,8 @@ app.post('/api/memes/:id/vote', async (req, res) => {
       }
     }
 
+    console.log('➕ Inserting new vote for meme', id);
+
     // Insert new vote
     const { error: voteError } = await supabase
       .from('meme_votes')
@@ -4950,14 +4952,22 @@ app.post('/api/memes/:id/vote', async (req, res) => {
         week_id: meme.week_id
       });
 
-    if (voteError) throw voteError;
+    if (voteError) {
+      console.error('❌ Failed to insert vote:', voteError);
+      throw voteError;
+    }
 
     // Increment new meme's vote count
     const { error: updateError } = await supabase.rpc('increment_meme_votes', {
       meme_id: id
     });
 
-    if (updateError) throw updateError;
+    if (updateError) {
+      console.error('❌ Failed to increment vote count:', updateError);
+      throw updateError;
+    }
+
+    console.log('✅ Vote recorded successfully');
 
     res.json({
       success: true,
