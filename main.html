@@ -4976,224 +4976,6 @@
     box-shadow: var(--elevation-3-glass);
   }
 
-  /* 🔥 GLASSMORPHISM FOR ALL CARD TYPES 🔥 */
-
-  /* Leaderboard Cards */
-  .leaderboard-card {
-    background: var(--glass-bg) !important;
-    backdrop-filter: var(--glass-blur);
-    -webkit-backdrop-filter: var(--glass-blur);
-    border: 1px solid var(--glass-border) !important;
-    box-shadow: var(--elevation-2-glass);
-    transition: all 0.4s var(--spring-butter);
-    will-change: var(--will-change-transform);
-    transform: var(--transform-gpu);
-  }
-  .leaderboard-card:hover {
-    background: var(--glass-bg-heavy) !important;
-    backdrop-filter: var(--glass-blur-heavy);
-    -webkit-backdrop-filter: var(--glass-blur-heavy);
-    border-color: var(--glass-border-hover) !important;
-    box-shadow: var(--elevation-4-glass);
-    transform: translateY(-4px) var(--transform-gpu);
-  }
-
-  /* Game Cards - Add glass background to inner divs */
-  .game-card a > div {
-    background: var(--glass-bg);
-    backdrop-filter: var(--glass-blur);
-    -webkit-backdrop-filter: var(--glass-blur);
-    border: 1px solid var(--glass-border);
-    box-shadow: var(--elevation-2-glass);
-    transition: all 0.4s var(--spring-butter);
-    will-change: var(--will-change-transform);
-    transform: var(--transform-gpu);
-  }
-  .game-card:hover a > div {
-    background: var(--glass-bg-heavy);
-    backdrop-filter: var(--glass-blur-heavy);
-    -webkit-backdrop-filter: var(--glass-blur-heavy);
-    border-color: var(--glass-border-hover);
-    box-shadow: var(--elevation-5-glass), var(--glow-gold);
-  }
-
-  /* Bulletin Post Cards */
-  .bulletin-post-card {
-    background: var(--glass-bg) !important;
-    backdrop-filter: var(--glass-blur);
-    -webkit-backdrop-filter: var(--glass-blur);
-    border: 2px solid var(--glass-border) !important;
-    box-shadow: var(--elevation-2-glass);
-    transition: all 0.3s var(--spring-butter);
-    will-change: var(--will-change-transform);
-    transform: var(--transform-gpu);
-  }
-  .bulletin-post-card:hover {
-    background: var(--glass-bg-heavy) !important;
-    backdrop-filter: var(--glass-blur-heavy);
-    -webkit-backdrop-filter: var(--glass-blur-heavy);
-    border-color: var(--glass-border-hover) !important;
-    box-shadow: var(--elevation-4-glass), var(--glow-honey);
-  }
-
-  /* Community User Cards (BEAR FRIENDS section) */
-  .community-user-card {
-    background: var(--glass-bg) !important;
-    background-image: none !important;
-    backdrop-filter: var(--glass-blur);
-    -webkit-backdrop-filter: var(--glass-blur);
-    border: 3px solid var(--glass-border) !important;
-    background-origin: padding-box;
-    background-clip: padding-box;
-    box-shadow: var(--elevation-2-glass);
-    transition: all 0.35s var(--spring-butter);
-    will-change: var(--will-change-transform);
-    transform: var(--transform-gpu);
-  }
-  .community-user-card:hover {
-    background: var(--glass-bg-heavy) !important;
-    backdrop-filter: var(--glass-blur-heavy);
-    -webkit-backdrop-filter: var(--glass-blur-heavy);
-    border-color: var(--glass-border-hover) !important;
-    box-shadow: var(--elevation-4-glass), var(--glow-gold);
-  }
-
-  /* Bear User Cards */
-  .bear-user-card {
-    background: var(--glass-bg) !important;
-    backdrop-filter: var(--glass-blur);
-    -webkit-backdrop-filter: var(--glass-blur);
-    border: 3px solid var(--glass-border) !important;
-    box-shadow: var(--elevation-2-glass);
-    transition: all 0.3s var(--spring-butter);
-    will-change: var(--will-change-transform);
-    transform: var(--transform-gpu);
-  }
-  .bear-user-card:hover {
-    background: var(--glass-bg-heavy) !important;
-    backdrop-filter: var(--glass-blur-heavy);
-    -webkit-backdrop-filter: var(--glass-blur-heavy);
-    border-color: var(--glass-border-hover) !important;
-    box-shadow: var(--elevation-4-glass), var(--glow-gold);
-  }
-
-  /* Meme of the Week Container */
-  .meme-leaderboard {
-    background: var(--glass-bg);
-    backdrop-filter: var(--glass-blur);
-    -webkit-backdrop-filter: var(--glass-blur);
-    border: 1px solid var(--glass-border);
-    box-shadow: var(--elevation-2-glass);
-    border-radius: 16px;
-    padding: 20px;
-    transition: all 0.3s var(--spring-butter);
-  }
-
-  /* Modal Containers */
-  .modal-container {
-    background: var(--glass-bg-heavy) !important;
-    backdrop-filter: var(--glass-blur-heavy);
-    -webkit-backdrop-filter: var(--glass-blur-heavy);
-    border: 4px solid var(--glass-border) !important;
-    box-shadow: var(--elevation-5-glass), var(--glow-tri);
-  }
-
-  .profile-modal-content {
-    background: var(--glass-bg-heavy) !important;
-    background-image: none !important;
-    backdrop-filter: var(--glass-blur-heavy);
-    -webkit-backdrop-filter: var(--glass-blur-heavy);
-    border: 4px solid var(--glass-border) !important;
-    box-shadow: var(--elevation-5-glass), var(--glow-tri);
-  }
-
-  .bulletin-modal-content {
-    background: var(--glass-bg-heavy) !important;
-    backdrop-filter: var(--glass-blur-heavy);
-    -webkit-backdrop-filter: var(--glass-blur-heavy);
-    border: 3px solid var(--glass-border-hover) !important;
-    box-shadow: var(--elevation-5-glass), var(--glow-gold);
-  }
-
-  /* Store Modal (already has glass from earlier, but ensure consistency) */
-  .store-modal-content {
-    backdrop-filter: var(--glass-blur-heavy);
-    -webkit-backdrop-filter: var(--glass-blur-heavy);
-  }
-
-  /* Primary Buttons - Glass Enhancement */
-  button.btn, .btn, button[class*="btn-"] {
-    backdrop-filter: var(--glass-blur-light);
-    -webkit-backdrop-filter: var(--glass-blur-light);
-    transition: all 0.3s var(--spring-butter);
-  }
-  button.btn:hover, .btn:hover, button[class*="btn-"]:hover:not(:disabled) {
-    backdrop-filter: var(--glass-blur);
-    -webkit-backdrop-filter: var(--glass-blur);
-    box-shadow: var(--elevation-3-glass);
-    transform: translateY(-2px) var(--transform-gpu);
-  }
-
-  /* Input Fields - Glass Enhancement */
-  input[type="text"],
-  input[type="email"],
-  input[type="password"],
-  input[type="search"],
-  textarea,
-  select {
-    background: var(--glass-bg-light) !important;
-    backdrop-filter: var(--glass-blur-light);
-    -webkit-backdrop-filter: var(--glass-blur-light);
-    border: 1px solid var(--glass-border) !important;
-    transition: all 0.3s var(--spring-smooth);
-  }
-  input[type="text"]:focus,
-  input[type="email"]:focus,
-  input[type="password"]:focus,
-  input[type="search"]:focus,
-  textarea:focus,
-  select:focus {
-    background: var(--glass-bg) !important;
-    backdrop-filter: var(--glass-blur);
-    -webkit-backdrop-filter: var(--glass-blur);
-    border-color: var(--glass-border-hover) !important;
-    box-shadow: var(--elevation-2-glass), var(--glow-honey);
-  }
-
-  /* Leaderboard Items - Glass Enhancement */
-  .leaderboard-item {
-    background: var(--glass-bg-light);
-    backdrop-filter: var(--glass-blur-light);
-    -webkit-backdrop-filter: var(--glass-blur-light);
-    border: 1px solid var(--glass-border);
-    transition: all 0.3s var(--spring-butter);
-  }
-  .leaderboard-item:hover {
-    background: var(--glass-bg);
-    backdrop-filter: var(--glass-blur);
-    -webkit-backdrop-filter: var(--glass-blur);
-    border-color: var(--glass-border-hover);
-    box-shadow: var(--elevation-2-glass);
-    transform: translateX(4px) var(--transform-gpu);
-  }
-
-  /* Raid Cards - Glass Enhancement */
-  .raid-card {
-    background: var(--glass-bg) !important;
-    backdrop-filter: var(--glass-blur);
-    -webkit-backdrop-filter: var(--glass-blur);
-    border: 1px solid var(--glass-border) !important;
-    box-shadow: var(--elevation-2-glass);
-    transition: all 0.3s var(--spring-butter);
-  }
-  .raid-card:hover {
-    background: var(--glass-bg-heavy) !important;
-    backdrop-filter: var(--glass-blur-heavy);
-    -webkit-backdrop-filter: var(--glass-blur-heavy);
-    border-color: var(--glass-border-hover) !important;
-    box-shadow: var(--elevation-4-glass), var(--glow-gold);
-  }
-
   .honey-card-title{
     margin:0 0 16px 0;
     font-size:22px;
@@ -9328,6 +9110,226 @@
     }
   }
   /* ===== END MEME OF THE WEEK STYLES ===== */
+
+  /* 🔥🔥🔥 ULTIMATE GLASSMORPHISM OVERRIDES - MUST BE LAST! 🔥🔥🔥 */
+
+  /* Leaderboard Cards */
+  .leaderboard-card {
+    background: var(--glass-bg) !important;
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border) !important;
+    box-shadow: var(--elevation-2-glass);
+    transition: all 0.4s var(--spring-butter);
+    will-change: var(--will-change-transform);
+    transform: var(--transform-gpu);
+  }
+  .leaderboard-card:hover {
+    background: var(--glass-bg-heavy) !important;
+    backdrop-filter: var(--glass-blur-heavy);
+    -webkit-backdrop-filter: var(--glass-blur-heavy);
+    border-color: var(--glass-border-hover) !important;
+    box-shadow: var(--elevation-4-glass);
+    transform: translateY(-4px) var(--transform-gpu);
+  }
+
+  /* Game Cards - Add glass background to inner divs */
+  .game-card a > div {
+    background: var(--glass-bg) !important;
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border) !important;
+    box-shadow: var(--elevation-2-glass);
+    transition: all 0.4s var(--spring-butter);
+    will-change: var(--will-change-transform);
+    transform: var(--transform-gpu);
+  }
+  .game-card:hover a > div {
+    background: var(--glass-bg-heavy) !important;
+    backdrop-filter: var(--glass-blur-heavy);
+    -webkit-backdrop-filter: var(--glass-blur-heavy);
+    border-color: var(--glass-border-hover) !important;
+    box-shadow: var(--elevation-5-glass), var(--glow-gold);
+  }
+
+  /* Bulletin Post Cards */
+  .bulletin-post-card {
+    background: var(--glass-bg) !important;
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 2px solid var(--glass-border) !important;
+    box-shadow: var(--elevation-2-glass);
+    transition: all 0.3s var(--spring-butter);
+    will-change: var(--will-change-transform);
+    transform: var(--transform-gpu);
+  }
+  .bulletin-post-card:hover {
+    background: var(--glass-bg-heavy) !important;
+    backdrop-filter: var(--glass-blur-heavy);
+    -webkit-backdrop-filter: var(--glass-blur-heavy);
+    border-color: var(--glass-border-hover) !important;
+    box-shadow: var(--elevation-4-glass), var(--glow-honey);
+  }
+
+  /* Community User Cards (BEAR FRIENDS section) */
+  .community-user-card {
+    background: var(--glass-bg) !important;
+    background-image: none !important;
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 3px solid var(--glass-border) !important;
+    background-origin: padding-box;
+    background-clip: padding-box;
+    box-shadow: var(--elevation-2-glass);
+    transition: all 0.35s var(--spring-butter);
+    will-change: var(--will-change-transform);
+    transform: var(--transform-gpu);
+  }
+  .community-user-card:hover {
+    background: var(--glass-bg-heavy) !important;
+    backdrop-filter: var(--glass-blur-heavy);
+    -webkit-backdrop-filter: var(--glass-blur-heavy);
+    border-color: var(--glass-border-hover) !important;
+    box-shadow: var(--elevation-4-glass), var(--glow-gold);
+  }
+
+  /* Bear User Cards */
+  .bear-user-card {
+    background: var(--glass-bg) !important;
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 3px solid var(--glass-border) !important;
+    box-shadow: var(--elevation-2-glass);
+    transition: all 0.3s var(--spring-butter);
+    will-change: var(--will-change-transform);
+    transform: var(--transform-gpu);
+  }
+  .bear-user-card:hover {
+    background: var(--glass-bg-heavy) !important;
+    backdrop-filter: var(--glass-blur-heavy);
+    -webkit-backdrop-filter: var(--glass-blur-heavy);
+    border-color: var(--glass-border-hover) !important;
+    box-shadow: var(--elevation-4-glass), var(--glow-gold);
+  }
+
+  /* Meme of the Week Container */
+  .meme-leaderboard {
+    background: var(--glass-bg) !important;
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border) !important;
+    box-shadow: var(--elevation-2-glass);
+    border-radius: 16px;
+    padding: 20px;
+    transition: all 0.3s var(--spring-butter);
+  }
+
+  /* Modal Containers */
+  .modal-container {
+    background: var(--glass-bg-heavy) !important;
+    backdrop-filter: var(--glass-blur-heavy);
+    -webkit-backdrop-filter: var(--glass-blur-heavy);
+    border: 4px solid var(--glass-border) !important;
+    box-shadow: var(--elevation-5-glass), var(--glow-tri);
+  }
+
+  .profile-modal-content {
+    background: var(--glass-bg-heavy) !important;
+    background-image: none !important;
+    backdrop-filter: var(--glass-blur-heavy);
+    -webkit-backdrop-filter: var(--glass-blur-heavy);
+    border: 4px solid var(--glass-border) !important;
+    box-shadow: var(--elevation-5-glass), var(--glow-tri);
+  }
+
+  .bulletin-modal-content {
+    background: var(--glass-bg-heavy) !important;
+    backdrop-filter: var(--glass-blur-heavy);
+    -webkit-backdrop-filter: var(--glass-blur-heavy);
+    border: 3px solid var(--glass-border-hover) !important;
+    box-shadow: var(--elevation-5-glass), var(--glow-gold);
+  }
+
+  /* Store Modal (already has glass from earlier, but ensure consistency) */
+  .store-modal-content {
+    backdrop-filter: var(--glass-blur-heavy) !important;
+    -webkit-backdrop-filter: var(--glass-blur-heavy) !important;
+  }
+
+  /* Primary Buttons - Glass Enhancement */
+  button.btn, .btn, button[class*="btn-"] {
+    backdrop-filter: var(--glass-blur-light) !important;
+    -webkit-backdrop-filter: var(--glass-blur-light) !important;
+    transition: all 0.3s var(--spring-butter);
+  }
+  button.btn:hover, .btn:hover, button[class*="btn-"]:hover:not(:disabled) {
+    backdrop-filter: var(--glass-blur) !important;
+    -webkit-backdrop-filter: var(--glass-blur) !important;
+    box-shadow: var(--elevation-3-glass);
+    transform: translateY(-2px) var(--transform-gpu);
+  }
+
+  /* Input Fields - Glass Enhancement */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="search"],
+  textarea,
+  select {
+    background: var(--glass-bg-light) !important;
+    backdrop-filter: var(--glass-blur-light) !important;
+    -webkit-backdrop-filter: var(--glass-blur-light) !important;
+    border: 1px solid var(--glass-border) !important;
+    transition: all 0.3s var(--spring-smooth);
+  }
+  input[type="text"]:focus,
+  input[type="email"]:focus,
+  input[type="password"]:focus,
+  input[type="search"]:focus,
+  textarea:focus,
+  select:focus {
+    background: var(--glass-bg) !important;
+    backdrop-filter: var(--glass-blur) !important;
+    -webkit-backdrop-filter: var(--glass-blur) !important;
+    border-color: var(--glass-border-hover) !important;
+    box-shadow: var(--elevation-2-glass), var(--glow-honey);
+  }
+
+  /* Leaderboard Items - Glass Enhancement */
+  .leaderboard-item {
+    background: var(--glass-bg-light) !important;
+    backdrop-filter: var(--glass-blur-light) !important;
+    -webkit-backdrop-filter: var(--glass-blur-light) !important;
+    border: 1px solid var(--glass-border) !important;
+    transition: all 0.3s var(--spring-butter);
+  }
+  .leaderboard-item:hover {
+    background: var(--glass-bg) !important;
+    backdrop-filter: var(--glass-blur) !important;
+    -webkit-backdrop-filter: var(--glass-blur) !important;
+    border-color: var(--glass-border-hover) !important;
+    box-shadow: var(--elevation-2-glass);
+    transform: translateX(4px) var(--transform-gpu);
+  }
+
+  /* Raid Cards - Glass Enhancement */
+  .raid-card {
+    background: var(--glass-bg) !important;
+    backdrop-filter: var(--glass-blur) !important;
+    -webkit-backdrop-filter: var(--glass-blur) !important;
+    border: 1px solid var(--glass-border) !important;
+    box-shadow: var(--elevation-2-glass);
+    transition: all 0.3s var(--spring-butter);
+  }
+  .raid-card:hover {
+    background: var(--glass-bg-heavy) !important;
+    backdrop-filter: var(--glass-blur-heavy) !important;
+    -webkit-backdrop-filter: var(--glass-blur-heavy) !important;
+    border-color: var(--glass-border-hover) !important;
+    box-shadow: var(--elevation-4-glass), var(--glow-gold);
+  }
+
+  /* ===== END GLASSMORPHISM OVERRIDES ===== */
 
   </style>
 
