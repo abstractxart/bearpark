@@ -4976,7 +4976,9 @@ app.post('/api/memes/:id/vote', async (req, res) => {
 app.delete('/api/memes/:id/vote', async (req, res) => {
   try {
     const { id } = req.params;
-    const { wallet_address } = req.body;
+    const wallet_address = req.query.wallet_address || req.body.wallet_address;
+
+    console.log('🗑️ Unvote request:', { meme_id: id, wallet_address });
 
     if (!wallet_address) {
       return res.status(400).json({ success: false, error: 'Wallet address required' });
@@ -4988,22 +4990,31 @@ app.delete('/api/memes/:id/vote', async (req, res) => {
       .select('id, week_id')
       .eq('meme_id', id)
       .eq('wallet_address', wallet_address)
-      .single();
+      .maybeSingle();
+
+    console.log('🔍 Found existing vote:', existingVote);
 
     if (!existingVote) {
+      console.log('⚠️ No vote found to delete');
       return res.status(400).json({
         success: false,
         error: 'You have not voted for this meme!'
       });
     }
 
-    // Delete the vote
-    const { error: deleteError } = await supabase
+    // Delete the vote directly by meme_id and wallet_address
+    const { error: deleteError, count } = await supabase
       .from('meme_votes')
       .delete()
-      .eq('id', existingVote.id);
+      .eq('meme_id', id)
+      .eq('wallet_address', wallet_address);
 
-    if (deleteError) throw deleteError;
+    if (deleteError) {
+      console.error('❌ Delete error:', deleteError);
+      throw deleteError;
+    }
+
+    console.log('✅ Vote deleted from database');
 
     // Decrement meme's vote count
     const { data: meme } = await supabase
@@ -5013,10 +5024,13 @@ app.delete('/api/memes/:id/vote', async (req, res) => {
       .single();
 
     if (meme) {
+      const newCount = Math.max(0, meme.vote_count - 1);
       await supabase
         .from('memes')
-        .update({ vote_count: Math.max(0, meme.vote_count - 1) })
+        .update({ vote_count: newCount })
         .eq('id', id);
+
+      console.log(`📉 Vote count updated: ${meme.vote_count} -> ${newCount}`);
     }
 
     res.json({
