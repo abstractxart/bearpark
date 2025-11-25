@@ -4829,22 +4829,44 @@ app.post('/api/memes/submit', upload.single('file'), async (req, res) => {
 
     if (memeError) throw memeError;
 
-    // Award 50 honey points for submission
-    const { error: pointsError } = await supabase.rpc('add_honey_points', {
-      p_wallet_address: wallet_address,
-      p_amount: 50,
-      p_source: 'meme_submission',
-      p_game_id: null
-    });
+    // Check if user already received submission reward this week
+    const { data: existingReward } = await supabase
+      .from('meme_submission_rewards')
+      .select('id')
+      .eq('wallet_address', wallet_address)
+      .eq('week_id', weekData.id)
+      .single();
 
-    if (pointsError) {
-      console.warn('⚠️ Failed to award honey points:', pointsError);
+    let pointsAwarded = 0;
+
+    if (!existingReward) {
+      // Award 50 honey points for first submission this week
+      const { error: pointsError } = await supabase.rpc('add_honey_points', {
+        p_wallet_address: wallet_address,
+        p_amount: 50,
+        p_source: 'meme_submission',
+        p_game_id: null
+      });
+
+      if (pointsError) {
+        console.warn('⚠️ Failed to award honey points:', pointsError);
+      } else {
+        // Record that user received submission reward
+        await supabase
+          .from('meme_submission_rewards')
+          .insert({
+            wallet_address: wallet_address,
+            week_id: weekData.id
+          });
+
+        pointsAwarded = 50;
+      }
     }
 
     res.json({
       success: true,
       meme: memeData,
-      points_awarded: 50
+      points_awarded: pointsAwarded
     });
   } catch (error) {
     console.error('❌ Submit meme error:', error);
