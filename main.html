@@ -8563,7 +8563,7 @@
       padding: 24px 12px;
       min-height: auto;
       gap: 12px;
-      flex-direction: column;
+      flex-direction: row;
     }
 
     .carousel-nav {
@@ -8573,16 +8573,7 @@
     }
 
     .carousel-track-container {
-      width: 100%;
-      order: 2;
-    }
-
-    .carousel-nav:first-child {
-      order: 1;
-    }
-
-    .carousel-nav:last-child {
-      order: 3;
+      flex: 1;
     }
 
     .meme-image-container {
@@ -8845,18 +8836,6 @@
 
     .meme-carousel {
       flex-direction: row;
-    }
-
-    .carousel-nav:first-child {
-      order: initial;
-    }
-
-    .carousel-nav:last-child {
-      order: initial;
-    }
-
-    .carousel-track-container {
-      order: initial;
     }
   }
   /* ===== END MEME OF THE WEEK STYLES ===== */
