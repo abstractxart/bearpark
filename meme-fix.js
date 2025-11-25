@@ -622,7 +622,12 @@ async function submitMeme() {
       throw new Error(data.error || 'Failed to submit meme');
     }
 
-    alert('🎉 Meme submitted successfully! You earned 50 honey points!');
+    // Show message based on whether points were awarded
+    if (data.points_awarded > 0) {
+      alert('🎉 Meme submitted successfully! You earned 50 honey points!');
+    } else {
+      alert('🎉 Meme submitted successfully!\n\nNote: You already received the 50 point submission bonus this week.');
+    }
 
     // Refresh data
     await loadMemes();
