@@ -7560,16 +7560,17 @@
   .leaderboard-item {
     background: var(--card);
     border-radius: 16px;
-    padding: 24px;
+    padding: 28px;
     margin-bottom: 16px;
     display: grid;
-    grid-template-columns: 60px 100px 1fr;
-    gap: 16px;
+    grid-template-columns: 70px 120px 1fr;
+    gap: 20px;
     align-items: center;
     cursor: pointer;
     transition: all 0.3s var(--ease-spring);
     border: 2px solid transparent;
     position: relative;
+    overflow: visible;
   }
 
   .leaderboard-item:hover {
@@ -7602,11 +7603,11 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
-    overflow: hidden;
+    overflow: visible;
   }
 
   .leaderboard-rank {
-    font-size: 32px;
+    font-size: 40px;
     font-weight: bold;
     color: var(--gold);
     text-align: center;
@@ -7614,8 +7615,8 @@
   }
 
   .leaderboard-meme-thumb {
-    width: 100px;
-    height: 100px;
+    width: 120px;
+    height: 120px;
     object-fit: cover;
     border-radius: 12px;
     border: 2px solid var(--gold);
@@ -7630,15 +7631,15 @@
 
   .leaderboard-avatar-container {
     position: relative;
-    width: 32px;
-    height: 32px;
+    width: 40px;
+    height: 40px;
     flex-shrink: 0;
     overflow: visible;
   }
 
   .leaderboard-avatar {
-    width: 32px;
-    height: 32px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     object-fit: cover;
     border: 2px solid var(--gold);
@@ -7657,28 +7658,28 @@
 
   .leaderboard-cosmetic-ring.castle,
   .leaderboard-cosmetic-ring.castle-static {
-    max-width: 48px !important;
-    max-height: 48px !important;
+    max-width: 60px !important;
+    max-height: 60px !important;
   }
 
   .leaderboard-cosmetic-ring.ouroboros {
-    max-width: 44px !important;
-    max-height: 44px !important;
+    max-width: 55px !important;
+    max-height: 55px !important;
   }
 
   .leaderboard-cosmetic-ring.waves,
   .leaderboard-cosmetic-ring.waves-static {
-    max-width: 38px !important;
-    max-height: 38px !important;
+    max-width: 48px !important;
+    max-height: 48px !important;
   }
 
   .leaderboard-cosmetic-ring:not(.castle):not(.castle-static):not(.ouroboros):not(.waves):not(.waves-static) {
-    max-width: 42px !important;
-    max-height: 42px !important;
+    max-width: 52px !important;
+    max-height: 52px !important;
   }
 
   .leaderboard-username {
-    font-size: 14px;
+    font-size: 16px;
     font-weight: bold;
     color: var(--gold);
     overflow: hidden;
@@ -7690,7 +7691,7 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    font-size: 14px;
+    font-size: 16px;
   }
 
   .leaderboard-votes {
@@ -21006,6 +21007,17 @@ function nextMemeSlide() {
   }
 }
 
+// 🎯 Jump to Meme from Leaderboard
+function jumpToMeme(memeId) {
+  const memeIndex = currentMemes.findIndex(m => m.id === memeId);
+  if (memeIndex !== -1) {
+    currentSlide = memeIndex;
+    renderCarousel();
+    // Scroll to carousel
+    document.querySelector('.meme-carousel')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+}
+
 // 🗳️ Vote for Meme
 async function voteMeme(memeId) {
   const walletAddress = localStorage.getItem('bearpark_wallet');
@@ -21099,7 +21111,7 @@ async function loadLeaderboard() {
       const isVideo = meme.image_url.match(/\.(mp4|webm|mov|avi|mpeg)$/i);
 
       return `
-        <div class="leaderboard-item">
+        <div class="leaderboard-item" onclick="jumpToMeme(${meme.id})">
           <div class="leaderboard-rank">${medals[index] || `#${index + 1}`}</div>
           ${isVideo ?
             `<video src="${meme.image_url}" class="leaderboard-meme-thumb" style="object-fit: cover;"></video>` :
