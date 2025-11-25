@@ -4881,7 +4881,7 @@ app.post('/api/memes/:id/vote', async (req, res) => {
       });
     }
 
-    // Check if user already voted for this meme
+    // Check if user already voted for THIS specific meme
     const { data: existingVote, error: checkError } = await supabase
       .from('meme_votes')
       .select('id')
@@ -4896,7 +4896,52 @@ app.post('/api/memes/:id/vote', async (req, res) => {
       });
     }
 
-    // Insert vote
+    // Check if user voted for a DIFFERENT meme this week (vote switching)
+    const { data: previousVote, error: prevCheckError } = await supabase
+      .from('meme_votes')
+      .select('id, meme_id')
+      .eq('wallet_address', wallet_address)
+      .eq('week_id', meme.week_id)
+      .single();
+
+    let switched = false;
+    let oldMemeId = null;
+
+    // If user has a previous vote for a different meme, remove it
+    if (previousVote && previousVote.meme_id !== parseInt(id)) {
+      oldMemeId = previousVote.meme_id;
+      switched = true;
+
+      // Delete old vote
+      const { error: deleteError } = await supabase
+        .from('meme_votes')
+        .delete()
+        .eq('id', previousVote.id);
+
+      if (deleteError) throw deleteError;
+
+      // Decrement old meme's vote count
+      const { error: decrementError } = await supabase
+        .from('memes')
+        .update({ vote_count: supabase.rpc('vote_count') - 1 })
+        .eq('id', oldMemeId);
+
+      // Better way: direct decrement
+      const { data: oldMeme } = await supabase
+        .from('memes')
+        .select('vote_count')
+        .eq('id', oldMemeId)
+        .single();
+
+      if (oldMeme) {
+        await supabase
+          .from('memes')
+          .update({ vote_count: Math.max(0, oldMeme.vote_count - 1) })
+          .eq('id', oldMemeId);
+      }
+    }
+
+    // Insert new vote
     const { error: voteError } = await supabase
       .from('meme_votes')
       .insert({
@@ -4907,7 +4952,7 @@ app.post('/api/memes/:id/vote', async (req, res) => {
 
     if (voteError) throw voteError;
 
-    // Increment vote count
+    // Increment new meme's vote count
     const { error: updateError } = await supabase.rpc('increment_meme_votes', {
       meme_id: id
     });
@@ -4916,7 +4961,10 @@ app.post('/api/memes/:id/vote', async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Vote recorded successfully'
+      message: switched ? 'Vote switched successfully' : 'Vote recorded successfully',
+      switched: switched,
+      oldMemeId: oldMemeId,
+      newMemeId: parseInt(id)
     });
   } catch (error) {
     console.error('❌ Vote error:', error);
