@@ -21079,7 +21079,12 @@ function nextMemeSlide() {
 
 // 🗳️ Vote for Meme
 async function voteMeme(memeId) {
+  console.log('🗳️ voteMeme called for meme ID:', memeId);
+  console.log('📋 Current userVotes:', Array.from(userVotes));
+
   const walletAddress = localStorage.getItem('bearpark_wallet');
+  console.log('👛 Wallet address:', walletAddress);
+
   if (!walletAddress) {
     alert('Please connect your wallet to vote!');
     return;
@@ -21087,19 +21092,27 @@ async function voteMeme(memeId) {
 
   // If user already voted for THIS meme, unvote it
   if (userVotes.has(memeId)) {
+    console.log('🔄 User already voted for this meme, calling unvote');
     await unvoteMeme(memeId);
     return;
   }
 
   // Find the meme
   const meme = currentMemes.find(m => m.id === memeId);
-  if (!meme) return;
+  console.log('🎭 Found meme:', meme);
+  if (!meme) {
+    console.error('❌ Meme not found in currentMemes');
+    return;
+  }
 
   // Check if voting for own meme
   if (meme.wallet_address.toLowerCase() === walletAddress.toLowerCase()) {
+    console.log('⚠️ Cannot vote for own meme');
     alert('You cannot vote for your own meme!');
     return;
   }
+
+  console.log('📤 Sending vote request to backend...');
 
   try {
     const response = await fetch(`/api/memes/${memeId}/vote`, {
@@ -21112,7 +21125,9 @@ async function voteMeme(memeId) {
       })
     });
 
+    console.log('📥 Response status:', response.status);
     const data = await response.json();
+    console.log('📦 Response data:', data);
 
     if (!response.ok || !data.success) {
       throw new Error(data.error || 'Failed to vote');
