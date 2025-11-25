@@ -5162,13 +5162,13 @@ app.post('/api/memes/reset-week', async (req, res) => {
 
     console.log('✅ Week has ended, processing winners...');
 
-    // Get top 3 memes from the ended week
-    const { data: topMemes, error: memesError } = await supabase
+    // Get ALL memes from the ended week, sorted by votes
+    const { data: allMemes, error: memesError } = await supabase
       .from('memes')
       .select('id, wallet_address, vote_count, caption')
       .eq('week_id', currentWeek.id)
       .order('vote_count', { ascending: false })
-      .limit(3);
+      .order('id', { ascending: true }); // Secondary sort for consistent ordering
 
     if (memesError) throw memesError;
 
@@ -5176,32 +5176,48 @@ app.post('/api/memes/reset-week', async (req, res) => {
     const medals = ['🥇', '🥈', '🥉'];
     const winners = [];
 
-    // Award points to top 3
-    for (let i = 0; i < Math.min(topMemes.length, 3); i++) {
-      const meme = topMemes[i];
-      const reward = rewards[i];
-      const medal = medals[i];
+    // Handle ties: All memes with same vote count get same rank and reward
+    if (allMemes && allMemes.length > 0) {
+      let position = 1; // Position in sorted list (1st, 2nd, 3rd...)
+      let currentRank = 1; // Actual rank (considering ties)
+      let previousVoteCount = null;
 
-      console.log(`${medal} Awarding ${reward} honey to ${meme.wallet_address} (${meme.vote_count} votes)`);
+      for (const meme of allMemes) {
+        // If vote count changed, update rank to current position
+        if (previousVoteCount !== null && meme.vote_count < previousVoteCount) {
+          currentRank = position;
+        }
 
-      const { error: pointsError } = await supabase.rpc('add_honey_points', {
-        p_wallet_address: meme.wallet_address,
-        p_amount: reward,
-        p_source: 'meme_winner',
-        p_game_id: null
-      });
+        // Stop if we're past 3rd place
+        if (currentRank > 3) break;
 
-      if (pointsError) {
-        console.error(`❌ Failed to award points to ${meme.wallet_address}:`, pointsError);
-      } else {
-        winners.push({
-          rank: i + 1,
-          medal,
-          wallet_address: meme.wallet_address,
-          vote_count: meme.vote_count,
-          reward,
-          caption: meme.caption
+        const reward = rewards[currentRank - 1];
+        const medal = medals[currentRank - 1];
+
+        console.log(`${medal} Awarding ${reward} honey to ${meme.wallet_address} (${meme.vote_count} votes, rank ${currentRank}, position ${position})`);
+
+        const { error: pointsError } = await supabase.rpc('add_honey_points', {
+          p_wallet_address: meme.wallet_address,
+          p_amount: reward,
+          p_source: 'meme_winner',
+          p_game_id: null
         });
+
+        if (pointsError) {
+          console.error(`❌ Failed to award points to ${meme.wallet_address}:`, pointsError);
+        } else {
+          winners.push({
+            rank: currentRank,
+            medal,
+            wallet_address: meme.wallet_address,
+            vote_count: meme.vote_count,
+            reward,
+            caption: meme.caption
+          });
+        }
+
+        previousVoteCount = meme.vote_count;
+        position++;
       }
     }
 
