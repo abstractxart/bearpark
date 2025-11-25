@@ -7560,11 +7560,11 @@
   .leaderboard-item {
     background: var(--card);
     border-radius: 16px;
-    padding: 16px;
+    padding: 24px;
     margin-bottom: 16px;
     display: grid;
-    grid-template-columns: 50px 80px 1fr;
-    gap: 12px;
+    grid-template-columns: 60px 100px 1fr;
+    gap: 16px;
     align-items: center;
     cursor: pointer;
     transition: all 0.3s var(--ease-spring);
@@ -7614,8 +7614,8 @@
   }
 
   .leaderboard-meme-thumb {
-    width: 80px;
-    height: 80px;
+    width: 100px;
+    height: 100px;
     object-fit: cover;
     border-radius: 12px;
     border: 2px solid var(--gold);
@@ -21105,10 +21105,16 @@ async function loadLeaderboard() {
       const equippedRing = meme.equipped_ring;
       const ringHTML = equippedRing ? `<img src="${equippedRing.image_url}" class="leaderboard-cosmetic-ring ${equippedRing.ring_type}" alt="${equippedRing.name}" style="${equippedRing.rarity === 'bearableguy123' ? 'animation: spinRingImage 3s linear infinite !important;' : ''}">` : '';
 
+      // Check if meme is a video
+      const isVideo = meme.image_url.match(/\.(mp4|webm|mov|avi|mpeg)$/i);
+
       return `
         <div class="leaderboard-item">
           <div class="leaderboard-rank">${medals[index] || `#${index + 1}`}</div>
-          <img src="${meme.image_url}" alt="Meme" class="leaderboard-meme-thumb">
+          ${isVideo ?
+            `<video src="${meme.image_url}" class="leaderboard-meme-thumb" style="object-fit: cover;"></video>` :
+            `<img src="${meme.image_url}" alt="Meme" class="leaderboard-meme-thumb">`
+          }
           <div class="leaderboard-info">
             <div class="leaderboard-user">
               <div class="leaderboard-avatar-container">
