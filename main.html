@@ -21588,7 +21588,7 @@ async function loadLeaderboard() {
       const equippedRing = meme.equipped_ring;
 
       return `
-        <div class="leaderboard-item">
+        <div class="leaderboard-item" onclick="jumpToMeme(${meme.id})" style="cursor: pointer;">
           <div class="leaderboard-rank">${medals[index] || `#${index + 1}`}</div>
           ${isVideo ?
             `<video src="${meme.image_url}" class="leaderboard-meme-thumb" muted loop autoplay playsinline></video>` :
@@ -21614,6 +21614,31 @@ async function loadLeaderboard() {
   } catch (error) {
     console.error('❌ Failed to load leaderboard:', error);
   }
+}
+
+// 🎯 Jump to specific meme in carousel
+function jumpToMeme(memeId) {
+  // Find the index of this meme in currentMemes
+  const memeIndex = currentMemes.findIndex(m => m.id === memeId);
+
+  if (memeIndex === -1) {
+    console.error('Meme not found in carousel:', memeId);
+    return;
+  }
+
+  // Set the current slide to this meme
+  currentSlide = memeIndex;
+
+  // Re-render the carousel to show this meme
+  renderCarousel();
+
+  // Scroll to the meme carousel section
+  const carouselSection = document.getElementById('meme-carousel-container');
+  if (carouselSection) {
+    carouselSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  console.log(`🎯 Jumped to meme ${memeId} (slide ${memeIndex + 1}/${currentMemes.length})`);
 }
 
 // 📥 Load User's Votes
