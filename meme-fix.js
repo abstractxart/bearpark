@@ -111,6 +111,7 @@ async function loadMemes() {
       currentMemes = data.memes || [];
       currentSlide = 0;
       renderCarousel();
+      updateUploadButton();
     }
   } catch (error) {
     console.error('❌ Failed to load memes:', error);
@@ -453,6 +454,78 @@ async function loadUserVotes() {
   } catch (error) {
     console.error('❌ Failed to load user votes:', error);
     alert(`DEBUG: Failed to load votes!\n${error.message}`);
+  }
+}
+
+// 🔄 Update Upload Button based on whether user has a meme
+function updateUploadButton() {
+  const walletAddress = localStorage.getItem('bearpark_wallet');
+  if (!walletAddress) return;
+
+  const btn = document.getElementById('meme-upload-btn');
+  if (!btn) return;
+
+  // Check if current user has a meme in currentMemes
+  const userMeme = currentMemes.find(m =>
+    m.wallet_address.toLowerCase() === walletAddress.toLowerCase()
+  );
+
+  if (userMeme) {
+    // User has a meme - show delete button
+    btn.innerHTML = `
+      <span class="upload-icon">🗑️</span>
+      <span class="upload-text">DELETE YOUR UPLOADED MEME</span>
+    `;
+    btn.onclick = () => deleteMeme(userMeme.id);
+  } else {
+    // User doesn't have a meme - show upload button
+    btn.innerHTML = `
+      <span class="upload-icon">📤</span>
+      <span class="upload-text">ADD YOUR OWN MEME</span>
+      <span class="upload-reward">+50 🍯</span>
+    `;
+    btn.onclick = openMemeUploadModal;
+  }
+}
+
+// 🗑️ Delete Meme
+async function deleteMeme(memeId) {
+  const confirmed = confirm('If you delete your meme, you will lose all of your votes. Press OK to confirm.');
+
+  if (!confirmed) return;
+
+  const walletAddress = localStorage.getItem('bearpark_wallet');
+  if (!walletAddress) {
+    alert('Please connect your wallet!');
+    return;
+  }
+
+  try {
+    const response = await fetch(`/api/memes/${memeId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        wallet_address: walletAddress
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      throw new Error(data.error || 'Failed to delete meme');
+    }
+
+    alert('🗑️ Meme deleted successfully!');
+
+    // Refresh data
+    await loadMemes();
+    await loadLeaderboard();
+
+  } catch (error) {
+    console.error('❌ Delete error:', error);
+    alert(`Failed to delete meme: ${error.message}`);
   }
 }
 
