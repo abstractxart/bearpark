@@ -5205,6 +5205,60 @@ app.post('/api/memes/reset-week', async (req, res) => {
       }
     }
 
+    console.log('🗑️ Deleting old memes and files...');
+
+    // Get ALL memes from the ended week (to delete their files)
+    const { data: allOldMemes, error: fetchOldMemesError } = await supabase
+      .from('memes')
+      .select('id, image_url')
+      .eq('week_id', currentWeek.id);
+
+    let memesDeletedCount = 0;
+
+    if (fetchOldMemesError) {
+      console.error('⚠️ Failed to fetch old memes for deletion:', fetchOldMemesError);
+    } else if (allOldMemes && allOldMemes.length > 0) {
+      memesDeletedCount = allOldMemes.length;
+      console.log(`Found ${allOldMemes.length} old memes to delete`);
+
+      // Delete files from storage
+      for (const meme of allOldMemes) {
+        try {
+          // Extract file path from URL
+          // Format: https://[project].supabase.co/storage/v1/object/public/bearpark-memes/[filepath]
+          const urlParts = meme.image_url.split('/bearpark-memes/');
+          if (urlParts.length === 2) {
+            const filePath = urlParts[1];
+            console.log(`Deleting file: ${filePath}`);
+
+            const { error: deleteFileError } = await supabase.storage
+              .from('bearpark-memes')
+              .remove([filePath]);
+
+            if (deleteFileError) {
+              console.error(`⚠️ Failed to delete file ${filePath}:`, deleteFileError);
+            } else {
+              console.log(`✅ Deleted file: ${filePath}`);
+            }
+          }
+        } catch (err) {
+          console.error('⚠️ Error parsing/deleting file:', err);
+        }
+      }
+
+      // Delete memes from database (CASCADE will delete votes too)
+      const { error: deleteMemesError } = await supabase
+        .from('memes')
+        .delete()
+        .eq('week_id', currentWeek.id);
+
+      if (deleteMemesError) {
+        console.error('⚠️ Failed to delete old memes:', deleteMemesError);
+      } else {
+        console.log(`✅ Deleted ${allOldMemes.length} memes from database`);
+      }
+    }
+
     console.log('🆕 Creating new week...');
 
     // Create new week (Monday to Sunday)
@@ -5242,6 +5296,7 @@ app.post('/api/memes/reset-week', async (req, res) => {
         week_end: currentWeek.week_end
       },
       winners,
+      memes_deleted: memesDeletedCount,
       new_week: {
         id: newWeek.id,
         week_start: newWeek.week_start,
