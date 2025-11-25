@@ -21423,9 +21423,6 @@ function nextMemeSlide() {
 
 // 🗳️ Vote for Meme
 async function voteMeme(memeId) {
-  // IMMEDIATE ALERT TO CONFIRM FUNCTION IS CALLED
-  alert(`🗳️ VOTE BUTTON CLICKED!\nMeme ID: ${memeId}`);
-
   console.log('🗳️ voteMeme called for meme ID:', memeId);
   console.log('📋 Current userVotes:', Array.from(userVotes));
 
@@ -21622,17 +21619,32 @@ async function loadLeaderboard() {
 // 📥 Load User's Votes
 async function loadUserVotes() {
   const walletAddress = localStorage.getItem('bearpark_wallet');
-  if (!walletAddress) return;
+  if (!walletAddress) {
+    console.log('⚠️ No wallet address, skipping vote load');
+    return;
+  }
 
   try {
+    console.log('📥 Loading user votes for:', walletAddress);
     const response = await fetch(`/api/memes/user-votes/${walletAddress}`);
     const data = await response.json();
 
+    console.log('📦 User votes response:', data);
+
     if (data.success && data.votes) {
-      userVotes = new Set(data.votes.map(v => v.meme_id));
+      // Clear existing votes and add new ones
+      userVotes.clear();
+      data.votes.forEach(v => {
+        console.log('Adding vote for meme ID:', v.meme_id);
+        userVotes.add(v.meme_id);
+      });
+      console.log('✅ Loaded votes:', Array.from(userVotes));
+    } else {
+      console.log('⚠️ No votes found or failed:', data);
     }
   } catch (error) {
     console.error('❌ Failed to load user votes:', error);
+    alert(`DEBUG: Failed to load votes!\n${error.message}`);
   }
 }
 
