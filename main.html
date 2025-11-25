@@ -21191,22 +21191,28 @@ async function loadLeaderboard() {
     const medals = ['🥇', '🥈', '🥉'];
     const rewards = [50, 35, 20];
 
-    container.innerHTML = data.leaderboard.map((meme, index) => `
-      <div class="leaderboard-item">
-        <div class="leaderboard-rank">${medals[index] || `#${index + 1}`}</div>
-        <img src="${meme.image_url}" alt="Meme" class="leaderboard-meme-thumb">
-        <div class="leaderboard-info">
-          <div class="leaderboard-user">
-            <img src="${meme.avatar_url || 'https://files.catbox.moe/1z14d9.jpg'}" alt="${meme.username || 'Anonymous'}" class="leaderboard-avatar">
-            <span class="leaderboard-username">${meme.username || 'Anonymous'}</span>
-          </div>
-          <div class="leaderboard-stats">
-            <span class="leaderboard-votes">⬆️ ${meme.vote_count || 0}</span>
-            ${index < 3 ? `<span class="leaderboard-reward">+${rewards[index]} 🍯</span>` : ''}
+    container.innerHTML = data.leaderboard.map((meme, index) => {
+      const isVideo = meme.image_url.match(/\.(mp4|webm|mov|avi|mpeg)$/i);
+      return `
+        <div class="leaderboard-item">
+          <div class="leaderboard-rank">${medals[index] || `#${index + 1}`}</div>
+          ${isVideo ?
+            `<video src="${meme.image_url}" class="leaderboard-meme-thumb" muted loop autoplay playsinline></video>` :
+            `<img src="${meme.image_url}" alt="Meme" class="leaderboard-meme-thumb">`
+          }
+          <div class="leaderboard-info">
+            <div class="leaderboard-user">
+              <img src="${meme.avatar_url || 'https://files.catbox.moe/1z14d9.jpg'}" alt="${meme.username || 'Anonymous'}" class="leaderboard-avatar">
+              <span class="leaderboard-username">${meme.username || 'Anonymous'}</span>
+            </div>
+            <div class="leaderboard-stats">
+              <span class="leaderboard-votes">⬆️ ${meme.vote_count || 0}</span>
+              ${index < 3 ? `<span class="leaderboard-reward">+${rewards[index]} 🍯</span>` : ''}
+            </div>
           </div>
         </div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
 
   } catch (error) {
     console.error('❌ Failed to load leaderboard:', error);
