@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Week Reset</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #1a1a1a;
+      color: #fff;
+    }
+    h1 {
+      color: #ffae00;
+    }
+    button {
+      background: linear-gradient(135deg, #ffae00 0%, #ff8c00 100%);
+      color: white;
+      border: none;
+      padding: 15px 30px;
+      font-size: 16px;
+      font-weight: bold;
+      border-radius: 8px;
+      cursor: pointer;
+      margin: 10px 5px;
+    }
+    button:hover {
+      transform: scale(1.05);
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    #output {
+      background: #2a2a2a;
+      border: 2px solid #ffae00;
+      border-radius: 8px;
+      padding: 20px;
+      margin-top: 20px;
+      white-space: pre-wrap;
+      font-family: monospace;
+      max-height: 500px;
+      overflow-y: auto;
+    }
+    .warning {
+      background: #ff4444;
+      color: white;
+      padding: 10px;
+      border-radius: 5px;
+      margin: 10px 0;
+    }
+    .info {
+      background: #4444ff;
+      color: white;
+      padding: 10px;
+      border-radius: 5px;
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔄 Test Meme Week Reset</h1>
+
+  <div class="warning">
+    <strong>⚠️ IMPORTANT:</strong> Before testing, run the SQL script in Supabase to force the current week to end!
+  </div>
+
+  <div class="info">
+    <strong>📝 Steps:</strong><br>
+    1. Open Supabase SQL Editor<br>
+    2. Run the test-week-reset.sql script<br>
+    3. Click "Trigger Week Reset" button below<br>
+    4. Check the output to see winners and new week details
+  </div>
+
+  <button id="resetBtn" onclick="triggerReset()">🔄 Trigger Week Reset</button>
+  <button onclick="clearOutput()">🗑️ Clear Output</button>
+
+  <div id="output">Click "Trigger Week Reset" to test...</div>
+
+  <script>
+    const API_URL = 'https://bearpark.vercel.app/api/memes/reset-week';
+    // For local testing, use: const API_URL = 'http://localhost:3000/api/memes/reset-week';
+
+    async function triggerReset() {
+      const btn = document.getElementById('resetBtn');
+      const output = document.getElementById('output');
+
+      btn.disabled = true;
+      output.textContent = '⏳ Triggering week reset...\n';
+
+      try {
+        const response = await fetch(API_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+
+        const data = await response.json();
+
+        output.textContent = `📥 Response (${response.status}):\n\n`;
+        output.textContent += JSON.stringify(data, null, 2);
+
+        if (data.success) {
+          output.textContent += '\n\n✅ SUCCESS!\n\n';
+          output.textContent += '🏆 WINNERS:\n';
+          if (data.winners && data.winners.length > 0) {
+            data.winners.forEach(w => {
+              output.textContent += `${w.medal} Rank ${w.rank}: ${w.wallet_address.slice(0, 8)}... - ${w.vote_count} votes - ${w.reward} honey\n`;
+            });
+          } else {
+            output.textContent += 'No winners (no memes submitted)\n';
+          }
+          output.textContent += '\n📅 NEW WEEK:\n';
+          output.textContent += `Start: ${new Date(data.new_week.week_start).toLocaleString()}\n`;
+          output.textContent += `End: ${new Date(data.new_week.week_end).toLocaleString()}\n`;
+        } else {
+          output.textContent += '\n\n❌ FAILED!\n';
+          output.textContent += data.message || data.error;
+        }
+
+      } catch (error) {
+        output.textContent = `❌ Error: ${error.message}\n\n`;
+        output.textContent += 'Make sure:\n';
+        output.textContent += '1. Backend is running\n';
+        output.textContent += '2. You ran the SQL script to force week end\n';
+        output.textContent += '3. CORS is enabled on the backend\n';
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function clearOutput() {
+      document.getElementById('output').textContent = 'Output cleared. Ready to test again...';
+    }
+  </script>
+</body>
+</html>
