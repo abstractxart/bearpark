@@ -21143,14 +21143,12 @@ async function unvoteMeme(memeId) {
   if (!meme) return;
 
   try {
-    const response = await fetch(`/api/memes/${memeId}/vote`, {
+    // Use query parameter for DELETE request
+    const response = await fetch(`/api/memes/${memeId}/vote?wallet_address=${encodeURIComponent(walletAddress)}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        wallet_address: walletAddress
-      })
+      }
     });
 
     const data = await response.json();
