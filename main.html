@@ -88,6 +88,72 @@
     --stripe-yellow: #ffae00;
     --stripe-green: #07ae08;
     --tri-gradient: linear-gradient(to right, var(--stripe-purple) 0%, var(--stripe-purple) 33.33%, var(--stripe-yellow) 33.33%, var(--stripe-yellow) 66.66%, var(--stripe-green) 66.66%, var(--stripe-green) 100%);
+
+    /* 🔥🐻 GODMODE GLASSMORPHISM + MATERIAL 3 SYSTEM 🐻🔥 */
+    /* Apple-style Glass Blur Effects */
+    --glass-blur: blur(40px) saturate(180%);
+    --glass-blur-heavy: blur(80px) saturate(200%);
+    --glass-blur-light: blur(20px) saturate(160%);
+
+    /* Transparent Glass Backgrounds */
+    --glass-bg: rgba(30, 34, 38, 0.4);
+    --glass-bg-heavy: rgba(30, 34, 38, 0.7);
+    --glass-bg-light: rgba(30, 34, 38, 0.2);
+    --glass-bg-ultra: rgba(30, 34, 38, 0.1);
+
+    /* Glass Borders */
+    --glass-border: rgba(255, 174, 0, 0.15);
+    --glass-border-hover: rgba(255, 174, 0, 0.4);
+
+    /* Material 3 Elevation with Glass */
+    --elevation-1-glass:
+      0 1px 2px rgba(0, 0, 0, 0.3),
+      0 1px 3px 1px rgba(0, 0, 0, 0.15),
+      inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    --elevation-2-glass:
+      0 1px 2px rgba(0, 0, 0, 0.3),
+      0 2px 6px 2px rgba(0, 0, 0, 0.15),
+      0 0 20px rgba(255, 174, 0, 0.1),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    --elevation-3-glass:
+      0 4px 8px 3px rgba(0, 0, 0, 0.15),
+      0 1px 3px rgba(0, 0, 0, 0.3),
+      0 0 30px rgba(255, 174, 0, 0.15),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    --elevation-4-glass:
+      0 6px 10px 4px rgba(0, 0, 0, 0.15),
+      0 2px 3px rgba(0, 0, 0, 0.3),
+      0 0 40px rgba(255, 174, 0, 0.2),
+      inset 0 2px 0 rgba(255, 255, 255, 0.12);
+    --elevation-5-glass:
+      0 8px 12px 6px rgba(0, 0, 0, 0.15),
+      0 4px 4px rgba(0, 0, 0, 0.3),
+      0 0 60px rgba(255, 174, 0, 0.3),
+      inset 0 2px 0 rgba(255, 255, 255, 0.15);
+
+    /* Godmode Glow Effects */
+    --glow-gold:
+      0 0 20px rgba(255, 174, 0, 0.4),
+      0 0 40px rgba(255, 174, 0, 0.2),
+      0 0 60px rgba(255, 174, 0, 0.1);
+    --glow-honey:
+      0 0 15px rgba(255, 239, 179, 0.4),
+      0 0 30px rgba(255, 239, 179, 0.2);
+    --glow-tri:
+      0 0 20px rgba(104, 12, 217, 0.3),
+      0 0 40px rgba(255, 174, 0, 0.3),
+      0 0 60px rgba(7, 174, 8, 0.3);
+
+    /* 420FPS Smooth Spring Physics */
+    --spring-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    --spring-smooth: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    --spring-sharp: cubic-bezier(0.4, 0.0, 0.2, 1);
+    --spring-elastic: cubic-bezier(0.68, -0.6, 0.32, 1.6);
+    --spring-butter: cubic-bezier(0.16, 1, 0.3, 1);
+
+    /* Performance Optimization */
+    --transform-gpu: translateZ(0);
+    --will-change-transform: transform, opacity, box-shadow;
   }
 
   /* ==== BASE ============================================================ */
@@ -4815,17 +4881,24 @@
 
   .honey-card{
     position: relative;
-    background:var(--card);
-    border-radius:16px;
-    padding:20px;
-    box-shadow:var(--elev);
-    margin-bottom:20px;
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border-radius:24px;
+    padding:24px;
+    box-shadow: var(--elevation-2-glass);
+    border: 1px solid var(--glass-border);
+    margin-bottom:24px;
+    overflow: hidden;
+    transition: all 0.4s var(--spring-butter);
+    will-change: var(--will-change-transform);
+    transform: var(--transform-gpu);
   }
   .honey-card::before {
     content: '';
     position: absolute;
     inset: 0;
-    border-radius: 16px;
+    border-radius: 24px;
     padding: 6px;
     background: linear-gradient(135deg, var(--stripe-purple) 0%, var(--stripe-purple) 33.33%, var(--stripe-yellow) 33.33%, var(--stripe-yellow) 66.66%, var(--stripe-green) 66.66%, var(--stripe-green) 100%);
     -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
@@ -4834,6 +4907,73 @@
     mask-composite: exclude;
     pointer-events: none;
     z-index: 0;
+    opacity: 0.8;
+    transition: opacity 0.3s var(--spring-smooth);
+  }
+  .honey-card::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(
+      45deg,
+      transparent 30%,
+      rgba(255, 174, 0, 0.05) 50%,
+      transparent 70%
+    );
+    transform: rotate(0deg);
+    opacity: 0;
+    transition: all 0.6s var(--spring-smooth);
+  }
+  .honey-card:hover {
+    transform: translateY(-8px) var(--transform-gpu);
+    box-shadow: var(--elevation-4-glass);
+    background: var(--glass-bg-heavy);
+    border-color: var(--glass-border-hover);
+  }
+  .honey-card:hover::before {
+    opacity: 1;
+  }
+  .honey-card:hover::after {
+    opacity: 1;
+    transform: rotate(180deg);
+  }
+
+  /* 🔥 GODMODE GLASS ENHANCEMENTS FOR ALL SECTIONS 🔥 */
+  section.alt, section.dark {
+    position: relative;
+  }
+  section.alt::before, section.dark::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+      circle at 50% 0%,
+      rgba(255, 174, 0, 0.03) 0%,
+      transparent 50%
+    );
+    pointer-events: none;
+    animation: section-glow 8s ease-in-out infinite;
+  }
+  @keyframes section-glow {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 0.6; }
+  }
+
+  /* Enhanced .card class with glass */
+  .card {
+    backdrop-filter: var(--glass-blur-light);
+    -webkit-backdrop-filter: var(--glass-blur-light);
+    border: 1px solid var(--glass-border);
+    transition: all 0.3s var(--spring-butter);
+  }
+  .card:hover {
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border-color: var(--glass-border-hover);
+    box-shadow: var(--elevation-3-glass);
   }
 
   .honey-card-title{
@@ -4843,6 +4983,7 @@
     color:var(--gold);
     text-transform:uppercase;
     letter-spacing:0.5px;
+    text-shadow: 0 2px 8px rgba(255, 174, 0, 0.3);
   }
 
   /* DEXScreener Style Stats */
