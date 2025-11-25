@@ -5054,6 +5054,58 @@ app.delete('/api/memes/:id/vote', async (req, res) => {
   }
 });
 
+// 🗑️ Delete a meme
+app.delete('/api/memes/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { wallet_address } = req.body;
+
+    console.log('🗑️ Delete meme request:', { meme_id: id, wallet_address });
+
+    if (!wallet_address) {
+      return res.status(400).json({ success: false, error: 'Wallet address required' });
+    }
+
+    // Get the meme to verify ownership
+    const { data: meme, error: fetchError } = await supabase
+      .from('memes')
+      .select('wallet_address, image_url')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !meme) {
+      return res.status(404).json({ success: false, error: 'Meme not found' });
+    }
+
+    // Verify ownership
+    if (meme.wallet_address.toLowerCase() !== wallet_address.toLowerCase()) {
+      return res.status(403).json({ success: false, error: 'You can only delete your own memes' });
+    }
+
+    // Delete from database (cascades to votes)
+    const { error: deleteError } = await supabase
+      .from('memes')
+      .delete()
+      .eq('id', id)
+      .eq('wallet_address', wallet_address);
+
+    if (deleteError) {
+      console.error('❌ Delete error:', deleteError);
+      throw deleteError;
+    }
+
+    console.log('✅ Meme deleted successfully');
+
+    res.json({
+      success: true,
+      message: 'Meme deleted successfully'
+    });
+  } catch (error) {
+    console.error('❌ Delete meme error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Start server for local development
 if (require.main === module) {
   app.listen(PORT, () => {
