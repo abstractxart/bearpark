@@ -7602,6 +7602,107 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
+    overflow: hidden;
+  }
+
+  .leaderboard-rank {
+    font-size: 32px;
+    font-weight: bold;
+    color: var(--gold);
+    text-align: center;
+    min-width: 50px;
+  }
+
+  .leaderboard-meme-thumb {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 12px;
+    border: 2px solid var(--gold);
+  }
+
+  .leaderboard-user {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    overflow: visible;
+  }
+
+  .leaderboard-avatar-container {
+    position: relative;
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+    overflow: visible;
+  }
+
+  .leaderboard-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--gold);
+  }
+
+  .leaderboard-cosmetic-ring {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    z-index: 1;
+    width: auto !important;
+    height: auto !important;
+  }
+
+  .leaderboard-cosmetic-ring.castle,
+  .leaderboard-cosmetic-ring.castle-static {
+    max-width: 48px !important;
+    max-height: 48px !important;
+  }
+
+  .leaderboard-cosmetic-ring.ouroboros {
+    max-width: 44px !important;
+    max-height: 44px !important;
+  }
+
+  .leaderboard-cosmetic-ring.waves,
+  .leaderboard-cosmetic-ring.waves-static {
+    max-width: 38px !important;
+    max-height: 38px !important;
+  }
+
+  .leaderboard-cosmetic-ring:not(.castle):not(.castle-static):not(.ouroboros):not(.waves):not(.waves-static) {
+    max-width: 42px !important;
+    max-height: 42px !important;
+  }
+
+  .leaderboard-username {
+    font-size: 14px;
+    font-weight: bold;
+    color: var(--gold);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .leaderboard-stats {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 14px;
+  }
+
+  .leaderboard-votes {
+    color: var(--gold);
+    font-weight: bold;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  }
+
+  .leaderboard-reward {
+    color: var(--honey);
+    font-weight: bold;
+    text-shadow: 0 0 8px rgba(255,174,0,0.5);
   }
 
   .meme-submitter {
@@ -20988,21 +21089,42 @@ async function loadLeaderboard() {
     const medals = ['🥇', '🥈', '🥉'];
     const rewards = [50, 35, 20];
 
-    container.innerHTML = data.leaderboard.map((meme, index) => `
-      <div class="leaderboard-item">
-        <div class="leaderboard-rank">${medals[index] || `#${index + 1}`}</div>
-        <img src="${meme.image_url}" alt="Meme" class="leaderboard-meme-thumb">
-        <div class="leaderboard-info">
-          <div class="leaderboard-user">
-            <span class="leaderboard-username">${meme.username || 'Anonymous'}</span>
-          </div>
-          <div class="leaderboard-stats">
-            <span class="leaderboard-votes">⬆️ ${meme.vote_count || 0}</span>
-            ${index < 3 ? `<span class="leaderboard-reward">+${rewards[index]} 🍯</span>` : ''}
+    container.innerHTML = data.leaderboard.map((meme, index) => {
+      // Parse avatar NFT
+      let avatarUrl = 'https://files.catbox.moe/1z14d9.jpg';
+      if (meme.avatar_nft) {
+        try {
+          const avatarData = typeof meme.avatar_nft === 'string' ? JSON.parse(meme.avatar_nft) : meme.avatar_nft;
+          avatarUrl = avatarData.imageUrl || avatarData.fallbackImageUrl || avatarUrl;
+        } catch (e) {
+          console.error('Failed to parse avatar_nft:', e);
+        }
+      }
+
+      // Build avatar HTML with ring
+      const equippedRing = meme.equipped_ring;
+      const ringHTML = equippedRing ? `<img src="${equippedRing.image_url}" class="leaderboard-cosmetic-ring ${equippedRing.ring_type}" alt="${equippedRing.name}" style="${equippedRing.rarity === 'bearableguy123' ? 'animation: spinRingImage 3s linear infinite !important;' : ''}">` : '';
+
+      return `
+        <div class="leaderboard-item">
+          <div class="leaderboard-rank">${medals[index] || `#${index + 1}`}</div>
+          <img src="${meme.image_url}" alt="Meme" class="leaderboard-meme-thumb">
+          <div class="leaderboard-info">
+            <div class="leaderboard-user">
+              <div class="leaderboard-avatar-container">
+                <img src="${avatarUrl}" alt="${meme.username || 'Anonymous'}" class="leaderboard-avatar" onerror="this.src='https://files.catbox.moe/1z14d9.jpg';">
+                ${ringHTML}
+              </div>
+              <span class="leaderboard-username">${meme.username || 'Anonymous'}</span>
+            </div>
+            <div class="leaderboard-stats">
+              <span class="leaderboard-votes">⬆️ ${meme.vote_count || 0}</span>
+              ${index < 3 ? `<span class="leaderboard-reward">+${rewards[index]} 🍯</span>` : ''}
+            </div>
           </div>
         </div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
 
   } catch (error) {
     console.error('❌ Failed to load leaderboard:', error);
