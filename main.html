@@ -4868,7 +4868,7 @@
   /* ===== BEAR HONEY POINTS SECTION ===== */
   .honey-points-grid{
     display:grid;
-    grid-template-columns:repeat(3, 1fr);
+    grid-template-columns:repeat(2, 1fr);
     gap:24px;
     margin-top:24px;
     max-width:1400px;
@@ -9399,6 +9399,9 @@
       <a href="#honey-points" class="menu-item" onclick="toggleMenu()">
         <span class="menu-item-icon"><img src="https://files.catbox.moe/wyfjtc.png" alt="honey" style="height:1.2em; width:auto; display:inline-block;"></span>BEAR HONEY POINTS
       </a>
+      <a href="#raids" class="menu-item" onclick="toggleMenu()">
+        <span class="menu-item-icon">🪖</span>RAIDS
+      </a>
       <a href="#cosmetics-store" class="menu-item" onclick="toggleMenu()">
         <span class="menu-item-icon">🛍️</span>COSMETICS STORE
       </a>
@@ -9447,6 +9450,7 @@
       </a>
       <nav class="links" aria-label="Sections">
         <a href="#honey-points"><img src="https://files.catbox.moe/wyfjtc.png" alt="honey" style="height:1em; width:auto; vertical-align:middle; display:inline-block;"> Honey Points</a>
+        <a href="#raids">🪖 Raids</a>
         <a href="#cosmetics-store">🛍️ Store</a>
         <a href="#bearcade">BEARcade</a>
         <a href="#leaderboards">🏆 Leaderboards</a>
@@ -9692,18 +9696,26 @@
           </div>
         </div>
 
-        <!-- Current Raids -->
-        <div class="honey-card raids-card">
-          <button class="admin-raid-btn" id="adminRaidBtn" style="display:none;" onclick="window.location.href='/admin-raids.html'">🎯 START RAID</button>
-          <button class="raids-toggle-btn" id="raidsToggleBtn">Show Previous Raids</button>
-          <h3 class="honey-card-title" id="raidsTitle">🐻 🪖 Current Raids</h3>
-          <div id="raidsContent">
-            <div class="raids-list" id="currentRaidsList">
-              <div class="raids-empty">Loading raids...</div>
-            </div>
-            <div class="raids-list" id="previousRaidsList" style="display:none;">
-              <div class="raids-empty">Loading previous raids...</div>
-            </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RAIDS SECTION -->
+  <section class="alt" id="raids">
+    <div class="wrap reveal">
+      <h2 class="h2">🐻 🪖 RAIDS</h2>
+      <p style="text-align:center;margin:-6px 0 32px;opacity:0.9;">Join active raids to earn honey points and support the BEAR community!</p>
+
+      <div class="honey-card raids-card" style="max-width:800px; margin:0 auto;">
+        <button class="admin-raid-btn" id="adminRaidBtn" style="display:none;" onclick="window.location.href='/admin-raids.html'">🎯 START RAID</button>
+        <button class="raids-toggle-btn" id="raidsToggleBtn">Show Previous Raids</button>
+        <h3 class="honey-card-title" id="raidsTitle">Current Raids</h3>
+        <div id="raidsContent">
+          <div class="raids-list" id="currentRaidsList">
+            <div class="raids-empty">Loading raids...</div>
+          </div>
+          <div class="raids-list" id="previousRaidsList" style="display:none;">
+            <div class="raids-empty">Loading previous raids...</div>
           </div>
         </div>
       </div>
