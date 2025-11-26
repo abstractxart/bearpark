@@ -14459,6 +14459,328 @@
     let currentRaidsData = {}; // Store raid data by ID for easy access
     let processingRaids = new Set(); // Track which raids are currently being processed
 
+    // ===== GODMODE RAIDS SYSTEM =====
+    let allRaidsData = [];
+    let currentFilter = 'active';
+    let currentSort = 'expiring';
+    let userCompletedRaids = [];
+
+    // Load and render GODMODE raids
+    async function loadGodmodeRaids() {
+      const walletAddress = localStorage.getItem('bearpark_wallet');
+      const raidsGrid = document.getElementById('raidsGrid');
+
+      try {
+        // Fetch raids and completed raids
+        const [raidsResponse, completedResponse] = await Promise.all([
+          fetch(`${API_BASE_URL}/api/raids/current`),
+          walletAddress ? fetch(`${API_BASE_URL}/api/raids/completed/${walletAddress}`).catch(() => null) : Promise.resolve(null)
+        ]);
+
+        if (!raidsResponse.ok) {
+          raidsGrid.innerHTML = '<div class="raids-empty">Unable to load raids. Please try again later.</div>';
+          return;
+        }
+
+        const raidsData = await raidsResponse.json();
+        if (!raidsData.success || !raidsData.raids) {
+          raidsGrid.innerHTML = '<div class="raids-empty">No raids available</div>';
+          return;
+        }
+
+        // Get completed raids
+        userCompletedRaids = [];
+        if (completedResponse && completedResponse.ok) {
+          const completedData = await completedResponse.json();
+          if (completedData.success && completedData.completedRaids) {
+            userCompletedRaids = completedData.completedRaids.map(r => r.raid_id);
+          }
+        }
+
+        // Store all raids
+        allRaidsData = raidsData.raids.map(raid => ({
+          ...raid,
+          isCompleted: userCompletedRaids.includes(raid.id),
+          isExpired: new Date(raid.expires_at) < new Date(),
+          participantCount: Math.floor(Math.random() * 100) + 10 // Mock for now
+        }));
+
+        // Load user stats
+        loadUserRaidStats(walletAddress);
+
+        // Render raids
+        filterRaids(currentFilter);
+
+      } catch (error) {
+        console.error('Error loading GODMODE raids:', error);
+        raidsGrid.innerHTML = '<div class="raids-empty">Error loading raids</div>';
+      }
+    }
+
+    // Render compact raid card
+    function renderRaidCardCompact(raid) {
+      const now = new Date();
+      const expiresAt = new Date(raid.expires_at);
+      const timeLeft = expiresAt - now;
+      const hoursLeft = timeLeft / (1000 * 60 * 60);
+
+      // Calculate urgency
+      let urgencyClass = 'urgency-low';
+      let timerClass = 'safe';
+      if (hoursLeft < 2) {
+        urgencyClass = 'urgency-high';
+        timerClass = 'urgent';
+      } else if (hoursLeft < 12) {
+        urgencyClass = 'urgency-medium';
+        timerClass = 'medium';
+      }
+
+      // Format time left
+      const formatTimeLeft = () => {
+        if (timeLeft < 0) return 'EXPIRED';
+        const hours = Math.floor(timeLeft / (1000 * 60 * 60));
+        const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+        if (hours > 24) return `${Math.floor(hours/24)}d ${hours%24}h`;
+        if (hours > 0) return `${hours}h ${minutes}m`;
+        return `${minutes}m`;
+      };
+
+      // Extract tweet text (simplified)
+      const tweetText = raid.description || 'Join this raid!';
+      const tweetAuthor = raid.profile_handle || '@BearXRPL';
+
+      // Calculate time progress for bar
+      const totalTime = new Date(raid.expires_at) - new Date(raid.created_at);
+      const elapsed = now - new Date(raid.created_at);
+      const progressPercent = Math.min(100, (elapsed / totalTime) * 100);
+
+      // Popular badge
+      const isPopular = raid.participantCount > 50;
+
+      // Button state
+      let buttonHTML = '';
+      let buttonClass = '';
+      let buttonText = '';
+
+      if (raid.isCompleted) {
+        buttonClass = 'completed';
+        buttonText = '✅ COMPLETED';
+      } else if (raid.isExpired) {
+        buttonClass = 'expired';
+        buttonText = '⏰ EXPIRED';
+      } else {
+        buttonClass = 'join';
+        buttonText = `🎯 JOIN RAID`;
+      }
+
+      const card = document.createElement('div');
+      card.className = `raid-card-compact ${urgencyClass}`;
+      card.setAttribute('data-raid-id', raid.id);
+      card.setAttribute('data-expires', raid.expires_at);
+      card.setAttribute('data-points', raid.reward);
+      card.setAttribute('data-participants', raid.participantCount);
+
+      card.innerHTML = `
+        ${hoursLeft < 2 && !raid.isExpired && !raid.isCompleted ? '<div class="raid-badge expiring-soon">⚡ EXPIRING SOON</div>' : ''}
+        ${isPopular ? '<div class="raid-popularity-badge">🔥 POPULAR</div>' : ''}
+
+        <div class="raid-card-header">
+          <div class="raid-points-badge">🎯 ${raid.reward} PTS</div>
+          <div class="raid-timer-badge ${timerClass}" data-raid-timer="${raid.id}">
+            ⏰ ${formatTimeLeft()}
+          </div>
+        </div>
+
+        <div class="raid-progress-bar">
+          <div class="raid-progress-fill" style="width: ${progressPercent}%"></div>
+        </div>
+
+        <div class="raid-tweet-preview-compact" onclick="openRaidModal(${raid.id})">
+          <div class="raid-tweet-text">${tweetText}</div>
+          <div class="raid-tweet-author">${tweetAuthor}</div>
+        </div>
+
+        <div class="raid-card-footer">
+          <div class="raid-participants">
+            👥 <span class="raid-participants-count">${raid.participantCount}</span> raiders
+          </div>
+          <button class="raid-action-btn ${buttonClass}" ${raid.isCompleted || raid.isExpired ? 'disabled' : ''}
+                  onclick="handleRaidAction(${raid.id}, '${raid.twitter_url}')">
+            ${buttonText}
+          </button>
+        </div>
+      `;
+
+      return card;
+    }
+
+    // Filter raids
+    function filterRaids(filter) {
+      currentFilter = filter;
+
+      // Update button states
+      document.querySelectorAll('.raid-filter-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-filter') === filter);
+      });
+
+      let filtered = [];
+      if (filter === 'active') {
+        filtered = allRaidsData.filter(r => !r.isExpired && !r.isCompleted);
+      } else if (filter === 'completed') {
+        filtered = allRaidsData.filter(r => r.isCompleted);
+      } else if (filter === 'expired') {
+        filtered = allRaidsData.filter(r => r.isExpired && !r.isCompleted);
+      }
+
+      // Apply current sort
+      filtered = applySorting(filtered, currentSort);
+
+      // Render
+      const raidsGrid = document.getElementById('raidsGrid');
+      if (filtered.length === 0) {
+        raidsGrid.innerHTML = `<div class="raids-empty">No ${filter} raids</div>`;
+      } else {
+        raidsGrid.innerHTML = '';
+        filtered.forEach(raid => {
+          raidsGrid.appendChild(renderRaidCardCompact(raid));
+        });
+      }
+
+      // Start timers
+      updateRaidTimers();
+    }
+
+    // Sort raids
+    function sortRaids(sortType) {
+      currentSort = sortType;
+      filterRaids(currentFilter);
+    }
+
+    function applySorting(raids, sortType) {
+      const sorted = [...raids];
+      if (sortType === 'expiring') {
+        sorted.sort((a, b) => new Date(a.expires_at) - new Date(b.expires_at));
+      } else if (sortType === 'points') {
+        sorted.sort((a, b) => b.reward - a.reward);
+      } else if (sortType === 'popular') {
+        sorted.sort((a, b) => b.participantCount - a.participantCount);
+      } else if (sortType === 'newest') {
+        sorted.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      }
+      return sorted;
+    }
+
+    // Update countdown timers
+    function updateRaidTimers() {
+      const timers = document.querySelectorAll('[data-raid-timer]');
+      timers.forEach(timer => {
+        const raidId = timer.getAttribute('data-raid-timer');
+        const card = document.querySelector(`[data-raid-id="${raidId}"]`);
+        const expiresAt = card ? new Date(card.getAttribute('data-expires')) : null;
+
+        if (expiresAt) {
+          const now = new Date();
+          const timeLeft = expiresAt - now;
+
+          if (timeLeft < 0) {
+            timer.textContent = '⏰ EXPIRED';
+            timer.className = 'raid-timer-badge urgent';
+          } else {
+            const hours = Math.floor(timeLeft / (1000 * 60 * 60));
+            const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+
+            let text = '';
+            if (hours > 24) text = `⏰ ${Math.floor(hours/24)}d ${hours%24}h`;
+            else if (hours > 0) text = `⏰ ${hours}h ${minutes}m`;
+            else text = `⏰ ${minutes}m`;
+
+            timer.textContent = text;
+
+            // Update urgency class
+            if (hours < 2) timer.className = 'raid-timer-badge urgent';
+            else if (hours < 12) timer.className = 'raid-timer-badge medium';
+            else timer.className = 'raid-timer-badge safe';
+          }
+        }
+      });
+    }
+
+    // Load user raid stats
+    async function loadUserRaidStats(walletAddress) {
+      if (!walletAddress) return;
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/raids/completed/${walletAddress}`);
+        if (!response.ok) return;
+
+        const data = await response.json();
+        if (!data.success) return;
+
+        const completedRaids = data.completedRaids || [];
+        const totalCompleted = completedRaids.length;
+        const totalPoints = completedRaids.reduce((sum, r) => sum + (r.points_awarded || 0), 0);
+
+        // Calculate streak (simplified - consecutive days)
+        const streak = 0; // TODO: Implement proper streak calculation
+
+        // Show stats
+        document.getElementById('raidPerformanceStats').style.display = 'block';
+        document.getElementById('userRaidsCompleted').textContent = totalCompleted;
+        document.getElementById('userRaidPoints').textContent = totalPoints;
+        document.getElementById('userRaidStreak').textContent = streak;
+        document.getElementById('userRaidRank').textContent = '-'; // TODO: Implement ranking
+
+      } catch (error) {
+        console.error('Error loading raid stats:', error);
+      }
+    }
+
+    // Handle raid action
+    async function handleRaidAction(raidId, twitterUrl) {
+      window.open(twitterUrl, '_blank');
+      // The existing joinRaid function will handle the completion tracking
+      if (window.joinRaid) {
+        await window.joinRaid(null, raidId);
+      }
+    }
+
+    // Modal functions
+    function openRaidModal(raidId) {
+      const raid = allRaidsData.find(r => r.id === raidId);
+      if (!raid) return;
+
+      const modal = document.getElementById('raidTweetModal');
+      const container = document.getElementById('raidTweetContainer');
+
+      // Embed tweet
+      container.innerHTML = `
+        <blockquote class="twitter-tweet" data-theme="dark">
+          <a href="${raid.twitter_url}"></a>
+        </blockquote>
+      `;
+
+      // Load Twitter widget
+      if (window.twttr && window.twttr.widgets) {
+        window.twttr.widgets.load(container);
+      }
+
+      modal.style.display = 'flex';
+    }
+
+    function closeRaidModal() {
+      document.getElementById('raidTweetModal').style.display = 'none';
+    }
+
+    // Update timers every minute
+    setInterval(updateRaidTimers, 60000);
+
+    // Initialize GODMODE raids on page load
+    if (document.getElementById('raidsGrid')) {
+      loadGodmodeRaids();
+    }
+
+    // ===== END GODMODE RAIDS SYSTEM =====
+
     async function loadRaids() {
       const walletAddress = localStorage.getItem('bearpark_wallet');
 
