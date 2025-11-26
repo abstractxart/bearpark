@@ -14536,9 +14536,17 @@
         return `${minutes}m`;
       };
 
-      // Extract tweet text (simplified)
-      const tweetText = raid.description || 'Join this raid!';
-      const tweetAuthor = raid.profile_handle || '@BearXRPL';
+      // Extract tweet info from URL or description
+      let tweetText = raid.description || 'Join this raid!';
+      let tweetAuthor = raid.profile_handle || '@BearXRPL';
+
+      // Try to extract username from Twitter URL
+      if (raid.twitter_url) {
+        const urlMatch = raid.twitter_url.match(/(?:twitter\.com|x\.com)\/([^\/]+)/);
+        if (urlMatch) {
+          tweetAuthor = '@' + urlMatch[1];
+        }
+      }
 
       // Calculate time progress for bar
       const totalTime = new Date(raid.expires_at) - new Date(raid.created_at);
@@ -14586,21 +14594,38 @@
           <div class="raid-progress-fill" style="width: ${progressPercent}%"></div>
         </div>
 
-        <div class="raid-tweet-preview-compact" onclick="openRaidModal(${raid.id})">
+        <div class="raid-tweet-preview-compact" data-raid-id="${raid.id}">
           <div class="raid-tweet-text">${tweetText}</div>
           <div class="raid-tweet-author">${tweetAuthor}</div>
+          <a href="${raid.twitter_url}" target="_blank" onclick="event.stopPropagation()"
+             style="display:inline-block; margin-top:8px; font-size:12px; color:var(--gold); text-decoration:none; opacity:0.8;">
+            🔗 View on Twitter/X →
+          </a>
         </div>
 
         <div class="raid-card-footer">
           <div class="raid-participants">
             👥 <span class="raid-participants-count">${raid.participantCount}</span> raiders
           </div>
-          <button class="raid-action-btn ${buttonClass}" ${raid.isCompleted || raid.isExpired ? 'disabled' : ''}
-                  onclick="handleRaidAction(${raid.id}, '${raid.twitter_url}')">
+          <button class="raid-action-btn ${buttonClass}"
+                  data-raid-id="${raid.id}"
+                  data-twitter-url="${raid.twitter_url.replace(/"/g, '&quot;')}"
+                  ${raid.isCompleted || raid.isExpired ? 'disabled' : ''}>
             ${buttonText}
           </button>
         </div>
       `;
+
+      // Add event listeners after creating the card
+      const previewEl = card.querySelector('.raid-tweet-preview-compact');
+      if (previewEl) {
+        previewEl.addEventListener('click', () => openRaidModal(raid.id));
+      }
+
+      const button = card.querySelector('.raid-action-btn');
+      if (button && !raid.isCompleted && !raid.isExpired) {
+        button.addEventListener('click', () => handleRaidAction(raid.id, raid.twitter_url));
+      }
 
       return card;
     }
@@ -14724,10 +14749,30 @@
 
     // Handle raid action
     async function handleRaidAction(raidId, twitterUrl) {
-      window.open(twitterUrl, '_blank');
-      // The existing joinRaid function will handle the completion tracking
-      if (window.joinRaid) {
-        await window.joinRaid(null, raidId);
+      console.log('🎯 JOIN RAID clicked:', { raidId, twitterUrl });
+
+      // Open Twitter link in new tab
+      const twitterWindow = window.open(twitterUrl, '_blank');
+
+      if (!twitterWindow) {
+        alert('❌ Pop-up blocked! Please allow pop-ups for this site to join raids.');
+        return;
+      }
+
+      // Mark raid as in progress
+      const button = document.querySelector(`[data-raid-id="${raidId}"].raid-action-btn`);
+      if (button) {
+        button.textContent = '⏳ OPENING...';
+        button.disabled = true;
+      }
+
+      // Use existing raid completion system
+      try {
+        if (typeof joinRaid === 'function') {
+          await joinRaid(null, raidId);
+        }
+      } catch (error) {
+        console.error('Error joining raid:', error);
       }
     }
 
