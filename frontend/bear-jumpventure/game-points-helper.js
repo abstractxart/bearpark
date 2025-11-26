@@ -16,15 +16,17 @@ const GAME_POINTS_CONFIG = {
 
 /**
  * Award points for completing a game session
- * @param {string} gameId - Unique game identifier (e.g., 'bear-ninja', 'flappy-bear')
+ * @param {string} gameId - Unique game identifier (e.g., 'bear-ninja', 'bear-pong')
  * @param {number} minutesPlayed - Minutes played in this session (rounded to 0.1)
  * @returns {Promise<object>} Response with points awarded and daily status
  */
 async function awardGamePoints(gameId, minutesPlayed) {
   try {
     // Get wallet from parent window or localStorage
+    // Support both bearpark_wallet (main site) and xaman_wallet_address (BEAR PONG)
     const walletAddress = window.parent?.localStorage?.getItem('bearpark_wallet') ||
-                          localStorage.getItem('bearpark_wallet');
+                          localStorage.getItem('bearpark_wallet') ||
+                          localStorage.getItem('xaman_wallet_address');
 
     if (!walletAddress) {
       console.warn('No wallet connected, cannot award points');
@@ -206,12 +208,12 @@ function showPointsNotification(points, remaining, minutesToday, maxMinutes) {
   // Click to dismiss
   overlay.addEventListener('click', dismissOverlay);
 
-  // Auto-dismiss after 3 seconds
+  // Auto-dismiss after 5 seconds
   setTimeout(() => {
     if (overlay.parentElement) {
       dismissOverlay();
     }
-  }, 3000);
+  }, 5000);
 }
 
 /**
@@ -270,13 +272,13 @@ function showLimitNotification() {
     setTimeout(() => overlay.remove(), 300);
   });
 
-  // Auto-dismiss after 3 seconds
+  // Auto-dismiss after 5 seconds
   setTimeout(() => {
     if (overlay.parentElement) {
       overlay.style.animation = 'fadeOut 0.3s ease-out';
       setTimeout(() => overlay.remove(), 300);
     }
-  }, 3000);
+  }, 5000);
 }
 
 /**
@@ -364,6 +366,11 @@ style.textContent = `
     0%, 100% { transform: translateY(0); }
     50% { transform: translateY(-20px); }
   }
+  @keyframes rainbowShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
 `;
 document.head.appendChild(style);
 
@@ -371,3 +378,8 @@ document.head.appendChild(style);
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { awardGamePoints, getDailyGameStatus, showCelebration, GAME_POINTS_CONFIG };
 }
+
+// IMPORTANT: Expose to window for browser usage
+window.awardGamePoints = awardGamePoints;
+window.getDailyGameStatus = getDailyGameStatus;
+window.showCelebration = showCelebration;
