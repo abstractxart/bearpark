@@ -218,17 +218,19 @@
     }
 
     .status {
-      margin-top: 24px;
-      padding: 18px;
-      border-radius: 16px;
+      margin: 30px auto;
+      padding: 30px;
+      border-radius: 20px;
       text-align: center;
       font-weight: 900;
       display: none;
       animation: slideIn 0.3s ease;
-      font-size: 16px;
+      font-size: 22px;
       position: relative;
-      z-index: 1;
-      text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      z-index: 1000;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+      max-width: 90%;
+      line-height: 1.6;
     }
 
     @keyframes slideIn {
@@ -237,17 +239,18 @@
     }
 
     .status.success {
-      background: linear-gradient(135deg, rgba(7, 174, 8, 0.3), rgba(7, 174, 8, 0.2));
-      color: var(--stripe-green);
+      background: linear-gradient(135deg, rgba(7, 174, 8, 0.5), rgba(7, 174, 8, 0.3));
+      color: #00ff88;
       border: 4px solid var(--stripe-green);
-      box-shadow: 0 0 20px rgba(7, 174, 8, 0.4);
+      box-shadow: 0 0 40px rgba(7, 174, 8, 0.6);
     }
 
     .status.error {
-      background: linear-gradient(135deg, rgba(239, 68, 68, 0.3), rgba(239, 68, 68, 0.2));
-      color: #ff6b6b;
-      border: 4px solid #ef4444;
-      box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+      background: linear-gradient(135deg, rgba(255, 69, 58, 0.6), rgba(255, 69, 58, 0.4));
+      color: #ffffff;
+      border: 5px solid #ff453a;
+      box-shadow: 0 0 50px rgba(255, 69, 58, 0.8);
+      font-size: 24px;
     }
 
     .wallet-status {
