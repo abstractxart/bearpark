@@ -6102,6 +6102,13 @@
     transform: translateY(2px);
     box-shadow: 0 2px 0 #3d1f93, 0 2px 8px rgba(93, 63, 211, 0.4);
   }
+  .raid-action-btn.completing {
+    background: linear-gradient(135deg, #ffa500, #ff8c00);
+    color: #fff;
+    box-shadow: 0 4px 0 #cc7000, 0 4px 12px rgba(255, 165, 0, 0.6);
+    animation: pulseGlow 2s ease-in-out infinite;
+    cursor: wait;
+  }
   .raid-action-btn.completed {
     background: linear-gradient(135deg, #32d74b, #2db840);
     color: #000;
@@ -6113,6 +6120,53 @@
     color: rgba(255,255,255,0.4);
     box-shadow: none;
     cursor: not-allowed;
+  }
+  @keyframes pulseGlow {
+    0%, 100% {
+      box-shadow: 0 4px 0 #cc7000, 0 4px 12px rgba(255, 165, 0, 0.6);
+    }
+    50% {
+      box-shadow: 0 4px 0 #cc7000, 0 4px 30px rgba(255, 165, 0, 1);
+    }
+  }
+
+  /* Greyed out completed/expired raids */
+  .raid-card-compact.completed-raid,
+  .raid-card-compact.expired-raid {
+    opacity: 0.5;
+    filter: grayscale(0.7);
+    pointer-events: none;
+  }
+  .raid-card-compact.completed-raid:hover,
+  .raid-card-compact.expired-raid:hover {
+    transform: none;
+    box-shadow: none;
+  }
+
+  /* Completion animations */
+  @keyframes floatUp {
+    0% {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+    100% {
+      opacity: 0;
+      transform: translate(-50%, -200%) scale(1.5);
+    }
+  }
+  @keyframes raidComplete {
+    0% {
+      transform: scale(1);
+      opacity: 1;
+    }
+    50% {
+      transform: scale(1.05);
+      box-shadow: 0 0 40px rgba(50, 215, 75, 0.8);
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
   }
 
   /* Progress Bar */
@@ -14455,6 +14509,8 @@
     let currentFilter = 'active';
     let currentSort = 'expiring';
     let userCompletedRaids = [];
+    let raidCompletionTimers = {}; // Track active completion timers {raidId: {timer, secondsLeft, button}}
+    const RAID_COMPLETION_TIME = 120; // 120 seconds to complete
 
     // Load and render GODMODE raids
     async function loadGodmodeRaids() {
@@ -14573,7 +14629,16 @@
       }
 
       const card = document.createElement('div');
-      card.className = `raid-card-compact ${urgencyClass}`;
+      let cardClasses = `raid-card-compact ${urgencyClass}`;
+
+      // Add greyed-out class for completed or expired
+      if (raid.isCompleted) {
+        cardClasses += ' completed-raid';
+      } else if (raid.isExpired) {
+        cardClasses += ' expired-raid';
+      }
+
+      card.className = cardClasses;
       card.setAttribute('data-raid-id', raid.id);
       card.setAttribute('data-expires', raid.expires_at);
       card.setAttribute('data-points', raid.reward);
@@ -14597,7 +14662,7 @@
         <div class="raid-tweet-preview-compact" data-raid-id="${raid.id}">
           <div class="raid-tweet-text">${tweetText}</div>
           <div class="raid-tweet-author">${tweetAuthor}</div>
-          <a href="${raid.twitter_url}" target="_blank" onclick="event.stopPropagation()"
+          <a href="${raid.twitter_url}" target="_blank" class="raid-twitter-link" data-raid-id="${raid.id}"
              style="display:inline-block; margin-top:8px; font-size:12px; color:var(--gold); text-decoration:none; opacity:0.8;">
             🔗 View on Twitter/X →
           </a>
@@ -14619,7 +14684,25 @@
       // Add event listeners after creating the card
       const previewEl = card.querySelector('.raid-tweet-preview-compact');
       if (previewEl) {
-        previewEl.addEventListener('click', () => openRaidModal(raid.id));
+        previewEl.addEventListener('click', (e) => {
+          // Don't open modal if clicking the link
+          if (!e.target.classList.contains('raid-twitter-link')) {
+            openRaidModal(raid.id);
+          }
+        });
+      }
+
+      // Add click handler to Twitter link to also start timer
+      const twitterLink = card.querySelector('.raid-twitter-link');
+      if (twitterLink && !raid.isCompleted && !raid.isExpired) {
+        twitterLink.addEventListener('click', (e) => {
+          e.stopPropagation();
+          // Start the timer when clicking the link
+          const button = card.querySelector('.raid-action-btn');
+          if (button) {
+            startRaidCompletionTimer(raid.id, button);
+          }
+        });
       }
 
       const button = card.querySelector('.raid-action-btn');
@@ -14751,6 +14834,12 @@
     async function handleRaidAction(raidId, twitterUrl) {
       console.log('🎯 JOIN RAID clicked:', { raidId, twitterUrl });
 
+      // Check if already completing
+      if (raidCompletionTimers[raidId]) {
+        console.log('⚠️ Raid already in progress');
+        return;
+      }
+
       // Open Twitter link in new tab
       const twitterWindow = window.open(twitterUrl, '_blank');
 
@@ -14759,21 +14848,144 @@
         return;
       }
 
-      // Mark raid as in progress
+      // Get button reference
       const button = document.querySelector(`[data-raid-id="${raidId}"].raid-action-btn`);
-      if (button) {
-        button.textContent = '⏳ OPENING...';
-        button.disabled = true;
+      if (!button) return;
+
+      // Start completion timer
+      startRaidCompletionTimer(raidId, button);
+    }
+
+    // Start 120 second completion timer
+    function startRaidCompletionTimer(raidId, button) {
+      let secondsLeft = RAID_COMPLETION_TIME;
+
+      // Update button immediately
+      button.textContent = `⏳ COMPLETING... ${secondsLeft}s`;
+      button.disabled = true;
+      button.classList.remove('join');
+      button.classList.add('completing');
+
+      // Create countdown interval
+      const timer = setInterval(() => {
+        secondsLeft--;
+
+        if (secondsLeft <= 0) {
+          clearInterval(timer);
+          delete raidCompletionTimers[raidId];
+          completeRaid(raidId);
+        } else {
+          button.textContent = `⏳ COMPLETING... ${secondsLeft}s`;
+        }
+      }, 1000);
+
+      // Store timer info
+      raidCompletionTimers[raidId] = {
+        timer,
+        secondsLeft,
+        button
+      };
+    }
+
+    // Complete raid and award points
+    async function completeRaid(raidId) {
+      const walletAddress = localStorage.getItem('bearpark_wallet');
+      if (!walletAddress) {
+        alert('❌ Please connect your wallet to complete raids');
+        return;
       }
 
-      // Use existing raid completion system
+      const raid = allRaidsData.find(r => r.id === raidId);
+      if (!raid) return;
+
+      console.log('✅ Completing raid:', raidId);
+
       try {
-        if (typeof joinRaid === 'function') {
-          await joinRaid(null, raidId);
+        // Call API to complete raid and award points
+        const response = await fetch(`${API_BASE_URL}/api/raids/complete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            wallet_address: walletAddress,
+            raid_id: raidId,
+            completed_at: new Date().toISOString(),
+            points_awarded: raid.reward
+          })
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+          console.log('🎉 Raid completed successfully! Points awarded:', raid.reward);
+
+          // Update local state
+          raid.isCompleted = true;
+          userCompletedRaids.push(raidId);
+
+          // Show success message
+          showRaidCompletionAnimation(raidId, raid.reward);
+
+          // Reload user stats
+          const wallet = localStorage.getItem('bearpark_wallet');
+          if (wallet) {
+            loadUserRaidStats(wallet);
+          }
+
+          // Update the view after a delay for animation
+          setTimeout(() => {
+            filterRaids(currentFilter);
+          }, 2000);
+
+        } else {
+          console.error('Failed to complete raid:', result.error);
+          alert(`❌ Failed to complete raid: ${result.error || 'Unknown error'}`);
+
+          // Reset button
+          const button = document.querySelector(`[data-raid-id="${raidId}"].raid-action-btn`);
+          if (button) {
+            button.textContent = '🎯 JOIN RAID';
+            button.disabled = false;
+            button.classList.remove('completing');
+            button.classList.add('join');
+          }
         }
       } catch (error) {
-        console.error('Error joining raid:', error);
+        console.error('Error completing raid:', error);
+        alert(`❌ Error completing raid: ${error.message}`);
       }
+    }
+
+    // Show completion animation
+    function showRaidCompletionAnimation(raidId, points) {
+      const card = document.querySelector(`[data-raid-id="${raidId}"].raid-card-compact`);
+      if (!card) return;
+
+      // Create floating points animation
+      const pointsEl = document.createElement('div');
+      pointsEl.textContent = `+${points} PTS! 🎉`;
+      pointsEl.style.cssText = `
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 32px;
+        font-weight: 900;
+        color: var(--gold);
+        text-shadow: 0 0 20px rgba(237,183,35,0.8);
+        animation: floatUp 2s ease-out forwards;
+        pointer-events: none;
+        z-index: 100;
+      `;
+      card.style.position = 'relative';
+      card.appendChild(pointsEl);
+
+      // Add completion animation to card
+      card.style.animation = 'raidComplete 2s ease-out forwards';
+
+      // Remove after animation
+      setTimeout(() => {
+        pointsEl.remove();
+      }, 2000);
     }
 
     // Modal functions
