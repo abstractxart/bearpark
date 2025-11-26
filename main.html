@@ -6279,6 +6279,7 @@
     font-size: 18px;
   }
   .raids-empty {
+    grid-column: 1 / -1;
     text-align: center;
     padding: 60px 20px;
     color: rgba(255,255,255,0.5);
@@ -15022,6 +15023,11 @@
     if (document.getElementById('raidsGrid')) {
       loadGodmodeRaids();
     }
+
+    // Expose functions globally for onclick handlers
+    window.filterRaids = filterRaids;
+    window.openRaidModal = openRaidModal;
+    window.closeRaidModal = closeRaidModal;
 
     // ===== END GODMODE RAIDS SYSTEM =====
 
