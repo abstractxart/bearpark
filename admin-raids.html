@@ -1365,52 +1365,67 @@
     // Auto-check if wallet is already connected
     window.addEventListener('DOMContentLoaded', async () => {
       const wallet = localStorage.getItem('bearpark_wallet');
-      if (wallet) {
-        // Check if user has any admin role
-        try {
-          const roleResponse = await fetch(`/api/admin/check-role/${wallet}`);
-          const roleResult = await roleResponse.json();
 
-          if (roleResult.has_role) {
-            currentWallet = wallet;
+      if (!wallet) {
+        showStatus('❌ No wallet connected. Please connect your wallet on the main site first.', 'error');
+        return;
+      }
 
-            // Store role info
-            userRole = roleResult.role?.role;
-            userPermissions = {
-              is_master: roleResult.is_master,
-              is_admin: roleResult.is_admin,
-              is_moderator: roleResult.is_moderator
-            };
+      // Check if user has any admin role
+      try {
+        const roleResponse = await adminFetch(`/api/admin/check-role/${wallet}`);
 
-            const roleBadge = userRole === 'master' ? '👑 MASTER' :
-                             userRole === 'admin' ? '🛡️ ADMIN' :
-                             '⚔️ MODERATOR';
-
-            document.getElementById('walletStatus').innerHTML = `<strong>${roleBadge}:</strong> ${wallet}`;
-            document.getElementById('loginSection').style.display = 'none';
-            document.getElementById('adminContent').style.display = 'block';
-
-            // Apply role-based UI restrictions
-            applyRoleRestrictions();
-
-            // Check role and load role management if master
-            await checkUserRole();
-
-            // Load all data
-            await loadCurrentRaids();
-            const usersResponse = await fetch('/api/users');
-            const usersResult = await usersResponse.json();
-            allUsers = usersResult.users || [];
-            filterUsers();
-            await loadBannedUsers();
-            await loadAnalytics();
-            await loadGameSettings();
-            await loadRaidAnalytics();
-            await loadActivityLogs();
-          }
-        } catch (error) {
-          console.error('Error checking role on page load:', error);
+        if (!roleResponse.ok) {
+          showStatus(`❌ Error checking admin role. Status: ${roleResponse.status}`, 'error');
+          console.error('Role check failed:', roleResponse.status, await roleResponse.text());
+          return;
         }
+
+        const roleResult = await roleResponse.json();
+
+        if (roleResult.has_role) {
+          currentWallet = wallet;
+
+          // Store role info
+          userRole = roleResult.role?.role;
+          userPermissions = {
+            is_master: roleResult.is_master,
+            is_admin: roleResult.is_admin,
+            is_moderator: roleResult.is_moderator
+          };
+
+          const roleBadge = userRole === 'master' ? '👑 MASTER' :
+                           userRole === 'admin' ? '🛡️ ADMIN' :
+                           '⚔️ MODERATOR';
+
+          document.getElementById('walletStatus').innerHTML = `<strong>${roleBadge}:</strong> ${wallet}`;
+          document.getElementById('loginSection').style.display = 'none';
+          document.getElementById('adminContent').style.display = 'block';
+
+          // Apply role-based UI restrictions
+          applyRoleRestrictions();
+
+          // Check role and load role management if master
+          await checkUserRole();
+
+          // Load all data
+          await loadCurrentRaids();
+          const usersResponse = await fetch('/api/users');
+          const usersResult = await usersResponse.json();
+          allUsers = usersResult.users || [];
+          filterUsers();
+          await loadBannedUsers();
+          await loadAnalytics();
+          await loadGameSettings();
+          await loadRaidAnalytics();
+          await loadActivityLogs();
+        } else {
+          showStatus(`❌ Your wallet (${wallet}) does not have admin permissions. Please contact the site administrator.`, 'error');
+          console.error('User does not have admin role:', wallet);
+        }
+      } catch (error) {
+        console.error('Error checking role on page load:', error);
+        showStatus(`❌ Error: ${error.message}. Check console for details.`, 'error');
       }
     });
   </script>
