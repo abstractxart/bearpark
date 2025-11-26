@@ -14610,9 +14610,6 @@
       const elapsed = now - new Date(raid.created_at);
       const progressPercent = Math.min(100, (elapsed / totalTime) * 100);
 
-      // Popular badge
-      const isPopular = raid.participantCount > 50;
-
       // Button state
       let buttonHTML = '';
       let buttonClass = '';
@@ -14647,7 +14644,6 @@
 
       card.innerHTML = `
         ${hoursLeft < 2 && !raid.isExpired && !raid.isCompleted ? '<div class="raid-badge expiring-soon">⚡ EXPIRING SOON</div>' : ''}
-        ${isPopular ? '<div class="raid-popularity-badge">🔥 POPULAR</div>' : ''}
 
         <div class="raid-card-header">
           <div class="raid-points-badge">🎯 ${raid.reward} PTS</div>
