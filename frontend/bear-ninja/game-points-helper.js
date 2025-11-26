@@ -206,12 +206,12 @@ function showPointsNotification(points, remaining, minutesToday, maxMinutes) {
   // Click to dismiss
   overlay.addEventListener('click', dismissOverlay);
 
-  // Auto-dismiss after 2 seconds
+  // Auto-dismiss after 3.5 seconds
   setTimeout(() => {
     if (overlay.parentElement) {
       dismissOverlay();
     }
-  }, 2000);
+  }, 3500);
 }
 
 /**
@@ -270,13 +270,13 @@ function showLimitNotification() {
     setTimeout(() => overlay.remove(), 300);
   });
 
-  // Auto-dismiss after 2 seconds
+  // Auto-dismiss after 3.5 seconds
   setTimeout(() => {
     if (overlay.parentElement) {
       overlay.style.animation = 'fadeOut 0.3s ease-out';
       setTimeout(() => overlay.remove(), 300);
     }
-  }, 2000);
+  }, 3500);
 }
 
 /**
