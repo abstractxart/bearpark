@@ -9479,20 +9479,9 @@
       </div>
     </div>
 
-    <!-- 🎯 FLOATING NAVIGATION BUTTONS 🎯 -->
-    <!-- RAIDS Button (Left) -->
-    <div class="floating-nav-btn" id="raidsNavBtn" data-depth="0.8" style="position: absolute; top: 55%; left: 23%; z-index: 11; perspective: 1000px; cursor: pointer;">
-      <div class="floating-nav-text" data-section="honey-points">RAIDS</div>
-    </div>
-
-    <!-- Honey Points Button (Center-Bottom) -->
-    <div class="floating-nav-btn" id="honeyNavBtn" data-depth="0.8" style="position: absolute; top: 72%; left: 50%; transform: translateX(-50%); z-index: 11; perspective: 1000px; cursor: pointer;">
-      <div class="floating-nav-text" data-section="honey-points">HONEY POINTS</div>
-    </div>
-
-    <!-- GAMES Button (Right) -->
-    <div class="floating-nav-btn" id="gamesNavBtn" data-depth="0.8" style="position: absolute; top: 55%; right: 18%; z-index: 11; perspective: 1000px; cursor: pointer;">
-      <div class="floating-nav-text" data-section="bearcade">GAMES</div>
+    <!-- 🎯 SINGLE NAVIGATION BUTTON 🎯 -->
+    <div class="floating-nav-btn" id="whereToGoBtn" data-depth="0.8" style="position: absolute; top: 72%; left: 50%; transform: translateX(-50%); z-index: 11; perspective: 1000px; cursor: pointer;" onclick="openNavigationModal()">
+      <div class="floating-nav-text where-to-go-text">WHERE WOULD YOU LIKE TO GO? 🐻🃏</div>
     </div>
 
     <!-- 🐻🏙️ BEAR CITY INHABITANTS 🏙️🐻 -->
@@ -11465,19 +11454,177 @@
       transform: scale(0.95);
     }
 
-    /* Responsive adjustments for floating nav buttons */
-    @media (max-width: 768px) {
-      .floating-nav-btn {
-        display: none !important;
+    /* WHERE TO GO button - gold with glow */
+    .where-to-go-text {
+      font-size: clamp(16px, 2.5vw, 32px) !important;
+      color: var(--gold) !important;
+      text-shadow:
+        3px 3px 0 #000,
+        -2px -2px 0 #000,
+        2px -2px 0 #000,
+        -2px 2px 0 #000,
+        0 0 20px rgba(237, 183, 35, 0.8),
+        0 0 40px rgba(237, 183, 35, 0.5) !important;
+      animation: pulseGlowText 2s ease-in-out infinite;
+    }
+
+    @keyframes pulseGlowText {
+      0%, 100% {
+        text-shadow:
+          3px 3px 0 #000,
+          -2px -2px 0 #000,
+          2px -2px 0 #000,
+          -2px 2px 0 #000,
+          0 0 20px rgba(237, 183, 35, 0.8),
+          0 0 40px rgba(237, 183, 35, 0.5);
+      }
+      50% {
+        text-shadow:
+          3px 3px 0 #000,
+          -2px -2px 0 #000,
+          2px -2px 0 #000,
+          -2px 2px 0 #000,
+          0 0 30px rgba(237, 183, 35, 1),
+          0 0 60px rgba(237, 183, 35, 0.8);
       }
     }
 
-    @media (max-width: 1200px) {
-      #raidsNavBtn {
-        left: 13% !important;
+    /* Navigation Modal Styles */
+    .nav-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .nav-modal-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(10px);
+    }
+
+    .nav-modal-content {
+      position: relative;
+      background: linear-gradient(135deg, rgba(30, 30, 30, 0.95), rgba(20, 20, 20, 0.98));
+      border: 3px solid var(--gold);
+      border-radius: 20px;
+      max-width: 800px;
+      width: 90%;
+      max-height: 85vh;
+      overflow-y: auto;
+      box-shadow: 0 0 60px rgba(237, 183, 35, 0.3);
+    }
+
+    .nav-modal-header {
+      padding: 20px 30px;
+      border-bottom: 2px solid var(--gold);
+      text-align: center;
+      position: relative;
+    }
+
+    .nav-modal-title {
+      font-family: 'Luckiest Guy', cursive;
+      font-size: clamp(24px, 4vw, 36px);
+      color: var(--gold);
+      margin: 0;
+      text-shadow: 2px 2px 0 #000;
+    }
+
+    .nav-modal-subtitle {
+      color: #aaa;
+      margin: 8px 0 0 0;
+      font-size: 14px;
+    }
+
+    .nav-modal-close {
+      position: absolute;
+      top: 15px;
+      right: 20px;
+      background: none;
+      border: 2px solid var(--gold);
+      color: var(--gold);
+      font-size: 28px;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .nav-modal-close:hover {
+      background: var(--gold);
+      color: #000;
+    }
+
+    .nav-modal-body {
+      padding: 20px 30px 30px;
+    }
+
+    .nav-modal-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 15px;
+    }
+
+    @media (max-width: 600px) {
+      .nav-modal-grid {
+        grid-template-columns: 1fr;
       }
-      #gamesNavBtn {
-        right: 8% !important;
+    }
+
+    .nav-modal-item {
+      background: linear-gradient(135deg, rgba(50, 50, 50, 0.8), rgba(30, 30, 30, 0.9));
+      border: 2px solid rgba(237, 183, 35, 0.3);
+      border-radius: 12px;
+      padding: 15px 20px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .nav-modal-item:hover {
+      border-color: var(--gold);
+      background: linear-gradient(135deg, rgba(237, 183, 35, 0.2), rgba(50, 50, 50, 0.9));
+      transform: translateY(-2px);
+      box-shadow: 0 5px 20px rgba(237, 183, 35, 0.2);
+    }
+
+    .nav-modal-icon {
+      font-size: 28px;
+    }
+
+    .nav-modal-item-text {
+      font-family: 'Luckiest Guy', cursive;
+      font-size: 18px;
+      color: #fff;
+    }
+
+    /* Mobile: show the WHERE TO GO button */
+    @media (max-width: 768px) {
+      #whereToGoBtn {
+        display: block !important;
+        top: auto !important;
+        bottom: 8% !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+      }
+      #whereToGoBtn .where-to-go-text {
+        font-size: 14px !important;
+        padding: 12px 20px;
+        background: rgba(0, 0, 0, 0.7);
+        border-radius: 30px;
+        border: 2px solid var(--gold);
       }
     }
   </style>
@@ -22943,6 +23090,90 @@ if (typeof window.addEventListener !== 'undefined') {
 
     console.log('🐻❄️ COCAINE BEAR MODE ACTIVATED - MAXIMUM SPEED');
   })();
+  </script>
+
+  <!-- ===== NAVIGATION MODAL - WHERE WOULD YOU LIKE TO GO? ===== -->
+  <div id="navigationModal" class="nav-modal" style="display: none;">
+    <div class="nav-modal-overlay" onclick="closeNavigationModal()"></div>
+    <div class="nav-modal-content">
+      <div class="nav-modal-header">
+        <h2 class="nav-modal-title">WHERE WOULD YOU LIKE TO GO?</h2>
+        <p class="nav-modal-subtitle">Choose your destination in BEAR Park!</p>
+        <button class="nav-modal-close" onclick="closeNavigationModal()">&times;</button>
+      </div>
+      <div class="nav-modal-body">
+        <div class="nav-modal-grid">
+          <div class="nav-modal-item" onclick="navigateToSection('bear-overview')">
+            <span class="nav-modal-icon">🐻</span>
+            <span class="nav-modal-item-text">Overview</span>
+          </div>
+          <div class="nav-modal-item" onclick="navigateToSection('meme-of-the-week')">
+            <span class="nav-modal-icon">🏆</span>
+            <span class="nav-modal-item-text">Meme of the Week</span>
+          </div>
+          <div class="nav-modal-item" onclick="navigateToSection('bulletin-board')">
+            <span class="nav-modal-icon">📋</span>
+            <span class="nav-modal-item-text">Bulletin Board</span>
+          </div>
+          <div class="nav-modal-item" onclick="navigateToSection('bear-friends')">
+            <span class="nav-modal-icon">🐻</span>
+            <span class="nav-modal-item-text">Bear Friends</span>
+          </div>
+          <div class="nav-modal-item" onclick="navigateToSection('honey-points')">
+            <span class="nav-modal-icon">🍯</span>
+            <span class="nav-modal-item-text">Honey Points</span>
+          </div>
+          <div class="nav-modal-item" onclick="navigateToSection('raids')">
+            <span class="nav-modal-icon">⚔️</span>
+            <span class="nav-modal-item-text">Raids</span>
+          </div>
+          <div class="nav-modal-item" onclick="navigateToSection('bearcade')">
+            <span class="nav-modal-icon">🎮</span>
+            <span class="nav-modal-item-text">Bearcade</span>
+          </div>
+          <div class="nav-modal-item" onclick="navigateToSection('chart')">
+            <span class="nav-modal-icon">📈</span>
+            <span class="nav-modal-item-text">Chart</span>
+          </div>
+          <div class="nav-modal-item" onclick="navigateToSection('how-to-buy')">
+            <span class="nav-modal-icon">💰</span>
+            <span class="nav-modal-item-text">How To Buy</span>
+          </div>
+          <div class="nav-modal-item" onclick="navigateToSection('links')">
+            <span class="nav-modal-icon">🔗</span>
+            <span class="nav-modal-item-text">Links</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Navigation Modal Functions
+    function openNavigationModal() {
+      document.getElementById('navigationModal').style.display = 'flex';
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeNavigationModal() {
+      document.getElementById('navigationModal').style.display = 'none';
+      document.body.style.overflow = '';
+    }
+
+    function navigateToSection(sectionId) {
+      closeNavigationModal();
+      const section = document.getElementById(sectionId);
+      if (section) {
+        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+
+    // Close modal on Escape key
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        closeNavigationModal();
+      }
+    });
   </script>
 </body>
 </html><!-- 🐻❄️ COCAINE BEAR v1.0 -->
