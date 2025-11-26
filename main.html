@@ -10954,18 +10954,35 @@
         console.log('🐻✨ New bear spawned from ' + (spawnFromLeft ? 'LEFT' : 'RIGHT') + ' at safe Y position! Total: ' + cityBears.length);
       }
 
-      // Initialize with responsive number of bears
+      // Initialize with responsive number of bears - SPAWN ON SCREEN!
       function initializeBears() {
         const maxBears = getMaxBears();
-        console.log('🐻🏙️ Initializing BEAR CITY with ' + maxBears + ' inhabitants for screen size ' + window.innerWidth + 'px');
+        console.error('🐻🏙️ Initializing BEAR CITY with ' + maxBears + ' bears');
+        console.error('🐻🏙️ Container:', containerWidth, 'x', containerHeight);
 
+        // Spawn bears DIRECTLY ON SCREEN (not off-screen)
         for (let i = 0; i < maxBears; i++) {
-          setTimeout(() => {
-            spawnRandomBear();
-          }, i * 300); // Stagger initial spawning
+          if (availableBearImages.length === 0) {
+            availableBearImages = [...bearImages];
+          }
+          const randomIndex = Math.floor(Math.random() * availableBearImages.length);
+          const imageSrc = availableBearImages[randomIndex];
+          availableBearImages.splice(randomIndex, 1);
+
+          const bear = new CityBear(imageSrc, i);
+
+          // Position ON SCREEN - avoid water zone (left 35%)
+          const safeXStart = containerWidth * 0.35;
+          bear.x = safeXStart + Math.random() * (containerWidth - safeXStart - 80);
+          bear.y = (containerHeight * 0.4) + Math.random() * (containerHeight * 0.55 - containerHeight * 0.4);
+          bear.element.style.left = bear.x + 'px';
+          bear.element.style.top = bear.y + 'px';
+
+          cityBears.push(bear);
+          console.error('🐻✅ Bear #' + (i+1) + ' spawned at', bear.x.toFixed(0), bear.y.toFixed(0));
         }
 
-        console.log('🐻✨ BEAR CITY is spawning!');
+        console.error('🐻🏙️💥 ALL ' + maxBears + ' BEARS SPAWNED! 💥');
       }
 
       // Spawn new bears periodically
