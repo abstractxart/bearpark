@@ -10971,10 +10971,13 @@
 
           const bear = new CityBear(imageSrc, i);
 
-          // Position ON SCREEN - avoid water zone (left 35%)
-          const safeXStart = containerWidth * 0.35;
+          // Position ON SCREEN - randomize across the full ground area (40% to 90%)
+          bear.y = (containerHeight * 0.4) + Math.random() * (containerHeight * 0.5);
+
+          // X position: if bear is in lower area (below 60%), avoid water zone on left
+          const isInWaterYZone = bear.y > (containerHeight * 0.60);
+          const safeXStart = isInWaterYZone ? (containerWidth * 0.35) : 0;
           bear.x = safeXStart + Math.random() * (containerWidth - safeXStart - 80);
-          bear.y = (containerHeight * 0.4) + Math.random() * (containerHeight * 0.55 - containerHeight * 0.4);
           bear.element.style.left = bear.x + 'px';
           bear.element.style.top = bear.y + 'px';
 
