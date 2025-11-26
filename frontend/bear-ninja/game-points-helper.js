@@ -371,3 +371,11 @@ document.head.appendChild(style);
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { awardGamePoints, getDailyGameStatus, showCelebration, GAME_POINTS_CONFIG };
 }
+
+// Also expose to browser window for games loaded via script tag
+if (typeof window !== 'undefined') {
+  window.awardGamePoints = awardGamePoints;
+  window.getDailyGameStatus = getDailyGameStatus;
+  window.showCelebration = showCelebration;
+  window.GAME_POINTS_CONFIG = GAME_POINTS_CONFIG;
+}
