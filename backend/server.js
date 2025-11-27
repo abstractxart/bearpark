@@ -931,6 +931,44 @@ app.get('/api/raids/completed/:wallet_address', async (req, res) => {
   }
 });
 
+// Get Raid Leaderboard (top raiders by points)
+app.get('/api/raids/leaderboard', async (req, res) => {
+  try {
+    // Query raid_completions to get total points per user
+    const { data, error } = await supabase
+      .from('raid_completions')
+      .select('wallet_address, points_awarded');
+
+    if (error) {
+      console.error('Error fetching raid leaderboard:', error);
+      return res.json({ success: true, leaderboard: [] });
+    }
+
+    // Aggregate points by wallet
+    const userStats = {};
+    data.forEach(completion => {
+      if (!userStats[completion.wallet_address]) {
+        userStats[completion.wallet_address] = {
+          wallet_address: completion.wallet_address,
+          total_points: 0,
+          total_raids: 0
+        };
+      }
+      userStats[completion.wallet_address].total_points += completion.points_awarded || 0;
+      userStats[completion.wallet_address].total_raids += 1;
+    });
+
+    // Convert to array and sort by points (descending)
+    const leaderboard = Object.values(userStats)
+      .sort((a, b) => b.total_points - a.total_points);
+
+    res.json({ success: true, leaderboard });
+  } catch (error) {
+    console.error('Error in raid leaderboard endpoint:', error);
+    res.json({ success: true, leaderboard: [] });
+  }
+});
+
 // SECURITY: Updated raid completion with duplicate protection
 app.post('/api/raids/complete', validateWallet, validateAmount, async (req, res) => {
   try {
