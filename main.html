@@ -23829,7 +23829,7 @@ if (typeof window.addEventListener !== 'undefined') {
     const container = section.querySelector('.bear-heads-container');
     if (!container) return;
 
-    const MAX_BEARS = 10;
+    const MAX_BEARS = 25;
     const activeBears = [];
     let nextId = 0;
 
@@ -23846,7 +23846,7 @@ if (typeof window.addEventListener !== 'undefined') {
         rotationSpeed: (Math.random() - 0.5) * 4,
         scale: 0.7 + Math.random() * 0.6,
         isDragging: false,
-        lifeTime: 3000 + Math.random() * 4000
+        lifeTime: 15000 + Math.random() * 15000
       };
 
       const img = document.createElement('img');
@@ -24033,6 +24033,35 @@ if (typeof window.addEventListener !== 'undefined') {
         bear.x = Math.max(0, Math.min(width - 100, bear.x));
         bear.y = Math.max(0, Math.min(height - 100, bear.y));
 
+        // Check collisions with other bears
+        activeBears.forEach(otherBear => {
+          if (otherBear.id === bear.id || otherBear.isDragging || !otherBear.el) return;
+
+          const dx = otherBear.x - bear.x;
+          const dy = otherBear.y - bear.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          const minDistance = 100; // Bear size
+
+          if (distance < minDistance) {
+            // Collision detected! Bounce bears apart
+            const angle = Math.atan2(dy, dx);
+            const targetX = bear.x + Math.cos(angle) * minDistance;
+            const targetY = bear.y + Math.sin(angle) * minDistance;
+
+            const ax = (targetX - otherBear.x) * 0.05;
+            const ay = (targetY - otherBear.y) * 0.05;
+
+            bear.vx -= ax * 2;
+            bear.vy -= ay * 2;
+            otherBear.vx += ax;
+            otherBear.vy += ay;
+
+            // Add some spin
+            bear.rotationSpeed += (Math.random() - 0.5) * 3;
+            otherBear.rotationSpeed += (Math.random() - 0.5) * 3;
+          }
+        });
+
         bear.rotation += bear.rotationSpeed;
 
         bear.el.style.transform = `translate(${bear.x}px, ${bear.y}px) rotate(${bear.rotation}deg) scale(${bear.scale})`;
@@ -24043,13 +24072,13 @@ if (typeof window.addEventListener !== 'undefined') {
 
     // Spawn bears randomly
     function spawnLoop() {
-      if (activeBears.length < MAX_BEARS && Math.random() < 0.3) {
+      if (activeBears.length < MAX_BEARS && Math.random() < 0.7) {
         const bear = createBear();
         activeBears.push(bear);
       }
 
-      // Random spawn timing (1-3 seconds)
-      setTimeout(spawnLoop, 1000 + Math.random() * 2000);
+      // Random spawn timing (0.5-2 seconds)
+      setTimeout(spawnLoop, 500 + Math.random() * 1500);
     }
 
     // Start everything
