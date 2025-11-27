@@ -6017,31 +6017,36 @@
   .raid-tweet-preview-compact {
     background: rgba(0,0,0,0.4);
     border-radius: 12px;
-    padding: 20px;
+    padding: 24px;
     margin-bottom: 16px;
     border: 1px solid rgba(255,255,255,0.1);
     transition: all 0.3s ease;
-    min-height: 120px;
+    min-height: 180px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
   }
   .raid-tweet-preview-compact:hover {
     background: rgba(0,0,0,0.5);
     border-color: rgba(237,183,35,0.3);
   }
   .raid-tweet-text {
-    font-size: 16px;
-    line-height: 1.6;
-    color: rgba(255,255,255,0.9);
-    margin-bottom: 12px;
+    font-size: 18px;
+    line-height: 1.8;
+    color: rgba(255,255,255,0.95);
+    margin-bottom: 16px;
     display: -webkit-box;
-    -webkit-line-clamp: 4;
+    -webkit-line-clamp: 5;
     -webkit-box-orient: vertical;
     overflow: hidden;
     font-family: system-ui, -apple-system, sans-serif;
+    font-weight: 500;
   }
   .raid-tweet-author {
-    font-size: 14px;
-    color: rgba(255,255,255,0.6);
-    font-weight: 600;
+    font-size: 16px;
+    color: var(--gold);
+    font-weight: 700;
+    margin-bottom: 8px;
   }
 
   /* Card Footer */
@@ -14658,10 +14663,10 @@
         </div>
 
         <div class="raid-tweet-preview-compact" data-raid-id="${raid.id}">
-          <div class="raid-tweet-text">${tweetText}</div>
           <div class="raid-tweet-author">${tweetAuthor}</div>
+          <div class="raid-tweet-text">${tweetText}</div>
           <a href="${raid.twitter_url}" target="_blank" class="raid-twitter-link" data-raid-id="${raid.id}"
-             style="display:inline-block; margin-top:8px; font-size:12px; color:var(--gold); text-decoration:none; opacity:0.8;">
+             style="display:inline-block; margin-top:12px; font-size:14px; color:var(--gold); text-decoration:none; opacity:0.9; font-weight:600;">
             🔗 View on Twitter/X →
           </a>
         </div>
