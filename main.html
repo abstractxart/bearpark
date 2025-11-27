@@ -5915,9 +5915,33 @@
     gap: 20px;
     margin-top: 24px;
   }
+  .raids-grid.scrollable {
+    max-height: 600px;
+    overflow-y: auto;
+    padding-right: 8px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--gold) rgba(0,0,0,0.3);
+  }
+  .raids-grid.scrollable::-webkit-scrollbar {
+    width: 8px;
+  }
+  .raids-grid.scrollable::-webkit-scrollbar-track {
+    background: rgba(0,0,0,0.3);
+    border-radius: 4px;
+  }
+  .raids-grid.scrollable::-webkit-scrollbar-thumb {
+    background: var(--gold);
+    border-radius: 4px;
+  }
+  .raids-grid.scrollable::-webkit-scrollbar-thumb:hover {
+    background: #ffc107;
+  }
   @media (max-width: 768px) {
     .raids-grid {
       grid-template-columns: 1fr;
+    }
+    .raids-grid.scrollable {
+      max-height: 500px;
     }
   }
 
@@ -14901,6 +14925,14 @@
 
       // Render
       const raidsGrid = document.getElementById('raidsGrid');
+
+      // Make completed and expired sections scrollable
+      if (filter === 'completed' || filter === 'expired') {
+        raidsGrid.classList.add('scrollable');
+      } else {
+        raidsGrid.classList.remove('scrollable');
+      }
+
       if (filtered.length === 0) {
         let emptyMessage = '';
         if (filter === 'active') {
