@@ -1,4 +1,5 @@
 const path = require('path');
+// BEARpark Backend Server - Raid Leaderboard & Streak System
 // Load .env only in local development (Vercel injects env vars directly)
 if (process.env.NODE_ENV !== 'production') {
   require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
