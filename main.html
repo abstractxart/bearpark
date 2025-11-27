@@ -15067,6 +15067,23 @@
         }
 
         const leaderboard = data.leaderboard;
+
+        // Fetch equipped cosmetics for all raiders
+        const walletAddresses = leaderboard.map(r => r.wallet_address);
+        const equippedCosmetics = {};
+
+        await Promise.all(walletAddresses.map(async (wallet) => {
+          try {
+            const cosmeticRes = await fetch(`${API_BASE_URL}/api/cosmetics/equipped/${wallet}`);
+            const cosmeticData = await cosmeticRes.json();
+            if (cosmeticData.success && cosmeticData.equipped) {
+              equippedCosmetics[wallet] = cosmeticData.equipped;
+            }
+          } catch (e) {
+            // Ignore errors for individual users
+          }
+        }));
+
         let html = '';
 
         leaderboard.forEach((raider, index) => {
@@ -15089,13 +15106,68 @@
           const displayName = raider.display_name || truncateWallet(raider.wallet_address);
           const truncatedWallet = truncateWallet(raider.wallet_address);
 
-          // Avatar - use NFT avatar or default bear
-          const avatarUrl = raider.avatar_nft || 'https://files.catbox.moe/pxcklj.png';
+          // Parse avatar URL from avatar_nft JSON
+          let avatarUrl = 'https://files.catbox.moe/pxcklj.png'; // default bear
+          if (raider.avatar_nft) {
+            try {
+              const avatarData = JSON.parse(raider.avatar_nft);
+              avatarUrl = avatarData.imageUrl || avatarData.fallbackImageUrl || avatarUrl;
+            } catch (e) {
+              // If not JSON, try using it directly as NFT ID
+              avatarUrl = `https://nft.xrpl-labs.com/${raider.avatar_nft}`;
+            }
+          }
+
+          // Check for equipped ring
+          const equipped = equippedCosmetics[raider.wallet_address];
+          const equippedRing = equipped?.ring;
+
+          let avatarHTML = '';
+          if (equippedRing && equippedRing.image_url) {
+            const spinAnimation = equippedRing.rarity === 'bearableguy123' ? 'animation: spinRingImage 3s linear infinite;' : '';
+            const ouroborosRotation = equippedRing.ring_type === 'ouroboros' ? ' rotate(180deg)' : '';
+
+            // Different sizes for different ring types
+            const isCastle = equippedRing.ring_type === 'castle' || equippedRing.ring_type === 'castle-static';
+            const isOuroboros = equippedRing.ring_type === 'ouroboros';
+            const isWaves = equippedRing.ring_type === 'waves' || equippedRing.ring_type === 'waves-static';
+
+            let ringSize, containerSize;
+            if (isCastle) {
+              ringSize = '60px';
+              containerSize = '60px';
+            } else if (isOuroboros) {
+              ringSize = '55px';
+              containerSize = '55px';
+            } else if (isWaves) {
+              ringSize = '50px';
+              containerSize = '50px';
+            } else {
+              ringSize = '52px';
+              containerSize = '52px';
+            }
+            const avatarSize = '36px';
+
+            avatarHTML = `
+              <div style="width:${containerSize}; height:${containerSize}; position:relative; flex-shrink:0;">
+                <img src="${avatarUrl}"
+                     alt="Avatar"
+                     style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:1; width:${avatarSize}; height:${avatarSize}; border-radius:50%; object-fit:cover;"
+                     onerror="this.src='https://files.catbox.moe/pxcklj.png'">
+                <img src="${equippedRing.image_url}"
+                     alt="Ring"
+                     style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%)${ouroborosRotation}; width:${ringSize}; height:${ringSize}; object-fit:contain; z-index:2; pointer-events:none; ${spinAnimation}">
+              </div>
+            `;
+          } else {
+            // No ring, just avatar
+            avatarHTML = `<img src="${avatarUrl}" alt="Avatar" class="raider-avatar" onerror="this.src='https://files.catbox.moe/pxcklj.png'">`;
+          }
 
           html += `
             <div class="${rowClass}">
               <div class="raider-rank ${rankClass}">${rank}</div>
-              <img src="${avatarUrl}" alt="Avatar" class="raider-avatar" onerror="this.src='https://files.catbox.moe/pxcklj.png'">
+              ${avatarHTML}
               <div class="raider-info">
                 <div class="raider-name">${escapeHtml(displayName)}${isCurrentUser ? ' <span style="color:var(--gold);font-size:12px;">(You)</span>' : ''}</div>
                 <div class="raider-wallet">${truncatedWallet}</div>
