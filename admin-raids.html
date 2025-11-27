@@ -411,6 +411,12 @@
         </div>
 
         <div class="form-group">
+          <label for="raidImageUrl">Thumbnail Image URL</label>
+          <input type="url" id="raidImageUrl" placeholder="https://example.com/image.jpg">
+          <div class="small-text">Optional: Direct link to tweet image/thumbnail for preview</div>
+        </div>
+
+        <div class="form-group">
           <label for="targetAccount">Target Account *</label>
           <input type="text" id="targetAccount" value="@BearXRPL" placeholder="@bearxrpl" required>
           <div class="small-text">Include the @ symbol</div>
@@ -827,6 +833,7 @@
       const durationHours = parseInt(document.getElementById('durationHours').value);
       const expiresAt = new Date(Date.now() + durationHours * 60 * 60 * 1000).toISOString();
 
+      const imageUrl = document.getElementById('raidImageUrl').value.trim();
       const raidData = {
         description: document.getElementById('raidTitle').value,
         twitter_url: document.getElementById('raidUrl').value,
@@ -834,7 +841,8 @@
         profile_name: 'BearXRPL',
         profile_handle: document.getElementById('targetAccount').value,
         profile_emoji: '🐻',
-        expires_at: expiresAt
+        expires_at: expiresAt,
+        ...(imageUrl && { image_url: imageUrl })
       };
 
       try {

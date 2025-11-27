@@ -6042,6 +6042,14 @@
     font-family: system-ui, -apple-system, sans-serif;
     font-weight: 500;
   }
+  .raid-tweet-thumbnail {
+    width: 100%;
+    max-height: 250px;
+    object-fit: cover;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    border: 1px solid rgba(237,183,35,0.2);
+  }
   .raid-tweet-author {
     font-size: 16px;
     color: var(--gold);
@@ -14663,6 +14671,12 @@
         </div>
 
         <div class="raid-tweet-preview-compact" data-raid-id="${raid.id}">
+          ${raid.image_url ? `
+            <img src="${raid.image_url}"
+                 alt="Tweet preview"
+                 class="raid-tweet-thumbnail"
+                 onerror="this.style.display='none'">
+          ` : ''}
           <div class="raid-tweet-author">${tweetAuthor}</div>
           <div class="raid-tweet-text">${tweetText}</div>
           <a href="${raid.twitter_url}" target="_blank" class="raid-twitter-link" data-raid-id="${raid.id}"
