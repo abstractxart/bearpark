@@ -14699,15 +14699,7 @@
       `;
 
       // Add event listeners after creating the card
-      const previewEl = card.querySelector('.raid-tweet-preview-compact');
-      if (previewEl) {
-        previewEl.addEventListener('click', (e) => {
-          // Don't open modal if clicking the link
-          if (!e.target.classList.contains('raid-twitter-link')) {
-            openRaidModal(raid.id);
-          }
-        });
-      }
+      // Modal disabled - entire card is now clickable to open Twitter and start timer
 
       // Add click handler to Twitter link to also start timer
       const twitterLink = card.querySelector('.raid-twitter-link');
