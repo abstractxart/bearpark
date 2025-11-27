@@ -6295,9 +6295,13 @@
   .raids-empty {
     grid-column: 1 / -1;
     text-align: center;
-    padding: 60px 20px;
-    color: rgba(255,255,255,0.5);
+    padding: 80px 40px;
+    color: #ffffff;
     font-size: 16px;
+    background: rgba(0,0,0,0.4);
+    border-radius: 20px;
+    border: 2px solid rgba(237,183,35,0.3);
+    text-shadow: 0 2px 4px rgba(0,0,0,0.8);
   }
 
   /* ===== END GODMODE RAIDS SECTION ===== */
@@ -14763,7 +14767,7 @@
         } else if (filter === 'expired') {
           emptyMessage = '⏰ NO EXPIRED RAIDS<br><br>All raids are still active or completed.';
         }
-        raidsGrid.innerHTML = `<div class="raids-empty" style="font-size:24px; font-weight:900; line-height:1.6;">${emptyMessage}</div>`;
+        raidsGrid.innerHTML = `<div class="raids-empty" style="font-size:32px; font-weight:900; line-height:1.8; color:#ffffff;">${emptyMessage}</div>`;
       } else {
         raidsGrid.innerHTML = '';
         filtered.forEach(raid => {
