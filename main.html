@@ -14796,6 +14796,41 @@
       });
     }
 
+    // Calculate raid streak from consecutive days
+    function calculateRaidStreak(completedRaids) {
+      if (completedRaids.length === 0) return 0;
+
+      // Sort by completion date (most recent first)
+      const sorted = [...completedRaids].sort((a, b) =>
+        new Date(b.completed_at) - new Date(a.completed_at)
+      );
+
+      // Get unique dates (ignore time, just date)
+      const uniqueDates = [...new Set(sorted.map(r => {
+        const date = new Date(r.completed_at);
+        return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+      }))];
+
+      let streak = 0;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      // Check consecutive days starting from today
+      for (let i = 0; i < uniqueDates.length; i++) {
+        const checkDate = new Date(today);
+        checkDate.setDate(checkDate.getDate() - i);
+        const checkDateStr = `${checkDate.getFullYear()}-${checkDate.getMonth()}-${checkDate.getDate()}`;
+
+        if (uniqueDates.includes(checkDateStr)) {
+          streak++;
+        } else {
+          break; // Streak broken
+        }
+      }
+
+      return streak;
+    }
+
     // Load user raid stats
     async function loadUserRaidStats(walletAddress) {
       if (!walletAddress) return;
@@ -14811,15 +14846,34 @@
         const totalCompleted = completedRaids.length;
         const totalPoints = completedRaids.reduce((sum, r) => sum + (r.points_awarded || 0), 0);
 
-        // Calculate streak (simplified - consecutive days)
-        const streak = 0; // TODO: Implement proper streak calculation
+        // Calculate streak from consecutive days
+        const streak = calculateRaidStreak(completedRaids);
+
+        // Fetch leaderboard to calculate rank
+        let rank = '-';
+        try {
+          const leaderboardResponse = await fetch(`${API_BASE_URL}/api/raids/leaderboard`);
+          if (leaderboardResponse.ok) {
+            const leaderboardData = await leaderboardResponse.json();
+            if (leaderboardData.success && leaderboardData.leaderboard) {
+              const userIndex = leaderboardData.leaderboard.findIndex(
+                u => u.wallet_address.toLowerCase() === walletAddress.toLowerCase()
+              );
+              if (userIndex !== -1) {
+                rank = `#${userIndex + 1}`;
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching rank:', error);
+        }
 
         // Show stats
         document.getElementById('raidPerformanceStats').style.display = 'block';
         document.getElementById('userRaidsCompleted').textContent = totalCompleted;
         document.getElementById('userRaidPoints').textContent = totalPoints;
         document.getElementById('userRaidStreak').textContent = streak;
-        document.getElementById('userRaidRank').textContent = '-'; // TODO: Implement ranking
+        document.getElementById('userRaidRank').textContent = rank;
 
       } catch (error) {
         console.error('Error loading raid stats:', error);
