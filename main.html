@@ -14704,7 +14704,16 @@
 
       const button = card.querySelector('.raid-action-btn');
       if (button && !raid.isCompleted && !raid.isExpired) {
-        button.addEventListener('click', () => handleRaidAction(raid.id, raid.twitter_url));
+        button.addEventListener('click', (e) => {
+          e.stopPropagation();
+          handleRaidAction(raid.id, raid.twitter_url);
+        });
+      }
+
+      // Make entire card clickable to open Twitter and activate raid
+      if (!raid.isCompleted && !raid.isExpired) {
+        card.style.cursor = 'pointer';
+        card.addEventListener('click', () => handleRaidAction(raid.id, raid.twitter_url));
       }
 
       return card;
