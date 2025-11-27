@@ -6313,6 +6313,161 @@
     text-shadow: 0 2px 4px rgba(0,0,0,0.8);
   }
 
+  /* TOP RAIDERS Leaderboard */
+  .top-raiders-container {
+    margin-bottom: 24px;
+  }
+  .top-raiders-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .top-raiders-title {
+    font-size: 20px;
+    font-weight: 900;
+    color: var(--gold);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .top-raiders-scroll {
+    max-height: 400px;
+    overflow-y: auto;
+    padding-right: 8px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--gold) rgba(0,0,0,0.3);
+  }
+  .top-raiders-scroll::-webkit-scrollbar {
+    width: 8px;
+  }
+  .top-raiders-scroll::-webkit-scrollbar-track {
+    background: rgba(0,0,0,0.3);
+    border-radius: 4px;
+  }
+  .top-raiders-scroll::-webkit-scrollbar-thumb {
+    background: var(--gold);
+    border-radius: 4px;
+  }
+  .top-raiders-scroll::-webkit-scrollbar-thumb:hover {
+    background: #ffc107;
+  }
+  .raider-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: rgba(0,0,0,0.4);
+    border-radius: 12px;
+    margin-bottom: 8px;
+    transition: all 0.2s ease;
+    border: 1px solid rgba(237,183,35,0.2);
+  }
+  .raider-row:hover {
+    background: rgba(237,183,35,0.15);
+    border-color: rgba(237,183,35,0.4);
+    transform: translateX(4px);
+  }
+  .raider-row.top-3 {
+    border-color: rgba(237,183,35,0.5);
+    background: linear-gradient(90deg, rgba(237,183,35,0.15), transparent);
+  }
+  .raider-row.current-user {
+    border-color: var(--gold);
+    background: linear-gradient(90deg, rgba(237,183,35,0.25), rgba(237,183,35,0.1));
+    box-shadow: 0 0 20px rgba(237,183,35,0.2);
+  }
+  .raider-rank {
+    min-width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+    font-size: 16px;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.5);
+    color: rgba(255,255,255,0.7);
+  }
+  .raider-rank.gold {
+    background: linear-gradient(135deg, #FFD700, #FFA500);
+    color: #000;
+    box-shadow: 0 0 15px rgba(255,215,0,0.5);
+  }
+  .raider-rank.silver {
+    background: linear-gradient(135deg, #C0C0C0, #A8A8A8);
+    color: #000;
+    box-shadow: 0 0 10px rgba(192,192,192,0.5);
+  }
+  .raider-rank.bronze {
+    background: linear-gradient(135deg, #CD7F32, #B87333);
+    color: #000;
+    box-shadow: 0 0 10px rgba(205,127,50,0.5);
+  }
+  .raider-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid rgba(237,183,35,0.4);
+    background: rgba(237,183,35,0.1);
+  }
+  .raider-info {
+    flex: 1;
+    min-width: 0;
+  }
+  .raider-name {
+    font-weight: 700;
+    font-size: 15px;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .raider-wallet {
+    font-size: 12px;
+    color: rgba(255,255,255,0.5);
+    font-family: monospace;
+  }
+  .raider-stats {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+  }
+  .raider-stat {
+    text-align: center;
+  }
+  .raider-stat-value {
+    font-weight: 900;
+    font-size: 16px;
+    color: var(--gold);
+  }
+  .raider-stat-label {
+    font-size: 10px;
+    color: rgba(255,255,255,0.5);
+    text-transform: uppercase;
+  }
+  .raiders-loading, .raiders-empty {
+    text-align: center;
+    padding: 40px;
+    color: rgba(255,255,255,0.6);
+    font-size: 15px;
+  }
+  @media (max-width: 600px) {
+    .raider-stats {
+      gap: 12px;
+    }
+    .raider-stat-value {
+      font-size: 14px;
+    }
+    .raider-name {
+      font-size: 14px;
+    }
+    .raider-wallet {
+      display: none;
+    }
+  }
+
   /* ===== END GODMODE RAIDS SECTION ===== */
 
   /* Image error handling */
@@ -10176,6 +10331,19 @@
               <div class="stat-label">Your Rank</div>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- TOP RAIDERS Leaderboard -->
+      <div class="honey-card top-raiders-container">
+        <div class="top-raiders-header">
+          <div class="top-raiders-title">
+            <span>🏆</span> TOP RAIDERS
+          </div>
+          <span style="font-size:12px; color:rgba(255,255,255,0.5);">All-time rankings</span>
+        </div>
+        <div class="top-raiders-scroll" id="topRaidersScroll">
+          <div class="raiders-loading">Loading raiders...</div>
         </div>
       </div>
 
@@ -14422,6 +14590,7 @@
     const walletAddress = localStorage.getItem('bearpark_wallet');
     loadHoneyLeaderboard(walletAddress);
     loadRaids();
+    loadTopRaiders();
     startGameResetCountdown();
 
     // Listen for game points being awarded to refresh progress widget
@@ -14880,6 +15049,85 @@
       }
     }
 
+    // Load TOP RAIDERS leaderboard
+    async function loadTopRaiders() {
+      const container = document.getElementById('topRaidersScroll');
+      if (!container) return;
+
+      const currentWallet = localStorage.getItem('bearpark_wallet');
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/raids/leaderboard`);
+        if (!response.ok) throw new Error('Failed to fetch leaderboard');
+
+        const data = await response.json();
+        if (!data.success || !data.leaderboard || data.leaderboard.length === 0) {
+          container.innerHTML = '<div class="raiders-empty">No raiders yet. Be the first to complete a raid!</div>';
+          return;
+        }
+
+        const leaderboard = data.leaderboard;
+        let html = '';
+
+        leaderboard.forEach((raider, index) => {
+          const rank = index + 1;
+          const isCurrentUser = currentWallet && raider.wallet_address.toLowerCase() === currentWallet.toLowerCase();
+          const isTop3 = rank <= 3;
+
+          // Rank styling
+          let rankClass = '';
+          if (rank === 1) rankClass = 'gold';
+          else if (rank === 2) rankClass = 'silver';
+          else if (rank === 3) rankClass = 'bronze';
+
+          // Row styling
+          let rowClass = 'raider-row';
+          if (isTop3) rowClass += ' top-3';
+          if (isCurrentUser) rowClass += ' current-user';
+
+          // Display name or truncated wallet
+          const displayName = raider.display_name || truncateWallet(raider.wallet_address);
+          const truncatedWallet = truncateWallet(raider.wallet_address);
+
+          // Avatar - use NFT avatar or default bear
+          const avatarUrl = raider.avatar_nft || 'https://files.catbox.moe/pxcklj.png';
+
+          html += `
+            <div class="${rowClass}">
+              <div class="raider-rank ${rankClass}">${rank}</div>
+              <img src="${avatarUrl}" alt="Avatar" class="raider-avatar" onerror="this.src='https://files.catbox.moe/pxcklj.png'">
+              <div class="raider-info">
+                <div class="raider-name">${escapeHtml(displayName)}${isCurrentUser ? ' <span style="color:var(--gold);font-size:12px;">(You)</span>' : ''}</div>
+                <div class="raider-wallet">${truncatedWallet}</div>
+              </div>
+              <div class="raider-stats">
+                <div class="raider-stat">
+                  <div class="raider-stat-value">${raider.total_points.toLocaleString()}</div>
+                  <div class="raider-stat-label">Points</div>
+                </div>
+                <div class="raider-stat">
+                  <div class="raider-stat-value">${raider.total_raids}</div>
+                  <div class="raider-stat-label">Raids</div>
+                </div>
+              </div>
+            </div>
+          `;
+        });
+
+        container.innerHTML = html;
+
+      } catch (error) {
+        console.error('Error loading top raiders:', error);
+        container.innerHTML = '<div class="raiders-empty">Unable to load leaderboard</div>';
+      }
+    }
+
+    // Helper: truncate wallet address
+    function truncateWallet(wallet) {
+      if (!wallet) return 'Unknown';
+      return wallet.slice(0, 6) + '...' + wallet.slice(-4);
+    }
+
     // Handle raid action
     async function handleRaidAction(raidId, twitterUrl) {
       console.log('🎯 JOIN RAID clicked:', { raidId, twitterUrl });
@@ -14975,11 +15223,12 @@
           // Show success message
           showRaidCompletionAnimation(raidId, raid.reward);
 
-          // Reload user stats
+          // Reload user stats and leaderboard
           const wallet = localStorage.getItem('bearpark_wallet');
           if (wallet) {
             loadUserRaidStats(wallet);
           }
+          loadTopRaiders();
 
           // Update the view after a delay for animation
           setTimeout(() => {

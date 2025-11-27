@@ -959,6 +959,27 @@ app.get('/api/raids/leaderboard', async (req, res) => {
       userStats[completion.wallet_address].total_raids += 1;
     });
 
+    // Get all unique wallet addresses
+    const walletAddresses = Object.keys(userStats);
+
+    // Fetch profile data for all raiders
+    if (walletAddresses.length > 0) {
+      const { data: profiles, error: profileError } = await supabase
+        .from('profiles')
+        .select('wallet_address, display_name, avatar_nft')
+        .in('wallet_address', walletAddresses);
+
+      if (!profileError && profiles) {
+        // Merge profile data with stats
+        profiles.forEach(profile => {
+          if (userStats[profile.wallet_address]) {
+            userStats[profile.wallet_address].display_name = profile.display_name;
+            userStats[profile.wallet_address].avatar_nft = profile.avatar_nft;
+          }
+        });
+      }
+    }
+
     // Convert to array and sort by points (descending)
     const leaderboard = Object.values(userStats)
       .sort((a, b) => b.total_points - a.total_points);
