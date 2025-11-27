@@ -2230,6 +2230,8 @@
     flex-shrink: 0;
     position: relative;
     transition: transform 0.3s ease;
+    overflow: hidden;
+    border-radius: 50%;
   }
 
   .community-user-card:hover .community-user-avatar-wrapper {
@@ -2245,7 +2247,9 @@
     box-shadow:
       0 4px 12px rgba(0,0,0,0.4),
       0 0 20px rgba(237,183,35,0.2);
-    position: relative;
+    position: absolute;
+    top: 0;
+    left: 0;
     display: block;
   }
 
