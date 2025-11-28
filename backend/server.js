@@ -761,47 +761,34 @@ app.post('/api/points', validateWallet, validateAmount, async (req, res) => {
   });
 });
 
-// Helper function to fetch tweet thumbnail automatically
+// Helper function to fetch tweet thumbnail automatically using Microlink API
 async function fetchTweetThumbnail(twitterUrl) {
   try {
-    // Use Twitter's oEmbed API to get tweet info
-    const oEmbedUrl = `https://publish.twitter.com/oembed?url=${encodeURIComponent(twitterUrl)}&omit_script=true`;
-    const response = await fetch(oEmbedUrl, {
-      headers: { 'User-Agent': 'BearPark/1.0' },
-      timeout: 5000
+    // Use Microlink API - free and reliable for extracting Twitter/X images
+    const microlinkUrl = `https://api.microlink.io?url=${encodeURIComponent(twitterUrl)}`;
+    console.log('Fetching thumbnail via Microlink for:', twitterUrl);
+
+    const response = await fetch(microlinkUrl, {
+      headers: { 'User-Agent': 'BearPark/1.0' }
     });
 
-    if (!response.ok) {
-      console.log('oEmbed fetch failed, trying direct fetch...');
-      // Fallback: try to fetch the page directly and extract og:image
-      const pageResponse = await fetch(twitterUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
-        },
-        timeout: 5000
-      });
-
-      if (pageResponse.ok) {
-        const html = await pageResponse.text();
-        // Extract og:image from meta tags
-        const ogImageMatch = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i) ||
-                            html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i);
-        if (ogImageMatch && ogImageMatch[1]) {
-          console.log('Found og:image:', ogImageMatch[1]);
-          return ogImageMatch[1];
+    if (response.ok) {
+      const data = await response.json();
+      if (data.status === 'success' && data.data) {
+        // Try to get image from the response
+        if (data.data.image && data.data.image.url) {
+          console.log('✅ Found image via Microlink:', data.data.image.url);
+          return data.data.image.url;
+        }
+        // Fallback to logo if no image
+        if (data.data.logo && data.data.logo.url) {
+          console.log('✅ Found logo via Microlink:', data.data.logo.url);
+          return data.data.logo.url;
         }
       }
-      return null;
     }
 
-    const data = await response.json();
-    // oEmbed doesn't directly give image URL, but we can try to extract from HTML
-    if (data.html) {
-      const imgMatch = data.html.match(/src=["']([^"']*twimg[^"']+)["']/i);
-      if (imgMatch) {
-        return imgMatch[1];
-      }
-    }
+    console.log('Microlink did not return an image');
     return null;
   } catch (error) {
     console.log('Error fetching tweet thumbnail:', error.message);
