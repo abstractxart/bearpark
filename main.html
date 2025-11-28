@@ -10200,6 +10200,48 @@
         </div>
       </div>
 
+      <!-- Trading Activity Card -->
+      <div class="honey-card trading-activity-card" style="margin-bottom:20px;">
+        <h3 class="honey-card-title">📊 24H Trading Activity</h3>
+        <div class="trading-activity-grid">
+          <div class="trading-row">
+            <div class="trading-stat">
+              <div class="trading-label">24h Volume</div>
+              <div class="trading-value" id="tradingVolXrp">—</div>
+            </div>
+            <div class="trading-stat">
+              <div class="trading-label">Buy Vol.</div>
+              <div class="trading-value green" id="tradingBuyVol">—</div>
+            </div>
+            <div class="trading-stat">
+              <div class="trading-label">Sell Vol.</div>
+              <div class="trading-value red" id="tradingSellVol">—</div>
+            </div>
+          </div>
+          <div class="trading-row">
+            <div class="trading-stat">
+              <div class="trading-label">Traders</div>
+              <div class="trading-value" id="usdTxnsTotal">—</div>
+            </div>
+            <div class="trading-stat">
+              <div class="trading-label">Buyers</div>
+              <div class="trading-value green" id="usdBuys">—</div>
+            </div>
+            <div class="trading-stat">
+              <div class="trading-label">Sellers</div>
+              <div class="trading-value red" id="usdSells">—</div>
+            </div>
+          </div>
+          <!-- Buy/Sell Progress Bar -->
+          <div class="trading-progress">
+            <div class="trading-progress-bar">
+              <div class="progress-buy" id="usdBuysBar" style="width:50%"></div>
+              <div class="progress-sell" id="usdSellsBar" style="width:50%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Stats Grid Below Chart -->
       <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:20px;" class="stats-grid-bottom">
         <!-- Stats Sidebar -->
@@ -10271,48 +10313,6 @@
               </div>
             </div>
           </div>
-      </div>
-
-      <!-- Trading Activity Card -->
-      <div class="honey-card trading-activity-card" style="margin-top:20px;">
-        <h3 class="honey-card-title">📊 24H Trading Activity</h3>
-        <div class="trading-activity-grid">
-          <div class="trading-row">
-            <div class="trading-stat">
-              <div class="trading-label">24h Volume</div>
-              <div class="trading-value" id="tradingVolXrp">—</div>
-            </div>
-            <div class="trading-stat">
-              <div class="trading-label">Buy Vol.</div>
-              <div class="trading-value green" id="tradingBuyVol">—</div>
-            </div>
-            <div class="trading-stat">
-              <div class="trading-label">Sell Vol.</div>
-              <div class="trading-value red" id="tradingSellVol">—</div>
-            </div>
-          </div>
-          <div class="trading-row">
-            <div class="trading-stat">
-              <div class="trading-label">Traders</div>
-              <div class="trading-value" id="usdTxnsTotal">—</div>
-            </div>
-            <div class="trading-stat">
-              <div class="trading-label">Buyers</div>
-              <div class="trading-value green" id="usdBuys">—</div>
-            </div>
-            <div class="trading-stat">
-              <div class="trading-label">Sellers</div>
-              <div class="trading-value red" id="usdSells">—</div>
-            </div>
-          </div>
-          <!-- Buy/Sell Progress Bar -->
-          <div class="trading-progress">
-            <div class="trading-progress-bar">
-              <div class="progress-buy" id="usdBuysBar" style="width:50%"></div>
-              <div class="progress-sell" id="usdSellsBar" style="width:50%"></div>
-            </div>
-          </div>
-        </div>
       </div>
 
       <style>
