@@ -18,7 +18,7 @@ const supabase = createClient(
 
 // XRPL Constants
 const NFT_ISSUER = 'rBEARbo4Prn33894evmvYcAf9yAQjp4VJF';
-const LP_TOKEN_ISSUER = 'rBEARKfWJS1LYdg2g6t99BgbvpWY5pgMB9';
+const AMM_POOL_ACCOUNT = 'rwE86ARLXfyKYCVmFpk511ddYfs5Fh6Vcp';
 const BEAR_ISSUER = 'rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW';
 
 // Airdrop calculation constants (can be overridden from config)
@@ -154,14 +154,14 @@ async function getLPTokenHolders(ws) {
 
   const lpHolders = new Map(); // wallet -> lp_tokens (as string for precision)
 
-  // Get all trust lines to the LP token issuer
+  // Get all trust lines to the AMM pool account
   let marker = null;
   let totalHolders = 0;
 
   do {
     const request = {
       command: 'account_lines',
-      account: LP_TOKEN_ISSUER,
+      account: AMM_POOL_ACCOUNT,
       limit: 400
     };
 

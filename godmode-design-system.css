@@ -1,0 +1,585 @@
+/*
+  🔥🐻 BEARPARK GODMODE DESIGN SYSTEM 🐻🔥
+
+  COMBINING:
+  - Apple Glassmorphism (iOS/macOS style frosted glass)
+  - Material 3 (Material You) dynamic theming
+  - Advanced micro-interactions
+  - Fluid spring animations
+  - Multi-layer depth system
+  - Advanced state management
+
+  THIS IS THE ULTIMATE DESIGN SINGULARITY
+*/
+
+:root {
+  /* ===== MATERIAL 3 DYNAMIC COLOR SYSTEM ===== */
+  --m3-primary: #FFD700;
+  --m3-primary-container: #FFE55C;
+  --m3-on-primary: #000000;
+  --m3-secondary: #FF9500;
+  --m3-secondary-container: #FFB84D;
+  --m3-on-secondary: #000000;
+  --m3-tertiary: #FF6B35;
+  --m3-tertiary-container: #FF8C66;
+  --m3-on-tertiary: #FFFFFF;
+  --m3-surface: rgba(255, 255, 255, 0.05);
+  --m3-surface-variant: rgba(255, 255, 255, 0.08);
+  --m3-surface-container: rgba(255, 255, 255, 0.12);
+  --m3-on-surface: #FFFFFF;
+  --m3-outline: rgba(255, 215, 0, 0.3);
+  --m3-shadow: rgba(0, 0, 0, 0.5);
+
+  /* ===== GLASSMORPHISM SYSTEM ===== */
+  --glass-blur: blur(40px);
+  --glass-blur-heavy: blur(80px);
+  --glass-blur-light: blur(20px);
+  --glass-bg: rgba(255, 255, 255, 0.08);
+  --glass-bg-heavy: rgba(255, 255, 255, 0.15);
+  --glass-bg-light: rgba(255, 255, 255, 0.05);
+  --glass-border: rgba(255, 255, 255, 0.18);
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+
+  /* ===== MATERIAL 3 ELEVATION SYSTEM ===== */
+  --elevation-0: none;
+  --elevation-1:
+    0 1px 2px rgba(0, 0, 0, 0.3),
+    0 1px 3px 1px rgba(0, 0, 0, 0.15);
+  --elevation-2:
+    0 1px 2px rgba(0, 0, 0, 0.3),
+    0 2px 6px 2px rgba(0, 0, 0, 0.15);
+  --elevation-3:
+    0 4px 8px 3px rgba(0, 0, 0, 0.15),
+    0 1px 3px rgba(0, 0, 0, 0.3);
+  --elevation-4:
+    0 6px 10px 4px rgba(0, 0, 0, 0.15),
+    0 2px 3px rgba(0, 0, 0, 0.3);
+  --elevation-5:
+    0 8px 12px 6px rgba(0, 0, 0, 0.15),
+    0 4px 4px rgba(0, 0, 0, 0.3);
+
+  /* ===== ADVANCED GLOW SYSTEM ===== */
+  --glow-gold: 0 0 20px rgba(255, 215, 0, 0.5),
+              0 0 40px rgba(255, 215, 0, 0.3),
+              0 0 60px rgba(255, 215, 0, 0.1);
+  --glow-honey: 0 0 20px rgba(255, 165, 0, 0.5),
+               0 0 40px rgba(255, 165, 0, 0.3);
+  --glow-white: 0 0 15px rgba(255, 255, 255, 0.4),
+               0 0 30px rgba(255, 255, 255, 0.2);
+
+  /* ===== SPRING ANIMATION CURVES ===== */
+  --spring-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  --spring-smooth: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --spring-sharp: cubic-bezier(0.4, 0.0, 0.2, 1);
+  --spring-elastic: cubic-bezier(0.68, -0.6, 0.32, 1.6);
+}
+
+/* ===== GLASSMORPHISM BASE CLASSES ===== */
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+.glass-heavy {
+  background: var(--glass-bg-heavy);
+  backdrop-filter: var(--glass-blur-heavy);
+  -webkit-backdrop-filter: var(--glass-blur-heavy);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow:
+    var(--glass-shadow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.glass-light {
+  background: var(--glass-bg-light);
+  backdrop-filter: var(--glass-blur-light);
+  -webkit-backdrop-filter: var(--glass-blur-light);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* ===== MATERIAL 3 SURFACE SYSTEM ===== */
+.m3-surface {
+  background: var(--m3-surface);
+  color: var(--m3-on-surface);
+  border-radius: 28px;
+  box-shadow: var(--elevation-1);
+  transition: all 0.3s var(--spring-smooth);
+}
+
+.m3-surface-container {
+  background: var(--m3-surface-container);
+  border-radius: 24px;
+  padding: 24px;
+}
+
+/* ===== GODMODE CARD SYSTEM ===== */
+.godmode-card {
+  position: relative;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.1) 0%,
+    rgba(255, 255, 255, 0.05) 100%
+  );
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  border-radius: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow:
+    var(--elevation-3),
+    var(--glow-gold),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+  transition: all 0.4s var(--spring-bounce);
+}
+
+.godmode-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.1),
+    transparent
+  );
+  transition: left 0.5s;
+}
+
+.godmode-card:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow:
+    var(--elevation-5),
+    var(--glow-gold),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 215, 0, 0.4);
+}
+
+.godmode-card:hover::before {
+  left: 100%;
+}
+
+/* ===== RIPPLE EFFECT SYSTEM ===== */
+.ripple {
+  position: relative;
+  overflow: hidden;
+}
+
+.ripple::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+.ripple:active::after {
+  width: 300px;
+  height: 300px;
+  transition: width 0s, height 0s;
+}
+
+/* ===== ADVANCED BUTTON SYSTEM ===== */
+.godmode-btn {
+  position: relative;
+  padding: 16px 32px;
+  font-size: 16px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--m3-on-primary);
+  background: linear-gradient(
+    135deg,
+    var(--m3-primary) 0%,
+    var(--m3-primary-container) 100%
+  );
+  border: none;
+  border-radius: 28px;
+  box-shadow:
+    var(--elevation-2),
+    var(--glow-gold);
+  cursor: pointer;
+  overflow: hidden;
+  transition: all 0.3s var(--spring-bounce);
+}
+
+.godmode-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.godmode-btn:hover {
+  transform: translateY(-4px) scale(1.05);
+  box-shadow:
+    var(--elevation-4),
+    var(--glow-gold),
+    0 0 40px rgba(255, 215, 0, 0.4);
+}
+
+.godmode-btn:hover::before {
+  opacity: 1;
+}
+
+.godmode-btn:active {
+  transform: translateY(-2px) scale(0.98);
+  box-shadow: var(--elevation-1);
+}
+
+/* ===== FLOATING ANIMATION ===== */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+.float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* ===== GLOW PULSE ANIMATION ===== */
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: var(--glow-gold);
+  }
+  50% {
+    box-shadow:
+      0 0 30px rgba(255, 215, 0, 0.8),
+      0 0 60px rgba(255, 215, 0, 0.5),
+      0 0 90px rgba(255, 215, 0, 0.3);
+  }
+}
+
+.glow-pulse {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+/* ===== PARALLAX LAYERS ===== */
+.parallax-layer {
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.1s ease-out;
+}
+
+.parallax-layer-1 {
+  transform: translateZ(20px);
+}
+
+.parallax-layer-2 {
+  transform: translateZ(40px);
+}
+
+.parallax-layer-3 {
+  transform: translateZ(60px);
+}
+
+/* ===== ADVANCED INPUT SYSTEM ===== */
+.godmode-input {
+  position: relative;
+  width: 100%;
+  padding: 20px 24px;
+  font-size: 16px;
+  color: var(--m3-on-surface);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 2px solid var(--glass-border);
+  border-radius: 20px;
+  outline: none;
+  transition: all 0.3s var(--spring-smooth);
+}
+
+.godmode-input:focus {
+  background: var(--glass-bg-heavy);
+  border-color: var(--m3-primary);
+  box-shadow:
+    var(--elevation-2),
+    0 0 0 4px rgba(255, 215, 0, 0.1),
+    var(--glow-gold);
+  transform: translateY(-2px);
+}
+
+.godmode-input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* ===== SKELETON LOADING ===== */
+@keyframes skeleton-loading {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.05) 0px,
+    rgba(255, 255, 255, 0.15) 40px,
+    rgba(255, 255, 255, 0.05) 80px
+  );
+  background-size: 200px 100%;
+  animation: skeleton-loading 1.5s infinite;
+  border-radius: 12px;
+}
+
+/* ===== TOAST NOTIFICATION SYSTEM ===== */
+.godmode-toast {
+  position: fixed;
+  bottom: 32px;
+  right: 32px;
+  padding: 20px 32px;
+  background: var(--glass-bg-heavy);
+  backdrop-filter: var(--glass-blur-heavy);
+  -webkit-backdrop-filter: var(--glass-blur-heavy);
+  border: 1px solid var(--glass-border);
+  border-radius: 24px;
+  box-shadow: var(--elevation-4), var(--glow-gold);
+  color: var(--m3-on-surface);
+  font-weight: 700;
+  z-index: 10000;
+  animation: toast-slide-in 0.4s var(--spring-bounce);
+}
+
+@keyframes toast-slide-in {
+  from {
+    transform: translateX(400px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* ===== 3D TRANSFORM SYSTEM ===== */
+.transform-3d {
+  transform-style: preserve-3d;
+  perspective: 1000px;
+}
+
+.flip-on-hover {
+  transition: transform 0.6s var(--spring-smooth);
+}
+
+.flip-on-hover:hover {
+  transform: rotateY(180deg);
+}
+
+/* ===== GRADIENT TEXT ===== */
+.gradient-text {
+  background: linear-gradient(
+    135deg,
+    var(--m3-primary),
+    var(--m3-secondary),
+    var(--m3-tertiary)
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-size: 200% 200%;
+  animation: gradient-shift 3s ease infinite;
+}
+
+@keyframes gradient-shift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+/* ===== ADVANCED BADGE SYSTEM ===== */
+.godmode-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 900;
+  background: var(--glass-bg-heavy);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: 24px;
+  box-shadow: var(--elevation-1);
+  transition: all 0.3s var(--spring-bounce);
+}
+
+.godmode-badge:hover {
+  transform: scale(1.1);
+  box-shadow: var(--elevation-2), var(--glow-gold);
+}
+
+/* ===== SMOOTH SCROLL BEHAVIOR ===== */
+html {
+  scroll-behavior: smooth;
+}
+
+/* ===== PAGE TRANSITION OVERLAY ===== */
+.page-transition {
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(0, 0, 0, 0.9),
+    rgba(20, 20, 20, 0.95)
+  );
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  z-index: 99999;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.4s var(--spring-smooth);
+}
+
+.page-transition.active {
+  opacity: 1;
+  pointer-events: all;
+}
+
+/* ===== MICRO-INTERACTION HOVER STATES ===== */
+.hover-lift {
+  transition: all 0.3s var(--spring-bounce);
+}
+
+.hover-lift:hover {
+  transform: translateY(-8px);
+  box-shadow: var(--elevation-4);
+}
+
+.hover-glow {
+  transition: all 0.3s var(--spring-smooth);
+}
+
+.hover-glow:hover {
+  box-shadow: var(--glow-gold);
+  border-color: var(--m3-primary);
+}
+
+.hover-scale {
+  transition: transform 0.3s var(--spring-bounce);
+}
+
+.hover-scale:hover {
+  transform: scale(1.05);
+}
+
+/* ===== ADVANCED BORDER EFFECTS ===== */
+.animated-border {
+  position: relative;
+  border-radius: 24px;
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+}
+
+.animated-border::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  background: linear-gradient(
+    45deg,
+    var(--m3-primary),
+    var(--m3-secondary),
+    var(--m3-tertiary),
+    var(--m3-primary)
+  );
+  background-size: 300% 300%;
+  border-radius: 24px;
+  z-index: -1;
+  animation: border-rotate 3s linear infinite;
+}
+
+@keyframes border-rotate {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* ===== ULTIMATE SINGULARITY CLASS ===== */
+.ultimate-singularity {
+  position: relative;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.15) 0%,
+    rgba(255, 255, 255, 0.05) 50%,
+    rgba(255, 255, 255, 0.15) 100%
+  );
+  background-size: 200% 200%;
+  backdrop-filter: blur(60px);
+  -webkit-backdrop-filter: blur(60px);
+  border: 2px solid rgba(255, 215, 0, 0.3);
+  border-radius: 40px;
+  box-shadow:
+    var(--elevation-5),
+    var(--glow-gold),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+  animation:
+    ultimate-float 4s ease-in-out infinite,
+    ultimate-glow 3s ease-in-out infinite,
+    gradient-shift 5s ease infinite;
+  transform-style: preserve-3d;
+  transition: all 0.5s var(--spring-elastic);
+}
+
+.ultimate-singularity:hover {
+  transform: translateY(-12px) scale(1.03) rotateX(5deg);
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.5),
+    0 0 80px rgba(255, 215, 0, 0.6),
+    0 0 120px rgba(255, 215, 0, 0.4),
+    inset 0 2px 0 rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 215, 0, 0.6);
+}
+
+@keyframes ultimate-float {
+  0%, 100% {
+    transform: translateY(0px) rotateZ(0deg);
+  }
+  25% {
+    transform: translateY(-15px) rotateZ(1deg);
+  }
+  75% {
+    transform: translateY(-15px) rotateZ(-1deg);
+  }
+}
+
+@keyframes ultimate-glow {
+  0%, 100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.2);
+  }
+}
