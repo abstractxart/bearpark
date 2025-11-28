@@ -12209,6 +12209,79 @@
       letter-spacing: 0.5px;
     }
 
+    /* Floating Honey Decorations */
+    .nav-modal-honey {
+      position: absolute;
+      width: 32px;
+      height: 32px;
+      pointer-events: none;
+      z-index: 5;
+      filter: drop-shadow(0 0 12px rgba(237, 183, 35, 0.6)) drop-shadow(0 0 24px rgba(237, 183, 35, 0.4));
+      animation: floatHoney 3s ease-in-out infinite;
+      opacity: 0.85;
+    }
+
+    .nav-modal-honey.honey-1 {
+      top: 15%;
+      right: 8%;
+      animation-delay: 0s;
+    }
+
+    .nav-modal-honey.honey-2 {
+      top: 38%;
+      right: 5%;
+      animation-delay: 0.5s;
+      width: 28px;
+      height: 28px;
+    }
+
+    .nav-modal-honey.honey-3 {
+      top: 58%;
+      right: 10%;
+      animation-delay: 1s;
+      width: 24px;
+      height: 24px;
+    }
+
+    .nav-modal-honey.honey-4 {
+      top: 75%;
+      right: 6%;
+      animation-delay: 1.5s;
+      width: 30px;
+      height: 30px;
+    }
+
+    .nav-modal-honey.honey-5 {
+      top: 25%;
+      left: 6%;
+      animation-delay: 0.8s;
+      width: 26px;
+      height: 26px;
+    }
+
+    .nav-modal-honey.honey-6 {
+      top: 65%;
+      left: 5%;
+      animation-delay: 1.3s;
+      width: 22px;
+      height: 22px;
+    }
+
+    @keyframes floatHoney {
+      0%, 100% {
+        transform: translateY(0) rotate(0deg);
+      }
+      50% {
+        transform: translateY(-8px) rotate(5deg);
+      }
+    }
+
+    @media (max-width: 550px) {
+      .nav-modal-honey {
+        display: none;
+      }
+    }
+
     /* Mobile: WHERE TO GO button */
     @media (max-width: 768px) {
       #whereToGoBtn {
@@ -24461,6 +24534,14 @@ if (typeof window.addEventListener !== 'undefined') {
   <div id="navigationModal" class="nav-modal" style="display: none;">
     <div class="nav-modal-overlay" onclick="closeNavigationModal()"></div>
     <div class="nav-modal-content">
+      <!-- Floating Honey Decorations -->
+      <img src="https://files.catbox.moe/wyfjtc.png" alt="" class="nav-modal-honey honey-1">
+      <img src="https://files.catbox.moe/wyfjtc.png" alt="" class="nav-modal-honey honey-2">
+      <img src="https://files.catbox.moe/wyfjtc.png" alt="" class="nav-modal-honey honey-3">
+      <img src="https://files.catbox.moe/wyfjtc.png" alt="" class="nav-modal-honey honey-4">
+      <img src="https://files.catbox.moe/wyfjtc.png" alt="" class="nav-modal-honey honey-5">
+      <img src="https://files.catbox.moe/wyfjtc.png" alt="" class="nav-modal-honey honey-6">
+
       <div class="nav-modal-header">
         <h2 class="nav-modal-title">WHERE WOULD YOU LIKE TO GO?</h2>
         <p class="nav-modal-subtitle">Choose your destination in BEAR Park!</p>
