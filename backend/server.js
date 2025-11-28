@@ -746,6 +746,28 @@ app.get('/api/points/:wallet', async (req, res) => {
   }
 });
 
+// Get 24h Rolling Honey Points (for BEARDROPS eligibility)
+app.get('/api/honey-points/24h', async (req, res) => {
+  try {
+    const { wallet } = req.query;
+    if (!wallet) {
+      return res.status(400).json({ success: false, error: 'Wallet address required' });
+    }
+    const { data, error } = await supabase
+      .from('honey_points_activity')
+      .select('points')
+      .eq('wallet_address', wallet)
+      .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+    if (error) {
+      return res.status(500).json({ success: false, error: error.message });
+    }
+    const points = data?.reduce((sum, row) => sum + parseFloat(row.points || 0), 0) || 0;
+    res.json({ success: true, wallet, points });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // ❌ DISABLED - CRITICAL SECURITY EXPLOIT!
 // This endpoint allowed ANY user to set ANY honey points value by sending fake data
 // NEVER TRUST CLIENT-SUBMITTED POINT VALUES!
