@@ -14876,6 +14876,30 @@
 
       // Start timers
       updateRaidTimers();
+
+      // Restore completion timer states for any raids in progress
+      restoreCompletionTimerStates();
+    }
+
+    // Restore the UI state for raids that have active completion timers
+    function restoreCompletionTimerStates() {
+      Object.keys(raidCompletionTimers).forEach(raidId => {
+        const timerInfo = raidCompletionTimers[raidId];
+        if (timerInfo) {
+          // Find the new button element after re-render
+          const newButton = document.querySelector(`[data-raid-id="${raidId}"].raid-action-btn`);
+          if (newButton) {
+            // Update button reference in timer object
+            timerInfo.button = newButton;
+
+            // Restore button UI state
+            newButton.textContent = `⏳ COMPLETING... ${timerInfo.secondsLeft}s`;
+            newButton.disabled = true;
+            newButton.classList.remove('join');
+            newButton.classList.add('completing');
+          }
+        }
+      });
     }
 
     // Apply sorting - always sort by expiring soon
@@ -15192,25 +15216,33 @@
       button.classList.remove('join');
       button.classList.add('completing');
 
+      // Store timer info first so we can update secondsLeft
+      raidCompletionTimers[raidId] = {
+        timer: null,
+        secondsLeft,
+        button
+      };
+
       // Create countdown interval
       const timer = setInterval(() => {
-        secondsLeft--;
+        raidCompletionTimers[raidId].secondsLeft--;
+        const currentSeconds = raidCompletionTimers[raidId].secondsLeft;
 
-        if (secondsLeft <= 0) {
+        if (currentSeconds <= 0) {
           clearInterval(timer);
           delete raidCompletionTimers[raidId];
           completeRaid(raidId);
         } else {
-          button.textContent = `⏳ COMPLETING... ${secondsLeft}s`;
+          // Update the current button reference (may have changed after tab switch)
+          const currentButton = raidCompletionTimers[raidId].button;
+          if (currentButton) {
+            currentButton.textContent = `⏳ COMPLETING... ${currentSeconds}s`;
+          }
         }
       }, 1000);
 
-      // Store timer info
-      raidCompletionTimers[raidId] = {
-        timer,
-        secondsLeft,
-        button
-      };
+      // Store the timer reference
+      raidCompletionTimers[raidId].timer = timer;
     }
 
     // Complete raid and award points
