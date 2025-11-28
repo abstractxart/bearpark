@@ -5875,12 +5875,14 @@ app.post('/api/beardrops/claim', validateWallet, async (req, res) => {
       const airdropWallet = xrpl.Wallet.fromSecret(process.env.AIRDROP_WALLET_SECRET);
 
       // Prepare payment transaction
+      // BEAR currency in hex format (required for xrpl v4+)
+      const BEAR_CURRENCY_HEX = '4245415200000000000000000000000000000000';
       const payment = {
         TransactionType: 'Payment',
         Account: airdropWallet.address,
         Destination: wallet_address,
         Amount: {
-          currency: 'BEAR',
+          currency: BEAR_CURRENCY_HEX,
           issuer: 'rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW',
           value: claimAmount.toFixed(6)
         }
