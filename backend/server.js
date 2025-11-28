@@ -5753,6 +5753,294 @@ app.post('/api/beardrops/admin/config', verifyApex, async (req, res) => {
   }
 });
 
+// CLAIM AIRDROP - Send $BEAR tokens to eligible wallet
+// Requires AIRDROP_WALLET_SECRET env variable
+app.post('/api/beardrops/claim', validateWallet, async (req, res) => {
+  try {
+    const { wallet_address } = req.body;
+
+    // Check if airdrop wallet is configured
+    if (!process.env.AIRDROP_WALLET_SECRET) {
+      return res.status(503).json({
+        success: false,
+        error: 'Airdrop system not configured. Contact admin.'
+      });
+    }
+
+    // Get the latest pending snapshot for this wallet
+    const { data: snapshot, error: snapshotError } = await supabase
+      .from('airdrop_snapshots')
+      .select('*')
+      .eq('wallet_address', wallet_address)
+      .eq('claim_status', 'pending')
+      .eq('is_eligible', true)
+      .eq('is_blacklisted', false)
+      .order('snapshot_date', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (snapshotError || !snapshot) {
+      return res.status(404).json({
+        success: false,
+        error: 'No pending airdrop found for this wallet'
+      });
+    }
+
+    // Double-check eligibility (24h honey points)
+    const { data: activityData } = await supabase
+      .from('honey_points_activity')
+      .select('points')
+      .eq('wallet_address', wallet_address)
+      .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+
+    const honeyPoints24h = activityData?.reduce((sum, row) => sum + row.points, 0) || 0;
+
+    // Get minimum required points
+    const { data: configData } = await supabase
+      .from('airdrop_config')
+      .select('value')
+      .eq('key', 'min_honey_points_24h')
+      .single();
+
+    const minHoneyPoints = parseInt(configData?.value || '30');
+
+    if (honeyPoints24h < minHoneyPoints) {
+      return res.status(403).json({
+        success: false,
+        error: `Need ${minHoneyPoints} honey points in 24h to claim. You have ${honeyPoints24h}.`
+      });
+    }
+
+    const claimAmount = parseFloat(snapshot.total_reward);
+
+    if (claimAmount <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No reward to claim'
+      });
+    }
+
+    // Send $BEAR via XRPL
+    const xrpl = require('xrpl');
+    const client = new xrpl.Client('wss://s1.ripple.com');
+
+    await client.connect();
+
+    try {
+      const airdropWallet = xrpl.Wallet.fromSecret(process.env.AIRDROP_WALLET_SECRET);
+
+      // Prepare payment transaction
+      const payment = {
+        TransactionType: 'Payment',
+        Account: airdropWallet.address,
+        Destination: wallet_address,
+        Amount: {
+          currency: 'BEAR',
+          issuer: 'rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW',
+          value: claimAmount.toFixed(6)
+        }
+      };
+
+      // Autofill, sign, and submit
+      const prepared = await client.autofill(payment);
+      const signed = airdropWallet.sign(prepared);
+      const result = await client.submitAndWait(signed.tx_blob);
+
+      const txHash = result.result.hash;
+      const txResult = result.result.meta.TransactionResult;
+
+      if (txResult === 'tesSUCCESS') {
+        // Update snapshot as claimed
+        await supabase
+          .from('airdrop_snapshots')
+          .update({
+            claim_status: 'claimed',
+            claimed_at: new Date().toISOString(),
+            claim_tx_hash: txHash,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', snapshot.id);
+
+        // Record transaction
+        await supabase
+          .from('airdrop_transactions')
+          .insert({
+            snapshot_id: snapshot.id,
+            wallet_address,
+            amount: claimAmount,
+            tx_hash: txHash,
+            tx_status: 'validated',
+            tx_result: txResult,
+            ledger_index: result.result.ledger_index,
+            submitted_at: new Date().toISOString(),
+            validated_at: new Date().toISOString()
+          });
+
+        console.log(`🐻 Airdrop claimed: ${claimAmount} $BEAR sent to ${wallet_address}`);
+        console.log(`   TX: ${txHash}`);
+
+        res.json({
+          success: true,
+          message: `Successfully claimed ${claimAmount.toFixed(2)} $BEAR!`,
+          amount: claimAmount,
+          tx_hash: txHash,
+          explorer_url: `https://xrpscan.com/tx/${txHash}`
+        });
+      } else {
+        // Transaction failed
+        await supabase
+          .from('airdrop_transactions')
+          .insert({
+            snapshot_id: snapshot.id,
+            wallet_address,
+            amount: claimAmount,
+            tx_hash: txHash,
+            tx_status: 'failed',
+            tx_result: txResult,
+            submitted_at: new Date().toISOString()
+          });
+
+        console.error(`❌ Airdrop claim failed: ${txResult}`);
+
+        res.status(500).json({
+          success: false,
+          error: `Transaction failed: ${txResult}`
+        });
+      }
+    } finally {
+      await client.disconnect();
+    }
+
+  } catch (error) {
+    console.error('❌ Error processing claim:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get claim status for a wallet
+app.get('/api/beardrops/claim-status/:wallet', async (req, res) => {
+  try {
+    const { wallet } = req.params;
+
+    // Get pending claims
+    const { data: pending } = await supabase
+      .from('airdrop_snapshots')
+      .select('snapshot_date, total_reward, is_eligible, claim_status')
+      .eq('wallet_address', wallet)
+      .eq('claim_status', 'pending')
+      .eq('is_eligible', true)
+      .order('snapshot_date', { ascending: false });
+
+    // Get recent claims
+    const { data: claimed } = await supabase
+      .from('airdrop_snapshots')
+      .select('snapshot_date, total_reward, claimed_at, claim_tx_hash')
+      .eq('wallet_address', wallet)
+      .eq('claim_status', 'claimed')
+      .order('claimed_at', { ascending: false })
+      .limit(5);
+
+    // Get 24h honey points
+    const { data: activityData } = await supabase
+      .from('honey_points_activity')
+      .select('points')
+      .eq('wallet_address', wallet)
+      .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+
+    const honeyPoints24h = activityData?.reduce((sum, row) => sum + row.points, 0) || 0;
+
+    // Get config
+    const { data: configData } = await supabase
+      .from('airdrop_config')
+      .select('value')
+      .eq('key', 'min_honey_points_24h')
+      .single();
+
+    const minHoneyPoints = parseInt(configData?.value || '30');
+
+    // Calculate total pending
+    const totalPending = pending?.reduce((sum, p) => sum + parseFloat(p.total_reward), 0) || 0;
+
+    res.json({
+      success: true,
+      wallet,
+      honey_points_24h: honeyPoints24h,
+      min_required: minHoneyPoints,
+      can_claim: honeyPoints24h >= minHoneyPoints && totalPending > 0,
+      pending_rewards: pending || [],
+      total_pending: totalPending,
+      recent_claims: claimed || []
+    });
+  } catch (error) {
+    console.error('❌ Error fetching claim status:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ADMIN: Trigger manual snapshot (APEX only)
+app.post('/api/beardrops/admin/trigger-snapshot', verifyApex, async (req, res) => {
+  try {
+    // This would trigger the daily-airdrop-snapshot.js script
+    // For now, return instructions
+    res.json({
+      success: true,
+      message: 'Manual snapshot can be triggered by running: node backend/daily-airdrop-snapshot.js',
+      note: 'Automated snapshots run daily at 00:00 UTC via cron'
+    });
+  } catch (error) {
+    console.error('❌ Error triggering snapshot:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ADMIN: Process all pending claims (batch payout - APEX only)
+app.post('/api/beardrops/admin/batch-payout', verifyApex, async (req, res) => {
+  try {
+    const { date } = req.body; // Optional: specific date to process
+
+    // Get all pending, eligible claims
+    let query = supabase
+      .from('airdrop_snapshots')
+      .select('*')
+      .eq('claim_status', 'pending')
+      .eq('is_eligible', true)
+      .eq('is_blacklisted', false);
+
+    if (date) {
+      query = query.eq('snapshot_date', date);
+    }
+
+    const { data: pendingClaims, error } = await query.order('total_reward', { ascending: false });
+
+    if (error) throw error;
+
+    if (!pendingClaims || pendingClaims.length === 0) {
+      return res.json({
+        success: true,
+        message: 'No pending claims to process',
+        processed: 0
+      });
+    }
+
+    // Calculate totals
+    const totalWallets = pendingClaims.length;
+    const totalBear = pendingClaims.reduce((sum, c) => sum + parseFloat(c.total_reward), 0);
+
+    // Return summary for confirmation (actual batch processing would require more implementation)
+    res.json({
+      success: true,
+      message: 'Batch payout summary',
+      pending_wallets: totalWallets,
+      total_bear: totalBear.toFixed(2),
+      note: 'Use the claim endpoint for individual payouts or implement batch processing with stored wallet secret'
+    });
+
+  } catch (error) {
+    console.error('❌ Error processing batch payout:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 console.log('✅ BEARDROPS airdrop endpoints initialized');
 
 // Start server for local development
