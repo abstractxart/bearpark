@@ -761,10 +761,58 @@ app.post('/api/points', validateWallet, validateAmount, async (req, res) => {
   });
 });
 
+// Helper function to fetch tweet thumbnail automatically
+async function fetchTweetThumbnail(twitterUrl) {
+  try {
+    // Use Twitter's oEmbed API to get tweet info
+    const oEmbedUrl = `https://publish.twitter.com/oembed?url=${encodeURIComponent(twitterUrl)}&omit_script=true`;
+    const response = await fetch(oEmbedUrl, {
+      headers: { 'User-Agent': 'BearPark/1.0' },
+      timeout: 5000
+    });
+
+    if (!response.ok) {
+      console.log('oEmbed fetch failed, trying direct fetch...');
+      // Fallback: try to fetch the page directly and extract og:image
+      const pageResponse = await fetch(twitterUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
+        },
+        timeout: 5000
+      });
+
+      if (pageResponse.ok) {
+        const html = await pageResponse.text();
+        // Extract og:image from meta tags
+        const ogImageMatch = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i) ||
+                            html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i);
+        if (ogImageMatch && ogImageMatch[1]) {
+          console.log('Found og:image:', ogImageMatch[1]);
+          return ogImageMatch[1];
+        }
+      }
+      return null;
+    }
+
+    const data = await response.json();
+    // oEmbed doesn't directly give image URL, but we can try to extract from HTML
+    if (data.html) {
+      const imgMatch = data.html.match(/src=["']([^"']*twimg[^"']+)["']/i);
+      if (imgMatch) {
+        return imgMatch[1];
+      }
+    }
+    return null;
+  } catch (error) {
+    console.log('Error fetching tweet thumbnail:', error.message);
+    return null;
+  }
+}
+
 // Create New Raid
 app.post('/api/raids', verifyAdmin, validateTwitterURL, validateAmount, validateTextLengths, async (req, res) => {
   try {
-    const { description, twitter_url, reward, profile_name, profile_handle, profile_emoji, expires_at, image_url } = req.body;
+    const { description, twitter_url, reward, profile_name, profile_handle, profile_emoji, expires_at } = req.body;
 
     console.log('Received raid data:', req.body);
 
@@ -773,6 +821,17 @@ app.post('/api/raids', verifyAdmin, validateTwitterURL, validateAmount, validate
         success: false,
         error: 'Missing required fields: description, twitter_url, reward, profile_handle, expires_at'
       });
+    }
+
+    // Try to automatically fetch tweet thumbnail
+    let thumbnailUrl = null;
+    try {
+      thumbnailUrl = await fetchTweetThumbnail(twitter_url);
+      if (thumbnailUrl) {
+        console.log('✅ Auto-fetched tweet thumbnail:', thumbnailUrl);
+      }
+    } catch (e) {
+      console.log('Could not fetch tweet thumbnail:', e.message);
     }
 
     const now = new Date();
@@ -789,9 +848,9 @@ app.post('/api/raids', verifyAdmin, validateTwitterURL, validateAmount, validate
       is_active: true
     };
 
-    // Add image_url if provided
-    if (image_url) {
-      raidData.image_url = image_url;
+    // Add auto-fetched thumbnail if found
+    if (thumbnailUrl) {
+      raidData.image_url = thumbnailUrl;
     }
 
     const { data, error } = await supabase
