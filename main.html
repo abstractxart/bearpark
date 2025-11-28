@@ -10094,18 +10094,9 @@
 
   <!-- HERO -->
   <header class="hero" role="banner" style="position: relative;">
-    <!-- 🎨💥 EPIC 3D LAYERED PARALLAX SIGN 💥🎨 -->
-    <div id="woodenSignContainer" style="position: absolute; top: 38%; left: 50%; transform: translate(-50%, -50%); z-index: 10; perspective: 1000px;">
-      <div id="signParallaxWrapper" style="position: relative; transform-style: preserve-3d; width: 430px;">
-        <!-- Deep shadow layer (moves slowest) - INVISIBLE until mouse near -->
-        <img class="sign-layer sign-depth-layer" data-depth="0.2" src="https://files.catbox.moe/25ekkd.png" alt="" style="position: absolute; width: 100%; height: auto; opacity: 0; filter: blur(20px) brightness(0); transform: translateZ(-100px) scale(1.2); pointer-events: none;">
-
-        <!-- Mid shadow layer - INVISIBLE until mouse near -->
-        <img class="sign-layer sign-depth-layer" data-depth="0.4" src="https://files.catbox.moe/25ekkd.png" alt="" style="position: absolute; width: 100%; height: auto; opacity: 0; filter: blur(10px) brightness(0.3); transform: translateZ(-50px) scale(1.1); pointer-events: none;">
-
-        <!-- Main sign layer (NO glow/highlight layers) -->
-        <img id="woodenSign" class="sign-layer" data-depth="1" src="https://files.catbox.moe/25ekkd.png" alt="BEAR PARK wooden sign" style="position: relative; width: 100%; height: auto; transform: translateZ(0px);">
-      </div>
+    <!-- BEAR PARK SIGN -->
+    <div id="woodenSignContainer">
+      <img id="woodenSign" src="https://files.catbox.moe/25ekkd.png" alt="BEAR PARK wooden sign">
     </div>
 
     <!-- 🎯 SINGLE NAVIGATION BUTTON 🎯 -->
@@ -11727,232 +11718,65 @@
   </script>
 
   <script>
-    // 🎨💥🔥 EPIC 3D LAYERED PARALLAX SIGN WITH JESTER BEAR 🔥💥🎨
+    // Bear Park Sign - Simple & Clean
     (function() {
       const woodenSign = document.getElementById('woodenSign');
       const woodenSignContainer = document.getElementById('woodenSignContainer');
-      const signParallaxWrapper = document.getElementById('signParallaxWrapper');
-      const signLayers = document.querySelectorAll('.sign-layer');
 
-      if (!woodenSign || !woodenSignContainer || !signParallaxWrapper) return;
+      if (!woodenSign || !woodenSignContainer) return;
 
-      let time = 0;
       let clickCount = 0;
       let clickTimer = null;
 
-      // Spring physics for smooth movement
-      let currentX = 0, currentY = 0;
-      let velocityX = 0, velocityY = 0;
-      let targetX = 0, targetY = 0;
-
-      // 3D rotation
-      let currentRotX = 0, currentRotY = 0, currentRotZ = 0;
-      let targetRotX = 0, targetRotY = 0, targetRotZ = 0;
-
-      // Scale and intensity
-      let currentScale = 1;
-      let targetScale = 1;
-      let mouseDistance = 1;
-      let isNearMouse = false;
-
-      // EPIC SPRING PHYSICS ANIMATION
-      function animate() {
-        time += 0.003;
-
-        // Idle floating when not interacting
-        const idleFloatY = Math.sin(time) * 8;
-        const idleFloatX = Math.cos(time * 0.6) * 6;
-        const idleRotZ = Math.sin(time * 0.5) * 2;
-
-        // Spring physics for smooth magnetic following
-        const springStrength = 0.05;
-        const damping = 0.85;
-
-        velocityX += (targetX - currentX) * springStrength;
-        velocityY += (targetY - currentY) * springStrength;
-        velocityX *= damping;
-        velocityY *= damping;
-        currentX += velocityX;
-        currentY += velocityY;
-
-        // Smooth rotation interpolation
-        currentRotX += (targetRotX - currentRotX) * 0.15;
-        currentRotY += (targetRotY - currentRotY) * 0.15;
-        currentRotZ += (targetRotZ - currentRotZ) * 0.15;
-
-        // Smooth scale
-        currentScale += (targetScale - currentScale) * 0.1;
-
-        // Apply transforms to wrapper with combined idle + interactive movement
-        const finalX = currentX + idleFloatX;
-        const finalY = currentY + idleFloatY;
-        const finalRotZ = currentRotZ + idleRotZ;
-
-        signParallaxWrapper.style.transform = `
-          translate(${finalX}px, ${finalY}px)
-          rotateX(${currentRotX}deg)
-          rotateY(${currentRotY}deg)
-          rotateZ(${finalRotZ}deg)
-          scale(${currentScale})
-        `;
-
-        // Apply layered parallax to each layer based on depth
-        signLayers.forEach((layer) => {
-          const depth = parseFloat(layer.getAttribute('data-depth')) || 1;
-          const isDepthLayer = layer.classList.contains('sign-depth-layer');
-
-          // Each layer moves at different speed/intensity
-          const layerX = currentX * depth;
-          const layerY = currentY * depth;
-          const layerRotY = currentRotY * depth * 0.5;
-          const layerRotX = currentRotX * depth * 0.5;
-
-          // SUBTLE glow intensity based on mouse proximity
-          const glowIntensity = 8 + (1 - mouseDistance) * 12; // Much more subtle
-          const brightness = 1 + (1 - mouseDistance) * 0.1 * depth; // Very subtle brightness
-
-          // FADE IN depth layers ONLY when mouse is near
-          if (isDepthLayer) {
-            const maxOpacity = depth === 0.2 ? 0.2 : depth === 0.4 ? 0.3 : 0;
-            const targetOpacity = isNearMouse ? maxOpacity * (1 - mouseDistance) : 0;
-            layer.style.opacity = targetOpacity;
-          }
-
-          // Add SUBTLE dynamic lighting to main sign
-          if (layer === woodenSign) {
-            layer.style.filter = `
-              drop-shadow(0 ${glowIntensity}px ${glowIntensity * 2}px rgba(0, 0, 0, 0.5))
-              drop-shadow(0 0 ${glowIntensity}px rgba(139, 69, 19, ${0.2 + (1 - mouseDistance) * 0.1}))
-              brightness(${brightness})
-            `;
-          }
-        });
-
-        requestAnimationFrame(animate);
-      }
-
-      // MAGNETIC MOUSE TRACKING WITH EXTREME PARALLAX
-      let mouseUpdateTicking = false;
-      document.addEventListener('mousemove', (e) => {
-        if (mouseUpdateTicking) return;
-        mouseUpdateTicking = true;
-
-        requestAnimationFrame(() => {
-          const rect = signParallaxWrapper.getBoundingClientRect();
-          const signCenterX = rect.left + rect.width / 2;
-          const signCenterY = rect.top + rect.height / 2;
-
-          // Calculate distance from mouse to sign center
-          const deltaX = e.clientX - signCenterX;
-          const deltaY = e.clientY - signCenterY;
-          const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-          const maxDistance = 800; // Magnetic attraction radius
-
-          // Normalize distance (0 = at center, 1 = far away)
-          mouseDistance = Math.min(distance / maxDistance, 1);
-          isNearMouse = distance < maxDistance;
-
-          if (isNearMouse) {
-            // MAGNETIC PULL - sign follows mouse
-            const pullStrength = (1 - mouseDistance) * 60; // Stronger when closer
-            targetX = (deltaX / maxDistance) * pullStrength;
-            targetY = (deltaY / maxDistance) * pullStrength;
-
-            // EXTREME 3D ROTATION based on mouse position
-            targetRotY = (deltaX / rect.width) * 25; // More extreme tilt
-            targetRotX = -(deltaY / rect.height) * 25;
-            targetRotZ = (deltaX / rect.width) * 8; // Add Z rotation for more depth
-
-            // SCALE UP when mouse is near
-            targetScale = 1 + (1 - mouseDistance) * 0.15;
-          } else {
-            // Return to idle state
-            targetX = 0;
-            targetY = 0;
-            targetRotX = 0;
-            targetRotY = 0;
-            targetRotZ = 0;
-            targetScale = 1;
-          }
-
-          mouseUpdateTicking = false;
-        });
-      });
-
-      // JESTER BEAR EASTER EGG - Click 5 times with PLAYFUL animations!
+      // Jester Bear Easter Egg - Click 5 times!
       woodenSign.addEventListener('click', () => {
         clickCount++;
 
-        // Reset timer
+        // Reset timer after 2 seconds of no clicks
         if (clickTimer) clearTimeout(clickTimer);
-        clickTimer = setTimeout(() => {
-          clickCount = 0;
-        }, 2000);
+        clickTimer = setTimeout(() => clickCount = 0, 2000);
 
-        // PLAYFUL BUBBLY CLICK ANIMATIONS - each click gets progressively more excited!
-        const bounceAmount = 1.05 + (clickCount * 0.02); // Grows slightly with each click
-        const rotateAmount = 3 + (clickCount * 2); // Wiggles more with each click
+        // Quick bounce animation on click
+        woodenSign.style.transform = 'scale(1.1)';
+        setTimeout(() => woodenSign.style.transform = '', 150);
 
-        // Quick bubble bounce
-        targetScale = bounceAmount;
-        setTimeout(() => targetScale = isNearMouse ? 1.05 : 1, 150);
-
-        // Playful wiggle alternating directions
-        targetRotZ = clickCount % 2 === 0 ? rotateAmount : -rotateAmount;
-        setTimeout(() => targetRotZ = 0, 200);
-
-        // Subtle Y bounce
-        targetY = targetY - 10;
-        setTimeout(() => targetY = 0, 200);
-
-        // JESTER BEAR APPEARS ON 5th CLICK!
+        // Spawn Jester Bear on 5th click!
         if (clickCount === 5) {
           spawnJesterBear();
           clickCount = 0;
-          // BIG CELEBRATION BOUNCE
-          targetScale = 1.2;
-          targetRotZ = 15;
-          setTimeout(() => {
-            targetScale = 1;
-            targetRotZ = -15;
-          }, 150);
-          setTimeout(() => {
-            targetRotZ = 0;
-          }, 300);
           console.log('🤡🐻 JESTER BEAR HAS BEEN SUMMONED! 🐻🤡');
         }
       });
 
-      // SPAWN JESTER BEAR RUNNING ACROSS SCREEN
+      // Spawn Jester Bear running across screen
       function spawnJesterBear() {
         const jester = document.createElement('img');
         jester.src = 'https://files.catbox.moe/sv9big.png';
-        jester.style.position = 'fixed';
-        jester.style.bottom = '20%';
-        jester.style.left = '-150px';
-        jester.style.width = '120px';
-        jester.style.height = 'auto';
-        jester.style.zIndex = '99999';
-        jester.style.pointerEvents = 'none';
-        jester.style.filter = 'drop-shadow(0 10px 30px rgba(0,0,0,0.5))';
-        jester.style.transition = 'left 3s linear, transform 3s ease-in-out';
-        jester.style.animation = 'jesterRun 3s linear';
+        jester.style.cssText = `
+          position: fixed;
+          bottom: 20%;
+          left: -150px;
+          width: 120px;
+          height: auto;
+          z-index: 99999;
+          pointer-events: none;
+          filter: drop-shadow(0 10px 30px rgba(0,0,0,0.5));
+          transition: left 3s linear;
+        `;
 
         document.body.appendChild(jester);
 
-        // Animate across screen with bounce
+        // Animate across screen
         setTimeout(() => {
           jester.style.left = window.innerWidth + 'px';
-          jester.style.transform = 'scaleX(-1)'; // Flip to face right
+          jester.style.transform = 'scaleX(-1)';
         }, 50);
 
         // Remove after animation
-        setTimeout(() => {
-          jester.remove();
-        }, 3200);
+        setTimeout(() => jester.remove(), 3200);
       }
 
-      // SCROLL PARALLAX
+      // Simple fade out on scroll
       let scrollTicking = false;
       window.addEventListener('scroll', () => {
         if (scrollTicking) return;
@@ -11960,26 +11784,11 @@
 
         requestAnimationFrame(() => {
           const scrollY = window.scrollY || window.pageYOffset;
-          const maxScroll = 1600;
-          const scrollProgress = Math.min(scrollY / maxScroll, 1);
-
-          const moveY = scrollProgress * -100;
-          const moveX = Math.sin(scrollProgress * Math.PI * 2) * 50;
-          const rotateAmount = scrollProgress * 360;
-          const scaleAmount = 1 + scrollProgress * 1;
-          const opacity = Math.max(0, 1 - scrollProgress * 1.2);
-
-          woodenSignContainer.style.transform = `translate(-50%, calc(-50% + ${moveY}px)) translateX(${moveX}px) rotate(${rotateAmount}deg) scale(${scaleAmount})`;
+          const opacity = Math.max(0, 1 - scrollY / 400);
           woodenSignContainer.style.opacity = opacity;
-
           scrollTicking = false;
         });
       });
-
-      // START ANIMATION
-      animate();
-
-      console.log('🎨💥 EPIC 3D PARALLAX SIGN IS ALIVE! Move your mouse near it! Click 5 times for JESTER BEAR! 💥🎨');
     })();
   </script>
 
@@ -12087,24 +11896,40 @@
       100% { transform: scale(1) rotate(0deg); }
     }
 
-    #woodenSign {
-      cursor: pointer;
-      transition: filter 0.3s ease, transform 0.3s ease;
-      will-change: transform, filter;
+    #woodenSignContainer {
+      position: absolute;
+      top: 38%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 10;
+      animation: signFloat 4s ease-in-out infinite;
     }
 
-    #woodenSignContainer {
-      will-change: transform, opacity;
-      pointer-events: auto;
+    #woodenSign {
+      width: 430px;
+      height: auto;
+      cursor: pointer;
+      filter: drop-shadow(0 15px 30px rgba(0, 0, 0, 0.5));
+      transition: transform 0.3s ease, filter 0.3s ease;
+    }
+
+    #woodenSign:hover {
+      transform: scale(1.05);
+      filter: drop-shadow(0 20px 40px rgba(0, 0, 0, 0.6));
+    }
+
+    @keyframes signFloat {
+      0%, 100% { transform: translate(-50%, -50%) translateY(0); }
+      50% { transform: translate(-50%, -50%) translateY(-8px); }
     }
 
     /* Responsive sizing */
     @media (max-width: 768px) {
-      #signParallaxWrapper {
-        width: 280px !important;
+      #woodenSign {
+        width: 280px;
       }
       #woodenSignContainer {
-        top: 35% !important;
+        top: 35%;
       }
     }
 
