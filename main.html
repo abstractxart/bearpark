@@ -18045,6 +18045,10 @@
       profileModal.style.display = 'flex';
       setTimeout(() => profileModal.classList.add('visible'), 10);
 
+      // Hide the "Where would you like to go" button when modal opens
+      const whereBtn = document.getElementById('whereToGoBtn');
+      if (whereBtn) whereBtn.style.display = 'none';
+
       // Scroll to top of profile modal (unless we're scrolling to a specific comment)
       if (profileModalBody && !options.scrollToCommentId) {
         profileModalBody.scrollTop = 0;
@@ -18075,6 +18079,10 @@
         // Clear navigation history
         profileNavigationHistory = [];
         updateBackButton();
+
+        // Show the "Where would you like to go" button again
+        const whereBtn = document.getElementById('whereToGoBtn');
+        if (whereBtn) whereBtn.style.display = '';
       }, 300);
     };
 
@@ -25268,11 +25276,6 @@ if (typeof window.addEventListener !== 'undefined') {
     // Fetch NFT counts from XRPL
     async function fetchNFTCounts(wallet) {
       try {
-        const response = await fetch('wss://s1.ripple.com', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
-        });
-
         // Use XRPL WebSocket to get NFTs
         const ws = new WebSocket('wss://s1.ripple.com');
 
