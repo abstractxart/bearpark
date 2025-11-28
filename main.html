@@ -10099,9 +10099,9 @@
       <img id="woodenSign" src="https://files.catbox.moe/25ekkd.png" alt="BEAR PARK wooden sign">
     </div>
 
-    <!-- 🎯 SINGLE NAVIGATION BUTTON 🎯 -->
-    <div class="floating-nav-btn" id="whereToGoBtn" data-depth="0.8" style="position: absolute; top: 72%; left: 50%; transform: translateX(-50%); z-index: 11; perspective: 1000px; cursor: pointer;" onclick="openNavigationModal()">
-      <div class="floating-nav-text where-to-go-text">WHERE WOULD YOU LIKE TO GO? 🐻🃏</div>
+    <!-- 🎯 NAVIGATION BUTTON 🎯 -->
+    <div id="whereToGoBtn" onclick="openNavigationModal()">
+      <div class="where-to-go-text">WHERE WOULD YOU LIKE TO GO?</div>
     </div>
 
     <!-- 🐻🏙️ BEAR CITY INHABITANTS 🏙️🐻 -->
@@ -11933,80 +11933,69 @@
       }
     }
 
-    /* 🎯 FLOATING NAVIGATION BUTTONS 🎯 */
-    .floating-nav-btn {
-      will-change: transform, opacity;
-      pointer-events: auto;
-      transition: all 0.3s ease;
+    /* 🎯 WHERE WOULD YOU LIKE TO GO BUTTON 🎯 */
+    #whereToGoBtn {
+      position: absolute;
+      bottom: 8%;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 100;
     }
 
-    .floating-nav-text {
-      font-family: 'Luckiest Guy', 'Arial Black', Impact, sans-serif;
-      font-size: clamp(24px, 3vw, 42px);
+    .where-to-go-text {
+      font-family: 'Luckiest Guy', cursive;
+      font-size: clamp(18px, 2.5vw, 28px);
       color: #fff;
-      text-shadow:
-        4px 4px 0 #000,
-        -2px -2px 0 #000,
-        2px -2px 0 #000,
-        -2px 2px 0 #000,
-        0 0 20px rgba(237, 183, 35, 0.6),
-        0 0 40px rgba(237, 183, 35, 0.4);
+      padding: 16px 32px;
+      background: rgba(10, 10, 15, 0.85);
+      backdrop-filter: blur(10px);
+      border-radius: 50px;
       cursor: pointer;
-      transition: all 0.3s ease;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       user-select: none;
       white-space: nowrap;
       text-align: center;
+      position: relative;
+      border: 3px solid transparent;
+      background-clip: padding-box;
+      box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.5),
+        0 0 40px rgba(139, 92, 246, 0.15),
+        0 0 40px rgba(74, 222, 128, 0.1),
+        0 0 40px rgba(237, 183, 35, 0.1);
     }
 
-    .floating-nav-text:hover {
-      color: var(--gold);
-      text-shadow:
-        4px 4px 0 #000,
-        -2px -2px 0 #000,
-        2px -2px 0 #000,
-        -2px 2px 0 #000,
-        0 0 30px rgba(237, 183, 35, 0.8),
-        0 0 50px rgba(237, 183, 35, 0.6);
-      transform: scale(1.1);
+    .where-to-go-text::before {
+      content: '';
+      position: absolute;
+      top: -3px;
+      left: -3px;
+      right: -3px;
+      bottom: -3px;
+      background: linear-gradient(135deg, #8b5cf6, #4ade80, #edb723, #8b5cf6);
+      border-radius: 52px;
+      z-index: -1;
+      animation: navBtnBorderGlow 3s linear infinite;
+      background-size: 300% 300%;
     }
 
-    .floating-nav-text:active {
-      transform: scale(0.95);
+    @keyframes navBtnBorderGlow {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
     }
 
-    /* WHERE TO GO button - gold with glow */
-    .where-to-go-text {
-      font-size: clamp(16px, 2.5vw, 32px) !important;
-      color: var(--gold) !important;
-      text-shadow:
-        3px 3px 0 #000,
-        -2px -2px 0 #000,
-        2px -2px 0 #000,
-        -2px 2px 0 #000,
-        0 0 20px rgba(237, 183, 35, 0.8),
-        0 0 40px rgba(237, 183, 35, 0.5) !important;
-      animation: pulseGlowText 2s ease-in-out infinite;
+    .where-to-go-text:hover {
+      transform: scale(1.05);
+      background: rgba(10, 10, 15, 0.95);
+      box-shadow:
+        0 12px 40px rgba(0, 0, 0, 0.6),
+        0 0 60px rgba(139, 92, 246, 0.25),
+        0 0 60px rgba(74, 222, 128, 0.15),
+        0 0 60px rgba(237, 183, 35, 0.15);
     }
 
-    @keyframes pulseGlowText {
-      0%, 100% {
-        text-shadow:
-          3px 3px 0 #000,
-          -2px -2px 0 #000,
-          2px -2px 0 #000,
-          -2px 2px 0 #000,
-          0 0 20px rgba(237, 183, 35, 0.8),
-          0 0 40px rgba(237, 183, 35, 0.5);
-      }
-      50% {
-        text-shadow:
-          3px 3px 0 #000,
-          -2px -2px 0 #000,
-          2px -2px 0 #000,
-          -2px 2px 0 #000,
-          0 0 30px rgba(237, 183, 35, 1),
-          0 0 60px rgba(237, 183, 35, 0.8);
-      }
+    .where-to-go-text:active {
+      transform: scale(0.98);
     }
 
     /* Navigation Modal Styles - BEAUTIFUL EDITION */
@@ -12220,23 +12209,14 @@
       letter-spacing: 0.5px;
     }
 
-    /* Mobile: show the WHERE TO GO button - positioned higher to avoid clipping */
+    /* Mobile: WHERE TO GO button */
     @media (max-width: 768px) {
       #whereToGoBtn {
-        display: block !important;
-        top: 55% !important;
-        bottom: auto !important;
-        left: 50% !important;
-        transform: translateX(-50%) !important;
-        z-index: 100 !important;
+        bottom: 5%;
       }
-      #whereToGoBtn .where-to-go-text {
-        font-size: 13px !important;
-        padding: 10px 16px;
-        background: rgba(0, 0, 0, 0.85);
-        border-radius: 30px;
-        border: 2px solid var(--gold);
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+      .where-to-go-text {
+        font-size: 14px !important;
+        padding: 12px 24px;
       }
     }
   </style>
