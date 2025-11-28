@@ -10396,7 +10396,7 @@
   <!-- BEAR DROPS - Airdrop Section -->
   <section class="dark" id="bear-drops">
     <div class="wrap reveal">
-      <h2 class="h2">🐻 $BEAR DROPS</h2>
+      <h2 class="h2" id="beardropsTitle">?????</h2>
       <p style="text-align:center;margin:-6px 0 32px;opacity:0.9;" id="beardropsSubtitle">?????</p>
 
       <div class="honey-card beardrops-card">
@@ -25174,13 +25174,26 @@ if (typeof window.addEventListener !== 'undefined') {
       if (isApexWallet()) {
         // APEX wallet - show real UI, hide mystery
         console.log('🎄 BEARDROPS: APEX wallet detected - showing full UI');
+
+        // Show real title for APEX
+        const title = document.getElementById('beardropsTitle');
+        if (title) title.textContent = '🐻 $BEAR DROPS';
+
         if (mysteryOverlay) {
           mysteryOverlay.classList.add('hidden');
         }
         loadBeardropsData();
       } else {
-        // Non-APEX wallet - show mystery overlay
+        // Non-APEX wallet - show mystery overlay, keep everything as ?????
         console.log('🎄 BEARDROPS: Regular user - showing mystery');
+
+        // Ensure title stays as ?????
+        const title = document.getElementById('beardropsTitle');
+        if (title) title.textContent = '?????';
+
+        const subtitle = document.getElementById('beardropsSubtitle');
+        if (subtitle) subtitle.textContent = '?????';
+
         if (mysteryOverlay) {
           mysteryOverlay.classList.remove('hidden');
         }
