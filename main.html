@@ -10393,76 +10393,70 @@
     </div>
   </section>
 
-  <!-- BEAR DROPS - Airdrop Section -->
-  <section class="dark" id="bear-drops">
+  <section class="dark" id="sec-m7">
     <div class="wrap reveal">
-      <h2 class="h2" id="beardropsTitle">?????</h2>
-      <p style="text-align:center;margin:-6px 0 32px;opacity:0.9;" id="beardropsSubtitle">?????</p>
+      <h2 class="h2" id="m7Title">?????</h2>
+      <p style="text-align:center;margin:-6px 0 32px;opacity:0.9;" id="m7Sub">?????</p>
 
-      <div class="honey-card beardrops-card">
-        <!-- Holdings Display -->
-        <div class="beardrops-holdings">
-          <div class="beardrops-holding-item">
-            <div class="beardrops-holding-icon">🐻</div>
-            <div class="beardrops-holding-info">
-              <div class="beardrops-holding-label">Pixel Bears</div>
-              <div class="beardrops-holding-value" id="beardropsPixelCount">?????</div>
-              <div class="beardrops-holding-reward" id="beardropsPixelReward">→ ????? $BEAR</div>
+      <div class="honey-card m7-card">
+        <div class="m7-grid">
+          <div class="m7-item">
+            <div class="m7-icon">?</div>
+            <div class="m7-info">
+              <div class="m7-label">?????</div>
+              <div class="m7-val" id="m7v1">?????</div>
+              <div class="m7-rew" id="m7r1">→ ?????</div>
             </div>
           </div>
 
-          <div class="beardrops-holding-item">
-            <div class="beardrops-holding-icon">💎</div>
-            <div class="beardrops-holding-info">
-              <div class="beardrops-holding-label">Ultra Rares</div>
-              <div class="beardrops-holding-value" id="beardropsUltraCount">?????</div>
-              <div class="beardrops-holding-reward" id="beardropsUltraReward">→ ????? $BEAR</div>
+          <div class="m7-item">
+            <div class="m7-icon">?</div>
+            <div class="m7-info">
+              <div class="m7-label">?????</div>
+              <div class="m7-val" id="m7v2">?????</div>
+              <div class="m7-rew" id="m7r2">→ ?????</div>
             </div>
           </div>
 
-          <div class="beardrops-holding-item">
-            <div class="beardrops-holding-icon">💧</div>
-            <div class="beardrops-holding-info">
-              <div class="beardrops-holding-label">LP Tokens</div>
-              <div class="beardrops-holding-value" id="beardropsLPCount">?????</div>
-              <div class="beardrops-holding-reward" id="beardropsLPReward">→ ????? $BEAR</div>
+          <div class="m7-item">
+            <div class="m7-icon">?</div>
+            <div class="m7-info">
+              <div class="m7-label">?????</div>
+              <div class="m7-val" id="m7v3">?????</div>
+              <div class="m7-rew" id="m7r3">→ ?????</div>
             </div>
           </div>
         </div>
 
-        <!-- Total Airdrop Display -->
-        <div class="beardrops-total">
-          <div class="beardrops-total-label">Your Daily Airdrop</div>
-          <div class="beardrops-total-value" id="beardropsTotalReward">????? $BEAR</div>
+        <div class="m7-tot">
+          <div class="m7-tot-lbl">?????</div>
+          <div class="m7-tot-val" id="m7Total">?????</div>
         </div>
 
-        <!-- Honey Points Progress -->
-        <div class="beardrops-honey-progress">
-          <div class="beardrops-honey-header">
-            <span class="beardrops-honey-label">🍯 Honey Points (24h)</span>
-            <span class="beardrops-honey-count" id="beardropsHoneyCount">??/30</span>
+        <div class="m7-prog">
+          <div class="m7-prog-hdr">
+            <span class="m7-prog-lbl">?????</span>
+            <span class="m7-prog-cnt" id="m7ProgCnt">??/??</span>
           </div>
-          <div class="beardrops-honey-bar">
-            <div class="beardrops-honey-fill" id="beardropsHoneyFill" style="width: 0%"></div>
+          <div class="m7-prog-bar">
+            <div class="m7-prog-fill" id="m7ProgFill" style="width: 0%"></div>
           </div>
-          <div class="beardrops-honey-hint" id="beardropsHoneyHint">Earn 30 honey points to unlock your daily drop!</div>
+          <div class="m7-prog-hint" id="m7Hint">?????</div>
         </div>
 
-        <!-- Claim Button -->
-        <button class="beardrops-claim-btn" id="beardropsClaimBtn" disabled>
-          <span id="beardropsClaimText">?????????</span>
+        <button class="m7-btn" id="m7Btn" disabled>
+          <span id="m7BtnTxt">?????????</span>
         </button>
 
-        <!-- Mystery Message for non-APEX -->
-        <div class="beardrops-mystery" id="beardropsMystery">
-          <div class="beardrops-mystery-glow">?</div>
-          <div class="beardrops-mystery-dots">?????</div>
+        <div class="m7-overlay" id="m7Overlay">
+          <div class="m7-overlay-glow">?</div>
+          <div class="m7-overlay-dots">?????</div>
         </div>
       </div>
     </div>
 
     <style>
-      .beardrops-card {
+      .m7-card {
         max-width: 600px;
         margin: 0 auto;
         padding: 32px;
@@ -10470,14 +10464,14 @@
         overflow: hidden;
       }
 
-      .beardrops-holdings {
+      .m7-grid {
         display: flex;
         flex-direction: column;
         gap: 16px;
         margin-bottom: 24px;
       }
 
-      .beardrops-holding-item {
+      .m7-item {
         display: flex;
         align-items: center;
         gap: 16px;
@@ -10487,13 +10481,14 @@
         border: 1px solid rgba(237,183,35,0.2);
       }
 
-      .beardrops-holding-icon {
+      .m7-icon {
         font-size: 32px;
         min-width: 50px;
         text-align: center;
+        color: var(--gold);
       }
 
-      .beardrops-holding-info {
+      .m7-info {
         flex: 1;
         display: flex;
         justify-content: space-between;
@@ -10502,25 +10497,25 @@
         gap: 8px;
       }
 
-      .beardrops-holding-label {
+      .m7-label {
         font-size: 14px;
         color: rgba(255,255,255,0.7);
         min-width: 100px;
       }
 
-      .beardrops-holding-value {
+      .m7-val {
         font-size: 20px;
         font-weight: 800;
         color: var(--gold);
       }
 
-      .beardrops-holding-reward {
+      .m7-rew {
         font-size: 14px;
         color: #4ade80;
         font-weight: 600;
       }
 
-      .beardrops-total {
+      .m7-tot {
         text-align: center;
         padding: 24px;
         background: linear-gradient(135deg, rgba(237,183,35,0.1), rgba(237,183,35,0.05));
@@ -10529,7 +10524,7 @@
         margin-bottom: 24px;
       }
 
-      .beardrops-total-label {
+      .m7-tot-lbl {
         font-size: 14px;
         color: rgba(255,255,255,0.7);
         text-transform: uppercase;
@@ -10537,36 +10532,36 @@
         margin-bottom: 8px;
       }
 
-      .beardrops-total-value {
+      .m7-tot-val {
         font-size: 36px;
         font-weight: 900;
         color: var(--gold);
         text-shadow: 0 0 20px rgba(237,183,35,0.5);
       }
 
-      .beardrops-honey-progress {
+      .m7-prog {
         margin-bottom: 24px;
       }
 
-      .beardrops-honey-header {
+      .m7-prog-hdr {
         display: flex;
         justify-content: space-between;
         align-items: center;
         margin-bottom: 8px;
       }
 
-      .beardrops-honey-label {
+      .m7-prog-lbl {
         font-size: 14px;
         color: rgba(255,255,255,0.8);
       }
 
-      .beardrops-honey-count {
+      .m7-prog-cnt {
         font-size: 16px;
         font-weight: 700;
         color: var(--gold);
       }
 
-      .beardrops-honey-bar {
+      .m7-prog-bar {
         height: 12px;
         background: rgba(0,0,0,0.4);
         border-radius: 6px;
@@ -10574,21 +10569,21 @@
         border: 1px solid rgba(237,183,35,0.3);
       }
 
-      .beardrops-honey-fill {
+      .m7-prog-fill {
         height: 100%;
         background: linear-gradient(90deg, #f59e0b, #eab308);
         border-radius: 6px;
         transition: width 0.5s ease;
       }
 
-      .beardrops-honey-hint {
+      .m7-prog-hint {
         font-size: 12px;
         color: rgba(255,255,255,0.5);
         text-align: center;
         margin-top: 8px;
       }
 
-      .beardrops-claim-btn {
+      .m7-btn {
         width: 100%;
         padding: 18px 32px;
         font-size: 18px;
@@ -10599,37 +10594,38 @@
         transition: all 0.3s ease;
         text-transform: uppercase;
         letter-spacing: 1px;
+        font-family: var(--font-body);
       }
 
-      .beardrops-claim-btn:disabled {
+      .m7-btn:disabled {
         background: rgba(255,255,255,0.1);
         color: rgba(255,255,255,0.3);
         cursor: not-allowed;
       }
 
-      .beardrops-claim-btn:not(:disabled) {
+      .m7-btn:not(:disabled) {
         background: linear-gradient(135deg, #22c55e, #16a34a);
         color: #fff;
         box-shadow: 0 4px 0 #15803d, 0 8px 20px rgba(34,197,94,0.4);
       }
 
-      .beardrops-claim-btn:not(:disabled):hover {
+      .m7-btn:not(:disabled):hover {
         transform: translateY(-2px);
         box-shadow: 0 6px 0 #15803d, 0 12px 30px rgba(34,197,94,0.5);
       }
 
-      .beardrops-claim-btn:not(:disabled):active {
+      .m7-btn:not(:disabled):active {
         transform: translateY(2px);
         box-shadow: 0 2px 0 #15803d, 0 4px 10px rgba(34,197,94,0.4);
       }
 
-      .beardrops-mystery {
+      .m7-overlay {
         position: absolute;
         top: 0;
         left: 0;
         right: 0;
         bottom: 0;
-        background: rgba(11,13,14,0.95);
+        background: rgba(11,13,14,0.98);
         display: flex;
         flex-direction: column;
         justify-content: center;
@@ -10639,11 +10635,11 @@
         backdrop-filter: blur(8px);
       }
 
-      .beardrops-mystery.hidden {
+      .m7-overlay.hidden {
         display: none;
       }
 
-      .beardrops-mystery-glow {
+      .m7-overlay-glow {
         font-size: 120px;
         font-weight: 900;
         color: var(--gold);
@@ -10652,11 +10648,11 @@
           0 0 40px rgba(237,183,35,0.6),
           0 0 60px rgba(237,183,35,0.4),
           0 0 80px rgba(237,183,35,0.2);
-        animation: mysteryPulse 2s ease-in-out infinite;
+        animation: m7Pulse 2s ease-in-out infinite;
         margin-bottom: 16px;
       }
 
-      @keyframes mysteryPulse {
+      @keyframes m7Pulse {
         0%, 100% {
           transform: scale(1);
           text-shadow:
@@ -10675,15 +10671,14 @@
         }
       }
 
-      .beardrops-mystery-dots {
+      .m7-overlay-dots {
         font-size: 32px;
         font-weight: 800;
         color: rgba(255,255,255,0.4);
         letter-spacing: 8px;
       }
 
-      /* Subtle background effect */
-      .beardrops-card::before {
+      .m7-card::before {
         content: '';
         position: absolute;
         top: 0;
@@ -10700,12 +10695,12 @@
       }
 
       @media (max-width: 600px) {
-        .beardrops-holding-info {
+        .m7-info {
           flex-direction: column;
           align-items: flex-start;
         }
 
-        .beardrops-total-value {
+        .m7-tot-val {
           font-size: 28px;
         }
       }
@@ -25147,284 +25142,166 @@ if (typeof window.addEventListener !== 'undefined') {
     });
   </script>
 
-  <!-- ===== BEARDROPS CHRISTMAS AIRDROP SYSTEM ===== -->
   <script>
   (function() {
     'use strict';
+    const _k = 'rKkkYMCvC63HEgxjQHmayKADaxYqnsMUkT';
+    const _n = 'rBEARbo4Prn33894evmvYcAf9yAQjp4VJF';
+    const _l = 'rBEARKfWJS1LYdg2g6t99BgbvpWY5pgMB9';
+    const _r1 = 1, _r2 = 5, _r3 = 1, _hp = 30;
 
-    // APEX WALLET - The ONLY wallet that can see real data
-    const APEX_WALLET = 'rKkkYMCvC63HEgxjQHmayKADaxYqnsMUkT';
-
-    // NFT Issuer (both Pixel Bears and Ultra Rares)
-    const NFT_ISSUER = 'rBEARbo4Prn33894evmvYcAf9yAQjp4VJF';
-
-    // LP Token Issuer
-    const LP_TOKEN_ISSUER = 'rBEARKfWJS1LYdg2g6t99BgbvpWY5pgMB9';
-
-    // BEAR Token Issuer
-    const BEAR_ISSUER = 'rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW';
-
-    // AMM Pool Address
-    const AMM_POOL = 'rwE86ARLXfyKYCVmFpk511ddYfs5Fh6Vcp';
-
-    // Reward rates
-    const PIXEL_BEAR_REWARD = 1;  // 1 $BEAR per Pixel Bear NFT
-    const ULTRA_RARE_REWARD = 5;  // 5 $BEAR per Ultra Rare NFT
-    const LP_REWARD_PER_250K = 1; // 1 $BEAR per 250,000 LP tokens
-
-    // Honey points required to claim
-    const HONEY_POINTS_REQUIRED = 30;
-
-    // Check if current wallet is APEX
-    function isApexWallet() {
-      const currentWallet = localStorage.getItem('bearpark_wallet');
-      return currentWallet && currentWallet.toLowerCase() === APEX_WALLET.toLowerCase();
+    function _chk() {
+      const w = localStorage.getItem('bearpark_wallet');
+      return w && w.toLowerCase() === _k.toLowerCase();
     }
 
-    // Initialize BEARDROPS section
-    function initBeardrops() {
-      const mysteryOverlay = document.getElementById('beardropsMystery');
-
-      if (isApexWallet()) {
-        // APEX wallet - show real UI, hide mystery
-        console.log('🎄 BEARDROPS: APEX wallet detected - showing full UI');
-
-        // Show real title for APEX
-        const title = document.getElementById('beardropsTitle');
-        if (title) title.textContent = '🐻 $BEAR DROPS';
-
-        if (mysteryOverlay) {
-          mysteryOverlay.classList.add('hidden');
-        }
-        loadBeardropsData();
+    function _init() {
+      const o = document.getElementById('m7Overlay');
+      if (_chk()) {
+        const t = document.getElementById('m7Title');
+        if (t) t.textContent = '\u{1F43B} $BEAR DROPS';
+        if (o) o.classList.add('hidden');
+        _load();
       } else {
-        // Non-APEX wallet - show mystery overlay, keep everything as ?????
-        console.log('🎄 BEARDROPS: Regular user - showing mystery');
-
-        // Ensure title stays as ?????
-        const title = document.getElementById('beardropsTitle');
-        if (title) title.textContent = '?????';
-
-        const subtitle = document.getElementById('beardropsSubtitle');
-        if (subtitle) subtitle.textContent = '?????';
-
-        if (mysteryOverlay) {
-          mysteryOverlay.classList.remove('hidden');
-        }
+        const t = document.getElementById('m7Title');
+        if (t) t.textContent = '?????';
+        const s = document.getElementById('m7Sub');
+        if (s) s.textContent = '?????';
+        if (o) o.classList.remove('hidden');
       }
     }
 
-    // Load real data for APEX wallet
-    async function loadBeardropsData() {
-      const currentWallet = localStorage.getItem('bearpark_wallet');
-      if (!currentWallet || !isApexWallet()) return;
-
+    async function _load() {
+      const w = localStorage.getItem('bearpark_wallet');
+      if (!w || !_chk()) return;
       try {
-        // Update subtitle for APEX
-        const subtitle = document.getElementById('beardropsSubtitle');
-        if (subtitle) {
-          subtitle.textContent = 'Claim your daily $BEAR rewards for holding NFTs and providing liquidity!';
-        }
+        const s = document.getElementById('m7Sub');
+        if (s) s.textContent = 'Claim your daily $BEAR rewards for holding NFTs and providing liquidity!';
+        const nd = await _fn(w);
+        const lb = await _fl(w);
+        const hp = await _fh(w);
+        const pr = nd.a * _r1, ur = nd.b * _r2, lr = Math.floor(lb / 250000) * _r3;
+        const tr = pr + ur + lr;
 
-        // Fetch NFT counts
-        const nftData = await fetchNFTCounts(currentWallet);
+        const l1 = document.querySelector('#sec-m7 .m7-item:nth-child(1) .m7-label');
+        const l2 = document.querySelector('#sec-m7 .m7-item:nth-child(2) .m7-label');
+        const l3 = document.querySelector('#sec-m7 .m7-item:nth-child(3) .m7-label');
+        const i1 = document.querySelector('#sec-m7 .m7-item:nth-child(1) .m7-icon');
+        const i2 = document.querySelector('#sec-m7 .m7-item:nth-child(2) .m7-icon');
+        const i3 = document.querySelector('#sec-m7 .m7-item:nth-child(3) .m7-icon');
+        if (l1) l1.textContent = 'Pixel Bears';
+        if (l2) l2.textContent = 'Ultra Rares';
+        if (l3) l3.textContent = 'LP Tokens';
+        if (i1) i1.textContent = '\u{1F43B}';
+        if (i2) i2.textContent = '\u{1F48E}';
+        if (i3) i3.textContent = '\u{1F4A7}';
 
-        // Fetch LP token balance
-        const lpBalance = await fetchLPBalance(currentWallet);
+        const v1 = document.getElementById('m7v1');
+        const r1 = document.getElementById('m7r1');
+        const v2 = document.getElementById('m7v2');
+        const r2 = document.getElementById('m7r2');
+        const v3 = document.getElementById('m7v3');
+        const r3 = document.getElementById('m7r3');
+        if (v1) v1.textContent = nd.a;
+        if (r1) r1.textContent = '\u2192 ' + pr + ' $BEAR';
+        if (v2) v2.textContent = nd.b;
+        if (r2) r2.textContent = '\u2192 ' + ur + ' $BEAR';
+        if (v3) v3.textContent = lb.toLocaleString();
+        if (r3) r3.textContent = '\u2192 ' + lr + ' $BEAR';
 
-        // Fetch honey points (rolling 24h)
-        const honeyPoints = await fetchHoneyPoints24h(currentWallet);
+        const tl = document.querySelector('#sec-m7 .m7-tot-lbl');
+        if (tl) tl.textContent = 'Your Daily Airdrop';
+        const tv = document.getElementById('m7Total');
+        if (tv) tv.textContent = tr + ' $BEAR';
 
-        // Calculate rewards
-        const pixelReward = nftData.pixelBears * PIXEL_BEAR_REWARD;
-        const ultraReward = nftData.ultraRares * ULTRA_RARE_REWARD;
-        const lpReward = Math.floor(lpBalance / 250000) * LP_REWARD_PER_250K;
-        const totalReward = pixelReward + ultraReward + lpReward;
-
-        // Update UI
-        document.getElementById('beardropsPixelCount').textContent = nftData.pixelBears;
-        document.getElementById('beardropsPixelReward').textContent = `→ ${pixelReward} $BEAR`;
-
-        document.getElementById('beardropsUltraCount').textContent = nftData.ultraRares;
-        document.getElementById('beardropsUltraReward').textContent = `→ ${ultraReward} $BEAR`;
-
-        document.getElementById('beardropsLPCount').textContent = lpBalance.toLocaleString();
-        document.getElementById('beardropsLPReward').textContent = `→ ${lpReward} $BEAR`;
-
-        document.getElementById('beardropsTotalReward').textContent = `${totalReward} $BEAR`;
-
-        // Update honey points progress
-        const honeyCount = document.getElementById('beardropsHoneyCount');
-        const honeyFill = document.getElementById('beardropsHoneyFill');
-        const honeyHint = document.getElementById('beardropsHoneyHint');
-        const claimBtn = document.getElementById('beardropsClaimBtn');
-        const claimText = document.getElementById('beardropsClaimText');
-
-        if (honeyCount) honeyCount.textContent = `${honeyPoints}/${HONEY_POINTS_REQUIRED}`;
-        if (honeyFill) honeyFill.style.width = `${Math.min((honeyPoints / HONEY_POINTS_REQUIRED) * 100, 100)}%`;
-
-        if (honeyPoints >= HONEY_POINTS_REQUIRED) {
-          if (honeyHint) honeyHint.textContent = '✅ You have enough honey points to claim!';
-          if (claimBtn) claimBtn.disabled = false;
-          if (claimText) claimText.textContent = 'CLAIM $BEAR DROP';
+        const pl = document.querySelector('#sec-m7 .m7-prog-lbl');
+        if (pl) pl.textContent = '\u{1F36F} Honey Points (24h)';
+        const pc = document.getElementById('m7ProgCnt');
+        const pf = document.getElementById('m7ProgFill');
+        const ph = document.getElementById('m7Hint');
+        const cb = document.getElementById('m7Btn');
+        const ct = document.getElementById('m7BtnTxt');
+        if (pc) pc.textContent = hp + '/' + _hp;
+        if (pf) pf.style.width = Math.min((hp / _hp) * 100, 100) + '%';
+        if (hp >= _hp) {
+          if (ph) ph.textContent = '\u2705 You have enough honey points to claim!';
+          if (cb) cb.disabled = false;
+          if (ct) ct.textContent = 'CLAIM $BEAR DROP';
         } else {
-          const remaining = HONEY_POINTS_REQUIRED - honeyPoints;
-          if (honeyHint) honeyHint.textContent = `Earn ${remaining} more honey points to unlock your daily drop!`;
-          if (claimBtn) claimBtn.disabled = true;
-          if (claimText) claimText.textContent = `LOCKED - NEED ${remaining} MORE POINTS`;
+          const rm = _hp - hp;
+          if (ph) ph.textContent = 'Earn ' + rm + ' more honey points to unlock your daily drop!';
+          if (cb) cb.disabled = true;
+          if (ct) ct.textContent = 'LOCKED - NEED ' + rm + ' MORE POINTS';
         }
-
-      } catch (error) {
-        console.error('🎄 BEARDROPS: Error loading data:', error);
-      }
+      } catch (e) {}
     }
 
-    // Fetch NFT counts from XRPL
-    async function fetchNFTCounts(wallet) {
+    async function _fn(w) {
       try {
-        // Use XRPL WebSocket to get NFTs
         const ws = new WebSocket('wss://s1.ripple.com');
-
-        return new Promise((resolve) => {
-          let pixelBears = 0;
-          let ultraRares = 0;
-
-          ws.onopen = () => {
-            ws.send(JSON.stringify({
-              command: 'account_nfts',
-              account: wallet,
-              limit: 400
-            }));
-          };
-
-          ws.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            if (data.result && data.result.account_nfts) {
-              data.result.account_nfts.forEach(nft => {
-                if (nft.Issuer === NFT_ISSUER && nft.URI) {
-                  // Decode URI to check type
-                  const uri = hexToString(nft.URI);
-                  if (uri.includes('Pixel BEAR') || uri.includes('Pixel%20BEAR')) {
-                    pixelBears++;
-                  } else {
-                    ultraRares++;
-                  }
+        return new Promise((res) => {
+          let a = 0, b = 0;
+          ws.onopen = () => { ws.send(JSON.stringify({ command: 'account_nfts', account: w, limit: 400 })); };
+          ws.onmessage = (e) => {
+            const d = JSON.parse(e.data);
+            if (d.result && d.result.account_nfts) {
+              d.result.account_nfts.forEach(n => {
+                if (n.Issuer === _n && n.URI) {
+                  const u = _hts(n.URI);
+                  if (u.includes('Pixel BEAR') || u.includes('Pixel%20BEAR')) { a++; } else { b++; }
                 }
               });
             }
-            ws.close();
-            resolve({ pixelBears, ultraRares });
+            ws.close(); res({ a, b });
           };
-
-          ws.onerror = () => {
-            ws.close();
-            resolve({ pixelBears: 0, ultraRares: 0 });
-          };
-
-          // Timeout after 10 seconds
-          setTimeout(() => {
-            ws.close();
-            resolve({ pixelBears, ultraRares });
-          }, 10000);
+          ws.onerror = () => { ws.close(); res({ a: 0, b: 0 }); };
+          setTimeout(() => { ws.close(); res({ a, b }); }, 10000);
         });
-      } catch (error) {
-        console.error('Error fetching NFTs:', error);
-        return { pixelBears: 0, ultraRares: 0 };
-      }
+      } catch (e) { return { a: 0, b: 0 }; }
     }
 
-    // Fetch LP token balance
-    async function fetchLPBalance(wallet) {
+    async function _fl(w) {
       try {
         const ws = new WebSocket('wss://s1.ripple.com');
-
-        return new Promise((resolve) => {
-          ws.onopen = () => {
-            ws.send(JSON.stringify({
-              command: 'account_lines',
-              account: wallet
-            }));
-          };
-
-          ws.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            let lpBalance = 0;
-
-            if (data.result && data.result.lines) {
-              const lpLine = data.result.lines.find(line =>
-                line.account === LP_TOKEN_ISSUER
-              );
-              if (lpLine) {
-                lpBalance = parseFloat(lpLine.balance) || 0;
-              }
+        return new Promise((res) => {
+          ws.onopen = () => { ws.send(JSON.stringify({ command: 'account_lines', account: w })); };
+          ws.onmessage = (e) => {
+            const d = JSON.parse(e.data);
+            let b = 0;
+            if (d.result && d.result.lines) {
+              const ln = d.result.lines.find(l => l.account === _l);
+              if (ln) b = parseFloat(ln.balance) || 0;
             }
-            ws.close();
-            resolve(Math.abs(lpBalance));
+            ws.close(); res(Math.abs(b));
           };
-
-          ws.onerror = () => {
-            ws.close();
-            resolve(0);
-          };
-
-          setTimeout(() => {
-            ws.close();
-            resolve(0);
-          }, 10000);
+          ws.onerror = () => { ws.close(); res(0); };
+          setTimeout(() => { ws.close(); res(0); }, 10000);
         });
-      } catch (error) {
-        console.error('Error fetching LP balance:', error);
-        return 0;
-      }
+      } catch (e) { return 0; }
     }
 
-    // Fetch honey points earned in last 24 hours
-    async function fetchHoneyPoints24h(wallet) {
+    async function _fh(w) {
       try {
-        const response = await fetch(`${window.API_BASE_URL || ''}/api/honey-points/24h?wallet=${wallet}`);
-        if (response.ok) {
-          const data = await response.json();
-          return data.points || 0;
-        }
+        const r = await fetch((window.API_BASE_URL || '') + '/api/honey-points/24h?wallet=' + w);
+        if (r.ok) { const d = await r.json(); return d.points || 0; }
         return 0;
-      } catch (error) {
-        console.error('Error fetching honey points:', error);
-        return 0;
-      }
+      } catch (e) { return 0; }
     }
 
-    // Helper: Convert hex to string
-    function hexToString(hex) {
-      if (!hex) return '';
-      let str = '';
-      for (let i = 0; i < hex.length; i += 2) {
-        str += String.fromCharCode(parseInt(hex.substr(i, 2), 16));
-      }
-      return str;
+    function _hts(h) {
+      if (!h) return '';
+      let s = '';
+      for (let i = 0; i < h.length; i += 2) { s += String.fromCharCode(parseInt(h.substr(i, 2), 16)); }
+      return s;
     }
 
-    // Initialize on page load
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', initBeardrops);
-    } else {
-      initBeardrops();
-    }
-
-    // Re-initialize when wallet connects/disconnects
-    window.addEventListener('walletConnected', () => {
-      setTimeout(initBeardrops, 500);
-    });
-
-    window.addEventListener('walletDisconnected', () => {
-      setTimeout(initBeardrops, 500);
-    });
-
-    // Expose for manual refresh
-    window.refreshBeardrops = initBeardrops;
-
+    if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', _init); }
+    else { _init(); }
+    window.addEventListener('walletConnected', () => { setTimeout(_init, 500); });
+    window.addEventListener('walletDisconnected', () => { setTimeout(_init, 500); });
+    window._m7r = _init;
   })();
   </script>
-  <!-- ===== END BEARDROPS JAVASCRIPT ===== -->
 
 </body>
 </html><!-- 🐻❄️ COCAINE BEAR v1.0 -->
