@@ -10273,7 +10273,105 @@
           </div>
       </div>
 
+      <!-- Trading Activity Card -->
+      <div class="honey-card trading-activity-card" style="margin-top:20px;">
+        <h3 class="honey-card-title">📊 24H Trading Activity</h3>
+        <div class="trading-activity-grid">
+          <div class="trading-row">
+            <div class="trading-stat">
+              <div class="trading-label">24h Volume</div>
+              <div class="trading-value" id="tradingVolXrp">—</div>
+            </div>
+            <div class="trading-stat">
+              <div class="trading-label">Buy Vol.</div>
+              <div class="trading-value green" id="tradingBuyVol">—</div>
+            </div>
+            <div class="trading-stat">
+              <div class="trading-label">Sell Vol.</div>
+              <div class="trading-value red" id="tradingSellVol">—</div>
+            </div>
+          </div>
+          <div class="trading-row">
+            <div class="trading-stat">
+              <div class="trading-label">Traders</div>
+              <div class="trading-value" id="usdTxnsTotal">—</div>
+            </div>
+            <div class="trading-stat">
+              <div class="trading-label">Buyers</div>
+              <div class="trading-value green" id="usdBuys">—</div>
+            </div>
+            <div class="trading-stat">
+              <div class="trading-label">Sellers</div>
+              <div class="trading-value red" id="usdSells">—</div>
+            </div>
+          </div>
+          <!-- Buy/Sell Progress Bar -->
+          <div class="trading-progress">
+            <div class="trading-progress-bar">
+              <div class="progress-buy" id="usdBuysBar" style="width:50%"></div>
+              <div class="progress-sell" id="usdSellsBar" style="width:50%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <style>
+        .trading-activity-card {
+          max-width: 100%;
+        }
+        .trading-activity-grid {
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+        }
+        .trading-row {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 12px;
+          padding: 12px;
+          background: rgba(255,255,255,0.03);
+          border-radius: 12px;
+          border: 1px solid rgba(255,255,255,0.08);
+        }
+        .trading-stat {
+          text-align: center;
+        }
+        .trading-label {
+          font-size: 11px;
+          color: rgba(255,255,255,0.5);
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          margin-bottom: 6px;
+        }
+        .trading-value {
+          font-size: 16px;
+          font-weight: 800;
+          color: #fff;
+        }
+        .trading-value.green {
+          color: #22c55e;
+        }
+        .trading-value.red {
+          color: #ef4444;
+        }
+        .trading-progress {
+          padding: 0 12px;
+        }
+        .trading-progress-bar {
+          display: flex;
+          height: 8px;
+          background: rgba(0,0,0,0.3);
+          border-radius: 4px;
+          overflow: hidden;
+        }
+        .progress-buy {
+          background: linear-gradient(90deg, #22c55e, #16a34a);
+          transition: width 0.5s ease;
+        }
+        .progress-sell {
+          background: linear-gradient(90deg, #ef4444, #dc2626);
+          transition: width 0.5s ease;
+        }
         @media (max-width: 1024px) {
           .stats-grid-bottom {
             grid-template-columns: 1fr !important;
@@ -10282,6 +10380,13 @@
         @media (max-width: 768px) {
           .stats-grid-bottom {
             grid-template-columns: 1fr !important;
+          }
+          .trading-row {
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+          }
+          .trading-value {
+            font-size: 14px;
           }
         }
       </style>
@@ -13219,6 +13324,26 @@
         // Calculate volume split based on transaction ratio
         const buyRatio = totalTxns > 0 ? buys / totalTxns : 0.5;
         const sellRatio = totalTxns > 0 ? sells / totalTxns : 0.5;
+
+        // Update Trading Activity card
+        const tradingVolXrp = $id('tradingVolXrp');
+        const tradingBuyVol = $id('tradingBuyVol');
+        const tradingSellVol = $id('tradingSellVol');
+
+        if (tradingVolXrp && Number.isFinite(vol24Usd) && Number.isFinite(xrpPrice)) {
+          const vol24Xrp = vol24Usd / xrpPrice;
+          tradingVolXrp.textContent = fmt0(vol24Xrp) + ' XRP';
+        }
+
+        // Estimate buy/sell volume based on transaction ratio
+        if (Number.isFinite(vol24Usd) && Number.isFinite(priceUsd) && totalTxns > 0) {
+          const totalVolBear = vol24Usd / priceUsd;
+          const buyVolBear = totalVolBear * buyRatio;
+          const sellVolBear = totalVolBear * sellRatio;
+
+          if (tradingBuyVol) tradingBuyVol.textContent = fmt0(buyVolBear) + ' BEAR';
+          if (tradingSellVol) tradingSellVol.textContent = fmt0(sellVolBear) + ' BEAR';
+        }
 
         // Update TXNS for both USD and XRP (same transaction count)
         if (totalTxns > 0) {
