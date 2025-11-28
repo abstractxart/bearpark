@@ -25289,24 +25289,15 @@ if (typeof window.addEventListener !== 'undefined') {
             const d = JSON.parse(e.data);
             let b = 0;
             if (d.result && d.result.lines) {
-              console.error('[LP DEBUG] Total lines:', d.result.lines.length);
-              console.error('[LP DEBUG] Looking for AMM:', _l);
-              const allAmm = d.result.lines.filter(l => l.currency && l.currency.length === 40);
-              console.error('[LP DEBUG] Lines with 40-char currency:', allAmm.length, allAmm.map(l => ({ acc: l.account, cur: l.currency.substring(0,10), bal: l.balance })));
               const ln = d.result.lines.find(l => l.account === _l && l.currency && l.currency.length === 40);
-              if (ln) {
-                console.error('[LP DEBUG] FOUND LP:', ln);
-                b = parseFloat(ln.balance) || 0;
-              } else {
-                console.error('[LP DEBUG] NO LP FOUND for account', _l);
-              }
+              if (ln) b = parseFloat(ln.balance) || 0;
             }
             ws.close(); res(Math.abs(b));
           };
-          ws.onerror = (err) => { console.error('[LP DEBUG] WS Error:', err); ws.close(); res(0); };
+          ws.onerror = () => { ws.close(); res(0); };
           setTimeout(() => { ws.close(); res(0); }, 10000);
         });
-      } catch (e) { console.error('[LP DEBUG] Exception:', e); return 0; }
+      } catch (e) { return 0; }
     }
 
     async function _fh(w) {
