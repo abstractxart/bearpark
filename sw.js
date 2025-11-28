@@ -1,5 +1,5 @@
 // BEAR Park Service Worker - Push Notifications & Offline Support
-const CACHE_NAME = 'bearpark-v6'; // FORCE CACHE REFRESH - Stats always show now!
+const CACHE_NAME = 'bearpark-v7'; // FIX: Stop returning error pages on iOS scroll
 const API_URL = 'https://bearpark.xyz'; // Change to your production URL
 
 // Install event - cache essential assets
@@ -51,34 +51,29 @@ self.addEventListener('fetch', (event) => {
     return; // Don't intercept external APIs
   }
 
-  // NEVER cache YOUR API calls - always fetch fresh data
-  if (event.request.url.includes('/api/')) {
-    event.respondWith(
-      fetch(event.request).catch(() => {
-        return new Response('Network error', {
-          status: 503,
-          statusText: 'Service Unavailable',
-          headers: new Headers({ 'Content-Type': 'text/plain' })
-        });
-      })
-    );
+  // Skip WebSocket URLs
+  if (event.request.url.includes('wss://') || event.request.url.includes('ws://')) {
     return;
   }
 
+  // NEVER cache API calls - let them fail silently if network error
+  if (event.request.url.includes('/api/')) {
+    // Don't intercept - let browser handle API errors naturally
+    return;
+  }
+
+  // Only intercept navigation and asset requests
   event.respondWith(
     caches.match(event.request).then((response) => {
       if (response) {
         return response;
       }
 
-      // Fetch from network with error handling
-      return fetch(event.request).catch(() => {
-        return new Response('Network error', {
-          status: 503,
-          statusText: 'Service Unavailable',
-          headers: new Headers({ 'Content-Type': 'text/plain' })
-        });
-      });
+      // Fetch from network - don't return error page, just let it fail naturally
+      return fetch(event.request);
+    }).catch(() => {
+      // On error, don't return anything - let browser handle it
+      return fetch(event.request);
     })
   );
 });
