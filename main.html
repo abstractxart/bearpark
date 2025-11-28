@@ -19072,7 +19072,7 @@
         }
       });
 
-      // Touchstart - start long press
+      // Touchstart - start long press (faster on mobile: 150ms)
       commentsList.addEventListener('touchstart', (e) => {
         const btn = e.target.closest('.like-button');
         if (!btn) return;
@@ -19080,7 +19080,12 @@
         const state = getButtonState(btn);
         state.selectedReaction = null;
         state.currentHoveredItem = null;
-        state.longPressTimer = setTimeout(() => showPicker(btn), 300);
+        // Add visual feedback that hold is in progress
+        btn.style.transform = 'scale(0.95)';
+        state.longPressTimer = setTimeout(() => {
+          btn.style.transform = '';
+          showPicker(btn);
+        }, 150);
       }, { passive: false });
 
       // Touchmove - slide to select emoji
@@ -19105,6 +19110,7 @@
         if (!btn) return;
         const state = getButtonState(btn);
         clearTimeout(state.longPressTimer);
+        btn.style.transform = '';
         state.picker = btn.querySelector('.reaction-picker');
 
         if (state.pickerShown && state.selectedReaction) {
@@ -19128,6 +19134,7 @@
         if (!btn) return;
         const state = getButtonState(btn);
         clearTimeout(state.longPressTimer);
+        btn.style.transform = '';
         hidePicker(btn);
         state.selectedReaction = null;
         state.currentHoveredItem = null;
@@ -21554,14 +21561,19 @@
         }
       });
 
-      // Touchstart - start long press
+      // Touchstart - start long press (faster on mobile: 150ms)
       postReactionContainer.addEventListener('touchstart', (e) => {
         const btn = e.target.closest('.like-button');
         if (!btn) return;
         e.preventDefault();
         buttonState.selectedReaction = null;
         buttonState.currentHoveredItem = null;
-        buttonState.longPressTimer = setTimeout(() => showPicker(), 300);
+        // Add visual feedback that hold is in progress
+        btn.style.transform = 'scale(0.95)';
+        buttonState.longPressTimer = setTimeout(() => {
+          btn.style.transform = '';
+          showPicker();
+        }, 150);
       }, { passive: false });
 
       // Touchmove - slide to select emoji
@@ -21584,6 +21596,7 @@
         const btn = e.target.closest('.like-button');
         if (!btn) return;
         clearTimeout(buttonState.longPressTimer);
+        btn.style.transform = '';
         buttonState.picker = btn.querySelector('.reaction-picker');
 
         if (buttonState.pickerShown && buttonState.selectedReaction) {
@@ -21865,7 +21878,7 @@
         }
       });
 
-      // Touchstart - start long press
+      // Touchstart - start long press (faster on mobile: 150ms)
       bulletinCommentsSection.addEventListener('touchstart', (e) => {
         const btn = e.target.closest('.like-button');
         if (!btn) return;
@@ -21873,7 +21886,12 @@
         const state = getBulletinButtonState(btn);
         state.selectedReaction = null;
         state.currentHoveredItem = null;
-        state.longPressTimer = setTimeout(() => showBulletinPicker(btn), 300);
+        // Add visual feedback that hold is in progress
+        btn.style.transform = 'scale(0.95)';
+        state.longPressTimer = setTimeout(() => {
+          btn.style.transform = '';
+          showBulletinPicker(btn);
+        }, 150);
       }, { passive: false });
 
       // Touchmove - slide to select emoji
@@ -21898,6 +21916,7 @@
         if (!btn) return;
         const state = getBulletinButtonState(btn);
         clearTimeout(state.longPressTimer);
+        btn.style.transform = '';
         state.picker = btn.querySelector('.reaction-picker');
 
         if (state.pickerShown && state.selectedReaction) {
