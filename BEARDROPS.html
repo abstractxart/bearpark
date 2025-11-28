@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BEARDROPS Admin | BEARpark</title>
+  <link rel="icon" type="image/png" href="/assets/pixel-bear-favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Nunito:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --gold: #f4a012;
+      --dark: #0a0a0a;
+      --darker: #050505;
+      --glass: rgba(255,255,255,0.05);
+      --glass-border: rgba(255,255,255,0.1);
+      --font-heading: 'Luckiest Guy', cursive;
+      --font-body: 'Nunito', sans-serif;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: var(--font-body);
+      background: var(--darker);
+      color: #fff;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 30px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--glass-border);
+    }
+
+    .header h1 {
+      font-family: var(--font-heading);
+      font-size: 36px;
+      color: var(--gold);
+    }
+
+    .wallet-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .wallet-badge {
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      border-radius: 8px;
+      padding: 8px 16px;
+      font-size: 14px;
+    }
+
+    .wallet-badge.apex {
+      background: linear-gradient(135deg, rgba(244,160,18,0.2), rgba(244,160,18,0.1));
+      border-color: var(--gold);
+      color: var(--gold);
+    }
+
+    .back-btn {
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-family: var(--font-body);
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    .back-btn:hover {
+      background: rgba(255,255,255,0.1);
+    }
+
+    /* Access Denied Screen */
+    .access-denied {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 60vh;
+      text-align: center;
+    }
+
+    .access-denied .icon {
+      font-size: 80px;
+      margin-bottom: 20px;
+    }
+
+    .access-denied h2 {
+      font-family: var(--font-heading);
+      font-size: 32px;
+      color: #ff4444;
+      margin-bottom: 16px;
+    }
+
+    .access-denied p {
+      color: rgba(255,255,255,0.7);
+      max-width: 400px;
+    }
+
+    /* Stats Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 30px;
+    }
+
+    .stat-card {
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .stat-card .label {
+      font-size: 12px;
+      color: rgba(255,255,255,0.6);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+    }
+
+    .stat-card .value {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--gold);
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--glass-border);
+      padding-bottom: 16px;
+    }
+
+    .tab-btn {
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      color: rgba(255,255,255,0.7);
+      padding: 10px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-family: var(--font-body);
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    .tab-btn:hover {
+      background: rgba(255,255,255,0.1);
+      color: #fff;
+    }
+
+    .tab-btn.active {
+      background: var(--gold);
+      border-color: var(--gold);
+      color: #000;
+    }
+
+    /* Tables */
+    .table-container {
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 14px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--glass-border);
+    }
+
+    th {
+      background: rgba(0,0,0,0.3);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: rgba(255,255,255,0.6);
+    }
+
+    tr:hover {
+      background: rgba(255,255,255,0.02);
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .status-badge.pending {
+      background: rgba(255,193,7,0.2);
+      color: #ffc107;
+    }
+
+    .status-badge.claimed {
+      background: rgba(76,175,80,0.2);
+      color: #4caf50;
+    }
+
+    .status-badge.ineligible {
+      background: rgba(244,67,54,0.2);
+      color: #f44336;
+    }
+
+    .status-badge.blacklisted {
+      background: rgba(156,39,176,0.2);
+      color: #9c27b0;
+    }
+
+    /* Config Panel */
+    .config-panel {
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .config-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--glass-border);
+    }
+
+    .config-row:last-child {
+      border-bottom: none;
+    }
+
+    .config-label {
+      font-weight: 600;
+    }
+
+    .config-desc {
+      font-size: 12px;
+      color: rgba(255,255,255,0.5);
+    }
+
+    .config-input {
+      background: var(--dark);
+      border: 1px solid var(--glass-border);
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 6px;
+      width: 120px;
+      text-align: right;
+      font-family: var(--font-body);
+    }
+
+    .config-input:focus {
+      outline: none;
+      border-color: var(--gold);
+    }
+
+    /* Blacklist Form */
+    .blacklist-form {
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .form-row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .form-input {
+      flex: 1;
+      background: var(--dark);
+      border: 1px solid var(--glass-border);
+      color: #fff;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-family: var(--font-body);
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: var(--gold);
+    }
+
+    .submit-btn {
+      background: var(--gold);
+      border: none;
+      color: #000;
+      padding: 12px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-family: var(--font-body);
+      font-weight: 700;
+      transition: all 0.2s;
+    }
+
+    .submit-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(244,160,18,0.4);
+    }
+
+    .submit-btn.danger {
+      background: #f44336;
+      color: #fff;
+    }
+
+    /* Loading */
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 60px;
+      color: rgba(255,255,255,0.5);
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--glass-border);
+      border-top-color: var(--gold);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-right: 12px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Tab Content */
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* Toast Notifications */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: var(--dark);
+      border: 1px solid var(--glass-border);
+      border-radius: 8px;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.3s;
+      z-index: 1000;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    .toast.success {
+      border-color: #4caf50;
+    }
+
+    .toast.error {
+      border-color: #f44336;
+    }
+
+    /* Wallet truncation */
+    .wallet-addr {
+      font-family: monospace;
+      font-size: 13px;
+    }
+
+    .wallet-addr.short {
+      max-width: 120px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      display: inline-block;
+    }
+
+    /* Action buttons */
+    .action-btn {
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      color: #fff;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.2s;
+    }
+
+    .action-btn:hover {
+      background: rgba(255,255,255,0.1);
+    }
+
+    .action-btn.danger {
+      border-color: #f44336;
+      color: #f44336;
+    }
+
+    .action-btn.danger:hover {
+      background: rgba(244,67,54,0.2);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>BEARDROPS ADMIN</h1>
+      <div class="wallet-info">
+        <span class="wallet-badge" id="walletBadge">Not Connected</span>
+        <button class="back-btn" onclick="window.location.href='/'">Back to BEARpark</button>
+      </div>
+    </div>
+
+    <!-- Access Denied Screen -->
+    <div id="accessDenied" class="access-denied">
+      <div class="icon">🔒</div>
+      <h2>Access Denied</h2>
+      <p>This admin panel is restricted to authorized wallets only. Please connect with the APEX wallet to access BEARDROPS administration.</p>
+    </div>
+
+    <!-- Admin Panel (hidden by default) -->
+    <div id="adminPanel" style="display: none;">
+      <!-- Stats Overview -->
+      <div class="stats-grid" id="statsGrid">
+        <div class="stat-card">
+          <div class="label">Total Snapshots Today</div>
+          <div class="value" id="statSnapshots">-</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Eligible Wallets</div>
+          <div class="value" id="statEligible">-</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Total $BEAR to Distribute</div>
+          <div class="value" id="statTotalBear">-</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Claimed Today</div>
+          <div class="value" id="statClaimed">-</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Blacklisted Wallets</div>
+          <div class="value" id="statBlacklisted">-</div>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="snapshots">Snapshots</button>
+        <button class="tab-btn" data-tab="blacklist">LP Blacklist</button>
+        <button class="tab-btn" data-tab="config">Configuration</button>
+      </div>
+
+      <!-- Snapshots Tab -->
+      <div class="tab-content active" id="tab-snapshots">
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Wallet</th>
+                <th>Pixel Bears</th>
+                <th>Ultra Rares</th>
+                <th>LP Tokens</th>
+                <th>NFT Reward</th>
+                <th>LP Reward</th>
+                <th>Total</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="snapshotsTable">
+              <tr>
+                <td colspan="8" class="loading">
+                  <div class="spinner"></div>
+                  Loading snapshots...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Blacklist Tab -->
+      <div class="tab-content" id="tab-blacklist">
+        <div class="blacklist-form">
+          <h3 style="margin-bottom: 16px;">Add to Blacklist</h3>
+          <div class="form-row">
+            <input type="text" class="form-input" id="blacklistWallet" placeholder="Wallet Address (r...)">
+            <select class="form-input" id="blacklistReason" style="flex: 0.5;">
+              <option value="single_side_deposit">Single-side Deposit</option>
+              <option value="single_side_withdraw">Single-side Withdraw</option>
+              <option value="manual">Manual Ban</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <input type="text" class="form-input" id="blacklistTxHash" placeholder="Transaction Hash (optional)">
+            <input type="text" class="form-input" id="blacklistNotes" placeholder="Notes (optional)">
+            <button class="submit-btn danger" onclick="addToBlacklist()">Add to Blacklist</button>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Wallet</th>
+                <th>Reason</th>
+                <th>Detected At</th>
+                <th>Notes</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="blacklistTable">
+              <tr>
+                <td colspan="5" class="loading">
+                  <div class="spinner"></div>
+                  Loading blacklist...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Config Tab -->
+      <div class="tab-content" id="tab-config">
+        <div class="config-panel" id="configPanel">
+          <div class="loading">
+            <div class="spinner"></div>
+            Loading configuration...
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast">
+    <span id="toastMessage"></span>
+  </div>
+
+  <script>
+    const API_BASE = 'https://bearpark-server.up.railway.app';
+    const APEX_WALLET = 'rKkkYMCvC63HEgxjQHmayKADaxYqnsMUkT';
+
+    let currentWallet = null;
+    let isApex = false;
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      currentWallet = localStorage.getItem('bearpark_wallet');
+      isApex = currentWallet && currentWallet.toLowerCase() === APEX_WALLET.toLowerCase();
+
+      updateWalletBadge();
+
+      if (isApex) {
+        showAdminPanel();
+        loadData();
+      }
+
+      // Tab switching
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+      });
+    });
+
+    function updateWalletBadge() {
+      const badge = document.getElementById('walletBadge');
+      if (currentWallet) {
+        const short = currentWallet.slice(0, 6) + '...' + currentWallet.slice(-4);
+        badge.textContent = isApex ? 'APEX: ' + short : short;
+        if (isApex) badge.classList.add('apex');
+      } else {
+        badge.textContent = 'Not Connected';
+      }
+    }
+
+    function showAdminPanel() {
+      document.getElementById('accessDenied').style.display = 'none';
+      document.getElementById('adminPanel').style.display = 'block';
+    }
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+      document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
+      document.getElementById(`tab-${tabId}`).classList.add('active');
+    }
+
+    async function loadData() {
+      await Promise.all([
+        loadPendingSummary(),
+        loadSnapshots(),
+        loadBlacklist(),
+        loadConfig()
+      ]);
+    }
+
+    async function loadPendingSummary() {
+      try {
+        const res = await fetch(`${API_BASE}/api/beardrops/admin/pending?wallet=${currentWallet}`);
+        const data = await res.json();
+
+        if (data.success && data.summary.length > 0) {
+          const today = data.summary[0];
+          document.getElementById('statSnapshots').textContent = today.total_wallets || 0;
+          document.getElementById('statEligible').textContent = today.eligible_wallets || 0;
+          document.getElementById('statTotalBear').textContent = parseFloat(today.total_bear_to_distribute || 0).toFixed(2);
+          document.getElementById('statClaimed').textContent = today.claimed_count || 0;
+        }
+      } catch (err) {
+        console.error('Error loading summary:', err);
+      }
+    }
+
+    async function loadSnapshots() {
+      try {
+        const today = new Date().toISOString().split('T')[0];
+        const res = await fetch(`${API_BASE}/api/beardrops/admin/snapshots/${today}?wallet=${currentWallet}`);
+        const data = await res.json();
+
+        const tbody = document.getElementById('snapshotsTable');
+
+        if (data.success && data.snapshots.length > 0) {
+          tbody.innerHTML = data.snapshots.map(s => `
+            <tr>
+              <td>
+                <span class="wallet-addr short" title="${s.wallet_address}">${s.wallet_address}</span>
+                ${s.display_name ? `<br><small style="color:var(--gold)">${s.display_name}</small>` : ''}
+              </td>
+              <td>${s.pixel_bears || 0}</td>
+              <td>${s.ultra_rares || 0}</td>
+              <td>${formatNumber(s.lp_tokens)}</td>
+              <td>${parseFloat(s.nft_reward || 0).toFixed(2)}</td>
+              <td>${parseFloat(s.lp_reward || 0).toFixed(2)}</td>
+              <td style="color:var(--gold);font-weight:700">${parseFloat(s.total_reward || 0).toFixed(2)}</td>
+              <td>${getStatusBadge(s)}</td>
+            </tr>
+          `).join('');
+        } else {
+          tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:rgba(255,255,255,0.5)">No snapshots for today yet</td></tr>';
+        }
+      } catch (err) {
+        console.error('Error loading snapshots:', err);
+      }
+    }
+
+    async function loadBlacklist() {
+      try {
+        const res = await fetch(`${API_BASE}/api/beardrops/admin/blacklist?wallet=${currentWallet}`);
+        const data = await res.json();
+
+        document.getElementById('statBlacklisted').textContent = data.blacklist?.length || 0;
+
+        const tbody = document.getElementById('blacklistTable');
+
+        if (data.success && data.blacklist.length > 0) {
+          tbody.innerHTML = data.blacklist.map(b => `
+            <tr>
+              <td><span class="wallet-addr short" title="${b.wallet_address}">${b.wallet_address}</span></td>
+              <td>${formatReason(b.reason)}</td>
+              <td>${new Date(b.detected_at).toLocaleDateString()}</td>
+              <td>${b.notes || '-'}</td>
+              <td>
+                <button class="action-btn danger" onclick="removeFromBlacklist('${b.wallet_address}')">Remove</button>
+              </td>
+            </tr>
+          `).join('');
+        } else {
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:40px;color:rgba(255,255,255,0.5)">No blacklisted wallets</td></tr>';
+        }
+      } catch (err) {
+        console.error('Error loading blacklist:', err);
+      }
+    }
+
+    async function loadConfig() {
+      try {
+        const res = await fetch(`${API_BASE}/api/beardrops/config`);
+        const data = await res.json();
+
+        const panel = document.getElementById('configPanel');
+
+        if (data.success) {
+          const configItems = [
+            { key: 'min_honey_points_24h', label: 'Min Honey Points (24h)', desc: 'Minimum honey points in rolling 24h to be eligible' },
+            { key: 'bear_per_pixel_bear', label: '$BEAR per Pixel Bear', desc: 'Reward per Pixel Bear NFT' },
+            { key: 'bear_per_ultra_rare', label: '$BEAR per Ultra Rare', desc: 'Reward per Ultra Rare NFT' },
+            { key: 'lp_tokens_per_bear', label: 'LP Tokens per $BEAR', desc: 'LP tokens required for 1 $BEAR' },
+            { key: 'claim_expiry_days', label: 'Claim Expiry (days)', desc: 'Days before unclaimed rewards expire' },
+            { key: 'airdrop_enabled', label: 'Airdrop Enabled', desc: 'Master switch for airdrop system' }
+          ];
+
+          panel.innerHTML = configItems.map(item => `
+            <div class="config-row">
+              <div>
+                <div class="config-label">${item.label}</div>
+                <div class="config-desc">${item.desc}</div>
+              </div>
+              <input type="text" class="config-input" id="config-${item.key}"
+                value="${data.config[item.key] || ''}"
+                onchange="updateConfig('${item.key}', this.value)">
+            </div>
+          `).join('');
+        }
+      } catch (err) {
+        console.error('Error loading config:', err);
+      }
+    }
+
+    async function updateConfig(key, value) {
+      try {
+        const res = await fetch(`${API_BASE}/api/beardrops/admin/config`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ wallet: currentWallet, key, value })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          showToast('Configuration updated', 'success');
+        } else {
+          showToast(data.error || 'Update failed', 'error');
+        }
+      } catch (err) {
+        showToast('Network error', 'error');
+      }
+    }
+
+    async function addToBlacklist() {
+      const wallet = document.getElementById('blacklistWallet').value.trim();
+      const reason = document.getElementById('blacklistReason').value;
+      const txHash = document.getElementById('blacklistTxHash').value.trim();
+      const notes = document.getElementById('blacklistNotes').value.trim();
+
+      if (!wallet || !wallet.startsWith('r')) {
+        showToast('Invalid wallet address', 'error');
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/api/beardrops/admin/blacklist`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            wallet: currentWallet,
+            target_wallet: wallet,
+            reason,
+            tx_hash: txHash || null,
+            notes: notes || null
+          })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          showToast('Wallet blacklisted', 'success');
+          document.getElementById('blacklistWallet').value = '';
+          document.getElementById('blacklistTxHash').value = '';
+          document.getElementById('blacklistNotes').value = '';
+          loadBlacklist();
+        } else {
+          showToast(data.error || 'Failed to blacklist', 'error');
+        }
+      } catch (err) {
+        showToast('Network error', 'error');
+      }
+    }
+
+    async function removeFromBlacklist(wallet) {
+      if (!confirm(`Remove ${wallet.slice(0, 8)}... from blacklist?`)) return;
+
+      try {
+        const res = await fetch(`${API_BASE}/api/beardrops/admin/unblacklist`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ wallet: currentWallet, target_wallet: wallet })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          showToast('Wallet removed from blacklist', 'success');
+          loadBlacklist();
+        } else {
+          showToast(data.error || 'Failed to remove', 'error');
+        }
+      } catch (err) {
+        showToast('Network error', 'error');
+      }
+    }
+
+    function getStatusBadge(snapshot) {
+      if (snapshot.is_blacklisted) return '<span class="status-badge blacklisted">Blacklisted</span>';
+      if (!snapshot.is_eligible) return '<span class="status-badge ineligible">Ineligible</span>';
+      if (snapshot.claim_status === 'claimed') return '<span class="status-badge claimed">Claimed</span>';
+      return '<span class="status-badge pending">Pending</span>';
+    }
+
+    function formatReason(reason) {
+      const reasons = {
+        'single_side_deposit': 'Single-side Deposit',
+        'single_side_withdraw': 'Single-side Withdraw',
+        'manual': 'Manual Ban'
+      };
+      return reasons[reason] || reason;
+    }
+
+    function formatNumber(num) {
+      if (!num) return '0';
+      const n = parseFloat(num);
+      if (n >= 1000000) return (n / 1000000).toFixed(2) + 'M';
+      if (n >= 1000) return (n / 1000).toFixed(2) + 'K';
+      return n.toFixed(0);
+    }
+
+    function showToast(message, type = 'success') {
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toastMessage');
+
+      toastMsg.textContent = message;
+      toast.className = 'toast show ' + type;
+
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 3000);
+    }
+  </script>
+</body>
+</html>
