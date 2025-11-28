@@ -1152,6 +1152,17 @@ app.post('/api/raids/complete', validateWallet, validateAmount, async (req, res)
     }
 
     console.log(`✅ Raid completed: User ${wallet_address} earned ${points_awarded} points for raid ${raid_id}`);
+
+    // Log to honey_points_activity for BEARDROPS 24h tracking
+    try {
+      await supabase.from('honey_points_activity').insert({
+        wallet_address,
+        points: points_awarded,
+        activity_type: 'raid',
+        activity_id: raid_id
+      });
+    } catch (e) { /* ignore logging errors */ }
+
     res.json({
       success: true,
       alreadyCompleted: false,
@@ -1216,6 +1227,18 @@ app.post('/api/games/complete', validateWallet, async (req, res) => {
 
     if (result.success) {
       console.log(`✅ Awarded ${result.points_awarded} pts to ${wallet_address} (${result.minutes_today}/${MAX_DAILY_MINUTES} mins today)`);
+
+      // Log to honey_points_activity for BEARDROPS 24h tracking
+      if (result.points_awarded > 0) {
+        try {
+          await supabase.from('honey_points_activity').insert({
+            wallet_address,
+            points: result.points_awarded,
+            activity_type: 'game',
+            activity_id: game_id
+          });
+        } catch (e) { /* ignore logging errors */ }
+      }
 
       res.json({
         success: true,
