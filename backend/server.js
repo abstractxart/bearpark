@@ -5439,6 +5439,322 @@ app.post('/api/memes/reset-week', async (req, res) => {
   }
 });
 
+// =======================
+// BEARDROPS AIRDROP SYSTEM
+// =======================
+
+// APEX wallet - only this wallet can see full admin data
+const APEX_WALLET = 'rKkkYMCvC63HEgxjQHmayKADaxYqnsMUkT';
+
+// Middleware to verify APEX wallet
+const verifyApex = (req, res, next) => {
+  const wallet = req.body.wallet || req.query.wallet || req.headers['x-wallet'];
+  if (!wallet || wallet.toLowerCase() !== APEX_WALLET.toLowerCase()) {
+    return res.status(403).json({ success: false, error: 'Unauthorized: APEX wallet required' });
+  }
+  next();
+};
+
+// Get airdrop configuration
+app.get('/api/beardrops/config', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('airdrop_config')
+      .select('key, value, description');
+
+    if (error) throw error;
+
+    // Convert array to object for easier consumption
+    const config = {};
+    data.forEach(row => {
+      config[row.key] = row.value;
+    });
+
+    res.json({ success: true, config });
+  } catch (error) {
+    console.error('❌ Error fetching airdrop config:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Check wallet eligibility for airdrop
+app.get('/api/beardrops/eligibility/:wallet', async (req, res) => {
+  try {
+    const { wallet } = req.params;
+
+    if (!wallet) {
+      return res.status(400).json({ success: false, error: 'Wallet address required' });
+    }
+
+    // Get minimum honey points from config
+    const { data: configData } = await supabase
+      .from('airdrop_config')
+      .select('value')
+      .eq('key', 'min_honey_points_24h')
+      .single();
+
+    const minHoneyPoints = parseInt(configData?.value || '30');
+
+    // Calculate 24h rolling honey points
+    const { data: activityData } = await supabase
+      .from('honey_points_activity')
+      .select('points')
+      .eq('wallet_address', wallet)
+      .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+
+    const honeyPoints24h = activityData?.reduce((sum, row) => sum + row.points, 0) || 0;
+
+    // Check if wallet is blacklisted
+    const { data: blacklistData } = await supabase
+      .from('lp_blacklist')
+      .select('reason, detected_at')
+      .eq('wallet_address', wallet)
+      .eq('is_active', true)
+      .single();
+
+    const isBlacklisted = !!blacklistData;
+    const isEligible = honeyPoints24h >= minHoneyPoints && !isBlacklisted;
+
+    res.json({
+      success: true,
+      wallet,
+      honey_points_24h: honeyPoints24h,
+      min_required: minHoneyPoints,
+      is_blacklisted: isBlacklisted,
+      blacklist_reason: blacklistData?.reason || null,
+      is_eligible: isEligible
+    });
+  } catch (error) {
+    console.error('❌ Error checking eligibility:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get wallet's latest snapshot data
+app.get('/api/beardrops/snapshot/:wallet', async (req, res) => {
+  try {
+    const { wallet } = req.params;
+
+    if (!wallet) {
+      return res.status(400).json({ success: false, error: 'Wallet address required' });
+    }
+
+    const { data, error } = await supabase
+      .from('airdrop_snapshots')
+      .select('*')
+      .eq('wallet_address', wallet)
+      .order('snapshot_date', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (error && error.code !== 'PGRST116') throw error; // PGRST116 = no rows found
+
+    res.json({
+      success: true,
+      snapshot: data || null
+    });
+  } catch (error) {
+    console.error('❌ Error fetching snapshot:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get wallet's airdrop history
+app.get('/api/beardrops/history/:wallet', async (req, res) => {
+  try {
+    const { wallet } = req.params;
+    const limit = parseInt(req.query.limit) || 30;
+
+    if (!wallet) {
+      return res.status(400).json({ success: false, error: 'Wallet address required' });
+    }
+
+    const { data, error } = await supabase
+      .from('airdrop_snapshots')
+      .select('snapshot_date, pixel_bears, ultra_rares, lp_tokens, nft_reward, lp_reward, total_reward, is_eligible, claim_status, claimed_at, claim_tx_hash')
+      .eq('wallet_address', wallet)
+      .order('snapshot_date', { ascending: false })
+      .limit(limit);
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      history: data || []
+    });
+  } catch (error) {
+    console.error('❌ Error fetching airdrop history:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Record honey points activity (called from other endpoints when points are earned)
+app.post('/api/beardrops/activity', async (req, res) => {
+  try {
+    const { wallet, points, activity_type, activity_id } = req.body;
+
+    if (!wallet || !points || !activity_type) {
+      return res.status(400).json({ success: false, error: 'wallet, points, and activity_type required' });
+    }
+
+    const { error } = await supabase
+      .from('honey_points_activity')
+      .insert({
+        wallet_address: wallet,
+        points,
+        activity_type,
+        activity_id: activity_id || null
+      });
+
+    if (error) throw error;
+
+    res.json({ success: true, message: 'Activity recorded' });
+  } catch (error) {
+    console.error('❌ Error recording activity:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ADMIN: Get pending claims summary (APEX only)
+app.get('/api/beardrops/admin/pending', verifyApex, async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('pending_claims_summary')
+      .select('*')
+      .limit(30);
+
+    if (error) throw error;
+
+    res.json({ success: true, summary: data || [] });
+  } catch (error) {
+    console.error('❌ Error fetching pending claims:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ADMIN: Get all snapshots for a specific date (APEX only)
+app.get('/api/beardrops/admin/snapshots/:date', verifyApex, async (req, res) => {
+  try {
+    const { date } = req.params;
+
+    const { data, error } = await supabase
+      .from('wallet_airdrop_history')
+      .select('*')
+      .eq('snapshot_date', date)
+      .order('total_reward', { ascending: false });
+
+    if (error) throw error;
+
+    res.json({ success: true, snapshots: data || [] });
+  } catch (error) {
+    console.error('❌ Error fetching snapshots:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ADMIN: Add wallet to LP blacklist (APEX only)
+app.post('/api/beardrops/admin/blacklist', verifyApex, async (req, res) => {
+  try {
+    const { target_wallet, reason, tx_hash, notes } = req.body;
+
+    if (!target_wallet || !reason) {
+      return res.status(400).json({ success: false, error: 'target_wallet and reason required' });
+    }
+
+    const { data, error } = await supabase
+      .from('lp_blacklist')
+      .upsert({
+        wallet_address: target_wallet,
+        reason,
+        tx_hash: tx_hash || null,
+        notes: notes || null,
+        is_active: true,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'wallet_address' })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    console.log(`🚫 Wallet blacklisted: ${target_wallet} - Reason: ${reason}`);
+
+    res.json({ success: true, blacklist_entry: data });
+  } catch (error) {
+    console.error('❌ Error adding to blacklist:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ADMIN: Remove wallet from LP blacklist (APEX only)
+app.post('/api/beardrops/admin/unblacklist', verifyApex, async (req, res) => {
+  try {
+    const { target_wallet } = req.body;
+
+    if (!target_wallet) {
+      return res.status(400).json({ success: false, error: 'target_wallet required' });
+    }
+
+    const { error } = await supabase
+      .from('lp_blacklist')
+      .update({ is_active: false, updated_at: new Date().toISOString() })
+      .eq('wallet_address', target_wallet);
+
+    if (error) throw error;
+
+    console.log(`✅ Wallet removed from blacklist: ${target_wallet}`);
+
+    res.json({ success: true, message: `Wallet ${target_wallet} removed from blacklist` });
+  } catch (error) {
+    console.error('❌ Error removing from blacklist:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ADMIN: Get full blacklist (APEX only)
+app.get('/api/beardrops/admin/blacklist', verifyApex, async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('lp_blacklist')
+      .select('*')
+      .eq('is_active', true)
+      .order('detected_at', { ascending: false });
+
+    if (error) throw error;
+
+    res.json({ success: true, blacklist: data || [] });
+  } catch (error) {
+    console.error('❌ Error fetching blacklist:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ADMIN: Update airdrop config (APEX only)
+app.post('/api/beardrops/admin/config', verifyApex, async (req, res) => {
+  try {
+    const { key, value } = req.body;
+
+    if (!key || value === undefined) {
+      return res.status(400).json({ success: false, error: 'key and value required' });
+    }
+
+    const { error } = await supabase
+      .from('airdrop_config')
+      .update({ value: value.toString(), updated_at: new Date().toISOString() })
+      .eq('key', key);
+
+    if (error) throw error;
+
+    console.log(`⚙️ Airdrop config updated: ${key} = ${value}`);
+
+    res.json({ success: true, message: `Config ${key} updated to ${value}` });
+  } catch (error) {
+    console.error('❌ Error updating config:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+console.log('✅ BEARDROPS airdrop endpoints initialized');
+
 // Start server for local development
 if (require.main === module) {
   app.listen(PORT, () => {
@@ -5449,7 +5765,8 @@ if (require.main === module) {
     console.log(`✅ Ready to handle notifications`);
     console.log(`✅ Ready to handle cosmetics store`);
     console.log(`✅ Ready to handle bulletin board comments`);
-    console.log(`✅ Ready to handle Meme of the Week\n`);
+    console.log(`✅ Ready to handle Meme of the Week`);
+    console.log(`✅ Ready to handle BEARDROPS airdrops\n`);
   });
 }
 
