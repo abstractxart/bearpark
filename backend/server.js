@@ -764,7 +764,7 @@ app.post('/api/points', validateWallet, validateAmount, async (req, res) => {
 // Create New Raid
 app.post('/api/raids', verifyAdmin, validateTwitterURL, validateAmount, validateTextLengths, async (req, res) => {
   try {
-    const { description, twitter_url, reward, profile_name, profile_handle, profile_emoji, expires_at } = req.body;
+    const { description, twitter_url, reward, profile_name, profile_handle, profile_emoji, expires_at, image_url } = req.body;
 
     console.log('Received raid data:', req.body);
 
@@ -778,18 +778,25 @@ app.post('/api/raids', verifyAdmin, validateTwitterURL, validateAmount, validate
     const now = new Date();
 
     // Insert new raid - matching actual database schema
+    const raidData = {
+      description: description,
+      twitter_url: twitter_url,
+      reward: reward,
+      profile_name: profile_name || 'BearXRPL',
+      profile_handle: profile_handle,
+      profile_emoji: profile_emoji || '🐻',
+      expires_at: expires_at,
+      is_active: true
+    };
+
+    // Add image_url if provided
+    if (image_url) {
+      raidData.image_url = image_url;
+    }
+
     const { data, error } = await supabase
       .from('raids')
-      .insert([{
-        description: description,
-        twitter_url: twitter_url,
-        reward: reward,
-        profile_name: profile_name || 'BearXRPL',
-        profile_handle: profile_handle,
-        profile_emoji: profile_emoji || '🐻',
-        expires_at: expires_at,
-        is_active: true
-      }])
+      .insert([raidData])
       .select()
       .single();
 
