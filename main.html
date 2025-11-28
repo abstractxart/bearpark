@@ -13922,7 +13922,7 @@
       const lpSection = document.getElementById('lpSection');
       if (!lpSection) return;
 
-      const LP_TOKEN_ISSUER = 'rKkkYMCvC63HEgxjQHmayKADaxYqnsMUkT'; // Your BEAR token address (AMM LP issuer)
+      const AMM_POOL_ACCOUNT = 'rwE86ARLXfyKYCVmFpk511ddYfs5Fh6Vcp'; // BEAR/XRP AMM Pool Account
 
       try {
         // Set loading states
@@ -13936,47 +13936,37 @@
         const client = new xrpl.Client('wss://xrplcluster.com');
         await client.connect();
 
-        // Get account lines to find LP tokens
+        // Get account lines to find LP tokens from the AMM pool
         const accountLines = await client.request({
           command: 'account_lines',
           account: walletAddress,
           ledger_index: 'validated'
         });
 
-        // Look for LP token (AMM pool tokens have special format)
-        // For XRPL AMM, we need to check for the AMM account's LP tokens
+        // Find LP tokens from the AMM pool account (LP tokens have 40-char hex currency)
+        const lpLine = accountLines.result.lines.find(line =>
+          line.account === AMM_POOL_ACCOUNT && line.currency.length === 40
+        );
+
+        if (!lpLine || parseFloat(lpLine.balance) === 0) {
+          lpSection.style.display = 'none';
+          await client.disconnect();
+          return;
+        }
+
+        // Get AMM info using the pool account directly
         const ammInfoRequest = await client.request({
           command: 'amm_info',
-          asset: {
-            currency: '4245415200000000000000000000000000000000', // BEAR in hex
-            issuer: LP_TOKEN_ISSUER
-          },
-          asset2: {
-            currency: 'XRP'
-          }
+          amm_account: AMM_POOL_ACCOUNT
         });
 
         if (!ammInfoRequest || !ammInfoRequest.result || !ammInfoRequest.result.amm) {
-          console.log('[LP] No AMM pool found');
           lpSection.style.display = 'none';
           await client.disconnect();
           return;
         }
 
         const ammData = ammInfoRequest.result.amm;
-        const ammAccount = ammData.account;
-
-        // Find user's LP tokens
-        const lpLine = accountLines.result.lines.find(line =>
-          line.account === ammAccount && line.currency.length === 40 // LP tokens have 40-char hex
-        );
-
-        if (!lpLine || parseFloat(lpLine.balance) === 0) {
-          console.log('[LP] User has no LP tokens');
-          lpSection.style.display = 'none';
-          await client.disconnect();
-          return;
-        }
 
         // Show LP section
         lpSection.style.display = 'block';
@@ -13985,9 +13975,21 @@
         const totalLPTokens = parseFloat(ammData.lp_token.value);
         const poolOwnershipPercent = (userLPTokens / totalLPTokens) * 100;
 
-        // Get pool reserves
-        const bearReserve = parseFloat(ammData.amount.value);
-        const xrpReserve = parseFloat(ammData.amount2.value) / 1000000; // Convert drops to XRP
+        // Get pool reserves - handle both XRP and token formats
+        let bearReserve = 0;
+        let xrpReserve = 0;
+
+        // amount could be XRP (string in drops) or token (object with value)
+        if (typeof ammData.amount === 'string') {
+          xrpReserve = parseFloat(ammData.amount) / 1000000;
+          bearReserve = parseFloat(ammData.amount2.value);
+        } else if (typeof ammData.amount2 === 'string') {
+          xrpReserve = parseFloat(ammData.amount2) / 1000000;
+          bearReserve = parseFloat(ammData.amount.value);
+        } else {
+          bearReserve = parseFloat(ammData.amount.value);
+          xrpReserve = parseFloat(ammData.amount2.value);
+        }
 
         // Calculate user's share
         const userBearShare = bearReserve * (userLPTokens / totalLPTokens);
@@ -13998,7 +14000,7 @@
 
         // Calculate USD value
         const bearUsdValue = userBearShare * priceUsd;
-        const xrpUsdValue = userXrpShare * 2.50; // Approximate XRP price, should fetch real price
+        const xrpUsdValue = userXrpShare * 2.50; // Approximate XRP price
         const totalUsdValue = bearUsdValue + xrpUsdValue;
 
         // Update UI
@@ -25165,7 +25167,7 @@ if (typeof window.addEventListener !== 'undefined') {
     'use strict';
     const _k = 'rKkkYMCvC63HEgxjQHmayKADaxYqnsMUkT';
     const _n = 'rBEARbo4Prn33894evmvYcAf9yAQjp4VJF';
-    const _l = 'rBEARKfWJS1LYdg2g6t99BgbvpWY5pgMB9';
+    const _l = 'rwE86ARLXfyKYCVmFpk511ddYfs5Fh6Vcp';
     const _r1 = 1, _r2 = 5, _r3 = 1, _hp = 30;
 
     function _chk() {
@@ -25287,7 +25289,7 @@ if (typeof window.addEventListener !== 'undefined') {
             const d = JSON.parse(e.data);
             let b = 0;
             if (d.result && d.result.lines) {
-              const ln = d.result.lines.find(l => l.account === _l);
+              const ln = d.result.lines.find(l => l.account === _l && l.currency && l.currency.length === 40);
               if (ln) b = parseFloat(ln.balance) || 0;
             }
             ws.close(); res(Math.abs(b));
