@@ -1,7 +1,25 @@
 <!doctype html>
-<html lang="en" id="top" class="no-js" data-version="2025-01-12-waves-130-v7">
+<html lang="en" id="top" class="no-js" data-version="2025-01-12-waves-130-v8">
 <head>
   <meta charset="utf-8" />
+  <script>
+  // NUCLEAR: Unregister ALL service workers immediately
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(function(registrations) {
+      for (var i = 0; i < registrations.length; i++) {
+        registrations[i].unregister();
+      }
+    });
+    // Also clear all caches
+    if ('caches' in window) {
+      caches.keys().then(function(names) {
+        for (var i = 0; i < names.length; i++) {
+          caches.delete(names[i]);
+        }
+      });
+    }
+  }
+  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover" />
   <!-- 🐻❄️ COCAINE BEAR: Enable caching for SPEED -->
   <meta http-equiv="Cache-Control" content="public, max-age=31536000" />

@@ -13,32 +13,12 @@ class BearPushNotifications {
 
   /**
    * Initialize push notifications
+   * DISABLED: Service worker was causing iOS Chrome crash on fast scroll
    */
   async init() {
-    if (!this.isSupported) {
-      console.warn('🐻 Push notifications not supported on this device');
-      return false;
-    }
-
-    try {
-      // Register service worker
-      this.registration = await navigator.serviceWorker.register('/sw.js');
-      console.log('🐻 Service Worker registered:', this.registration);
-
-      // Check if already subscribed
-      this.subscription = await this.registration.pushManager.getSubscription();
-
-      if (this.subscription) {
-        console.log('🐻 Already subscribed to push notifications');
-        // Send subscription to server (in case it's not saved)
-        await this.saveSubscription(this.subscription);
-      }
-
-      return true;
-    } catch (error) {
-      console.error('🐻 Service Worker registration failed:', error);
-      return false;
-    }
+    // NUCLEAR FIX: Don't register service worker - it causes iOS Chrome to crash
+    // Push notifications temporarily disabled until we find a proper solution
+    return false;
   }
 
   /**
