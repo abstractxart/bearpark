@@ -13117,6 +13117,9 @@
       drawer.classList.add('open'); scrim.hidden=false;
       fab.setAttribute('aria-expanded','true'); drawer.setAttribute('aria-hidden','false');
       document.body.style.overflow='hidden';
+      // Hide the "Where would you like to go?" button when drawer opens
+      const whereBtn = document.getElementById('whereToGoBtn');
+      if (whereBtn) whereBtn.style.display = 'none';
       loadPortfolioData(); // Load wallet portfolio data
       initializeProfileAndNFTs(); // Load profile data and NFTs
 
@@ -13156,6 +13159,9 @@
       drawer.classList.remove('open'); scrim.hidden=true;
       fab.setAttribute('aria-expanded','false'); drawer.setAttribute('aria-hidden','true');
       document.body.style.overflow='';
+      // Show the "Where would you like to go?" button again
+      const whereBtn = document.getElementById('whereToGoBtn');
+      if (whereBtn) whereBtn.style.display = '';
     }
 
     function openProfileSetup(){
