@@ -25175,6 +25175,37 @@ if (typeof window.addEventListener !== 'undefined') {
       return w && w.toLowerCase() === _k.toLowerCase();
     }
 
+    async function _claim() {
+      const w = localStorage.getItem('bearpark_wallet');
+      if (!w || !_chk()) return;
+      const cb = document.getElementById('m7Btn');
+      const ct = document.getElementById('m7BtnTxt');
+      const ph = document.getElementById('m7Hint');
+      if (cb) cb.disabled = true;
+      if (ct) ct.textContent = 'CLAIMING...';
+      try {
+        const r = await fetch((window.API_BASE_URL || '') + '/api/beardrops/claim', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ wallet_address: w })
+        });
+        const d = await r.json();
+        if (d.success) {
+          if (ph) ph.textContent = '\u2705 Claimed ' + d.amount + ' $BEAR! TX: ' + d.tx_hash.substring(0, 12) + '...';
+          if (ct) ct.textContent = 'CLAIMED!';
+          setTimeout(_init, 3000);
+        } else {
+          if (ph) ph.textContent = '\u274C ' + (d.error || 'Claim failed');
+          if (ct) ct.textContent = 'CLAIM FAILED';
+          if (cb) cb.disabled = false;
+        }
+      } catch (e) {
+        if (ph) ph.textContent = '\u274C Network error. Try again.';
+        if (ct) ct.textContent = 'TRY AGAIN';
+        if (cb) cb.disabled = false;
+      }
+    }
+
     function _init() {
       const o = document.getElementById('m7Overlay');
       if (_chk()) {
@@ -25253,6 +25284,7 @@ if (typeof window.addEventListener !== 'undefined') {
           if (cb) cb.disabled = true;
           if (ct) ct.textContent = 'LOCKED - NEED ' + rm + ' MORE POINTS';
         }
+        if (cb) cb.onclick = _claim;
       } catch (e) {}
     }
 
