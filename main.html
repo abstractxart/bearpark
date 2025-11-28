@@ -12209,76 +12209,32 @@
       letter-spacing: 0.5px;
     }
 
-    /* Floating Honey Decorations */
-    .nav-modal-honey {
+    /* Honey Decoration inside nav items */
+    .nav-modal-item {
+      position: relative;
+    }
+
+    .nav-item-honey {
       position: absolute;
-      width: 32px;
-      height: 32px;
-      pointer-events: none;
-      z-index: 5;
-      filter: drop-shadow(0 0 12px rgba(237, 183, 35, 0.6)) drop-shadow(0 0 24px rgba(237, 183, 35, 0.4));
-      animation: floatHoney 3s ease-in-out infinite;
-      opacity: 0.85;
-    }
-
-    .nav-modal-honey.honey-1 {
-      top: 15%;
-      right: 8%;
-      animation-delay: 0s;
-    }
-
-    .nav-modal-honey.honey-2 {
-      top: 38%;
-      right: 5%;
-      animation-delay: 0.5s;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
       width: 28px;
       height: 28px;
+      pointer-events: none;
+      filter: drop-shadow(0 0 8px rgba(237, 183, 35, 0.6)) drop-shadow(0 0 16px rgba(237, 183, 35, 0.4));
+      animation: honeyGlow 2s ease-in-out infinite;
+      opacity: 0.9;
     }
 
-    .nav-modal-honey.honey-3 {
-      top: 58%;
-      right: 10%;
-      animation-delay: 1s;
-      width: 24px;
-      height: 24px;
-    }
-
-    .nav-modal-honey.honey-4 {
-      top: 75%;
-      right: 6%;
-      animation-delay: 1.5s;
-      width: 30px;
-      height: 30px;
-    }
-
-    .nav-modal-honey.honey-5 {
-      top: 25%;
-      left: 6%;
-      animation-delay: 0.8s;
-      width: 26px;
-      height: 26px;
-    }
-
-    .nav-modal-honey.honey-6 {
-      top: 65%;
-      left: 5%;
-      animation-delay: 1.3s;
-      width: 22px;
-      height: 22px;
-    }
-
-    @keyframes floatHoney {
+    @keyframes honeyGlow {
       0%, 100% {
-        transform: translateY(0) rotate(0deg);
+        filter: drop-shadow(0 0 8px rgba(237, 183, 35, 0.6)) drop-shadow(0 0 16px rgba(237, 183, 35, 0.4));
+        transform: translateY(-50%) scale(1);
       }
       50% {
-        transform: translateY(-8px) rotate(5deg);
-      }
-    }
-
-    @media (max-width: 550px) {
-      .nav-modal-honey {
-        display: none;
+        filter: drop-shadow(0 0 12px rgba(237, 183, 35, 0.8)) drop-shadow(0 0 24px rgba(237, 183, 35, 0.6));
+        transform: translateY(-50%) scale(1.05);
       }
     }
 
@@ -24534,14 +24490,6 @@ if (typeof window.addEventListener !== 'undefined') {
   <div id="navigationModal" class="nav-modal" style="display: none;">
     <div class="nav-modal-overlay" onclick="closeNavigationModal()"></div>
     <div class="nav-modal-content">
-      <!-- Floating Honey Decorations -->
-      <img src="https://files.catbox.moe/wyfjtc.png" alt="" class="nav-modal-honey honey-1">
-      <img src="https://files.catbox.moe/wyfjtc.png" alt="" class="nav-modal-honey honey-2">
-      <img src="https://files.catbox.moe/wyfjtc.png" alt="" class="nav-modal-honey honey-3">
-      <img src="https://files.catbox.moe/wyfjtc.png" alt="" class="nav-modal-honey honey-4">
-      <img src="https://files.catbox.moe/wyfjtc.png" alt="" class="nav-modal-honey honey-5">
-      <img src="https://files.catbox.moe/wyfjtc.png" alt="" class="nav-modal-honey honey-6">
-
       <div class="nav-modal-header">
         <h2 class="nav-modal-title">WHERE WOULD YOU LIKE TO GO?</h2>
         <p class="nav-modal-subtitle">Choose your destination in BEAR Park!</p>
@@ -24563,6 +24511,7 @@ if (typeof window.addEventListener !== 'undefined') {
             <div class="nav-modal-item purple" onclick="navigateToSection('meme-of-the-week')">
               <span class="nav-modal-icon">🏆</span>
               <span class="nav-modal-item-text">Meme of the Week</span>
+              <img src="https://files.catbox.moe/wyfjtc.png" alt="" class="nav-item-honey">
             </div>
           </div>
         </div>
@@ -24574,6 +24523,7 @@ if (typeof window.addEventListener !== 'undefined') {
             <div class="nav-modal-item green" onclick="navigateToSection('raids')">
               <span class="nav-modal-icon">⚔️</span>
               <span class="nav-modal-item-text">Raids</span>
+              <img src="https://files.catbox.moe/wyfjtc.png" alt="" class="nav-item-honey">
             </div>
             <div class="nav-modal-item green" onclick="navigateToSection('honey-points')">
               <span class="nav-modal-icon">🍯</span>
@@ -24582,6 +24532,7 @@ if (typeof window.addEventListener !== 'undefined') {
             <div class="nav-modal-item green" onclick="navigateToSection('bearcade')">
               <span class="nav-modal-icon">🎮</span>
               <span class="nav-modal-item-text">Bearcade</span>
+              <img src="https://files.catbox.moe/wyfjtc.png" alt="" class="nav-item-honey">
             </div>
             <div class="nav-modal-item green" onclick="navigateToSection('leaderboards')">
               <span class="nav-modal-icon">🥇</span>
