@@ -1,14 +1,18 @@
 /**
- * Daily Airdrop Snapshot
- * Runs at 00:00 UTC to snapshot all holder positions
+ * Daily Airdrop Snapshot - RANDOM TIMING SYSTEM
  *
- * Run manually: node daily-airdrop-snapshot.js
- * Schedule with cron: 0 0 * * * node /path/to/daily-airdrop-snapshot.js
+ * SECURITY: Snapshots run at RANDOM times each day to prevent flash loan attacks.
+ * The snapshot time is determined by a hash of the date + secret salt.
+ * Nobody (not even admins) knows when the snapshot will run until it happens.
+ *
+ * Run via cron EVERY HOUR: 0 * * * * node /path/to/daily-airdrop-snapshot.js
+ * The script checks if it's time to run based on the random schedule.
  */
 
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 const { createClient } = require('@supabase/supabase-js');
 const WebSocket = require('ws');
+const crypto = require('crypto');
 
 // Initialize Supabase
 const supabase = createClient(
@@ -27,11 +31,60 @@ let BEAR_PER_ULTRA_RARE = 5;
 let LP_TOKENS_PER_BEAR = 250000;
 let MIN_HONEY_POINTS_24H = 30;
 
-// Ultra Rare NFT taxons (you'll need to provide actual taxon IDs)
+// Secret salt for random time generation (set in Railway env vars)
+const SNAPSHOT_SALT = process.env.SNAPSHOT_SALT || 'BEAR_SNAPSHOT_DEFAULT_SALT_CHANGE_ME';
+
+// Ultra Rare NFT taxons - SECURITY: Define these properly!
 const ULTRA_RARE_TAXONS = [
   // Add your ultra rare taxon IDs here
   // Example: 12345, 67890
 ];
+
+/**
+ * RANDOM SNAPSHOT TIMING
+ * Generates a deterministic but unpredictable hour (0-23) for today's snapshot
+ * Uses date + secret salt so only the server knows the time
+ */
+function getRandomSnapshotHour(dateStr) {
+  const hash = crypto.createHash('sha256').update(dateStr + SNAPSHOT_SALT).digest('hex');
+  // Use first 2 hex chars to get a number 0-255, then mod 24 for hour
+  const hourSeed = parseInt(hash.substring(0, 2), 16);
+  return hourSeed % 24;
+}
+
+/**
+ * Check if we should run the snapshot now
+ */
+async function shouldRunSnapshot() {
+  const now = new Date();
+  const todayStr = now.toISOString().split('T')[0];
+  const currentHour = now.getUTCHours();
+  const targetHour = getRandomSnapshotHour(todayStr);
+
+  console.log(`🎲 Random snapshot hour for ${todayStr}: ${targetHour}:00 UTC`);
+  console.log(`⏰ Current hour: ${currentHour}:00 UTC`);
+
+  // Check if snapshot already ran today
+  const { data: existing } = await supabase
+    .from('airdrop_snapshots')
+    .select('id')
+    .eq('snapshot_date', todayStr)
+    .limit(1);
+
+  if (existing && existing.length > 0) {
+    console.log('✅ Snapshot already completed for today. Skipping.');
+    return false;
+  }
+
+  // Check if it's time (current hour >= target hour)
+  if (currentHour >= targetHour) {
+    console.log('🚀 It\'s snapshot time! Running now...');
+    return true;
+  }
+
+  console.log(`⏳ Not yet time. Snapshot will run at ${targetHour}:00 UTC.`);
+  return false;
+}
 
 console.log('🐻 Daily Airdrop Snapshot');
 console.log('=========================');
@@ -339,5 +392,22 @@ async function runSnapshot() {
   }
 }
 
-// Run the snapshot
-runSnapshot();
+// MAIN: Check if we should run based on random timing
+async function main() {
+  // Force run with --force flag (for manual testing)
+  if (process.argv.includes('--force')) {
+    console.log('⚠️  FORCE FLAG DETECTED - Running snapshot immediately!');
+    await runSnapshot();
+    return;
+  }
+
+  // Check random timing
+  const shouldRun = await shouldRunSnapshot();
+  if (shouldRun) {
+    await runSnapshot();
+  } else {
+    process.exit(0);
+  }
+}
+
+main();
