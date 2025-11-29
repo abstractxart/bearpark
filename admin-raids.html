@@ -451,25 +451,8 @@
         </div>
 
         <div class="form-group">
-          <label for="targetAccount">Target Account *</label>
-          <input type="text" id="targetAccount" value="@BearXRPL" placeholder="@bearxrpl" required>
-          <div class="small-text">Include the @ symbol</div>
-        </div>
-
-        <div class="form-group">
-          <label for="raidDescription">Description</label>
-          <textarea id="raidDescription" placeholder="Like, retweet, and comment on this post!">Post a meme and tag @BearXRPL</textarea>
-        </div>
-
-        <div class="form-group">
           <label for="pointsPerParticipation">Points per Participation</label>
           <input type="number" id="pointsPerParticipation" value="15" min="1" max="100">
-        </div>
-
-        <div class="form-group">
-          <label for="durationHours">Duration (hours)</label>
-          <input type="number" id="durationHours" value="24" min="1" max="168">
-          <div class="small-text">How long the raid will be active</div>
         </div>
 
         <button type="submit">🚀 Create Raid</button>
@@ -817,15 +800,15 @@
     document.getElementById('raidForm').addEventListener('submit', async (e) => {
       e.preventDefault();
 
-      const durationHours = parseInt(document.getElementById('durationHours').value);
-      const expiresAt = new Date(Date.now() + durationHours * 60 * 60 * 1000).toISOString();
+      // Default 24 hour duration
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
       const raidData = {
         description: document.getElementById('raidTitle').value,
         twitter_url: document.getElementById('raidUrl').value,
         reward: parseInt(document.getElementById('pointsPerParticipation').value),
         profile_name: 'BearXRPL',
-        profile_handle: document.getElementById('targetAccount').value,
+        profile_handle: '@BearXRPL',
         profile_emoji: '🐻',
         expires_at: expiresAt
       };
