@@ -20962,21 +20962,18 @@
       console.log('🎨 renderNotifications called, count:', notifications.length);
       const list = document.getElementById('notificationList');
 
-      // Only show unread notifications - read ones disappear
-      const unreadNotifications = notifications.filter(n => !n.read);
-
-      if (unreadNotifications.length === 0) {
+      if (notifications.length === 0) {
         list.innerHTML = `
           <div class="notification-empty">
-            <div class="notification-empty-icon">🔔</div>
-            <p>All caught up!</p>
+            <div class="notification-empty-icon">🔕</div>
+            <p>No notifications yet!</p>
           </div>
         `;
         return;
       }
 
-      list.innerHTML = unreadNotifications.map(notif => {
-        const unreadClass = 'unread';
+      list.innerHTML = notifications.map(notif => {
+        const unreadClass = notif.read ? '' : 'unread';
 
         // Helper function to render user avatar
         const renderAvatar = (avatarNft, displayName) => {
@@ -21212,10 +21209,12 @@
 
       if (changed) {
         saveNotificationsToLocalStorage();
-        recalculateUnreadCount();
-        renderNotifications();
-        updateBadge();
       }
+
+      // Always recalculate and update badge when panel is opened
+      recalculateUnreadCount();
+      renderNotifications();
+      updateBadge();
     }
 
     // Recalculate unread count
