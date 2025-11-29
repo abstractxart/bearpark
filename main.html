@@ -10471,21 +10471,31 @@
           <span id="m7TimerText">Next snapshot coming soon...</span>
         </div>
 
-        <div class="m7-info" id="m7Info">
-          <div class="m7-info-title">📋 How BEARDROPS Work</div>
-          <div class="m7-info-list">
-            <div class="m7-info-item"><strong>DAILY REWARDS:</strong></div>
-            <div class="m7-info-item">🐻 <strong>1 $BEAR</strong> per Pixel Bear NFT you hold</div>
-            <div class="m7-info-item">💎 <strong>5 $BEAR</strong> per Ultra Rare NFT you hold</div>
-            <div class="m7-info-item">💧 <strong>1 $BEAR</strong> per 250,000 LP tokens in the pool</div>
-            <div class="m7-info-item" style="margin-top: 12px;"><strong>HOW TO CLAIM:</strong></div>
-            <div class="m7-info-item">🍯 You must earn <strong>30+ honey points</strong> in the last 24 hours</div>
-            <div class="m7-info-item">🎮 Play games or complete raids to earn honey points</div>
-            <div class="m7-info-item" style="margin-top: 12px;"><strong>⚠️ IMPORTANT RULES:</strong></div>
-            <div class="m7-info-item">🎲 Snapshots happen at <strong>random times</strong> each day (anti-cheat)</div>
-            <div class="m7-info-item">⏰ You must claim <strong>THE SAME DAY</strong> the snapshot runs</div>
-            <div class="m7-info-item">🚨 <strong style="color: #ef4444;">Unclaimed drops EXPIRE at 00:30 UTC!</strong></div>
-            <div class="m7-info-item">💀 If you don't claim in time, <strong>you lose that day's reward</strong></div>
+        <div class="m7-dropdown" id="m7Dropdown">
+          <button class="m7-dropdown-toggle" id="m7InfoToggle" onclick="document.getElementById('m7InfoContent').classList.toggle('hidden'); this.querySelector('.m7-dropdown-arrow').classList.toggle('open');">
+            <span>❓ How do $BEARdrops work?</span>
+            <span class="m7-dropdown-arrow">▼</span>
+          </button>
+          <div class="m7-dropdown-content hidden" id="m7InfoContent">
+            <div class="m7-dropdown-section">
+              <div class="m7-dropdown-header">💰 DAILY REWARDS</div>
+              <div class="m7-dropdown-item">🐻 <strong>1 $BEAR</strong> per Pixel Bear NFT you hold</div>
+              <div class="m7-dropdown-item">💎 <strong>5 $BEAR</strong> per Ultra Rare NFT you hold</div>
+              <div class="m7-dropdown-item">💧 <strong>1 $BEAR</strong> per 250,000 LP tokens in the pool</div>
+            </div>
+            <div class="m7-dropdown-section">
+              <div class="m7-dropdown-header">🎮 HOW TO CLAIM</div>
+              <div class="m7-dropdown-item">🍯 Earn <strong>30+ honey points</strong> in the last 24 hours</div>
+              <div class="m7-dropdown-item">🕹️ Play games or complete raids to earn points</div>
+              <div class="m7-dropdown-item">✅ Click the claim button when eligible</div>
+            </div>
+            <div class="m7-dropdown-section m7-warning-section">
+              <div class="m7-dropdown-header">⚠️ IMPORTANT RULES</div>
+              <div class="m7-dropdown-item">🎲 Snapshots happen at <strong>random times</strong> each day (anti-cheat)</div>
+              <div class="m7-dropdown-item">⏰ You must claim <strong>THE SAME DAY</strong> the snapshot runs</div>
+              <div class="m7-dropdown-item m7-danger">🚨 <strong>Unclaimed drops EXPIRE at 00:30 UTC!</strong></div>
+              <div class="m7-dropdown-item m7-danger">💀 If you don't claim in time, <strong>you lose that day's reward</strong></div>
+            </div>
           </div>
         </div>
 
@@ -10692,14 +10702,6 @@
         letter-spacing: 1px;
       }
 
-      .m7-info {
-        margin-top: 20px;
-        padding: 16px;
-        background: rgba(255,255,255,0.03);
-        border-radius: 12px;
-        border: 1px solid rgba(255,255,255,0.08);
-      }
-
       .m7-info-title {
         font-weight: 700;
         font-size: 14px;
@@ -10721,6 +10723,104 @@
 
       .m7-info-item strong {
         color: #fff;
+      }
+
+      /* Collapsible Dropdown */
+      .m7-dropdown {
+        margin-top: 20px;
+      }
+
+      .m7-dropdown-toggle {
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 14px 18px;
+        background: linear-gradient(135deg, rgba(237,183,35,0.15), rgba(237,183,35,0.05));
+        border: 1px solid rgba(237,183,35,0.3);
+        border-radius: 12px;
+        color: #fbbf24;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      .m7-dropdown-toggle:hover {
+        background: linear-gradient(135deg, rgba(237,183,35,0.25), rgba(237,183,35,0.1));
+        border-color: rgba(237,183,35,0.5);
+        transform: translateY(-1px);
+      }
+
+      .m7-dropdown-arrow {
+        font-size: 12px;
+        transition: transform 0.3s ease;
+      }
+
+      .m7-dropdown-arrow.open {
+        transform: rotate(180deg);
+      }
+
+      .m7-dropdown-content {
+        margin-top: 12px;
+        padding: 20px;
+        background: rgba(0,0,0,0.3);
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.08);
+      }
+
+      .m7-dropdown-content.hidden {
+        display: none;
+      }
+
+      .m7-dropdown-section {
+        margin-bottom: 20px;
+      }
+
+      .m7-dropdown-section:last-child {
+        margin-bottom: 0;
+      }
+
+      .m7-dropdown-header {
+        font-size: 14px;
+        font-weight: 700;
+        color: #fbbf24;
+        margin-bottom: 10px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid rgba(237,183,35,0.2);
+      }
+
+      .m7-dropdown-item {
+        font-size: 13px;
+        color: rgba(255,255,255,0.8);
+        line-height: 1.6;
+        margin-bottom: 8px;
+      }
+
+      .m7-dropdown-item:last-child {
+        margin-bottom: 0;
+      }
+
+      .m7-dropdown-item strong {
+        color: #fff;
+      }
+
+      .m7-danger {
+        color: #ef4444 !important;
+        font-weight: 600;
+      }
+
+      .m7-warning-section {
+        background: rgba(239, 68, 68, 0.08);
+        border: 1px solid rgba(239, 68, 68, 0.25);
+        border-radius: 10px;
+        padding: 14px;
+        margin-top: 4px;
+      }
+
+      .m7-warning-section .m7-dropdown-header {
+        color: #ef4444;
+        border-bottom-color: rgba(239, 68, 68, 0.3);
       }
 
       .m7-overlay {
