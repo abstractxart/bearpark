@@ -6008,12 +6008,22 @@ app.get('/api/beardrops/claim-status/:wallet', async (req, res) => {
     // Calculate total pending
     const totalPending = pending?.reduce((sum, p) => sum + parseFloat(p.total_reward), 0) || 0;
 
+    // Check if claimed today (UTC)
+    const todayUTC = new Date().toISOString().split('T')[0];
+    const claimedToday = claimed?.find(c => {
+      const claimDate = c.claimed_at ? new Date(c.claimed_at).toISOString().split('T')[0] : null;
+      return claimDate === todayUTC;
+    });
+
     res.json({
       success: true,
       wallet,
       honey_points_24h: honeyPoints24h,
       min_required: minHoneyPoints,
-      can_claim: honeyPoints24h >= minHoneyPoints && totalPending > 0,
+      can_claim: honeyPoints24h >= minHoneyPoints && totalPending > 0 && !claimedToday,
+      claimed_today: !!claimedToday,
+      amount: claimedToday ? parseFloat(claimedToday.total_reward) : null,
+      tx_hash: claimedToday ? claimedToday.claim_tx_hash : null,
       pending_rewards: pending || [],
       total_pending: totalPending,
       recent_claims: claimed || []
