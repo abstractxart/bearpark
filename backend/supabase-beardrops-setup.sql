@@ -21,11 +21,12 @@ CREATE TABLE IF NOT EXISTS airdrop_snapshots (
 
   -- Calculated Airdrop Amount
   nft_reward DECIMAL(20, 6) DEFAULT 0,      -- pixel_bears * 1 + ultra_rares * 5
-  lp_reward DECIMAL(20, 6) DEFAULT 0,       -- lp_tokens / 250000
+  lp_reward DECIMAL(20, 6) DEFAULT 0,       -- lp_tokens / 250000 (0 if blacklisted)
+  lp_reward_forfeited DECIMAL(20, 6) DEFAULT 0, -- LP rewards forfeited due to blacklist
   total_reward DECIMAL(20, 6) DEFAULT 0,    -- nft_reward + lp_reward
 
   -- Status
-  is_blacklisted BOOLEAN DEFAULT FALSE,     -- True if wallet is LP blacklisted
+  is_blacklisted BOOLEAN DEFAULT FALSE,     -- True if wallet did single-side deposit (loses LP rewards only, keeps NFT rewards)
   is_eligible BOOLEAN DEFAULT FALSE,        -- True if has 30+ honey points in 24h
   honey_points_24h INTEGER DEFAULT 0,       -- Rolling 24h honey points at snapshot
 
@@ -245,18 +246,20 @@ BEGIN
   -- Get 24h honey points
   v_honey_24h := get_honey_points_24h(p_wallet);
 
-  -- Check blacklist
+  -- Check blacklist (only affects LP rewards, not NFT rewards)
   SELECT EXISTS(
     SELECT 1 FROM lp_blacklist
     WHERE wallet_address = p_wallet AND is_active = TRUE
   ) INTO v_is_blacklisted;
 
+  -- NOTE: Blacklist only removes LP rewards, wallet is still eligible for NFT rewards
   RETURN json_build_object(
     'wallet', p_wallet,
     'honey_points_24h', v_honey_24h,
     'min_required', v_min_honey,
     'is_blacklisted', v_is_blacklisted,
-    'is_eligible', (v_honey_24h >= v_min_honey AND NOT v_is_blacklisted)
+    'lp_rewards_blocked', v_is_blacklisted,
+    'is_eligible', (v_honey_24h >= v_min_honey)  -- Eligibility based on honey points only
   );
 END;
 $$;
@@ -341,11 +344,13 @@ CREATE OR REPLACE VIEW pending_claims_summary AS
 SELECT
   snapshot_date,
   COUNT(*) as total_wallets,
-  COUNT(*) FILTER (WHERE is_eligible AND NOT is_blacklisted) as eligible_wallets,
+  COUNT(*) FILTER (WHERE is_eligible) as eligible_wallets,
+  COUNT(*) FILTER (WHERE is_blacklisted) as blacklisted_wallets,
   COUNT(*) FILTER (WHERE claim_status = 'claimed') as claimed_count,
   COUNT(*) FILTER (WHERE claim_status = 'pending' AND is_eligible) as pending_count,
-  SUM(total_reward) FILTER (WHERE is_eligible AND NOT is_blacklisted) as total_bear_to_distribute,
-  SUM(total_reward) FILTER (WHERE claim_status = 'claimed') as total_bear_claimed
+  SUM(total_reward) FILTER (WHERE is_eligible) as total_bear_to_distribute,
+  SUM(total_reward) FILTER (WHERE claim_status = 'claimed') as total_bear_claimed,
+  SUM(lp_reward_forfeited) as total_lp_forfeited  -- LP rewards blocked due to blacklist
 FROM airdrop_snapshots
 GROUP BY snapshot_date
 ORDER BY snapshot_date DESC;
@@ -362,6 +367,7 @@ SELECT
   s.lp_tokens,
   s.nft_reward,
   s.lp_reward,
+  s.lp_reward_forfeited,  -- LP rewards blocked due to blacklist
   s.total_reward,
   s.is_eligible,
   s.is_blacklisted,

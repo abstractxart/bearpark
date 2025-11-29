@@ -339,16 +339,22 @@ async function runSnapshot() {
       // Calculate rewards
       const nftReward = (nftData.pixelBears * BEAR_PER_PIXEL_BEAR) +
                         (nftData.ultraRares * BEAR_PER_ULTRA_RARE);
-      const lpReward = parseFloat(lpTokens) / LP_TOKENS_PER_BEAR;
+      const lpRewardRaw = parseFloat(lpTokens) / LP_TOKENS_PER_BEAR;
+
+      // Check blacklist status
+      const isBlack = blacklistedWallets.has(wallet);
+
+      // BLACKLIST RULE: Blacklisted wallets get NFT rewards but NO LP rewards
+      // This prevents single-side $BEAR deposits from gaming the system
+      const lpReward = isBlack ? 0 : lpRewardRaw;
       const totalRewardAmount = nftReward + lpReward;
 
-      // Skip if no reward
+      // Skip if no reward (after blacklist adjustment)
       if (totalRewardAmount === 0) continue;
 
-      // Check eligibility
+      // Check eligibility - based on honey points only (blacklist only affects LP, not NFT rewards)
       const honeyPoints = await getHoneyPoints24h(wallet);
-      const isBlack = blacklistedWallets.has(wallet);
-      const isElig = honeyPoints >= MIN_HONEY_POINTS_24H && !isBlack;
+      const isElig = honeyPoints >= MIN_HONEY_POINTS_24H;
 
       if (isElig) {
         eligible++;
@@ -362,12 +368,13 @@ async function runSnapshot() {
         ultra_rares: nftData.ultraRares,
         lp_tokens: lpTokens,
         nft_reward: nftReward,
-        lp_reward: lpReward,
+        lp_reward: lpReward,  // 0 if blacklisted
         total_reward: totalRewardAmount,
         is_blacklisted: isBlack,
         is_eligible: isElig,
         honey_points_24h: Math.floor(honeyPoints), // Must be integer
-        claim_status: isElig ? 'pending' : 'ineligible'
+        claim_status: isElig ? 'pending' : 'ineligible',
+        lp_reward_forfeited: isBlack ? lpRewardRaw : 0  // Track what they would have earned
       });
 
       if (processed % 50 === 0) {
