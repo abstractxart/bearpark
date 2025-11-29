@@ -2688,13 +2688,13 @@ async function logAdminActivity(adminWallet, actionType, details, targetWallet =
   }
 }
 
-// 1. Manual Point Adjustments
-app.post('/api/admin/adjust-points', verifyAdmin, validateWallet, validateAmount, validateTextLengths, async (req, res) => {
+// 1. Manual Point Adjustments (allows negative values for subtracting points)
+app.post('/api/admin/adjust-points', verifyAdmin, validateWallet, validateTextLengths, async (req, res) => {
   try {
     const { wallet_address, amount, reason } = req.body;
     const admin_wallet = req.adminWallet; // From verified middleware
 
-    if (!wallet_address || !amount) {
+    if (!wallet_address || amount === undefined || amount === null) {
       return res.status(400).json({
         success: false,
         error: 'Missing required fields: wallet_address, amount'
@@ -2702,6 +2702,22 @@ app.post('/api/admin/adjust-points', verifyAdmin, validateWallet, validateAmount
     }
 
     const pointsAmount = parseFloat(amount);
+
+    // Validate amount (allow negative for subtracting, but limit range)
+    if (isNaN(pointsAmount) || !isFinite(pointsAmount)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid amount: Must be a valid number'
+      });
+    }
+
+    const MAX_ADJUSTMENT = 1000000000;
+    if (Math.abs(pointsAmount) > MAX_ADJUSTMENT) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid amount: Must be between -${MAX_ADJUSTMENT} and ${MAX_ADJUSTMENT}`
+      });
+    }
 
     // Get current points
     const { data: existingPoints } = await supabase
