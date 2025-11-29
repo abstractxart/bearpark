@@ -10492,9 +10492,9 @@
             <div class="m7-dropdown-section m7-warning-section">
               <div class="m7-dropdown-header">⚠️ IMPORTANT RULES</div>
               <div class="m7-dropdown-item">🎲 Snapshots happen at <strong>random times</strong> each day (anti-cheat)</div>
-              <div class="m7-dropdown-item">⏰ You must claim <strong>THE SAME DAY</strong> the snapshot runs</div>
-              <div class="m7-dropdown-item m7-danger">🚨 <strong>Unclaimed drops EXPIRE at 00:30 UTC!</strong></div>
-              <div class="m7-dropdown-item m7-danger">💀 If you don't claim in time, <strong>you lose that day's reward</strong></div>
+              <div class="m7-dropdown-item">🕛 Claims open at <strong>00:00 UTC</strong> the next day</div>
+              <div class="m7-dropdown-item m7-danger">🚨 <strong>Claim window: 00:00 - 00:30 UTC ONLY!</strong></div>
+              <div class="m7-dropdown-item m7-danger">💀 Miss the 30-minute window = <strong>lose your reward forever</strong></div>
             </div>
             <div class="m7-dropdown-disclaimer">
               ⚖️ If admins/mods determine you're gaming the system or exploiting loopholes, we reserve the right to <strong>blacklist your wallet</strong> from earning airdrops. Play fair and have fun! 😉
@@ -25422,13 +25422,48 @@ if (typeof window.addEventListener !== 'undefined') {
       } catch (e) { return { claimed_today: false }; }
     }
 
-    function _startTimer() {
+    function _startTimer(showClaimedMessage = false) {
       const timerEl = document.getElementById('m7Timer');
       const timerText = document.getElementById('m7TimerText');
       if (!timerEl) return;
       timerEl.style.display = 'block';
-      // Show generic message - exact time is random and hidden
-      if (timerText) timerText.textContent = '\u2705 Claimed! Next snapshot at a random time tomorrow.';
+
+      function updateTimer() {
+        const now = new Date();
+        const utcHours = now.getUTCHours();
+        const utcMinutes = now.getUTCMinutes();
+        const minutesPastMidnight = utcHours * 60 + utcMinutes;
+
+        if (showClaimedMessage) {
+          // Already claimed - show next claim window
+          const hoursLeft = 23 - utcHours;
+          const minsLeft = 59 - utcMinutes;
+          if (timerText) timerText.textContent = `✅ Claimed! Next window opens in ${hoursLeft}h ${minsLeft}m`;
+        } else if (minutesPastMidnight < 30) {
+          // Inside claim window (00:00 - 00:30 UTC)
+          const minsRemaining = 30 - minutesPastMidnight;
+          if (timerText) {
+            timerText.innerHTML = `🟢 <strong>CLAIM WINDOW OPEN!</strong> ${minsRemaining} minutes remaining`;
+            timerEl.style.background = 'rgba(34, 197, 94, 0.2)';
+            timerEl.style.borderColor = 'rgba(34, 197, 94, 0.5)';
+            timerEl.style.color = '#22c55e';
+          }
+        } else {
+          // Outside claim window - countdown to midnight
+          const hoursLeft = 23 - utcHours;
+          const minsLeft = 59 - utcMinutes;
+          if (timerText) {
+            timerText.textContent = `⏰ Next claim window in ${hoursLeft}h ${minsLeft}m (opens 00:00 UTC)`;
+            timerEl.style.background = 'rgba(251, 191, 36, 0.1)';
+            timerEl.style.borderColor = 'rgba(251, 191, 36, 0.3)';
+            timerEl.style.color = '#fbbf24';
+          }
+        }
+      }
+
+      updateTimer();
+      // Update every minute
+      setInterval(updateTimer, 60000);
     }
 
     function _hideTimer() {
@@ -25505,9 +25540,14 @@ if (typeof window.addEventListener !== 'undefined') {
         if (pc) pc.textContent = hp + '/' + _hp;
         if (pf) pf.style.width = Math.min((hp / _hp) * 100, 100) + '%';
 
-        // Check if already claimed today
+        // Check if already claimed today and if we're in claim window
         const claimStatus = await _checkClaimStatus(w);
         const claimedToday = claimStatus.claimed_today;
+
+        // Check if we're in the claim window (00:00 - 00:30 UTC)
+        const now = new Date();
+        const minutesPastMidnight = now.getUTCHours() * 60 + now.getUTCMinutes();
+        const inClaimWindow = minutesPastMidnight < 30;
 
         if (claimedToday) {
           // Already claimed - show claimed state with timer
@@ -25518,28 +25558,38 @@ if (typeof window.addEventListener !== 'undefined') {
             cb.onclick = null;
           }
           if (ct) ct.textContent = '\u2705 CLAIMED TODAY';
-          _startTimer();
-        } else if (hp >= _hp) {
-          // Eligible to claim
-          if (ph) ph.textContent = '\u2705 You have enough honey points to claim!';
-          if (cb) {
-            cb.disabled = false;
-            cb.classList.remove('claimed');
-            cb.onclick = _claim;
-          }
-          if (ct) ct.textContent = 'CLAIM $BEAR DROP';
-          _hideTimer();
-        } else {
-          // Not enough honey points
-          const rm = _hp - hp;
-          if (ph) ph.textContent = 'Earn ' + rm.toFixed(1) + ' more honey points to unlock your daily drop!';
+          _startTimer(true);
+        } else if (!inClaimWindow) {
+          // Outside claim window - show countdown
+          if (ph) ph.textContent = 'Claim window opens at 00:00 UTC. Get your honey points ready!';
           if (cb) {
             cb.disabled = true;
             cb.classList.remove('claimed');
             cb.onclick = null;
           }
-          if (ct) ct.textContent = 'LOCKED - NEED ' + rm.toFixed(0) + ' MORE POINTS';
-          _hideTimer();
+          if (ct) ct.textContent = 'CLAIM WINDOW CLOSED';
+          _startTimer(false);
+        } else if (hp >= _hp) {
+          // Inside claim window and eligible to claim
+          if (ph) ph.textContent = '\u2705 CLAIM WINDOW OPEN! You are eligible to claim!';
+          if (cb) {
+            cb.disabled = false;
+            cb.classList.remove('claimed');
+            cb.onclick = _claim;
+          }
+          if (ct) ct.textContent = 'CLAIM $BEAR DROP NOW!';
+          _startTimer(false);
+        } else {
+          // Inside claim window but not enough honey points
+          const rm = _hp - hp;
+          if (ph) ph.textContent = 'Window is open but you need ' + rm.toFixed(1) + ' more honey points!';
+          if (cb) {
+            cb.disabled = true;
+            cb.classList.remove('claimed');
+            cb.onclick = null;
+          }
+          if (ct) ct.textContent = 'NEED ' + rm.toFixed(0) + ' MORE POINTS';
+          _startTimer(false);
         }
       } catch (e) {}
     }
