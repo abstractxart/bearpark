@@ -401,6 +401,81 @@ async function runSnapshot() {
       }
     }
 
+    // =====================================================
+    // Track LP Balance Changes
+    // =====================================================
+    console.log('\n\n📊 Tracking LP balance changes...');
+
+    // Get yesterday's LP balances
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const { data: yesterdayBalances } = await supabase
+      .from('lp_balance_history')
+      .select('wallet_address, lp_balance, first_seen_at')
+      .eq('snapshot_date', yesterday);
+
+    const yesterdayMap = new Map();
+    const firstSeenMap = new Map();
+    if (yesterdayBalances) {
+      for (const row of yesterdayBalances) {
+        yesterdayMap.set(row.wallet_address, row.lp_balance);
+        if (row.first_seen_at) {
+          firstSeenMap.set(row.wallet_address, row.first_seen_at);
+        }
+      }
+    }
+
+    // Build LP history records
+    const lpHistory = [];
+    let newLPWallets = 0;
+    let increasedLP = 0;
+
+    for (const [wallet, lpBalance] of lpHolders) {
+      const balance = parseFloat(lpBalance);
+      if (balance <= 0) continue;
+
+      const prevBalanceStr = yesterdayMap.get(wallet) || '0';
+      const prevBalance = parseFloat(prevBalanceStr);
+      const change = balance - prevBalance;
+
+      let changeType = 'unchanged';
+      let firstSeen = firstSeenMap.get(wallet) || null;
+
+      if (prevBalance === 0 && balance > 0) {
+        changeType = 'new';
+        firstSeen = new Date().toISOString();
+        newLPWallets++;
+      } else if (change > 0) {
+        changeType = 'increase';
+        increasedLP++;
+      } else if (change < 0) {
+        changeType = 'decrease';
+      }
+
+      lpHistory.push({
+        wallet_address: wallet,
+        snapshot_date: snapshotDate,
+        lp_balance: lpBalance,
+        previous_balance: prevBalanceStr,
+        balance_change: change.toString(),
+        change_type: changeType,
+        first_seen_at: firstSeen
+      });
+    }
+
+    // Save LP history
+    if (lpHistory.length > 0) {
+      for (let i = 0; i < lpHistory.length; i += 100) {
+        const batch = lpHistory.slice(i, i + 100);
+        await supabase
+          .from('lp_balance_history')
+          .upsert(batch, { onConflict: 'wallet_address,snapshot_date' });
+      }
+    }
+
+    console.log(`   ✅ Tracked ${lpHistory.length} LP holders`);
+    console.log(`   🆕 New LP wallets: ${newLPWallets}`);
+    console.log(`   📈 Increased LP: ${increasedLP}`);
+
     // Summary
     console.log('\n\n🎉 Snapshot Complete!');
     console.log('=====================');
@@ -409,6 +484,7 @@ async function runSnapshot() {
     console.log(`📸 Snapshots created: ${snapshots.length}`);
     console.log(`✅ Eligible wallets: ${eligible}`);
     console.log(`🐻 Total $BEAR to distribute: ${totalReward.toFixed(2)}`);
+    console.log(`🆕 New LP wallets today: ${newLPWallets}`);
     console.log('');
 
   } catch (err) {
