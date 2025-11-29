@@ -776,18 +776,18 @@
     <!-- LP Changes Tracking -->
     <div class="card" style="margin-top: 24px;">
       <div class="card-header">
-        <span class="card-title">LP CHANGES (Last 7 Days)</span>
+        <span class="card-title">LP DEPOSIT HISTORY (All Time)</span>
         <span class="card-badge badge-warning" id="lpChangesBadge">0</span>
       </div>
       <div style="padding: 12px; background: rgba(243, 156, 18, 0.1); border-bottom: 1px solid rgba(243, 156, 18, 0.3); font-size: 13px; color: #f39c12;">
-        Review new LP deposits to identify potential single-side deposits. Click "Blacklist" to block LP rewards.
+        All LP deposits tracked. Review for potential single-side deposits. Click "Blacklist" to block LP rewards.
       </div>
-      <div class="table-container">
+      <div class="table-container" style="max-height: 500px; overflow-y: auto;">
         <table>
-          <thead>
+          <thead style="position: sticky; top: 0; background: #1a1a2e; z-index: 1;">
             <tr>
               <th>Wallet</th>
-              <th>First Seen</th>
+              <th>Date</th>
               <th>LP Balance</th>
               <th>Change</th>
               <th>Type</th>
@@ -1238,12 +1238,13 @@
       }
     }
 
-    // ========== LP CHANGES ==========
+    // ========== LP DEPOSIT HISTORY ==========
     async function loadLpChanges() {
+      // Load ALL LP deposits (new and increases) - no limit
       const changes = await supabaseQuery('lp_balance_history', {
         select: 'wallet_address,first_seen_at,lp_balance,balance_change,change_type,snapshot_date',
         order: 'snapshot_date.desc,balance_change.desc',
-        limit: 50
+        limit: 1000  // High limit to get all records
       });
 
       // Get blacklist to check status
@@ -1254,11 +1255,11 @@
       const blacklistedSet = new Set(blacklist?.map(b => b.wallet_address) || []);
 
       if (!changes || changes.error) {
-        document.getElementById('lpChangesTable').innerHTML = '<tr><td colspan="6" style="text-align:center;color:rgba(255,255,255,0.5)">No LP changes recorded yet</td></tr>';
+        document.getElementById('lpChangesTable').innerHTML = '<tr><td colspan="6" style="text-align:center;color:rgba(255,255,255,0.5)">No LP deposits recorded yet</td></tr>';
         return;
       }
 
-      // Filter to only show increases and new
+      // Filter to only show deposits (new and increases)
       const filtered = changes.filter(c => c.change_type === 'new' || c.change_type === 'increase');
       document.getElementById('lpChangesBadge').textContent = filtered.length;
 
@@ -1267,11 +1268,12 @@
         const changeColor = c.change_type === 'new' ? 'var(--stripe-green)' : 'var(--gold)';
         const lpBalance = parseFloat(c.lp_balance).toLocaleString(undefined, {maximumFractionDigits: 2});
         const balanceChange = parseFloat(c.balance_change).toLocaleString(undefined, {maximumFractionDigits: 2});
+        const dateStr = c.snapshot_date ? new Date(c.snapshot_date).toLocaleDateString() : '-';
 
         return `
           <tr style="${isBlacklisted ? 'opacity: 0.5;' : ''}">
             <td class="wallet-address" title="${c.wallet_address}">${c.wallet_address.slice(0, 8)}...${c.wallet_address.slice(-6)}</td>
-            <td>${c.first_seen_at ? new Date(c.first_seen_at).toLocaleDateString() : '-'}</td>
+            <td>${dateStr}</td>
             <td>${lpBalance}</td>
             <td style="color: ${changeColor};">+${balanceChange}</td>
             <td><span class="status-badge" style="background: ${c.change_type === 'new' ? 'var(--stripe-green)' : 'var(--gold)'}; color: #000;">${c.change_type.toUpperCase()}</span></td>
@@ -1283,7 +1285,7 @@
             </td>
           </tr>
         `;
-      }).join('') || '<tr><td colspan="6" style="text-align:center;color:rgba(255,255,255,0.5)">No new LP deposits</td></tr>';
+      }).join('') || '<tr><td colspan="6" style="text-align:center;color:rgba(255,255,255,0.5)">No LP deposits yet</td></tr>';
     }
 
     async function loadTopEarners() {
