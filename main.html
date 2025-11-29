@@ -25544,10 +25544,11 @@ if (typeof window.addEventListener !== 'undefined') {
         if (pc) pc.textContent = hp + '/' + _hp;
         if (pf) pf.style.width = Math.min((hp / _hp) * 100, 100) + '%';
 
-        // Check claim status
+        // Check claim status from database
         const claimStatus = await _checkClaimStatus(w);
         const claimedToday = claimStatus.claimed_today;
-        const hasPendingClaim = claimStatus.has_pending || (tr > 0); // Has a pending reward
+        const hasPendingClaim = claimStatus.total_pending > 0; // Has ACTUAL pending reward in database
+        const pendingAmount = claimStatus.total_pending || 0;
 
         if (claimedToday) {
           // Already claimed - show claimed state
@@ -25567,7 +25568,7 @@ if (typeof window.addEventListener !== 'undefined') {
             cb.classList.remove('claimed');
             cb.onclick = _claim;
           }
-          if (ct) ct.textContent = 'CLAIM ' + tr.toFixed(0) + ' $BEAR';
+          if (ct) ct.textContent = 'CLAIM ' + pendingAmount.toFixed(0) + ' $BEAR';
           _startTimer(false, true);
         } else if (hasPendingClaim) {
           // Has pending claim but not enough honey points
