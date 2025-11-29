@@ -799,7 +799,6 @@
       'rKkkYMCvC63HEgxjQHmayKADaxYqnsMUkT' // MUKT (APEX)
     ];
 
-    const BACKEND_URL = 'https://bearpark-backend-production.up.railway.app';
     const SUPABASE_URL = 'https://iimfihvhukwqxdmvqfdb.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlpbWZpaHZodWt3cXhkbXZxZmRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzUzMjA5OTIsImV4cCI6MjA1MDg5Njk5Mn0.VMl4hr4yt0P5kGSWdxucQ0EIwEgsqC3d2ijjGEBNjQI';
 
@@ -807,97 +806,52 @@
     let distributionChart = null;
     let claimsChart = null;
     let currentWallet = null;
-    let pollInterval = null;
 
-    // ========== AUTHENTICATION ==========
-    async function startAuth() {
-      const btn = document.getElementById('authBtn');
+    // ========== CHECK EXISTING AUTH ON LOAD ==========
+    document.addEventListener('DOMContentLoaded', () => {
+      checkExistingAuth();
+    });
+
+    function checkExistingAuth() {
       const status = document.getElementById('authStatus');
+      const btn = document.getElementById('authBtn');
 
-      btn.disabled = true;
-      btn.textContent = 'Connecting...';
-      status.textContent = 'Opening XAMAN...';
-      status.className = 'auth-status';
+      // Check if already logged into BEARpark
+      const isAuthenticated = localStorage.getItem('bearpark_auth') === 'true';
+      const walletAddress = localStorage.getItem('bearpark_wallet');
 
-      try {
-        // Create XAMAN sign-in request
-        const response = await fetch(`${BACKEND_URL}/api/xaman/signin`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
-        });
+      if (isAuthenticated && walletAddress) {
+        // Check if this wallet is an admin
+        if (ADMIN_WALLETS.includes(walletAddress)) {
+          currentWallet = walletAddress;
+          status.textContent = 'Access granted!';
+          status.className = 'auth-status success';
 
-        const data = await response.json();
-
-        if (!data.success || !data.uuid) {
-          throw new Error(data.error || 'Failed to create sign-in request');
+          setTimeout(() => {
+            document.getElementById('authScreen').classList.add('hidden');
+            document.getElementById('dashboard').classList.add('visible');
+            document.getElementById('adminInfo').textContent = `Logged in as: MUKT (APEX)`;
+            loadDashboard();
+            // Auto-refresh every 60 seconds
+            setInterval(loadDashboard, 60000);
+          }, 300);
+        } else {
+          status.textContent = '⛔ ACCESS DENIED - You are not an authorized admin';
+          status.className = 'auth-status error';
+          btn.textContent = 'Not Authorized';
+          btn.disabled = true;
         }
-
-        // Open XAMAN
-        if (data.qr_link) {
-          window.open(data.qr_link, '_blank');
-        }
-
-        status.textContent = 'Waiting for XAMAN approval...';
-
-        // Poll for result
-        pollInterval = setInterval(async () => {
-          try {
-            const checkResponse = await fetch(`${BACKEND_URL}/api/xaman/status/${data.uuid}`);
-            const checkData = await checkResponse.json();
-
-            if (checkData.signed && checkData.wallet) {
-              clearInterval(pollInterval);
-
-              // Check if admin
-              if (ADMIN_WALLETS.includes(checkData.wallet)) {
-                currentWallet = checkData.wallet;
-                status.textContent = 'Access granted!';
-                status.className = 'auth-status success';
-
-                setTimeout(() => {
-                  document.getElementById('authScreen').classList.add('hidden');
-                  document.getElementById('dashboard').classList.add('visible');
-                  document.getElementById('adminInfo').textContent = `Logged in as: ${checkData.wallet.slice(0, 8)}...${checkData.wallet.slice(-6)}`;
-                  loadDashboard();
-                  // Auto-refresh every 60 seconds
-                  setInterval(loadDashboard, 60000);
-                }, 500);
-              } else {
-                status.textContent = '⛔ ACCESS DENIED - You are not an authorized admin';
-                status.className = 'auth-status error';
-                btn.disabled = false;
-                btn.textContent = 'Try Again';
-              }
-            } else if (checkData.rejected || checkData.expired) {
-              clearInterval(pollInterval);
-              status.textContent = checkData.rejected ? 'Request rejected' : 'Request expired';
-              status.className = 'auth-status error';
-              btn.disabled = false;
-              btn.textContent = 'Try Again';
-            }
-          } catch (err) {
-            // Keep polling
-          }
-        }, 2000);
-
-        // Timeout after 3 minutes
-        setTimeout(() => {
-          if (pollInterval) {
-            clearInterval(pollInterval);
-            status.textContent = 'Request timed out';
-            status.className = 'auth-status error';
-            btn.disabled = false;
-            btn.textContent = 'Try Again';
-          }
-        }, 180000);
-
-      } catch (err) {
-        console.error('Auth error:', err);
-        status.textContent = 'Connection error: ' + err.message;
-        status.className = 'auth-status error';
-        btn.disabled = false;
-        btn.textContent = 'Try Again';
+      } else {
+        status.textContent = 'Please login to BEARpark first';
+        status.className = 'auth-status';
+        btn.textContent = 'Go to BEARpark Login';
+        btn.onclick = () => window.location.href = 'index.html';
       }
+    }
+
+    // Redirect to login if not authenticated
+    function startAuth() {
+      window.location.href = 'index.html';
     }
 
     // ========== SUPABASE HELPERS ==========
