@@ -1122,6 +1122,7 @@
       status.style.color = 'var(--gold)';
 
       try {
+        // First try to insert
         const response = await fetch(`${SUPABASE_URL}/rest/v1/lp_blacklist`, {
           method: 'POST',
           headers: {
@@ -1143,14 +1144,39 @@
           status.style.color = 'var(--stripe-green)';
           document.getElementById('blacklistWalletInput').value = '';
           loadBlacklist();
+          loadLpChanges();
           loadStats();
+        } else if (response.status === 409) {
+          // Wallet exists but was deactivated - reactivate it
+          const updateResponse = await fetch(`${SUPABASE_URL}/rest/v1/lp_blacklist?wallet_address=eq.${wallet}`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': SUPABASE_ANON_KEY,
+              'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+            },
+            body: JSON.stringify({
+              is_active: true,
+              reason: reason,
+              detected_at: new Date().toISOString(),
+              notes: `Re-blacklisted by admin ${currentWallet}`
+            })
+          });
+
+          if (updateResponse.ok) {
+            status.textContent = 'Wallet re-blacklisted! LP rewards will be blocked.';
+            status.style.color = 'var(--stripe-green)';
+            document.getElementById('blacklistWalletInput').value = '';
+            loadBlacklist();
+            loadLpChanges();
+            loadStats();
+          } else {
+            status.textContent = 'Error re-activating blacklist';
+            status.style.color = 'var(--red)';
+          }
         } else {
           const err = await response.json();
-          if (err.code === '23505') {
-            status.textContent = 'Wallet already blacklisted';
-          } else {
-            status.textContent = 'Error: ' + (err.message || 'Unknown error');
-          }
+          status.textContent = 'Error: ' + (err.message || 'Unknown error');
           status.style.color = 'var(--red)';
         }
       } catch (e) {
