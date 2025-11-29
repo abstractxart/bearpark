@@ -11,7 +11,7 @@
 
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 const { createClient } = require('@supabase/supabase-js');
-const WebSocket = require('ws');
+const xrpl = require('xrpl');
 const crypto = require('crypto');
 
 // Initialize Supabase
@@ -34,10 +34,16 @@ let MIN_HONEY_POINTS_24H = 30;
 // Secret salt for random time generation (set in Railway env vars)
 const SNAPSHOT_SALT = process.env.SNAPSHOT_SALT || 'BEAR_SNAPSHOT_DEFAULT_SALT_CHANGE_ME';
 
-// Ultra Rare NFT taxons - SECURITY: Define these properly!
-const ULTRA_RARE_TAXONS = [
-  // Add your ultra rare taxon IDs here
-  // Example: 12345, 67890
+// Ultra Rare NFT taxons
+// Taxon 0 = Ultra Rare BEARS (667 total)
+// Taxon 1/2 = Pixel BEARS
+const ULTRA_RARE_TAXONS = [0];
+
+// XRPL servers to try (in order) - need Clio servers for nfts_by_issuer
+const XRPL_SERVERS = [
+  'wss://s1.ripple.com',  // Clio server - supports nfts_by_issuer
+  'wss://s2.ripple.com',  // Clio server - supports nfts_by_issuer
+  'wss://xrplcluster.com'
 ];
 
 /**
@@ -91,32 +97,23 @@ console.log('=========================');
 console.log(`Date: ${new Date().toISOString()}`);
 console.log('');
 
-// XRPL WebSocket helpers
-function connectXRPL() {
-  return new Promise((resolve, reject) => {
-    const ws = new WebSocket('wss://s1.ripple.com');
-    ws.on('open', () => resolve(ws));
-    ws.on('error', reject);
-  });
-}
-
-function xrplRequest(ws, command) {
-  return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => reject(new Error('Timeout')), 30000);
-    const id = Date.now() + Math.random();
-
-    const handler = (data) => {
-      const response = JSON.parse(data.toString());
-      if (response.id === id) {
-        clearTimeout(timeout);
-        ws.off('message', handler);
-        resolve(response);
-      }
-    };
-
-    ws.on('message', handler);
-    ws.send(JSON.stringify({ ...command, id }));
-  });
+// Connect to XRPL with fallback servers
+async function connectXRPL() {
+  for (const server of XRPL_SERVERS) {
+    try {
+      console.log(`   Trying ${server}...`);
+      const client = new xrpl.Client(server, {
+        timeout: 60000, // 60 second connection timeout
+        connectionTimeout: 30000
+      });
+      await client.connect();
+      console.log(`   ✅ Connected to ${server}`);
+      return client;
+    } catch (err) {
+      console.log(`   ❌ Failed: ${err.message}`);
+    }
+  }
+  throw new Error('Could not connect to any XRPL server');
 }
 
 // Load config from database
@@ -150,51 +147,71 @@ async function loadConfig() {
   console.log('');
 }
 
-// Get all NFT holders
-async function getAllNFTHolders(ws) {
+// Get all NFT holders using xrpl library
+async function getAllNFTHolders(client) {
   console.log('🖼️  Fetching NFT holders...');
 
   const holders = new Map(); // wallet -> { pixelBears: count, ultraRares: count }
   let marker = null;
   let totalNFTs = 0;
+  let retries = 0;
+  const maxRetries = 3;
 
   do {
-    const request = {
-      command: 'nfts_by_issuer',
-      issuer: NFT_ISSUER,
-      limit: 400
-    };
+    try {
+      const request = {
+        command: 'nfts_by_issuer',
+        issuer: NFT_ISSUER,
+        limit: 100 // Smaller batches for reliability
+      };
 
-    if (marker) request.marker = marker;
+      if (marker) request.marker = marker;
 
-    const response = await xrplRequest(ws, request);
+      const response = await client.request(request);
 
-    if (response.result?.nfts) {
-      for (const nft of response.result.nfts) {
-        totalNFTs++;
-        const owner = nft.owner;
-        const taxon = nft.nft_taxon;
+      if (response.result?.nfts) {
+        for (const nft of response.result.nfts) {
+          totalNFTs++;
+          const owner = nft.owner;
+          const taxon = nft.nft_taxon;
 
-        if (!holders.has(owner)) {
-          holders.set(owner, { pixelBears: 0, ultraRares: 0 });
+          if (!holders.has(owner)) {
+            holders.set(owner, { pixelBears: 0, ultraRares: 0 });
+          }
+
+          const holder = holders.get(owner);
+
+          // Check if ultra rare
+          if (ULTRA_RARE_TAXONS.includes(taxon)) {
+            holder.ultraRares++;
+          } else {
+            holder.pixelBears++;
+          }
         }
 
-        const holder = holders.get(owner);
-
-        // Check if ultra rare
-        if (ULTRA_RARE_TAXONS.includes(taxon)) {
-          holder.ultraRares++;
-        } else {
-          holder.pixelBears++;
-        }
+        marker = response.result.marker;
+        retries = 0; // Reset retries on success
+      } else {
+        break;
       }
 
-      marker = response.result.marker;
-    } else {
-      break;
-    }
+      process.stdout.write(`\r   Processed: ${totalNFTs} NFTs, ${holders.size} holders`);
 
-    process.stdout.write(`\r   Processed: ${totalNFTs} NFTs, ${holders.size} holders`);
+      // Small delay between requests to avoid rate limiting
+      await new Promise(r => setTimeout(r, 100));
+
+    } catch (err) {
+      retries++;
+      console.log(`\n   ⚠️ Request failed (attempt ${retries}/${maxRetries}): ${err.message}`);
+
+      if (retries >= maxRetries) {
+        console.log(`   ❌ Max retries reached, continuing with ${totalNFTs} NFTs found so far`);
+        break;
+      }
+
+      // Wait before retry
+      await new Promise(r => setTimeout(r, 2000));
+    }
   } while (marker);
 
   console.log(`\n   ✅ Found ${holders.size} NFT holders with ${totalNFTs} total NFTs`);
@@ -202,42 +219,59 @@ async function getAllNFTHolders(ws) {
 }
 
 // Get all LP token holders
-async function getLPTokenHolders(ws) {
+async function getLPTokenHolders(client) {
   console.log('\n💧 Fetching LP token holders...');
 
   const lpHolders = new Map(); // wallet -> lp_tokens (as string for precision)
-
-  // Get all trust lines to the AMM pool account
   let marker = null;
   let totalHolders = 0;
+  let retries = 0;
+  const maxRetries = 3;
 
   do {
-    const request = {
-      command: 'account_lines',
-      account: AMM_POOL_ACCOUNT,
-      limit: 400
-    };
+    try {
+      const request = {
+        command: 'account_lines',
+        account: AMM_POOL_ACCOUNT,
+        limit: 200
+      };
 
-    if (marker) request.marker = marker;
+      if (marker) request.marker = marker;
 
-    const response = await xrplRequest(ws, request);
+      const response = await client.request(request);
 
-    if (response.result?.lines) {
-      for (const line of response.result.lines) {
-        // LP token balance is in the 'balance' field (negative from issuer perspective)
-        const balance = Math.abs(parseFloat(line.balance));
-        if (balance > 0) {
-          lpHolders.set(line.account, balance.toString());
-          totalHolders++;
+      if (response.result?.lines) {
+        for (const line of response.result.lines) {
+          // LP token balance is in the 'balance' field (negative from issuer perspective)
+          const balance = Math.abs(parseFloat(line.balance));
+          if (balance > 0) {
+            lpHolders.set(line.account, balance.toString());
+            totalHolders++;
+          }
         }
+
+        marker = response.result.marker;
+        retries = 0;
+      } else {
+        break;
       }
 
-      marker = response.result.marker;
-    } else {
-      break;
-    }
+      process.stdout.write(`\r   Processed: ${totalHolders} LP holders`);
 
-    process.stdout.write(`\r   Processed: ${totalHolders} LP holders`);
+      // Small delay between requests
+      await new Promise(r => setTimeout(r, 100));
+
+    } catch (err) {
+      retries++;
+      console.log(`\n   ⚠️ Request failed (attempt ${retries}/${maxRetries}): ${err.message}`);
+
+      if (retries >= maxRetries) {
+        console.log(`   ❌ Max retries reached, continuing with ${totalHolders} LP holders found`);
+        break;
+      }
+
+      await new Promise(r => setTimeout(r, 2000));
+    }
   } while (marker);
 
   console.log(`\n   ✅ Found ${lpHolders.size} LP token holders`);
@@ -255,25 +289,13 @@ async function getHoneyPoints24h(wallet) {
   return data?.reduce((sum, row) => sum + row.points, 0) || 0;
 }
 
-// Check if wallet is blacklisted
-async function isBlacklisted(wallet) {
-  const { data } = await supabase
-    .from('lp_blacklist')
-    .select('id')
-    .eq('wallet_address', wallet)
-    .eq('is_active', true)
-    .single();
-
-  return !!data;
-}
-
 // Main snapshot function
 async function runSnapshot() {
   const snapshotDate = new Date().toISOString().split('T')[0];
 
   console.log(`📸 Creating snapshot for ${snapshotDate}\n`);
 
-  let ws;
+  let client;
 
   try {
     // Load config
@@ -281,12 +303,11 @@ async function runSnapshot() {
 
     // Connect to XRPL
     console.log('🔌 Connecting to XRPL...');
-    ws = await connectXRPL();
-    console.log('   ✅ Connected\n');
+    client = await connectXRPL();
 
     // Get all holders
-    const nftHolders = await getAllNFTHolders(ws);
-    const lpHolders = await getLPTokenHolders(ws);
+    const nftHolders = await getAllNFTHolders(client);
+    const lpHolders = await getLPTokenHolders(client);
 
     // Merge all unique wallets
     const allWallets = new Set([...nftHolders.keys(), ...lpHolders.keys()]);
@@ -345,7 +366,7 @@ async function runSnapshot() {
         total_reward: totalRewardAmount,
         is_blacklisted: isBlack,
         is_eligible: isElig,
-        honey_points_24h: honeyPoints,
+        honey_points_24h: Math.floor(honeyPoints), // Must be integer
         claim_status: isElig ? 'pending' : 'ineligible'
       });
 
@@ -387,7 +408,13 @@ async function runSnapshot() {
     console.error('\n❌ Snapshot error:', err.message);
     console.error(err.stack);
   } finally {
-    if (ws) ws.close();
+    if (client) {
+      try {
+        await client.disconnect();
+      } catch (e) {
+        // Ignore disconnect errors
+      }
+    }
     process.exit(0);
   }
 }
