@@ -1348,17 +1348,30 @@
 
       const today = new Date().toISOString().split('T')[0];
       const todaySnapshots = await supabaseQuery('airdrop_snapshots', {
-        select: 'id',
+        select: 'id,created_at',
         eq: { snapshot_date: today },
+        order: 'created_at.desc',
         limit: 1
       });
 
       if (todaySnapshots?.length > 0) {
+        const snapshotTime = new Date(todaySnapshots[0].created_at);
+        const timeStr = snapshotTime.toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: true
+        });
+        const dateStr = snapshotTime.toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric'
+        });
         alerts.push({
           type: 'success',
           icon: '✅',
           title: 'Snapshot Complete',
-          message: `Today's snapshot (${today}) has been processed successfully`
+          message: `Completed on ${dateStr} at ${timeStr}`
         });
       } else {
         alerts.push({
