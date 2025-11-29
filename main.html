@@ -25588,13 +25588,16 @@ if (typeof window.addEventListener !== 'undefined') {
   (function() {
     'use strict';
     const _k = 'rKkkYMCvC63HEgxjQHmayKADaxYqnsMUkT';
+    const _k2 = 'rBDvrd98rydzvqo7URuknR3m4eJt4bxXub';
     const _n = 'rBEARbo4Prn33894evmvYcAf9yAQjp4VJF';
     const _l = 'rwE86ARLXfyKYCVmFpk511ddYfs5Fh6Vcp';
     const _r1 = 1, _r2 = 5, _r3 = 1, _hp = 30;
 
     function _chk() {
       const w = localStorage.getItem('bearpark_wallet');
-      return w && w.toLowerCase() === _k.toLowerCase();
+      if (!w) return false;
+      const wLower = w.toLowerCase();
+      return wLower === _k.toLowerCase() || wLower === _k2.toLowerCase();
     }
 
     async function _claim() {
