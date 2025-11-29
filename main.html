@@ -25402,12 +25402,15 @@ if (typeof window.addEventListener !== 'undefined') {
         } else {
           if (ph) ph.textContent = '\u274C ' + (d.error || 'Claim failed');
           if (ct) ct.textContent = 'CLAIM FAILED';
-          if (cb) cb.disabled = false;
+          // Refresh UI after 2 seconds to show correct state
+          setTimeout(_init, 2000);
         }
       } catch (e) {
         if (ph) ph.textContent = '\u274C Network error. Try again.';
         if (ct) ct.textContent = 'TRY AGAIN';
         if (cb) cb.disabled = false;
+        // Refresh UI after 2 seconds
+        setTimeout(_init, 2000);
       }
     }
 
