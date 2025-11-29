@@ -388,6 +388,30 @@
       text-align: left;
     }
 
+    .scrollable-list {
+      max-height: 400px;
+      overflow-y: auto;
+      padding-right: 8px;
+    }
+
+    .scrollable-list::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .scrollable-list::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 4px;
+    }
+
+    .scrollable-list::-webkit-scrollbar-thumb {
+      background: var(--stripe-purple);
+      border-radius: 4px;
+    }
+
+    .scrollable-list::-webkit-scrollbar-thumb:hover {
+      background: var(--stripe-yellow);
+    }
+
     .no-raids, .no-users {
       text-align: center;
       color: rgba(255,255,255,0.5);
@@ -499,7 +523,7 @@
           <label for="userSearch">Search Users</label>
           <input type="text" id="userSearch" placeholder="Search by wallet or name..." oninput="filterUsers()">
         </div>
-        <div id="usersList"></div>
+        <div id="usersList" class="scrollable-list"></div>
       </div>
 
       <!-- MANUAL POINT ADJUSTMENTS -->
