@@ -10492,9 +10492,9 @@
             <div class="m7-dropdown-section m7-warning-section">
               <div class="m7-dropdown-header">⚠️ IMPORTANT RULES</div>
               <div class="m7-dropdown-item">🎲 Snapshots happen at <strong>random times</strong> each day (anti-cheat)</div>
-              <div class="m7-dropdown-item">🕛 Claims open at <strong>00:00 UTC</strong> the next day</div>
-              <div class="m7-dropdown-item m7-danger">🚨 <strong>Claim window: 00:00 - 00:30 UTC ONLY!</strong></div>
-              <div class="m7-dropdown-item m7-danger">💀 Miss the 30-minute window = <strong>lose your reward forever</strong></div>
+              <div class="m7-dropdown-item">📅 You have the <strong>FULL NEXT DAY</strong> to claim your reward</div>
+              <div class="m7-dropdown-item">⏰ Plus a <strong>30-minute grace period</strong> into the following day</div>
+              <div class="m7-dropdown-item m7-danger">💀 Miss the grace period (00:30 UTC) = <strong>lose your reward forever</strong></div>
             </div>
             <div class="m7-dropdown-disclaimer">
               ⚖️ If admins/mods determine you're gaming the system or exploiting loopholes, we reserve the right to <strong>blacklist your wallet</strong> from earning airdrops. Play fair and have fun! 😉
@@ -25422,7 +25422,7 @@ if (typeof window.addEventListener !== 'undefined') {
       } catch (e) { return { claimed_today: false }; }
     }
 
-    function _startTimer(showClaimedMessage = false) {
+    function _startTimer(showClaimedMessage = false, hasPendingClaim = false) {
       const timerEl = document.getElementById('m7Timer');
       const timerText = document.getElementById('m7TimerText');
       if (!timerEl) return;
@@ -25433,31 +25433,38 @@ if (typeof window.addEventListener !== 'undefined') {
         const utcHours = now.getUTCHours();
         const utcMinutes = now.getUTCMinutes();
         const minutesPastMidnight = utcHours * 60 + utcMinutes;
+        const inGracePeriod = minutesPastMidnight < 30;
+
+        // Reset styles
+        timerEl.style.background = 'rgba(251, 191, 36, 0.1)';
+        timerEl.style.borderColor = 'rgba(251, 191, 36, 0.3)';
+        timerEl.style.color = '#fbbf24';
 
         if (showClaimedMessage) {
-          // Already claimed - show next claim window
-          const hoursLeft = 23 - utcHours;
-          const minsLeft = 59 - utcMinutes;
-          if (timerText) timerText.textContent = `✅ Claimed! Next window opens in ${hoursLeft}h ${minsLeft}m`;
-        } else if (minutesPastMidnight < 30) {
-          // Inside claim window (00:00 - 00:30 UTC)
+          // Already claimed - show next snapshot message
+          if (timerText) timerText.textContent = `✅ Claimed! Next snapshot at a random time tomorrow.`;
+        } else if (hasPendingClaim && inGracePeriod) {
+          // Has pending claim and in grace period - URGENT!
           const minsRemaining = 30 - minutesPastMidnight;
           if (timerText) {
-            timerText.innerHTML = `🟢 <strong>CLAIM WINDOW OPEN!</strong> ${minsRemaining} minutes remaining`;
+            timerText.innerHTML = `🚨 <strong>GRACE PERIOD!</strong> Only ${minsRemaining} min left to claim!`;
+            timerEl.style.background = 'rgba(239, 68, 68, 0.2)';
+            timerEl.style.borderColor = 'rgba(239, 68, 68, 0.5)';
+            timerEl.style.color = '#ef4444';
+          }
+        } else if (hasPendingClaim) {
+          // Has pending claim - show time until grace period ends tomorrow
+          const hoursLeft = 23 - utcHours;
+          const minsLeft = 59 - utcMinutes;
+          if (timerText) {
+            timerText.innerHTML = `🟢 <strong>Claim available!</strong> Expires in ${hoursLeft}h ${minsLeft + 30}m`;
             timerEl.style.background = 'rgba(34, 197, 94, 0.2)';
             timerEl.style.borderColor = 'rgba(34, 197, 94, 0.5)';
             timerEl.style.color = '#22c55e';
           }
         } else {
-          // Outside claim window - countdown to midnight
-          const hoursLeft = 23 - utcHours;
-          const minsLeft = 59 - utcMinutes;
-          if (timerText) {
-            timerText.textContent = `⏰ Next claim window in ${hoursLeft}h ${minsLeft}m (opens 00:00 UTC)`;
-            timerEl.style.background = 'rgba(251, 191, 36, 0.1)';
-            timerEl.style.borderColor = 'rgba(251, 191, 36, 0.3)';
-            timerEl.style.color = '#fbbf24';
-          }
+          // No pending claim
+          if (timerText) timerText.textContent = `📅 Waiting for today's snapshot...`;
         }
       }
 
@@ -25540,56 +25547,52 @@ if (typeof window.addEventListener !== 'undefined') {
         if (pc) pc.textContent = hp + '/' + _hp;
         if (pf) pf.style.width = Math.min((hp / _hp) * 100, 100) + '%';
 
-        // Check if already claimed today and if we're in claim window
+        // Check claim status
         const claimStatus = await _checkClaimStatus(w);
         const claimedToday = claimStatus.claimed_today;
-
-        // Check if we're in the claim window (00:00 - 00:30 UTC)
-        const now = new Date();
-        const minutesPastMidnight = now.getUTCHours() * 60 + now.getUTCMinutes();
-        const inClaimWindow = minutesPastMidnight < 30;
+        const hasPendingClaim = claimStatus.has_pending || (tr > 0); // Has a pending reward
 
         if (claimedToday) {
-          // Already claimed - show claimed state with timer
-          if (ph) ph.textContent = '\u2705 Claimed ' + (claimStatus.amount || tr) + ' $BEAR today!';
+          // Already claimed - show claimed state
+          if (ph) ph.textContent = '\u2705 Claimed ' + (claimStatus.amount || tr) + ' $BEAR!';
           if (cb) {
             cb.disabled = true;
             cb.classList.add('claimed');
             cb.onclick = null;
           }
-          if (ct) ct.textContent = '\u2705 CLAIMED TODAY';
-          _startTimer(true);
-        } else if (!inClaimWindow) {
-          // Outside claim window - show countdown
-          if (ph) ph.textContent = 'Claim window opens at 00:00 UTC. Get your honey points ready!';
-          if (cb) {
-            cb.disabled = true;
-            cb.classList.remove('claimed');
-            cb.onclick = null;
-          }
-          if (ct) ct.textContent = 'CLAIM WINDOW CLOSED';
-          _startTimer(false);
-        } else if (hp >= _hp) {
-          // Inside claim window and eligible to claim
-          if (ph) ph.textContent = '\u2705 CLAIM WINDOW OPEN! You are eligible to claim!';
+          if (ct) ct.textContent = '\u2705 CLAIMED';
+          _startTimer(true, false);
+        } else if (hasPendingClaim && hp >= _hp) {
+          // Has pending claim and enough honey points - can claim!
+          if (ph) ph.textContent = '\u2705 You have a pending airdrop! Claim it now!';
           if (cb) {
             cb.disabled = false;
             cb.classList.remove('claimed');
             cb.onclick = _claim;
           }
-          if (ct) ct.textContent = 'CLAIM $BEAR DROP NOW!';
-          _startTimer(false);
-        } else {
-          // Inside claim window but not enough honey points
+          if (ct) ct.textContent = 'CLAIM ' + tr.toFixed(0) + ' $BEAR';
+          _startTimer(false, true);
+        } else if (hasPendingClaim) {
+          // Has pending claim but not enough honey points
           const rm = _hp - hp;
-          if (ph) ph.textContent = 'Window is open but you need ' + rm.toFixed(1) + ' more honey points!';
+          if (ph) ph.textContent = 'You have a pending drop! Earn ' + rm.toFixed(1) + ' more honey points to claim!';
           if (cb) {
             cb.disabled = true;
             cb.classList.remove('claimed');
             cb.onclick = null;
           }
           if (ct) ct.textContent = 'NEED ' + rm.toFixed(0) + ' MORE POINTS';
-          _startTimer(false);
+          _startTimer(false, true);
+        } else {
+          // No pending claim - waiting for snapshot
+          if (ph) ph.textContent = 'No pending airdrop. Snapshot runs at a random time each day!';
+          if (cb) {
+            cb.disabled = true;
+            cb.classList.remove('claimed');
+            cb.onclick = null;
+          }
+          if (ct) ct.textContent = 'WAITING FOR SNAPSHOT';
+          _startTimer(false, false);
         }
       } catch (e) {}
     }
