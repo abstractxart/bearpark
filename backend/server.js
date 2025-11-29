@@ -5829,13 +5829,28 @@ app.post('/api/beardrops/claim', validateWallet, async (req, res) => {
       });
     }
 
-    // ========== SECURITY FIX #2: CLAIM EXPIRY ==========
-    // Only get snapshots from last 7 days (configurable)
-    const expiryDays = 7;
-    const expiryDate = new Date();
-    expiryDate.setDate(expiryDate.getDate() - expiryDays);
+    // ========== SECURITY FIX #2: STRICT 30-MINUTE CLAIM EXPIRY ==========
+    // Users have only 30 MINUTES after midnight UTC to claim yesterday's airdrop
+    // After that window closes, the airdrop is LOST FOREVER!
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    const yesterdayDate = new Date(now);
+    yesterdayDate.setUTCDate(yesterdayDate.getUTCDate() - 1);
+    const yesterdayStr = yesterdayDate.toISOString().split('T')[0];
 
-    // Get the latest pending snapshot for this wallet (not expired)
+    // Check if we're within the 30 minute grace period (00:00 - 00:30 UTC)
+    const minutesPastMidnight = now.getUTCHours() * 60 + now.getUTCMinutes();
+    const GRACE_PERIOD_MINUTES = 30;
+
+    // Determine which dates are valid for claiming
+    let validDates = [todayStr]; // Today's snapshot is always claimable (if it exists)
+    if (minutesPastMidnight < GRACE_PERIOD_MINUTES) {
+      // Within grace period - yesterday's snapshot is still valid
+      validDates.push(yesterdayStr);
+      console.log(`⏰ Within grace period (${minutesPastMidnight} min past midnight). Yesterday still valid.`);
+    }
+
+    // Get the latest pending snapshot for this wallet (only valid dates)
     const { data: snapshot, error: snapshotError } = await supabase
       .from('airdrop_snapshots')
       .select('*')
@@ -5843,7 +5858,7 @@ app.post('/api/beardrops/claim', validateWallet, async (req, res) => {
       .eq('claim_status', 'pending')
       .eq('is_eligible', true)
       .eq('is_blacklisted', false)
-      .gte('snapshot_date', expiryDate.toISOString().split('T')[0])
+      .in('snapshot_date', validDates)
       .order('snapshot_date', { ascending: false })
       .limit(1)
       .single();
