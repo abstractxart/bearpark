@@ -13973,6 +13973,80 @@
     IntervalManager.set('updatePrices', updatePrices, 60000); // Use IntervalManager to prevent memory leaks
     document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) updatePrices(); });
 
+    // ===== XRPL Direct Trading Stats (More Accurate than DexScreener) =====
+    async function fetchXRPLTradingStats() {
+      try {
+        const response = await fetch((window.API_BASE_URL || '') + '/api/xrpl/trading-stats');
+        if (!response.ok) {
+          console.warn('⚠️ XRPL trading stats API returned:', response.status);
+          return;
+        }
+        const data = await response.json();
+        if (!data.success || !data.stats) return;
+
+        const stats = data.stats;
+        console.log('📊 XRPL Trading Stats loaded:', stats);
+
+        // Update Trading Activity card with XRPL data (overrides DexScreener)
+        const tradingVolXrp = $id('tradingVolXrp');
+        const tradingBuyVol = $id('tradingBuyVol');
+        const tradingSellVol = $id('tradingSellVol');
+        const usdTxnsTotal = $id('usdTxnsTotal');
+        const usdBuys = $id('usdBuys');
+        const usdSells = $id('usdSells');
+        const usdBuysBar = $id('usdBuysBar');
+        const usdSellsBar = $id('usdSellsBar');
+
+        // Volume
+        if (tradingVolXrp) {
+          const volDisplay = stats.volume24hXRP >= 1000
+            ? (stats.volume24hXRP / 1000).toFixed(1) + 'K XRP'
+            : fmt0(stats.volume24hXRP) + ' XRP';
+          tradingVolXrp.textContent = volDisplay;
+        }
+
+        // Buy/Sell Volume in BEAR
+        if (tradingBuyVol) {
+          const buyDisplay = stats.buyVolumeBEAR >= 1000000
+            ? (stats.buyVolumeBEAR / 1000000).toFixed(1) + 'M BEAR'
+            : stats.buyVolumeBEAR >= 1000
+            ? (stats.buyVolumeBEAR / 1000).toFixed(0) + 'K BEAR'
+            : fmt0(stats.buyVolumeBEAR) + ' BEAR';
+          tradingBuyVol.textContent = buyDisplay;
+        }
+        if (tradingSellVol) {
+          const sellDisplay = stats.sellVolumeBEAR >= 1000000
+            ? (stats.sellVolumeBEAR / 1000000).toFixed(1) + 'M BEAR'
+            : stats.sellVolumeBEAR >= 1000
+            ? (stats.sellVolumeBEAR / 1000).toFixed(0) + 'K BEAR'
+            : fmt0(stats.sellVolumeBEAR) + ' BEAR';
+          tradingSellVol.textContent = sellDisplay;
+        }
+
+        // Traders counts
+        if (usdTxnsTotal) usdTxnsTotal.textContent = stats.uniqueTraders;
+        if (usdBuys) usdBuys.textContent = stats.uniqueBuyers;
+        if (usdSells) usdSells.textContent = stats.uniqueSellers;
+
+        // Progress bar
+        const totalTraders = stats.uniqueBuyers + stats.uniqueSellers;
+        if (usdBuysBar && usdSellsBar && totalTraders > 0) {
+          const buyPct = (stats.uniqueBuyers / totalTraders) * 100;
+          const sellPct = (stats.uniqueSellers / totalTraders) * 100;
+          usdBuysBar.style.width = buyPct + '%';
+          usdSellsBar.style.width = sellPct + '%';
+        }
+
+      } catch (error) {
+        console.warn('⚠️ Failed to fetch XRPL trading stats:', error.message);
+        // Falls back to DexScreener data which is already loaded
+      }
+    }
+
+    // Fetch XRPL stats on load and every 30 seconds
+    fetchXRPLTradingStats();
+    IntervalManager.set('fetchXRPLTradingStats', fetchXRPLTradingStats, 30000);
+
     /* ===== Chart Loading Detection ===== */
     const chartIframe = document.getElementById('dexscreener-embed');
     const chartError = document.getElementById('chart-error');
