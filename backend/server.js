@@ -6044,13 +6044,23 @@ app.get('/api/beardrops/claim-status/:wallet', async (req, res) => {
   try {
     const { wallet } = req.params;
 
-    // Get pending claims
+    // ========== CLAIM WINDOW LOGIC ==========
+    // Users can ONLY claim YESTERDAY's snapshot
+    // This MUST match the claim endpoint logic exactly!
+    const now = new Date();
+    const yesterdayDate = new Date(now);
+    yesterdayDate.setUTCDate(yesterdayDate.getUTCDate() - 1);
+    const yesterdayStr = yesterdayDate.toISOString().split('T')[0];
+
+    // Get pending claims - ONLY for claimable date (yesterday)
     const { data: pending } = await supabase
       .from('airdrop_snapshots')
-      .select('snapshot_date, total_reward, is_eligible, claim_status')
+      .select('snapshot_date, total_reward, is_eligible, claim_status, is_blacklisted')
       .eq('wallet_address', wallet)
       .eq('claim_status', 'pending')
       .eq('is_eligible', true)
+      .eq('is_blacklisted', false)  // Blacklisted wallets can't claim
+      .eq('snapshot_date', yesterdayStr)  // ONLY yesterday's snapshot is claimable
       .order('snapshot_date', { ascending: false });
 
     // Get recent claims
