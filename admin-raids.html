@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>BEAR Park - Admin Raid Creator</title>
-  <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
   <style>
     /* ==== BEAR PARK THEME =========================================================== */
     :root {
@@ -21,7 +21,7 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
-      font-family: "Luckiest Guy", "Arial Black", Impact, system-ui, -apple-system, sans-serif;
+      font-family: "Nunito", system-ui, -apple-system, sans-serif;
       background: var(--charcoal);
       background-image:
         radial-gradient(100vmax 60vmax at 10% -10%, rgba(237,183,35,.055), transparent 60%),
@@ -117,7 +117,7 @@
       font-size: 18px;
       color: #fff;
       transition: all 0.3s ease;
-      font-family: "Luckiest Guy", "Arial Black", Impact, system-ui, sans-serif;
+      font-family: "Nunito", system-ui, sans-serif;
       font-weight: 600;
     }
 
@@ -373,6 +373,21 @@
       display: none;
     }
 
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      border-radius: 20px;
+      border: 3px solid rgba(104, 12, 217, 0.4);
+      box-shadow: 0 8px 24px rgba(0,0,0,.35);
+      padding: 28px;
+      margin-bottom: 24px;
+      position: relative;
+    }
+
+    .card h2.section-title {
+      margin: 0 0 20px 0;
+      text-align: left;
+    }
+
     .no-raids, .no-users {
       text-align: center;
       color: rgba(255,255,255,0.5);
@@ -398,8 +413,9 @@
 
     <div class="admin-section" id="adminContent">
       <!-- CREATE NEW RAID -->
-      <h2 class="section-title">Create New Raid</h2>
-      <form id="raidForm">
+      <div class="card">
+        <h2 class="section-title">Create New Raid</h2>
+        <form id="raidForm">
         <div class="form-group">
           <label for="raidTitle">Raid Title *</label>
           <input type="text" id="raidTitle" value="RAID IT BEAR ARMY 🐻🪖" placeholder="e.g., BEAR Army Raid - Like & RT!" required>
@@ -433,14 +449,17 @@
         </div>
 
         <button type="submit">🚀 Create Raid</button>
-      </form>
+        </form>
+      </div>
 
       <!-- CURRENT RAIDS MANAGEMENT -->
-      <h2 class="section-title">Current Raids</h2>
-      <div id="raidsList"></div>
+      <div class="card">
+        <h2 class="section-title">Current Raids</h2>
+        <div id="raidsList"></div>
+      </div>
 
       <!-- ROLE MANAGEMENT (MASTER ONLY) -->
-      <div id="roleManagementSection" style="display: none;">
+      <div class="card" id="roleManagementSection" style="display: none;">
         <h2 class="section-title">👑 Role Management (MASTER ONLY)</h2>
 
         <!-- Current Roles List -->
@@ -455,7 +474,7 @@
           </div>
           <div class="form-group">
             <label for="roleType">Role *</label>
-            <select id="roleType" required style="background: var(--charcoal); border: 2px solid var(--stripe-yellow); color: white; padding: 12px; border-radius: 8px; width: 100%; font-family: 'Luckiest Guy', cursive; font-size: 16px;">
+            <select id="roleType" required style="background: var(--charcoal); border: 2px solid var(--stripe-yellow); color: white; padding: 12px; border-radius: 8px; width: 100%; font-family: 'Nunito', sans-serif; font-size: 16px;">
               <option value="">Select a role...</option>
               <option value="admin">🛡️ ADMIN - Full management access</option>
               <option value="moderator">⚔️ MODERATOR - Limited moderation access</option>
@@ -474,16 +493,19 @@
       </div>
 
       <!-- USER NAME MODERATION -->
-      <h2 class="section-title">User Name Moderation</h2>
-      <div class="form-group">
-        <label for="userSearch">Search Users</label>
-        <input type="text" id="userSearch" placeholder="Search by wallet or name..." oninput="filterUsers()">
+      <div class="card">
+        <h2 class="section-title">User Name Moderation</h2>
+        <div class="form-group">
+          <label for="userSearch">Search Users</label>
+          <input type="text" id="userSearch" placeholder="Search by wallet or name..." oninput="filterUsers()">
+        </div>
+        <div id="usersList"></div>
       </div>
-      <div id="usersList"></div>
 
       <!-- MANUAL POINT ADJUSTMENTS -->
-      <h2 class="section-title">Manual Point Adjustments</h2>
-      <form id="pointsForm">
+      <div class="card">
+        <h2 class="section-title">Manual Point Adjustments</h2>
+        <form id="pointsForm">
         <div class="form-group">
           <label for="pointsWallet">Wallet Address *</label>
           <input type="text" id="pointsWallet" placeholder="rXXXXXXXXXXXXXXXXXXXXXX" required>
@@ -497,11 +519,13 @@
           <textarea id="pointsReason" placeholder="Why are you adjusting these points?"></textarea>
         </div>
         <button type="submit">💰 Adjust Points</button>
-      </form>
+        </form>
+      </div>
 
       <!-- BAN/UNBAN USERS -->
-      <h2 class="section-title">Ban Management</h2>
-      <form id="banForm">
+      <div class="card">
+        <h2 class="section-title">Ban Management</h2>
+        <form id="banForm">
         <div class="form-group">
           <label for="banWallet">Wallet Address *</label>
           <input type="text" id="banWallet" placeholder="rXXXXXXXXXXXXXXXXXXXXXX" required>
@@ -511,16 +535,20 @@
           <textarea id="banReason" placeholder="Why are you banning this user?"></textarea>
         </div>
         <button type="submit" class="delete-btn" style="width: 100%;">🚫 Ban User</button>
-      </form>
-      <div id="bannedUsersList"></div>
+        </form>
+        <div id="bannedUsersList"></div>
+      </div>
 
       <!-- ANALYTICS DASHBOARD -->
-      <h2 class="section-title">Analytics Dashboard</h2>
-      <div id="analyticsData"></div>
+      <div class="card">
+        <h2 class="section-title">Analytics Dashboard</h2>
+        <div id="analyticsData"></div>
+      </div>
 
       <!-- GAME SETTINGS -->
-      <h2 class="section-title">Game Settings</h2>
-      <form id="settingsForm">
+      <div class="card">
+        <h2 class="section-title">Game Settings</h2>
+        <form id="settingsForm">
         <div class="form-group">
           <label for="maxMinutes">Max Daily Minutes</label>
           <input type="number" id="maxMinutes" value="20" min="1" max="120">
@@ -530,24 +558,30 @@
           <input type="number" id="pointsPerMinute" value="1" min="0.1" max="10" step="0.1">
         </div>
         <button type="submit">⚙️ Update Settings</button>
-      </form>
+        </form>
+      </div>
 
       <!-- RAID ANALYTICS -->
-      <h2 class="section-title">Raid Analytics</h2>
-      <div id="raidAnalytics"></div>
+      <div class="card">
+        <h2 class="section-title">Raid Analytics</h2>
+        <div id="raidAnalytics"></div>
+      </div>
 
       <!-- POINT TRANSACTION HISTORY -->
-      <h2 class="section-title">Point Transaction History</h2>
-      <div class="form-group">
-        <label for="transactionWallet">Filter by Wallet (optional)</label>
-        <input type="text" id="transactionWallet" placeholder="Leave empty for all transactions">
-        <button class="edit-btn" onclick="loadTransactions()" style="width: auto; margin-top: 10px;">🔍 Load Transactions</button>
+      <div class="card">
+        <h2 class="section-title">Point Transaction History</h2>
+        <div class="form-group">
+          <label for="transactionWallet">Filter by Wallet (optional)</label>
+          <input type="text" id="transactionWallet" placeholder="Leave empty for all transactions">
+          <button class="edit-btn" onclick="loadTransactions()" style="width: auto; margin-top: 10px;">🔍 Load Transactions</button>
+        </div>
+        <div id="transactionsList"></div>
       </div>
-      <div id="transactionsList"></div>
 
       <!-- BULK POINT OPERATIONS -->
-      <h2 class="section-title">Bulk Point Operations</h2>
-      <form id="bulkForm">
+      <div class="card">
+        <h2 class="section-title">Bulk Point Operations</h2>
+        <form id="bulkForm">
         <div class="form-group">
           <label for="bulkWallets">Wallet Addresses *</label>
           <textarea id="bulkWallets" placeholder="Enter one wallet address per line&#10;rXXXXXXXXXXXXXXXXXXXXXX&#10;rYYYYYYYYYYYYYYYYYYYYYY" style="min-height: 150px;"></textarea>
@@ -562,11 +596,14 @@
           <textarea id="bulkReason" placeholder="Why are you awarding these points?"></textarea>
         </div>
         <button type="submit">🎁 Award Points to All</button>
-      </form>
+        </form>
+      </div>
 
       <!-- ACTIVITY LOGS -->
-      <h2 class="section-title">Admin Activity Logs</h2>
-      <div id="activityLogs"></div>
+      <div class="card">
+        <h2 class="section-title">Admin Activity Logs</h2>
+        <div id="activityLogs"></div>
+      </div>
     </div>
 
     <div id="status" class="status"></div>
@@ -684,15 +721,12 @@
     function hideSection(elementId) {
       const element = document.getElementById(elementId);
       if (element) {
-        element.style.display = 'none';
-        // Also hide the section title above it
-        let sibling = element.previousElementSibling;
-        while (sibling) {
-          if (sibling.classList.contains('section-title')) {
-            sibling.style.display = 'none';
-            break;
-          }
-          sibling = sibling.previousElementSibling;
+        // If element is inside a card, hide the card
+        const card = element.closest('.card');
+        if (card) {
+          card.style.display = 'none';
+        } else {
+          element.style.display = 'none';
         }
       }
     }
