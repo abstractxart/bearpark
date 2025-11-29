@@ -418,6 +418,42 @@
       padding: 30px;
       font-size: 16px;
     }
+
+    .history-item {
+      background: rgba(0, 0, 0, 0.3);
+      border: 2px solid rgba(104, 12, 217, 0.3);
+      border-radius: 12px;
+      padding: 12px 16px;
+      margin-bottom: 10px;
+      font-size: 14px;
+    }
+
+    .history-item .amount-positive {
+      color: var(--stripe-green);
+      font-weight: 700;
+    }
+
+    .history-item .amount-negative {
+      color: #ff6b6b;
+      font-weight: 700;
+    }
+
+    .history-item .timestamp {
+      color: rgba(255,255,255,0.5);
+      font-size: 12px;
+    }
+
+    .history-item .wallet {
+      color: var(--stripe-yellow);
+      font-size: 12px;
+      word-break: break-all;
+    }
+
+    .history-item .reason {
+      color: rgba(255,255,255,0.8);
+      font-style: italic;
+      margin-top: 4px;
+    }
   </style>
 </head>
 <body>
@@ -527,6 +563,9 @@
         </div>
         <button type="submit">💰 Adjust Points</button>
         </form>
+
+        <h3 style="color: var(--stripe-yellow); margin-top: 30px; margin-bottom: 15px;">Adjustment History</h3>
+        <div id="pointsHistoryList" class="scrollable-list"></div>
       </div>
 
       <!-- BAN/UNBAN USERS -->
@@ -901,6 +940,7 @@
         if (response.ok) {
           showStatus(`✅ Points adjusted successfully! (${pointsData.amount > 0 ? '+' : ''}${pointsData.amount})`, 'success');
           document.getElementById('pointsForm').reset();
+          await loadPointsHistory(); // Reload history
         } else {
           showStatus('❌ ' + (result.error || 'Failed to adjust points'), 'error');
         }
@@ -908,6 +948,52 @@
         showStatus('❌ Error: ' + error.message, 'error');
       }
     });
+
+    // Load Points Adjustment History
+    async function loadPointsHistory() {
+      try {
+        const response = await fetch('/api/admin/point-transactions?limit=50');
+        const result = await response.json();
+
+        const historyList = document.getElementById('pointsHistoryList');
+
+        if (!result.transactions || result.transactions.length === 0) {
+          historyList.innerHTML = '<div class="no-raids">No adjustment history yet</div>';
+          return;
+        }
+
+        // Filter to only show manual adjustments
+        const manualAdjustments = result.transactions.filter(tx =>
+          tx.transaction_type === 'manual_add' || tx.transaction_type === 'manual_subtract'
+        );
+
+        if (manualAdjustments.length === 0) {
+          historyList.innerHTML = '<div class="no-raids">No manual adjustments yet</div>';
+          return;
+        }
+
+        historyList.innerHTML = manualAdjustments.map(tx => {
+          const isPositive = tx.amount > 0;
+          const amountClass = isPositive ? 'amount-positive' : 'amount-negative';
+          const amountDisplay = isPositive ? `+${tx.amount}` : tx.amount;
+          const timestamp = new Date(tx.timestamp).toLocaleString();
+
+          return `
+            <div class="history-item">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span class="${amountClass}">${amountDisplay} points</span>
+                <span class="timestamp">${timestamp}</span>
+              </div>
+              <div class="wallet">Wallet: ${tx.wallet_address}</div>
+              ${tx.reason ? `<div class="reason">"${tx.reason}"</div>` : ''}
+            </div>
+          `;
+        }).join('');
+      } catch (error) {
+        console.error('Error loading points history:', error);
+        document.getElementById('pointsHistoryList').innerHTML = '<div class="no-raids">Error loading history</div>';
+      }
+    }
 
     // Ban User
     document.getElementById('banForm').addEventListener('submit', async (e) => {
@@ -1177,6 +1263,7 @@
           allUsers = usersResult.users || [];
           filterUsers();
           await loadBannedUsers();
+          await loadPointsHistory();
         } else {
           showStatus(`❌ Your wallet (${wallet}) does not have admin permissions. Please contact the site administrator.`, 'error');
           console.error('User does not have admin role:', wallet);
