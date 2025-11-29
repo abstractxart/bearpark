@@ -25432,6 +25432,12 @@ if (typeof window.addEventListener !== 'undefined') {
         const now = new Date();
         const utcHours = now.getUTCHours();
         const utcMinutes = now.getUTCMinutes();
+        const utcSeconds = now.getUTCSeconds();
+
+        // Calculate time until midnight UTC
+        const hoursToMidnight = 23 - utcHours;
+        const minsToMidnight = 59 - utcMinutes;
+        const secsToMidnight = 59 - utcSeconds;
 
         // Reset styles
         timerEl.style.background = 'rgba(251, 191, 36, 0.1)';
@@ -25439,21 +25445,23 @@ if (typeof window.addEventListener !== 'undefined') {
         timerEl.style.color = '#fbbf24';
 
         if (showClaimedMessage) {
-          // Already claimed - show next snapshot message
-          if (timerText) timerText.textContent = `✅ Claimed! Next snapshot at a random time tomorrow.`;
+          // Already claimed - show countdown to next claim window
+          if (timerText) {
+            timerText.innerHTML = `✅ Claimed! Next claim window in <strong>${hoursToMidnight}h ${minsToMidnight}m</strong>`;
+          }
         } else if (hasPendingClaim) {
           // Has pending claim - show countdown until midnight (when it expires)
-          const hoursLeft = 23 - utcHours;
-          const minsLeft = 59 - utcMinutes;
           if (timerText) {
-            timerText.innerHTML = `🟢 <strong>Claim available!</strong> Expires in ${hoursLeft}h ${minsLeft}m`;
+            timerText.innerHTML = `🟢 <strong>Claim available!</strong> Expires in <strong>${hoursToMidnight}h ${minsToMidnight}m</strong>`;
             timerEl.style.background = 'rgba(34, 197, 94, 0.2)';
             timerEl.style.borderColor = 'rgba(34, 197, 94, 0.5)';
             timerEl.style.color = '#22c55e';
           }
         } else {
-          // No pending claim
-          if (timerText) timerText.textContent = `📅 Waiting for today's snapshot...`;
+          // No pending claim - show countdown to next claim window
+          if (timerText) {
+            timerText.innerHTML = `⏰ Next claim window in <strong>${hoursToMidnight}h ${minsToMidnight}m</strong> (00:00 UTC)`;
+          }
         }
       }
 
