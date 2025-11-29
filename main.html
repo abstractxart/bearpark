@@ -15269,6 +15269,8 @@
     loadDailyGameProgress();
     const walletAddress = localStorage.getItem('bearpark_wallet');
     loadHoneyLeaderboard(walletAddress);
+    // Load persisted raid timers before loading raids
+    loadProcessingRaids();
     loadRaids();
     loadTopRaiders();
     startGameResetCountdown();
@@ -15345,6 +15347,54 @@
     let showingPreviousRaids = false;
     let currentRaidsData = {}; // Store raid data by ID for easy access
     let processingRaids = new Set(); // Track which raids are currently being processed
+    let processingRaidTimers = {}; // Track active processing raids with their start times
+
+    // Persist processing raids to localStorage
+    function saveProcessingRaids() {
+      const walletAddress = localStorage.getItem('bearpark_wallet');
+      if (!walletAddress) return;
+      localStorage.setItem(`processing_raids_${walletAddress}`, JSON.stringify(processingRaidTimers));
+    }
+
+    // Load processing raids from localStorage and restore them
+    function loadProcessingRaids() {
+      const walletAddress = localStorage.getItem('bearpark_wallet');
+      if (!walletAddress) return;
+
+      const stored = localStorage.getItem(`processing_raids_${walletAddress}`);
+      if (!stored) return;
+
+      try {
+        const storedTimers = JSON.parse(stored);
+        const now = Date.now();
+
+        Object.keys(storedTimers).forEach(raidId => {
+          const timerData = storedTimers[raidId];
+          const elapsed = Math.floor((now - timerData.startTime) / 1000);
+          const secondsLeft = 60 - elapsed;
+
+          if (secondsLeft > 0) {
+            // Timer still active - mark for resumption
+            processingRaids.add(raidId);
+            processingRaidTimers[raidId] = {
+              ...timerData,
+              secondsLeft,
+              needsResume: true
+            };
+          } else {
+            // Timer expired - auto-complete
+            console.log('⏰ Processing raid timer expired during refresh, will complete:', raidId);
+            processingRaidTimers[raidId] = {
+              ...timerData,
+              secondsLeft: 0,
+              needsComplete: true
+            };
+          }
+        });
+      } catch (e) {
+        console.error('Error loading processing raids:', e);
+      }
+    }
 
     // ===== GODMODE RAIDS SYSTEM =====
     let allRaidsData = [];
@@ -15353,6 +15403,72 @@
     let userCompletedRaids = [];
     let raidCompletionTimers = {}; // Track active completion timers {raidId: {timer, secondsLeft, button}}
     const RAID_COMPLETION_TIME = 120; // 120 seconds to complete
+
+    // Persist active raid timers to localStorage so they survive page refresh
+    function saveActiveRaidTimers() {
+      const walletAddress = localStorage.getItem('bearpark_wallet');
+      if (!walletAddress) return;
+
+      const activeTimers = {};
+      Object.keys(raidCompletionTimers).forEach(raidId => {
+        const timerInfo = raidCompletionTimers[raidId];
+        if (timerInfo && timerInfo.startTime) {
+          // Store reward so we don't need allRaidsData when resuming
+          const raid = allRaidsData.find(r => r.id == raidId);
+          activeTimers[raidId] = {
+            startTime: timerInfo.startTime,
+            duration: RAID_COMPLETION_TIME,
+            reward: raid?.reward || 20
+          };
+        }
+      });
+      localStorage.setItem(`active_raid_timers_${walletAddress}`, JSON.stringify(activeTimers));
+    }
+
+    // Load persisted raid timers from localStorage and resume them
+    function loadPersistedRaidTimers() {
+      const walletAddress = localStorage.getItem('bearpark_wallet');
+      if (!walletAddress) return;
+
+      const stored = localStorage.getItem(`active_raid_timers_${walletAddress}`);
+      if (!stored) return;
+
+      try {
+        const activeTimers = JSON.parse(stored);
+        const now = Date.now();
+
+        Object.keys(activeTimers).forEach(raidId => {
+          const timerData = activeTimers[raidId];
+          const elapsed = Math.floor((now - timerData.startTime) / 1000);
+          const secondsLeft = timerData.duration - elapsed;
+
+          if (secondsLeft > 0) {
+            // Timer still has time - will be resumed after raids load
+            raidCompletionTimers[raidId] = {
+              timer: null,
+              secondsLeft,
+              button: null,
+              startTime: timerData.startTime,
+              reward: timerData.reward,
+              needsResume: true
+            };
+          } else {
+            // Timer expired while page was closed - complete the raid now
+            console.log('⏰ Raid timer expired during refresh, completing raid:', raidId);
+            // Remove from stored timers
+            delete activeTimers[raidId];
+            // Complete the raid with stored reward
+            const storedReward = timerData.reward;
+            setTimeout(() => completeRaid(raidId, storedReward), 100);
+          }
+        });
+
+        // Update storage with only valid timers
+        localStorage.setItem(`active_raid_timers_${walletAddress}`, JSON.stringify(activeTimers));
+      } catch (e) {
+        console.error('Error loading persisted raid timers:', e);
+      }
+    }
 
     // Load and render GODMODE raids
     async function loadGodmodeRaids() {
@@ -15621,14 +15737,22 @@
           // Find the new button element after re-render
           const newButton = document.querySelector(`[data-raid-id="${raidId}"].raid-action-btn`);
           if (newButton) {
-            // Update button reference in timer object
-            timerInfo.button = newButton;
+            // If this timer was loaded from localStorage and needs to be resumed
+            if (timerInfo.needsResume) {
+              console.log('🔄 Resuming raid timer after page refresh:', raidId, 'with', timerInfo.secondsLeft, 'seconds left');
+              // Clear the placeholder and start a real timer
+              delete raidCompletionTimers[raidId];
+              startRaidCompletionTimer(raidId, newButton, timerInfo.secondsLeft);
+            } else {
+              // Just update button reference (tab switch scenario)
+              timerInfo.button = newButton;
 
-            // Restore button UI state
-            newButton.textContent = `⏳ COMPLETING... ${timerInfo.secondsLeft}s`;
-            newButton.disabled = true;
-            newButton.classList.remove('join');
-            newButton.classList.add('completing');
+              // Restore button UI state
+              newButton.textContent = `⏳ COMPLETING... ${timerInfo.secondsLeft}s`;
+              newButton.disabled = true;
+              newButton.classList.remove('join');
+              newButton.classList.add('completing');
+            }
           }
         }
       });
@@ -15938,9 +16062,10 @@
       startRaidCompletionTimer(raidId, button);
     }
 
-    // Start 120 second completion timer
-    function startRaidCompletionTimer(raidId, button) {
-      let secondsLeft = RAID_COMPLETION_TIME;
+    // Start 120 second completion timer (or resume with remaining time)
+    function startRaidCompletionTimer(raidId, button, resumeSecondsLeft = null) {
+      const startTime = resumeSecondsLeft ? (Date.now() - (RAID_COMPLETION_TIME - resumeSecondsLeft) * 1000) : Date.now();
+      let secondsLeft = resumeSecondsLeft || RAID_COMPLETION_TIME;
 
       // Update button immediately
       button.textContent = `⏳ COMPLETING... ${secondsLeft}s`;
@@ -15952,8 +16077,12 @@
       raidCompletionTimers[raidId] = {
         timer: null,
         secondsLeft,
-        button
+        button,
+        startTime
       };
+
+      // Persist to localStorage so timer survives page refresh
+      saveActiveRaidTimers();
 
       // Create countdown interval
       const timer = setInterval(() => {
@@ -15963,6 +16092,7 @@
         if (currentSeconds <= 0) {
           clearInterval(timer);
           delete raidCompletionTimers[raidId];
+          saveActiveRaidTimers(); // Remove from localStorage
           completeRaid(raidId);
         } else {
           // Update the current button reference (may have changed after tab switch)
@@ -15978,17 +16108,17 @@
     }
 
     // Complete raid and award points
-    async function completeRaid(raidId) {
+    async function completeRaid(raidId, storedReward = null) {
       const walletAddress = localStorage.getItem('bearpark_wallet');
       if (!walletAddress) {
         alert('❌ Please connect your wallet to complete raids');
         return;
       }
 
-      const raid = allRaidsData.find(r => r.id === raidId);
-      if (!raid) return;
+      const raid = allRaidsData.find(r => r.id == raidId);
+      const reward = storedReward || raid?.reward || 20;
 
-      console.log('✅ Completing raid:', raidId);
+      console.log('✅ Completing raid:', raidId, 'with reward:', reward);
 
       try {
         // Call API to complete raid and award points
@@ -15999,21 +16129,21 @@
             wallet_address: walletAddress,
             raid_id: raidId,
             completed_at: new Date().toISOString(),
-            points_awarded: raid.reward
+            points_awarded: reward
           })
         });
 
         const result = await response.json();
 
         if (response.ok && result.success) {
-          console.log('🎉 Raid completed successfully! Points awarded:', raid.reward);
+          console.log('🎉 Raid completed successfully! Points awarded:', reward);
 
           // Update local state
-          raid.isCompleted = true;
+          if (raid) raid.isCompleted = true;
           userCompletedRaids.push(raidId);
 
           // Show success message
-          showRaidCompletionAnimation(raidId, raid.reward);
+          showRaidCompletionAnimation(raidId, reward);
 
           // Reload user stats and leaderboard
           const wallet = localStorage.getItem('bearpark_wallet');
@@ -16111,6 +16241,8 @@
 
     // Initialize GODMODE raids on page load
     if (document.getElementById('raidsGrid')) {
+      // Load any persisted raid timers from localStorage first
+      loadPersistedRaidTimers();
       loadGodmodeRaids();
     }
 
@@ -16326,6 +16458,56 @@
       processingCards.forEach(card => {
         currentList.prepend(card); // Add at the beginning to keep them visible
       });
+
+      // Resume any persisted timers that need resumption after page refresh
+      resumePersistedTimers(walletAddress);
+    }
+
+    // Resume timers that were persisted before page refresh
+    function resumePersistedTimers(walletAddress) {
+      Object.keys(processingRaidTimers).forEach(raidId => {
+        const timerData = processingRaidTimers[raidId];
+        if (timerData.needsResume || timerData.needsComplete) {
+          const raidCard = document.querySelector(`.raid-item[data-raid-id="${raidId}"]`);
+          const raidBtn = raidCard?.querySelector('.raid-btn');
+
+          if (timerData.needsComplete) {
+            // Timer expired during refresh - complete the raid now
+            console.log('⏰ Auto-completing expired raid timer:', raidId);
+            delete processingRaidTimers[raidId];
+            saveProcessingRaids();
+
+            // Mark as completed in localStorage
+            const currentCompleted = JSON.parse(localStorage.getItem(`completed_raids_${walletAddress}`) || '[]');
+            if (!currentCompleted.includes(raidId)) {
+              currentCompleted.push(raidId);
+              localStorage.setItem(`completed_raids_${walletAddress}`, JSON.stringify(currentCompleted));
+
+              // Send to backend
+              fetch(`${API_BASE_URL}/api/raids/complete`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  wallet_address: walletAddress,
+                  raid_id: raidId,
+                  completed_at: new Date().toISOString(),
+                  points_awarded: timerData.pointsAwarded || 20
+                })
+              }).then(r => r.json()).then(data => {
+                if (data.success) {
+                  console.log('✅ Auto-completed raid synced with backend:', raidId);
+                  loadRaids(); // Refresh to update UI
+                }
+              }).catch(err => console.error('Error auto-completing raid:', err));
+            }
+          } else if (timerData.needsResume && raidCard && raidBtn) {
+            // Timer still has time - resume it
+            console.log('🔄 Resuming raid timer after page refresh:', raidId, 'with', timerData.secondsLeft, 'seconds left');
+            delete processingRaidTimers[raidId].needsResume;
+            startRaidCompletion(raidId, walletAddress, raidCard, raidBtn, null, timerData.secondsLeft);
+          }
+        }
+      });
     }
 
     async function loadTweetPreview(raidId, twitterUrl) {
@@ -16500,7 +16682,7 @@
     };
 
     // Separate function for the actual raid completion flow
-    function startRaidCompletion(raidId, walletAddress, raidCard, raidBtn, event) {
+    function startRaidCompletion(raidId, walletAddress, raidCard, raidBtn, event, resumeSecondsLeft = null) {
 
       // SECURITY: Capture raid reward IMMEDIATELY before any async operations
       // This ensures we have the correct reward value even if raids refresh during countdown
@@ -16508,18 +16690,21 @@
       const pointsAwarded = raidData?.reward || 20;
       console.log(`🎯 Raid reward captured: ${pointsAwarded} points for raid ${raidId}`);
 
-      // Open Twitter URL in browser (bypass Windows X app handler)
-      let twitterUrl = raidBtn.getAttribute('data-twitter-url') || raidData?.twitter_url;
-      if (twitterUrl) {
-        twitterUrl = twitterUrl.replace('https://x.com/', 'https://twitter.com/');
+      // Only open Twitter if this is a new raid start (not a resume)
+      if (!resumeSecondsLeft) {
+        // Open Twitter URL in browser (bypass Windows X app handler)
+        let twitterUrl = raidBtn.getAttribute('data-twitter-url') || raidData?.twitter_url;
+        if (twitterUrl) {
+          twitterUrl = twitterUrl.replace('https://x.com/', 'https://twitter.com/');
 
-        // Workaround for Windows opening X app: open blank tab first, then navigate
-        const newTab = window.open('about:blank', '_blank');
-        if (newTab) {
-          // Small delay to ensure tab is ready, then navigate
-          setTimeout(() => {
-            newTab.location.href = twitterUrl;
-          }, 100);
+          // Workaround for Windows opening X app: open blank tab first, then navigate
+          const newTab = window.open('about:blank', '_blank');
+          if (newTab) {
+            // Small delay to ensure tab is ready, then navigate
+            setTimeout(() => {
+              newTab.location.href = twitterUrl;
+            }, 100);
+          }
         }
       }
 
@@ -16537,9 +16722,18 @@
       raidCard.classList.add('completing');
       raidBtn.classList.add('completing');
 
-      // Start 60-second countdown
-      let secondsLeft = 60;
+      // Start countdown (use resumed time or 60 seconds for new)
+      const startTime = resumeSecondsLeft ? (Date.now() - (60 - resumeSecondsLeft) * 1000) : Date.now();
+      let secondsLeft = resumeSecondsLeft || 60;
       raidBtn.textContent = `COMPLETING... ⏳ ${secondsLeft}s`;
+
+      // Store in processingRaidTimers for persistence
+      processingRaidTimers[raidId] = {
+        startTime,
+        pointsAwarded,
+        raidData
+      };
+      saveProcessingRaids();
 
       // Store original button content to prevent overwrites
       const processingText = `COMPLETING... ⏳`;
@@ -16554,6 +16748,10 @@
         } else {
           // Countdown finished - mark as completed and fade out
           clearInterval(countdownInterval);
+
+          // Remove from processing timers and save
+          delete processingRaidTimers[raidId];
+          saveProcessingRaids();
 
           // SECURITY: Double-check not already completed
           const currentCompleted = JSON.parse(localStorage.getItem(`completed_raids_${walletAddress}`) || '[]');
