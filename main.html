@@ -25549,9 +25549,12 @@ if (typeof window.addEventListener !== 'undefined') {
 
         // Check claim status from database
         const claimStatus = await _checkClaimStatus(w);
+        console.log('BEARDROPS DEBUG - claimStatus:', JSON.stringify(claimStatus));
+        console.log('BEARDROPS DEBUG - total_pending:', claimStatus.total_pending, 'tr:', tr);
         const claimedToday = claimStatus.claimed_today;
         const hasPendingClaim = claimStatus.total_pending > 0; // Has ACTUAL pending reward in database
         const pendingAmount = claimStatus.total_pending || 0;
+        console.log('BEARDROPS DEBUG - hasPendingClaim:', hasPendingClaim, 'pendingAmount:', pendingAmount);
 
         if (claimedToday) {
           // Already claimed - show claimed state
