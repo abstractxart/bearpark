@@ -10492,9 +10492,9 @@
             <div class="m7-dropdown-section m7-warning-section">
               <div class="m7-dropdown-header">⚠️ IMPORTANT RULES</div>
               <div class="m7-dropdown-item">🎲 Snapshots happen at <strong>random times</strong> each day (anti-cheat)</div>
-              <div class="m7-dropdown-item">📅 You have the <strong>FULL NEXT DAY</strong> to claim your reward</div>
-              <div class="m7-dropdown-item">⏰ Plus a <strong>30-minute grace period</strong> into the following day</div>
-              <div class="m7-dropdown-item m7-danger">💀 Miss the grace period (00:30 UTC) = <strong>lose your reward forever</strong></div>
+              <div class="m7-dropdown-item">📅 Claims open at <strong>00:00 UTC</strong> the next day</div>
+              <div class="m7-dropdown-item">⏰ You have <strong>exactly 24 hours</strong> to claim (until 23:59 UTC)</div>
+              <div class="m7-dropdown-item m7-danger">💀 Miss the deadline = <strong>lose your reward forever!</strong></div>
             </div>
             <div class="m7-dropdown-disclaimer">
               ⚖️ If admins/mods determine you're gaming the system or exploiting loopholes, we reserve the right to <strong>blacklist your wallet</strong> from earning airdrops. Play fair and have fun! 😉
@@ -25432,8 +25432,6 @@ if (typeof window.addEventListener !== 'undefined') {
         const now = new Date();
         const utcHours = now.getUTCHours();
         const utcMinutes = now.getUTCMinutes();
-        const minutesPastMidnight = utcHours * 60 + utcMinutes;
-        const inGracePeriod = minutesPastMidnight < 30;
 
         // Reset styles
         timerEl.style.background = 'rgba(251, 191, 36, 0.1)';
@@ -25443,21 +25441,12 @@ if (typeof window.addEventListener !== 'undefined') {
         if (showClaimedMessage) {
           // Already claimed - show next snapshot message
           if (timerText) timerText.textContent = `✅ Claimed! Next snapshot at a random time tomorrow.`;
-        } else if (hasPendingClaim && inGracePeriod) {
-          // Has pending claim and in grace period - URGENT!
-          const minsRemaining = 30 - minutesPastMidnight;
-          if (timerText) {
-            timerText.innerHTML = `🚨 <strong>GRACE PERIOD!</strong> Only ${minsRemaining} min left to claim!`;
-            timerEl.style.background = 'rgba(239, 68, 68, 0.2)';
-            timerEl.style.borderColor = 'rgba(239, 68, 68, 0.5)';
-            timerEl.style.color = '#ef4444';
-          }
         } else if (hasPendingClaim) {
-          // Has pending claim - show time until grace period ends tomorrow
+          // Has pending claim - show countdown until midnight (when it expires)
           const hoursLeft = 23 - utcHours;
           const minsLeft = 59 - utcMinutes;
           if (timerText) {
-            timerText.innerHTML = `🟢 <strong>Claim available!</strong> Expires in ${hoursLeft}h ${minsLeft + 30}m`;
+            timerText.innerHTML = `🟢 <strong>Claim available!</strong> Expires in ${hoursLeft}h ${minsLeft}m`;
             timerEl.style.background = 'rgba(34, 197, 94, 0.2)';
             timerEl.style.borderColor = 'rgba(34, 197, 94, 0.5)';
             timerEl.style.color = '#22c55e';
