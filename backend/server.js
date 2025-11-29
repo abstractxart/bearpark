@@ -5800,6 +5800,7 @@ app.post('/api/beardrops/admin/config', verifyApex, async (req, res) => {
 
 // CLAIM AIRDROP - Send $BEAR tokens to eligible wallet
 // Requires AIRDROP_WALLET_SECRET env variable
+// SECURITY: Multiple layers of protection against exploits
 app.post('/api/beardrops/claim', validateWallet, async (req, res) => {
   try {
     const { wallet_address } = req.body;
@@ -5812,7 +5813,29 @@ app.post('/api/beardrops/claim', validateWallet, async (req, res) => {
       });
     }
 
-    // Get the latest pending snapshot for this wallet
+    // ========== SECURITY FIX #1: CLAIM MUTEX ==========
+    // Check if there's already a claim in progress for this wallet
+    const { data: inProgress } = await supabase
+      .from('airdrop_snapshots')
+      .select('id')
+      .eq('wallet_address', wallet_address)
+      .eq('claim_status', 'processing')
+      .maybeSingle();
+
+    if (inProgress) {
+      return res.status(429).json({
+        success: false,
+        error: 'Claim already in progress. Please wait.'
+      });
+    }
+
+    // ========== SECURITY FIX #2: CLAIM EXPIRY ==========
+    // Only get snapshots from last 7 days (configurable)
+    const expiryDays = 7;
+    const expiryDate = new Date();
+    expiryDate.setDate(expiryDate.getDate() - expiryDays);
+
+    // Get the latest pending snapshot for this wallet (not expired)
     const { data: snapshot, error: snapshotError } = await supabase
       .from('airdrop_snapshots')
       .select('*')
@@ -5820,6 +5843,7 @@ app.post('/api/beardrops/claim', validateWallet, async (req, res) => {
       .eq('claim_status', 'pending')
       .eq('is_eligible', true)
       .eq('is_blacklisted', false)
+      .gte('snapshot_date', expiryDate.toISOString().split('T')[0])
       .order('snapshot_date', { ascending: false })
       .limit(1)
       .single();
@@ -5856,12 +5880,39 @@ app.post('/api/beardrops/claim', validateWallet, async (req, res) => {
       });
     }
 
-    const claimAmount = parseFloat(snapshot.total_reward);
+    // ========== SECURITY FIX #3: RECALCULATE AMOUNT SERVER-SIDE ==========
+    // Don't trust the database value - recalculate from snapshot data
+    const BEAR_PER_PIXEL = 1;
+    const BEAR_PER_ULTRA = 5;
+    const LP_PER_BEAR = 250000;
+
+    const nftReward = (snapshot.pixel_bears || 0) * BEAR_PER_PIXEL +
+                      (snapshot.ultra_rares || 0) * BEAR_PER_ULTRA;
+    const lpReward = Math.floor(parseFloat(snapshot.lp_tokens || 0) / LP_PER_BEAR);
+    const calculatedAmount = nftReward + lpReward;
+
+    // Use the LOWER of stored vs calculated (prevent inflation attacks)
+    const claimAmount = Math.min(parseFloat(snapshot.total_reward), calculatedAmount);
 
     if (claimAmount <= 0) {
       return res.status(400).json({
         success: false,
         error: 'No reward to claim'
+      });
+    }
+
+    // ========== SECURITY FIX #4: SET PROCESSING LOCK ==========
+    // Mark as processing BEFORE sending transaction (prevents race condition)
+    const { error: lockError } = await supabase
+      .from('airdrop_snapshots')
+      .update({ claim_status: 'processing', updated_at: new Date().toISOString() })
+      .eq('id', snapshot.id)
+      .eq('claim_status', 'pending'); // Only if still pending (atomic check)
+
+    if (lockError) {
+      return res.status(409).json({
+        success: false,
+        error: 'Claim conflict. Please try again.'
       });
     }
 
@@ -5934,7 +5985,12 @@ app.post('/api/beardrops/claim', validateWallet, async (req, res) => {
           explorer_url: `https://xrpscan.com/tx/${txHash}`
         });
       } else {
-        // Transaction failed
+        // Transaction failed - ROLLBACK the processing lock
+        await supabase
+          .from('airdrop_snapshots')
+          .update({ claim_status: 'pending', updated_at: new Date().toISOString() })
+          .eq('id', snapshot.id);
+
         await supabase
           .from('airdrop_transactions')
           .insert({
@@ -5954,6 +6010,14 @@ app.post('/api/beardrops/claim', validateWallet, async (req, res) => {
           error: `Transaction failed: ${txResult}`
         });
       }
+    } catch (txError) {
+      // XRPL error - ROLLBACK the processing lock
+      console.error('❌ XRPL Transaction error:', txError);
+      await supabase
+        .from('airdrop_snapshots')
+        .update({ claim_status: 'pending', updated_at: new Date().toISOString() })
+        .eq('id', snapshot.id);
+      throw txError;
     } finally {
       await client.disconnect();
     }

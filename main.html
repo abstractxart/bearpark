@@ -10468,7 +10468,7 @@
 
         <div class="m7-timer" id="m7Timer" style="display: none;">
           <span class="m7-timer-icon">⏰</span>
-          <span>Next drop in: <strong id="m7Countdown">--:--:--</strong></span>
+          <span id="m7TimerText">Next snapshot coming soon...</span>
         </div>
 
         <div class="m7-info" id="m7Info">
@@ -10478,7 +10478,8 @@
             <div class="m7-info-item">💎 <strong>5 $BEAR</strong> per Ultra Rare NFT held</div>
             <div class="m7-info-item">💧 <strong>1 $BEAR</strong> per 250,000 LP tokens</div>
             <div class="m7-info-item">🍯 Earn <strong>30+ honey points</strong> in 24h to unlock claim</div>
-            <div class="m7-info-item">🔄 Resets daily at <strong>00:00 UTC</strong></div>
+            <div class="m7-info-item">🔄 Snapshots taken at <strong>random times daily</strong></div>
+            <div class="m7-info-item">⏳ Claims expire after <strong>7 days</strong></div>
           </div>
         </div>
 
@@ -25298,29 +25299,16 @@ if (typeof window.addEventListener !== 'undefined') {
 
     function _startTimer() {
       const timerEl = document.getElementById('m7Timer');
-      const countdownEl = document.getElementById('m7Countdown');
-      if (!timerEl || !countdownEl) return;
+      const timerText = document.getElementById('m7TimerText');
+      if (!timerEl) return;
       timerEl.style.display = 'block';
-
-      function updateTimer() {
-        const now = new Date();
-        const utcMidnight = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0));
-        const diff = utcMidnight - now;
-        const hours = Math.floor(diff / (1000 * 60 * 60));
-        const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-        const secs = Math.floor((diff % (1000 * 60)) / 1000);
-        countdownEl.textContent = hours.toString().padStart(2, '0') + ':' + mins.toString().padStart(2, '0') + ':' + secs.toString().padStart(2, '0');
-      }
-
-      updateTimer();
-      if (window._m7TimerInterval) clearInterval(window._m7TimerInterval);
-      window._m7TimerInterval = setInterval(updateTimer, 1000);
+      // Show generic message - exact time is random and hidden
+      if (timerText) timerText.textContent = '\u2705 Claimed! Next snapshot at a random time tomorrow.';
     }
 
     function _hideTimer() {
       const timerEl = document.getElementById('m7Timer');
       if (timerEl) timerEl.style.display = 'none';
-      if (window._m7TimerInterval) clearInterval(window._m7TimerInterval);
     }
 
     function _init() {
