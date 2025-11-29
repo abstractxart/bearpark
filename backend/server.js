@@ -6215,84 +6215,57 @@ app.post('/api/beardrops/admin/batch-payout', verifyApex, async (req, res) => {
 console.log('✅ BEARDROPS airdrop endpoints initialized');
 
 // ========== XRPL TRADING DATA ENDPOINT ==========
-// Fetches real-time 24h trading data directly from XRPL
+// Fetches real-time 24h trading data directly from XRPL using the xrpl package
 
+const xrpl = require('xrpl');
 const BEAR_ISSUER = 'rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW';
 const XRPL_WS_URL = 'wss://xrplcluster.com';
 
-// Helper function to query XRPL via WebSocket
-async function queryXRPL(request, timeout = 15000) {
-  return new Promise((resolve, reject) => {
-    const WebSocket = require('ws');
-    const ws = new WebSocket(XRPL_WS_URL);
-    let resolved = false;
-
-    const timer = setTimeout(() => {
-      if (!resolved) {
-        resolved = true;
-        ws.close();
-        reject(new Error('XRPL query timeout'));
-      }
-    }, timeout);
-
-    ws.on('open', () => {
-      ws.send(JSON.stringify(request));
-    });
-
-    ws.on('message', (data) => {
-      if (!resolved) {
-        resolved = true;
-        clearTimeout(timer);
-        try {
-          const response = JSON.parse(data.toString());
-          ws.close();
-          resolve(response);
-        } catch (e) {
-          ws.close();
-          reject(e);
-        }
-      }
-    });
-
-    ws.on('error', (err) => {
-      if (!resolved) {
-        resolved = true;
-        clearTimeout(timer);
-        reject(err);
-      }
-    });
-  });
-}
-
 // Get AMM info for BEAR/XRP pair
 async function getAMMInfo() {
-  const response = await queryXRPL({
-    command: 'amm_info',
-    asset: { currency: 'XRP' },
-    asset2: { currency: 'BEAR', issuer: BEAR_ISSUER }
-  });
+  const client = new xrpl.Client(XRPL_WS_URL);
+  try {
+    await client.connect();
+    const response = await client.request({
+      command: 'amm_info',
+      asset: { currency: 'XRP' },
+      asset2: { currency: 'BEAR', issuer: BEAR_ISSUER }
+    });
+    await client.disconnect();
 
-  if (response.result && response.result.amm) {
-    return response.result.amm;
+    if (response.result && response.result.amm) {
+      return response.result.amm;
+    }
+    throw new Error('AMM not found in response');
+  } catch (error) {
+    try { await client.disconnect(); } catch (e) {}
+    throw error;
   }
-  throw new Error('AMM not found');
 }
 
 // Get transaction history for an account
 async function getAccountTransactions(account, limit = 200) {
-  const response = await queryXRPL({
-    command: 'account_tx',
-    account: account,
-    ledger_index_min: -1,
-    ledger_index_max: -1,
-    limit: limit,
-    forward: false
-  });
+  const client = new xrpl.Client(XRPL_WS_URL);
+  try {
+    await client.connect();
+    const response = await client.request({
+      command: 'account_tx',
+      account: account,
+      ledger_index_min: -1,
+      ledger_index_max: -1,
+      limit: limit,
+      forward: false
+    });
+    await client.disconnect();
 
-  if (response.result && response.result.transactions) {
-    return response.result.transactions;
+    if (response.result && response.result.transactions) {
+      return response.result.transactions;
+    }
+    return [];
+  } catch (error) {
+    try { await client.disconnect(); } catch (e) {}
+    throw error;
   }
-  return [];
 }
 
 // Parse transaction to extract trading info
