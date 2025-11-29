@@ -753,11 +753,15 @@ app.get('/api/honey-points/24h', async (req, res) => {
     if (!wallet) {
       return res.status(400).json({ success: false, error: 'Wallet address required' });
     }
+    // Calculate midnight UTC for daily reset
+    const midnightUTC = new Date();
+    midnightUTC.setUTCHours(0, 0, 0, 0);
+
     const { data, error } = await supabase
       .from('honey_points_activity')
       .select('points')
       .eq('wallet_address', wallet)
-      .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+      .gte('created_at', midnightUTC.toISOString());
     if (error) {
       return res.status(500).json({ success: false, error: error.message });
     }
@@ -5556,12 +5560,15 @@ app.get('/api/beardrops/eligibility/:wallet', async (req, res) => {
 
     const minHoneyPoints = parseInt(configData?.value || '30');
 
-    // Calculate 24h rolling honey points
+    // Calculate daily honey points (resets at 00:00 UTC)
+    const midnightUTC = new Date();
+    midnightUTC.setUTCHours(0, 0, 0, 0);
+
     const { data: activityData } = await supabase
       .from('honey_points_activity')
       .select('points')
       .eq('wallet_address', wallet)
-      .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+      .gte('created_at', midnightUTC.toISOString());
 
     const honeyPoints24h = activityData?.reduce((sum, row) => sum + row.points, 0) || 0;
 
@@ -5882,12 +5889,15 @@ app.post('/api/beardrops/claim', validateWallet, async (req, res) => {
       });
     }
 
-    // Double-check eligibility (24h honey points)
+    // Double-check eligibility (daily honey points - resets at 00:00 UTC)
+    const midnightUTC = new Date();
+    midnightUTC.setUTCHours(0, 0, 0, 0);
+
     const { data: activityData } = await supabase
       .from('honey_points_activity')
       .select('points')
       .eq('wallet_address', wallet_address)
-      .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+      .gte('created_at', midnightUTC.toISOString());
 
     const honeyPoints24h = activityData?.reduce((sum, row) => sum + row.points, 0) || 0;
 
@@ -6088,12 +6098,15 @@ app.get('/api/beardrops/claim-status/:wallet', async (req, res) => {
       .order('claimed_at', { ascending: false })
       .limit(5);
 
-    // Get 24h honey points
+    // Get daily honey points (resets at 00:00 UTC)
+    const midnightUTC = new Date();
+    midnightUTC.setUTCHours(0, 0, 0, 0);
+
     const { data: activityData } = await supabase
       .from('honey_points_activity')
       .select('points')
       .eq('wallet_address', wallet)
-      .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+      .gte('created_at', midnightUTC.toISOString());
 
     const honeyPoints24h = activityData?.reduce((sum, row) => sum + row.points, 0) || 0;
 
