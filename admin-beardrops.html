@@ -741,8 +741,25 @@
       </div>
       <div class="card">
         <div class="card-header">
-          <span class="card-title">BLACKLIST MONITOR</span>
+          <span class="card-title">BLACKLIST MANAGEMENT</span>
           <span class="card-badge badge-danger" id="blacklistBadge">0</span>
+        </div>
+        <!-- Add to Blacklist Form -->
+        <div style="padding: 16px; border-bottom: 1px solid rgba(255,255,255,0.1);">
+          <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+            <input type="text" id="blacklistWalletInput" placeholder="Wallet address (r...)"
+              style="flex: 1; min-width: 200px; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); color: #fff; font-family: monospace;">
+            <select id="blacklistReasonSelect" style="padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); color: #fff;">
+              <option value="single_side_deposit">Single-Side Deposit</option>
+              <option value="single_side_withdraw">Single-Side Withdraw</option>
+              <option value="manipulation">Price Manipulation</option>
+              <option value="manual">Manual (Admin)</option>
+            </select>
+            <button onclick="addToBlacklist()" style="padding: 12px 24px; border-radius: 8px; border: none; background: var(--red); color: #fff; font-weight: 700; cursor: pointer;">
+              + BLACKLIST
+            </button>
+          </div>
+          <div id="blacklistStatus" style="margin-top: 8px; font-size: 12px; color: rgba(255,255,255,0.5);"></div>
         </div>
         <div class="table-container">
           <table>
@@ -751,11 +768,38 @@
                 <th>Wallet</th>
                 <th>Reason</th>
                 <th>Detected</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody id="blacklistTable"></tbody>
           </table>
         </div>
+      </div>
+    </div>
+
+    <!-- LP Changes Tracking -->
+    <div class="card" style="margin-top: 24px;">
+      <div class="card-header">
+        <span class="card-title">LP CHANGES (Last 7 Days)</span>
+        <span class="card-badge badge-warning" id="lpChangesBadge">0</span>
+      </div>
+      <div style="padding: 12px; background: rgba(243, 156, 18, 0.1); border-bottom: 1px solid rgba(243, 156, 18, 0.3); font-size: 13px; color: #f39c12;">
+        Review new LP deposits to identify potential single-side deposits. Click "Blacklist" to block LP rewards.
+      </div>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Wallet</th>
+              <th>First Seen</th>
+              <th>LP Balance</th>
+              <th>Change</th>
+              <th>Type</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="lpChangesTable"></tbody>
+        </table>
       </div>
     </div>
 
@@ -894,6 +938,7 @@
           loadCharts(),
           loadRecentSnapshots(),
           loadBlacklist(),
+          loadLpChanges(),
           loadTopEarners(),
           loadAlerts(),
           loadSuspiciousActivity()
@@ -1043,7 +1088,7 @@
 
     async function loadBlacklist() {
       const blacklist = await supabaseQuery('lp_blacklist', {
-        select: 'wallet_address,reason,detected_at',
+        select: 'wallet_address,reason,detected_at,id',
         eq: { is_active: true },
         order: 'detected_at.desc',
         limit: 20
@@ -1053,11 +1098,170 @@
 
       document.getElementById('blacklistTable').innerHTML = blacklist.map(b => `
         <tr>
-          <td class="wallet-address">${b.wallet_address.slice(0, 8)}...${b.wallet_address.slice(-6)}</td>
+          <td class="wallet-address" title="${b.wallet_address}">${b.wallet_address.slice(0, 8)}...${b.wallet_address.slice(-6)}</td>
           <td><span class="status-badge status-blacklisted">${b.reason}</span></td>
           <td>${new Date(b.detected_at).toLocaleDateString()}</td>
+          <td>
+            <button onclick="removeFromBlacklist('${b.wallet_address}')" style="padding: 6px 12px; border-radius: 6px; border: 1px solid var(--stripe-green); background: transparent; color: var(--stripe-green); cursor: pointer; font-size: 11px;">
+              Remove
+            </button>
+          </td>
         </tr>
-      `).join('') || '<tr><td colspan="3" style="text-align:center;color:rgba(255,255,255,0.5)">No blacklisted wallets</td></tr>';
+      `).join('') || '<tr><td colspan="4" style="text-align:center;color:rgba(255,255,255,0.5)">No blacklisted wallets</td></tr>';
+    }
+
+    // ========== BLACKLIST MANAGEMENT ==========
+    async function addToBlacklist() {
+      const wallet = document.getElementById('blacklistWalletInput').value.trim();
+      const reason = document.getElementById('blacklistReasonSelect').value;
+      const status = document.getElementById('blacklistStatus');
+
+      if (!wallet || !wallet.startsWith('r') || wallet.length < 25) {
+        status.textContent = 'Invalid wallet address';
+        status.style.color = 'var(--red)';
+        return;
+      }
+
+      status.textContent = 'Adding to blacklist...';
+      status.style.color = 'var(--gold)';
+
+      try {
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/lp_blacklist`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            'Prefer': 'return=representation'
+          },
+          body: JSON.stringify({
+            wallet_address: wallet,
+            reason: reason,
+            is_active: true,
+            notes: `Added by admin ${currentWallet}`
+          })
+        });
+
+        if (response.ok) {
+          status.textContent = 'Wallet blacklisted! LP rewards will be blocked.';
+          status.style.color = 'var(--stripe-green)';
+          document.getElementById('blacklistWalletInput').value = '';
+          loadBlacklist();
+          loadStats();
+        } else {
+          const err = await response.json();
+          if (err.code === '23505') {
+            status.textContent = 'Wallet already blacklisted';
+          } else {
+            status.textContent = 'Error: ' + (err.message || 'Unknown error');
+          }
+          status.style.color = 'var(--red)';
+        }
+      } catch (e) {
+        status.textContent = 'Network error: ' + e.message;
+        status.style.color = 'var(--red)';
+      }
+    }
+
+    async function removeFromBlacklist(wallet) {
+      if (!confirm(`Remove ${wallet.slice(0,8)}... from blacklist? They will receive LP rewards again.`)) return;
+
+      try {
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/lp_blacklist?wallet_address=eq.${wallet}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+          },
+          body: JSON.stringify({ is_active: false })
+        });
+
+        if (response.ok) {
+          loadBlacklist();
+          loadStats();
+        }
+      } catch (e) {
+        alert('Error removing from blacklist: ' + e.message);
+      }
+    }
+
+    async function quickBlacklist(wallet) {
+      if (!confirm(`Blacklist ${wallet.slice(0,8)}... for single-side deposit?`)) return;
+
+      try {
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/lp_blacklist`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            'Prefer': 'return=representation'
+          },
+          body: JSON.stringify({
+            wallet_address: wallet,
+            reason: 'single_side_deposit',
+            is_active: true,
+            notes: `Quick blacklist by admin from LP changes view`
+          })
+        });
+
+        if (response.ok) {
+          loadBlacklist();
+          loadLpChanges();
+          loadStats();
+        }
+      } catch (e) {
+        alert('Error: ' + e.message);
+      }
+    }
+
+    // ========== LP CHANGES ==========
+    async function loadLpChanges() {
+      const changes = await supabaseQuery('lp_balance_history', {
+        select: 'wallet_address,first_seen_at,lp_balance,balance_change,change_type,snapshot_date',
+        order: 'snapshot_date.desc,balance_change.desc',
+        limit: 50
+      });
+
+      // Get blacklist to check status
+      const blacklist = await supabaseQuery('lp_blacklist', {
+        select: 'wallet_address',
+        eq: { is_active: true }
+      });
+      const blacklistedSet = new Set(blacklist?.map(b => b.wallet_address) || []);
+
+      if (!changes || changes.error) {
+        document.getElementById('lpChangesTable').innerHTML = '<tr><td colspan="6" style="text-align:center;color:rgba(255,255,255,0.5)">No LP changes recorded yet</td></tr>';
+        return;
+      }
+
+      // Filter to only show increases and new
+      const filtered = changes.filter(c => c.change_type === 'new' || c.change_type === 'increase');
+      document.getElementById('lpChangesBadge').textContent = filtered.length;
+
+      document.getElementById('lpChangesTable').innerHTML = filtered.map(c => {
+        const isBlacklisted = blacklistedSet.has(c.wallet_address);
+        const changeColor = c.change_type === 'new' ? 'var(--stripe-green)' : 'var(--gold)';
+        const lpBalance = parseFloat(c.lp_balance).toLocaleString(undefined, {maximumFractionDigits: 2});
+        const balanceChange = parseFloat(c.balance_change).toLocaleString(undefined, {maximumFractionDigits: 2});
+
+        return `
+          <tr style="${isBlacklisted ? 'opacity: 0.5;' : ''}">
+            <td class="wallet-address" title="${c.wallet_address}">${c.wallet_address.slice(0, 8)}...${c.wallet_address.slice(-6)}</td>
+            <td>${c.first_seen_at ? new Date(c.first_seen_at).toLocaleDateString() : '-'}</td>
+            <td>${lpBalance}</td>
+            <td style="color: ${changeColor};">+${balanceChange}</td>
+            <td><span class="status-badge" style="background: ${c.change_type === 'new' ? 'var(--stripe-green)' : 'var(--gold)'}; color: #000;">${c.change_type.toUpperCase()}</span></td>
+            <td>
+              ${isBlacklisted
+                ? '<span style="color: var(--red); font-size: 11px;">BLOCKED</span>'
+                : `<button onclick="quickBlacklist('${c.wallet_address}')" style="padding: 6px 12px; border-radius: 6px; border: none; background: var(--red); color: #fff; cursor: pointer; font-size: 11px;">Blacklist</button>`
+              }
+            </td>
+          </tr>
+        `;
+      }).join('') || '<tr><td colspan="6" style="text-align:center;color:rgba(255,255,255,0.5)">No new LP deposits</td></tr>';
     }
 
     async function loadTopEarners() {
