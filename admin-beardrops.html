@@ -1,0 +1,1357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BEAR Park - BEARDROPS Admin Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/luxon@3.4.4/build/global/luxon.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.3.1/dist/chartjs-adapter-luxon.umd.min.js"></script>
+  <style>
+    :root {
+      --gold: #ffae00;
+      --charcoal: #141619;
+      --card: #1e2226;
+      --card-hover: #252a2f;
+      --stripe-purple: #680cd9;
+      --stripe-yellow: #ffae00;
+      --stripe-green: #07ae08;
+      --red: #e74c3c;
+      --blue: #3498db;
+      --orange: #f39c12;
+      --tri-gradient: linear-gradient(135deg, var(--stripe-purple) 0%, var(--stripe-purple) 33.33%, var(--stripe-yellow) 33.33%, var(--stripe-yellow) 66.66%, var(--stripe-green) 66.66%, var(--stripe-green) 100%);
+      --glass-bg: rgba(30, 34, 38, 0.95);
+      --elev-strong: 0 10px 28px rgba(0,0,0,.45), 0 1px 0 rgba(255,255,255,.03) inset;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: "Nunito", system-ui, -apple-system, sans-serif;
+      background: var(--charcoal);
+      background-image:
+        radial-gradient(100vmax 60vmax at 10% -10%, rgba(237,183,35,.055), transparent 60%),
+        radial-gradient(80vmax 60vmax at 100% 10%, rgba(215,92,70,.055), transparent 60%),
+        radial-gradient(80vmax 60vmax at 50% 110%, rgba(118,174,255,.045), transparent 60%);
+      min-height: 100vh;
+      padding: 20px;
+      color: #fff;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ========== AUTH SCREEN ========== */
+    .auth-screen {
+      position: fixed;
+      inset: 0;
+      background: var(--charcoal);
+      background-image:
+        radial-gradient(100vmax 60vmax at 10% -10%, rgba(237,183,35,.055), transparent 60%),
+        radial-gradient(80vmax 60vmax at 100% 10%, rgba(215,92,70,.055), transparent 60%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+      transition: opacity 0.5s ease, visibility 0.5s ease;
+    }
+
+    .auth-screen.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .auth-box {
+      background: var(--glass-bg);
+      border-radius: 24px;
+      padding: 48px;
+      text-align: center;
+      max-width: 450px;
+      width: 90%;
+      border: 2px solid rgba(255, 174, 0, 0.3);
+      box-shadow: var(--elev-strong), 0 0 60px rgba(255, 174, 0, 0.1);
+    }
+
+    .auth-logo {
+      font-size: 64px;
+      margin-bottom: 16px;
+    }
+
+    .auth-title {
+      font-family: "Luckiest Guy", Impact, sans-serif;
+      color: var(--gold);
+      font-size: 32px;
+      text-shadow: 0 4px 0 rgba(0,0,0,.35);
+      margin-bottom: 8px;
+    }
+
+    .auth-subtitle {
+      color: rgba(255,255,255,0.6);
+      margin-bottom: 32px;
+      font-size: 14px;
+    }
+
+    .auth-warning {
+      background: rgba(231, 76, 60, 0.2);
+      border: 1px solid var(--red);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 24px;
+      font-size: 13px;
+      color: #ff6b6b;
+    }
+
+    .auth-btn {
+      width: 100%;
+      padding: 18px 32px;
+      border-radius: 12px;
+      border: none;
+      font-weight: 700;
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      background: var(--gold);
+      color: #000;
+    }
+
+    .auth-btn:hover {
+      background: #ffbe33;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(255, 174, 0, 0.4);
+    }
+
+    .auth-btn:disabled {
+      background: rgba(255,255,255,0.2);
+      color: rgba(255,255,255,0.5);
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .auth-status {
+      margin-top: 20px;
+      font-size: 14px;
+      color: rgba(255,255,255,0.6);
+    }
+
+    .auth-status.error {
+      color: var(--red);
+    }
+
+    .auth-status.success {
+      color: var(--stripe-green);
+    }
+
+    /* ========== DASHBOARD ========== */
+    .dashboard {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: none;
+    }
+
+    .dashboard.visible {
+      display: block;
+    }
+
+    /* Header */
+    .header {
+      text-align: center;
+      margin-bottom: 32px;
+      padding: 24px;
+      background: var(--glass-bg);
+      border-radius: 16px;
+      border: 1px solid rgba(255, 174, 0, 0.2);
+    }
+
+    .header h1 {
+      font-family: "Luckiest Guy", Impact, sans-serif;
+      color: var(--gold);
+      font-size: clamp(28px, 5vw, 42px);
+      text-shadow: 0 4px 0 rgba(0,0,0,.35);
+      margin-bottom: 8px;
+    }
+
+    .header p {
+      color: rgba(255,255,255,0.6);
+      font-size: 14px;
+    }
+
+    .last-updated {
+      color: var(--stripe-green);
+      font-weight: 700;
+      margin-top: 8px;
+    }
+
+    .admin-info {
+      display: inline-block;
+      background: rgba(255, 174, 0, 0.1);
+      border: 1px solid rgba(255, 174, 0, 0.3);
+      border-radius: 8px;
+      padding: 8px 16px;
+      margin-top: 12px;
+      font-size: 12px;
+      color: var(--gold);
+    }
+
+    /* Grid Layout */
+    .grid {
+      display: grid;
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    .grid-4 {
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    }
+
+    .grid-2 {
+      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    }
+
+    .grid-1 {
+      grid-template-columns: 1fr;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--glass-bg);
+      border-radius: 16px;
+      padding: 24px;
+      border: 1px solid rgba(255, 174, 0, 0.15);
+      box-shadow: var(--elev-strong);
+      transition: all 0.3s ease;
+    }
+
+    .card:hover {
+      border-color: rgba(255, 174, 0, 0.3);
+      transform: translateY(-2px);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .card-title {
+      font-family: "Luckiest Guy", Impact, sans-serif;
+      color: var(--gold);
+      font-size: 18px;
+      letter-spacing: 0.5px;
+    }
+
+    .card-badge {
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .badge-live {
+      background: var(--stripe-green);
+      color: #000;
+      animation: pulse 2s infinite;
+    }
+
+    .badge-warning {
+      background: var(--orange);
+      color: #000;
+    }
+
+    .badge-danger {
+      background: var(--red);
+      color: #fff;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+
+    /* Stat Cards */
+    .stat-card {
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 36px;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+
+    .stat-value.gold { color: var(--gold); }
+    .stat-value.green { color: var(--stripe-green); }
+    .stat-value.purple { color: var(--stripe-purple); }
+    .stat-value.red { color: var(--red); }
+    .stat-value.blue { color: var(--blue); }
+
+    .stat-label {
+      font-size: 12px;
+      color: rgba(255,255,255,0.6);
+      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    .stat-change {
+      font-size: 12px;
+      margin-top: 8px;
+      font-weight: 600;
+    }
+
+    .stat-change.positive { color: var(--stripe-green); }
+    .stat-change.negative { color: var(--red); }
+
+    /* Charts */
+    .chart-container {
+      position: relative;
+      height: 300px;
+      width: 100%;
+    }
+
+    /* Tables */
+    .table-container {
+      overflow-x: auto;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    th, td {
+      padding: 12px 16px;
+      text-align: left;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+
+    th {
+      background: rgba(255, 174, 0, 0.1);
+      color: var(--gold);
+      font-weight: 700;
+      text-transform: uppercase;
+      font-size: 11px;
+      letter-spacing: 0.5px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    tr:hover {
+      background: rgba(255,255,255,0.03);
+    }
+
+    .wallet-address {
+      font-family: monospace;
+      font-size: 12px;
+      color: var(--blue);
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .status-pending { background: var(--orange); color: #000; }
+    .status-claimed { background: var(--stripe-green); color: #000; }
+    .status-expired { background: rgba(255,255,255,0.2); color: #fff; }
+    .status-ineligible { background: var(--red); color: #fff; }
+    .status-blacklisted { background: #000; color: var(--red); border: 1px solid var(--red); }
+
+    /* Wallet Lookup */
+    .search-box {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .search-input {
+      flex: 1;
+      padding: 14px 18px;
+      border-radius: 12px;
+      border: 2px solid rgba(255, 174, 0, 0.3);
+      background: rgba(0,0,0,0.3);
+      color: #fff;
+      font-size: 14px;
+      font-family: monospace;
+      transition: all 0.3s ease;
+    }
+
+    .search-input:focus {
+      outline: none;
+      border-color: var(--gold);
+      box-shadow: 0 0 20px rgba(255, 174, 0, 0.2);
+    }
+
+    .search-input::placeholder {
+      color: rgba(255,255,255,0.4);
+    }
+
+    .btn {
+      padding: 14px 28px;
+      border-radius: 12px;
+      border: none;
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .btn-primary {
+      background: var(--gold);
+      color: #000;
+    }
+
+    .btn-primary:hover {
+      background: #ffbe33;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(255, 174, 0, 0.3);
+    }
+
+    .btn-danger {
+      background: var(--red);
+      color: #fff;
+    }
+
+    .btn-danger:hover {
+      background: #c0392b;
+    }
+
+    /* Wallet Detail */
+    .wallet-detail {
+      display: none;
+      background: rgba(0,0,0,0.3);
+      border-radius: 12px;
+      padding: 20px;
+      margin-top: 20px;
+    }
+
+    .wallet-detail.active {
+      display: block;
+    }
+
+    .wallet-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .wallet-stat {
+      text-align: center;
+      padding: 16px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 8px;
+    }
+
+    .wallet-stat-value {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--gold);
+    }
+
+    .wallet-stat-label {
+      font-size: 11px;
+      color: rgba(255,255,255,0.5);
+      text-transform: uppercase;
+      margin-top: 4px;
+    }
+
+    /* Alerts Section */
+    .alert {
+      padding: 16px 20px;
+      border-radius: 12px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .alert-warning {
+      background: rgba(243, 156, 18, 0.15);
+      border-left: 4px solid var(--orange);
+    }
+
+    .alert-danger {
+      background: rgba(231, 76, 60, 0.15);
+      border-left: 4px solid var(--red);
+    }
+
+    .alert-success {
+      background: rgba(7, 174, 8, 0.15);
+      border-left: 4px solid var(--stripe-green);
+    }
+
+    .alert-icon {
+      font-size: 20px;
+    }
+
+    .alert-content {
+      flex: 1;
+    }
+
+    .alert-title {
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
+
+    .alert-message {
+      font-size: 13px;
+      color: rgba(255,255,255,0.7);
+    }
+
+    /* Loading State */
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: rgba(255,255,255,0.5);
+    }
+
+    .loading::after {
+      content: '';
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 2px solid var(--gold);
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-left: 10px;
+      vertical-align: middle;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Quick Actions */
+    .quick-actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .quick-action-btn {
+      padding: 10px 16px;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .quick-action-btn:hover {
+      background: rgba(255, 174, 0, 0.2);
+      border-color: var(--gold);
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .grid-2, .grid-4 {
+        grid-template-columns: 1fr;
+      }
+
+      .search-box {
+        flex-direction: column;
+      }
+
+      .stat-value {
+        font-size: 28px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- ========== AUTH SCREEN ========== -->
+  <div class="auth-screen" id="authScreen">
+    <div class="auth-box">
+      <div class="auth-logo">🔐</div>
+      <h1 class="auth-title">ADMIN ACCESS</h1>
+      <p class="auth-subtitle">BEARDROPS Dashboard - Authorized Personnel Only</p>
+
+      <div class="auth-warning">
+        ⚠️ This dashboard is restricted to authorized administrators only.
+        Unauthorized access attempts are logged.
+      </div>
+
+      <button class="auth-btn" id="authBtn" onclick="startAuth()">
+        Connect XAMAN Wallet
+      </button>
+
+      <div class="auth-status" id="authStatus"></div>
+    </div>
+  </div>
+
+  <!-- ========== DASHBOARD ========== -->
+  <div class="dashboard" id="dashboard">
+    <!-- Header -->
+    <div class="header">
+      <h1>BEARDROPS ADMIN</h1>
+      <p>Real-time monitoring and analytics for the daily airdrop system</p>
+      <div class="admin-info" id="adminInfo">Logged in as: MUKT (APEX)</div>
+      <div class="last-updated" id="lastUpdated">Loading...</div>
+    </div>
+
+    <!-- System Alerts -->
+    <div class="card" id="alertsCard" style="margin-bottom: 24px;">
+      <div class="card-header">
+        <span class="card-title">SYSTEM ALERTS</span>
+        <span class="card-badge badge-live">LIVE</span>
+      </div>
+      <div id="alertsContainer">
+        <div class="loading">Checking system health</div>
+      </div>
+    </div>
+
+    <!-- Key Stats -->
+    <div class="grid grid-4">
+      <div class="card stat-card">
+        <div class="stat-value gold" id="totalBearDistributed">--</div>
+        <div class="stat-label">Total $BEAR Distributed</div>
+        <div class="stat-change positive" id="bearChange">--</div>
+      </div>
+      <div class="card stat-card">
+        <div class="stat-value green" id="totalClaims">--</div>
+        <div class="stat-label">Successful Claims</div>
+        <div class="stat-change positive" id="claimsChange">--</div>
+      </div>
+      <div class="card stat-card">
+        <div class="stat-value purple" id="pendingClaims">--</div>
+        <div class="stat-label">Pending Claims</div>
+        <div class="stat-change" id="pendingChange">Today</div>
+      </div>
+      <div class="card stat-card">
+        <div class="stat-value red" id="blacklistedWallets">--</div>
+        <div class="stat-label">Blacklisted Wallets</div>
+        <div class="stat-change negative" id="blacklistChange">--</div>
+      </div>
+    </div>
+
+    <!-- Secondary Stats -->
+    <div class="grid grid-4">
+      <div class="card stat-card">
+        <div class="stat-value blue" id="totalSnapshots">--</div>
+        <div class="stat-label">Total Snapshots</div>
+      </div>
+      <div class="card stat-card">
+        <div class="stat-value" id="uniqueWallets">--</div>
+        <div class="stat-label">Unique Wallets</div>
+      </div>
+      <div class="card stat-card">
+        <div class="stat-value" id="eligibleToday">--</div>
+        <div class="stat-label">Eligible Today</div>
+      </div>
+      <div class="card stat-card">
+        <div class="stat-value" id="avgReward">--</div>
+        <div class="stat-label">Avg Reward</div>
+      </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="grid grid-2">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">DAILY $BEAR DISTRIBUTION</span>
+        </div>
+        <div class="chart-container">
+          <canvas id="distributionChart"></canvas>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">CLAIMS OVER TIME</span>
+        </div>
+        <div class="chart-container">
+          <canvas id="claimsChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Wallet Lookup -->
+    <div class="card" style="margin-top: 24px;">
+      <div class="card-header">
+        <span class="card-title">WALLET LOOKUP</span>
+        <div class="quick-actions">
+          <button class="quick-action-btn" onclick="lookupWallet('rKkkYMCvC63HEgxjQHmayKADaxYqnsMUkT')">MUKT (APEX)</button>
+        </div>
+      </div>
+      <div class="search-box">
+        <input type="text" class="search-input" id="walletInput" placeholder="Enter wallet address (r...)">
+        <button class="btn btn-primary" onclick="searchWallet()">SEARCH</button>
+      </div>
+      <div class="wallet-detail" id="walletDetail">
+        <h3 style="color: var(--gold); margin-bottom: 16px;" id="walletTitle">Wallet Details</h3>
+        <div class="wallet-stats" id="walletStats"></div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>NFTs</th>
+                <th>LP Tokens</th>
+                <th>Reward</th>
+                <th>Honey 24h</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="walletHistory"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Snapshots -->
+    <div class="grid grid-2" style="margin-top: 24px;">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">RECENT SNAPSHOTS</span>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Wallets</th>
+                <th>Eligible</th>
+                <th>$BEAR</th>
+                <th>Claimed</th>
+              </tr>
+            </thead>
+            <tbody id="recentSnapshots"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">BLACKLIST MONITOR</span>
+          <span class="card-badge badge-danger" id="blacklistBadge">0</span>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Wallet</th>
+                <th>Reason</th>
+                <th>Detected</th>
+              </tr>
+            </thead>
+            <tbody id="blacklistTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Suspicious Activity -->
+    <div class="card" style="margin-top: 24px;">
+      <div class="card-header">
+        <span class="card-title">SUSPICIOUS ACTIVITY DETECTION</span>
+        <span class="card-badge badge-warning" id="suspiciousBadge">MONITORING</span>
+      </div>
+      <div id="suspiciousContainer">
+        <div class="loading">Analyzing wallet patterns</div>
+      </div>
+    </div>
+
+    <!-- Top Claimers -->
+    <div class="card" style="margin-top: 24px;">
+      <div class="card-header">
+        <span class="card-title">TOP EARNERS (ALL TIME)</span>
+      </div>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Wallet</th>
+              <th>Total $BEAR</th>
+              <th>Claims</th>
+              <th>Avg/Day</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="topEarnersTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ========== CONFIGURATION ==========
+    const ADMIN_WALLETS = [
+      'rKkkYMCvC63HEgxjQHmayKADaxYqnsMUkT' // MUKT (APEX)
+    ];
+
+    const BACKEND_URL = 'https://bearpark-backend-production.up.railway.app';
+    const SUPABASE_URL = 'https://iimfihvhukwqxdmvqfdb.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlpbWZpaHZodWt3cXhkbXZxZmRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzUzMjA5OTIsImV4cCI6MjA1MDg5Njk5Mn0.VMl4hr4yt0P5kGSWdxucQ0EIwEgsqC3d2ijjGEBNjQI';
+
+    // State
+    let distributionChart = null;
+    let claimsChart = null;
+    let currentWallet = null;
+    let pollInterval = null;
+
+    // ========== AUTHENTICATION ==========
+    async function startAuth() {
+      const btn = document.getElementById('authBtn');
+      const status = document.getElementById('authStatus');
+
+      btn.disabled = true;
+      btn.textContent = 'Connecting...';
+      status.textContent = 'Opening XAMAN...';
+      status.className = 'auth-status';
+
+      try {
+        // Create XAMAN sign-in request
+        const response = await fetch(`${BACKEND_URL}/api/xaman/signin`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+
+        const data = await response.json();
+
+        if (!data.success || !data.uuid) {
+          throw new Error(data.error || 'Failed to create sign-in request');
+        }
+
+        // Open XAMAN
+        if (data.qr_link) {
+          window.open(data.qr_link, '_blank');
+        }
+
+        status.textContent = 'Waiting for XAMAN approval...';
+
+        // Poll for result
+        pollInterval = setInterval(async () => {
+          try {
+            const checkResponse = await fetch(`${BACKEND_URL}/api/xaman/status/${data.uuid}`);
+            const checkData = await checkResponse.json();
+
+            if (checkData.signed && checkData.wallet) {
+              clearInterval(pollInterval);
+
+              // Check if admin
+              if (ADMIN_WALLETS.includes(checkData.wallet)) {
+                currentWallet = checkData.wallet;
+                status.textContent = 'Access granted!';
+                status.className = 'auth-status success';
+
+                setTimeout(() => {
+                  document.getElementById('authScreen').classList.add('hidden');
+                  document.getElementById('dashboard').classList.add('visible');
+                  document.getElementById('adminInfo').textContent = `Logged in as: ${checkData.wallet.slice(0, 8)}...${checkData.wallet.slice(-6)}`;
+                  loadDashboard();
+                  // Auto-refresh every 60 seconds
+                  setInterval(loadDashboard, 60000);
+                }, 500);
+              } else {
+                status.textContent = '⛔ ACCESS DENIED - You are not an authorized admin';
+                status.className = 'auth-status error';
+                btn.disabled = false;
+                btn.textContent = 'Try Again';
+              }
+            } else if (checkData.rejected || checkData.expired) {
+              clearInterval(pollInterval);
+              status.textContent = checkData.rejected ? 'Request rejected' : 'Request expired';
+              status.className = 'auth-status error';
+              btn.disabled = false;
+              btn.textContent = 'Try Again';
+            }
+          } catch (err) {
+            // Keep polling
+          }
+        }, 2000);
+
+        // Timeout after 3 minutes
+        setTimeout(() => {
+          if (pollInterval) {
+            clearInterval(pollInterval);
+            status.textContent = 'Request timed out';
+            status.className = 'auth-status error';
+            btn.disabled = false;
+            btn.textContent = 'Try Again';
+          }
+        }, 180000);
+
+      } catch (err) {
+        console.error('Auth error:', err);
+        status.textContent = 'Connection error: ' + err.message;
+        status.className = 'auth-status error';
+        btn.disabled = false;
+        btn.textContent = 'Try Again';
+      }
+    }
+
+    // ========== SUPABASE HELPERS ==========
+    async function supabaseQuery(table, options = {}) {
+      let url = `${SUPABASE_URL}/rest/v1/${table}`;
+      const params = new URLSearchParams();
+
+      if (options.select) params.append('select', options.select);
+      if (options.order) params.append('order', options.order);
+      if (options.limit) params.append('limit', options.limit);
+      if (options.eq) {
+        for (const [key, value] of Object.entries(options.eq)) {
+          params.append(key, `eq.${value}`);
+        }
+      }
+      if (options.gte) {
+        for (const [key, value] of Object.entries(options.gte)) {
+          params.append(key, `gte.${value}`);
+        }
+      }
+
+      if (params.toString()) url += '?' + params.toString();
+
+      const response = await fetch(url, {
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+        }
+      });
+      return response.json();
+    }
+
+    // ========== DASHBOARD FUNCTIONS ==========
+    async function loadDashboard() {
+      document.getElementById('lastUpdated').textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+
+      try {
+        await Promise.all([
+          loadStats(),
+          loadCharts(),
+          loadRecentSnapshots(),
+          loadBlacklist(),
+          loadTopEarners(),
+          loadAlerts(),
+          loadSuspiciousActivity()
+        ]);
+      } catch (err) {
+        console.error('Dashboard load error:', err);
+      }
+    }
+
+    async function loadStats() {
+      const snapshots = await supabaseQuery('airdrop_snapshots', {
+        select: 'snapshot_date,total_reward,is_eligible,claim_status,wallet_address'
+      });
+
+      if (!snapshots || snapshots.error) return;
+
+      const totalBear = snapshots.filter(s => s.claim_status === 'claimed').reduce((sum, s) => sum + parseFloat(s.total_reward || 0), 0);
+      const totalClaims = snapshots.filter(s => s.claim_status === 'claimed').length;
+      const pendingClaims = snapshots.filter(s => s.claim_status === 'pending' && s.is_eligible).length;
+      const uniqueWallets = new Set(snapshots.map(s => s.wallet_address)).size;
+      const uniqueDates = new Set(snapshots.map(s => s.snapshot_date)).size;
+
+      const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+      const eligibleToday = snapshots.filter(s => s.snapshot_date === yesterday && s.is_eligible).length;
+
+      const avgReward = totalClaims > 0 ? (totalBear / totalClaims).toFixed(2) : 0;
+
+      document.getElementById('totalBearDistributed').textContent = totalBear.toFixed(2);
+      document.getElementById('totalClaims').textContent = totalClaims.toLocaleString();
+      document.getElementById('pendingClaims').textContent = pendingClaims.toLocaleString();
+      document.getElementById('totalSnapshots').textContent = uniqueDates.toLocaleString();
+      document.getElementById('uniqueWallets').textContent = uniqueWallets.toLocaleString();
+      document.getElementById('eligibleToday').textContent = eligibleToday.toLocaleString();
+      document.getElementById('avgReward').textContent = avgReward + ' $BEAR';
+
+      const blacklist = await supabaseQuery('lp_blacklist', {
+        select: 'id',
+        eq: { is_active: true }
+      });
+      document.getElementById('blacklistedWallets').textContent = blacklist?.length || 0;
+      document.getElementById('blacklistBadge').textContent = blacklist?.length || 0;
+    }
+
+    async function loadCharts() {
+      const snapshots = await supabaseQuery('airdrop_snapshots', {
+        select: 'snapshot_date,total_reward,claim_status,is_eligible',
+        order: 'snapshot_date.asc'
+      });
+
+      if (!snapshots || snapshots.error) return;
+
+      const dailyData = {};
+      snapshots.forEach(s => {
+        if (!dailyData[s.snapshot_date]) {
+          dailyData[s.snapshot_date] = { distributed: 0, claimed: 0, pending: 0 };
+        }
+        if (s.claim_status === 'claimed') {
+          dailyData[s.snapshot_date].distributed += parseFloat(s.total_reward || 0);
+          dailyData[s.snapshot_date].claimed++;
+        } else if (s.claim_status === 'pending' && s.is_eligible) {
+          dailyData[s.snapshot_date].pending++;
+        }
+      });
+
+      const dates = Object.keys(dailyData).slice(-30);
+      const distributionData = dates.map(d => dailyData[d].distributed);
+      const claimedData = dates.map(d => dailyData[d].claimed);
+      const pendingData = dates.map(d => dailyData[d].pending);
+
+      const distCtx = document.getElementById('distributionChart').getContext('2d');
+      if (distributionChart) distributionChart.destroy();
+      distributionChart = new Chart(distCtx, {
+        type: 'bar',
+        data: {
+          labels: dates,
+          datasets: [{
+            label: '$BEAR Distributed',
+            data: distributionData,
+            backgroundColor: 'rgba(255, 174, 0, 0.7)',
+            borderColor: '#ffae00',
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'rgba(255,255,255,0.5)', maxRotation: 45 } },
+            y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'rgba(255,255,255,0.5)' } }
+          }
+        }
+      });
+
+      const claimsCtx = document.getElementById('claimsChart').getContext('2d');
+      if (claimsChart) claimsChart.destroy();
+      claimsChart = new Chart(claimsCtx, {
+        type: 'line',
+        data: {
+          labels: dates,
+          datasets: [
+            { label: 'Claimed', data: claimedData, borderColor: '#07ae08', backgroundColor: 'rgba(7, 174, 8, 0.1)', fill: true, tension: 0.4 },
+            { label: 'Pending', data: pendingData, borderColor: '#680cd9', backgroundColor: 'rgba(104, 12, 217, 0.1)', fill: true, tension: 0.4 }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: 'rgba(255,255,255,0.7)' } } },
+          scales: {
+            x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'rgba(255,255,255,0.5)', maxRotation: 45 } },
+            y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'rgba(255,255,255,0.5)' } }
+          }
+        }
+      });
+    }
+
+    async function loadRecentSnapshots() {
+      const snapshots = await supabaseQuery('airdrop_snapshots', {
+        select: 'snapshot_date,total_reward,is_eligible,claim_status'
+      });
+
+      if (!snapshots || snapshots.error) return;
+
+      const byDate = {};
+      snapshots.forEach(s => {
+        if (!byDate[s.snapshot_date]) {
+          byDate[s.snapshot_date] = { total: 0, eligible: 0, bear: 0, claimed: 0 };
+        }
+        byDate[s.snapshot_date].total++;
+        if (s.is_eligible) byDate[s.snapshot_date].eligible++;
+        byDate[s.snapshot_date].bear += parseFloat(s.total_reward || 0);
+        if (s.claim_status === 'claimed') byDate[s.snapshot_date].claimed++;
+      });
+
+      const dates = Object.keys(byDate).sort().reverse().slice(0, 10);
+      document.getElementById('recentSnapshots').innerHTML = dates.map(date => `
+        <tr>
+          <td>${date}</td>
+          <td>${byDate[date].total}</td>
+          <td>${byDate[date].eligible}</td>
+          <td>${byDate[date].bear.toFixed(2)}</td>
+          <td>${byDate[date].claimed}</td>
+        </tr>
+      `).join('');
+    }
+
+    async function loadBlacklist() {
+      const blacklist = await supabaseQuery('lp_blacklist', {
+        select: 'wallet_address,reason,detected_at',
+        eq: { is_active: true },
+        order: 'detected_at.desc',
+        limit: 20
+      });
+
+      if (!blacklist || blacklist.error) return;
+
+      document.getElementById('blacklistTable').innerHTML = blacklist.map(b => `
+        <tr>
+          <td class="wallet-address">${b.wallet_address.slice(0, 8)}...${b.wallet_address.slice(-6)}</td>
+          <td><span class="status-badge status-blacklisted">${b.reason}</span></td>
+          <td>${new Date(b.detected_at).toLocaleDateString()}</td>
+        </tr>
+      `).join('') || '<tr><td colspan="3" style="text-align:center;color:rgba(255,255,255,0.5)">No blacklisted wallets</td></tr>';
+    }
+
+    async function loadTopEarners() {
+      const snapshots = await supabaseQuery('airdrop_snapshots', {
+        select: 'wallet_address,total_reward,claim_status'
+      });
+
+      if (!snapshots || snapshots.error) return;
+
+      const walletStats = {};
+      snapshots.forEach(s => {
+        if (!walletStats[s.wallet_address]) {
+          walletStats[s.wallet_address] = { total: 0, claims: 0 };
+        }
+        if (s.claim_status === 'claimed') {
+          walletStats[s.wallet_address].total += parseFloat(s.total_reward || 0);
+          walletStats[s.wallet_address].claims++;
+        }
+      });
+
+      const blacklist = await supabaseQuery('lp_blacklist', {
+        select: 'wallet_address',
+        eq: { is_active: true }
+      });
+      const blacklistedSet = new Set(blacklist?.map(b => b.wallet_address) || []);
+
+      const sorted = Object.entries(walletStats)
+        .filter(([, stats]) => stats.total > 0)
+        .sort((a, b) => b[1].total - a[1].total)
+        .slice(0, 20);
+
+      document.getElementById('topEarnersTable').innerHTML = sorted.map(([wallet, stats], i) => {
+        const avgPerDay = stats.claims > 0 ? (stats.total / stats.claims).toFixed(2) : 0;
+        const isBlacklisted = blacklistedSet.has(wallet);
+        const isMUKT = wallet === 'rKkkYMCvC63HEgxjQHmayKADaxYqnsMUkT';
+        return `
+          <tr style="${isMUKT ? 'background: rgba(255, 174, 0, 0.1);' : ''}">
+            <td>${i + 1}</td>
+            <td class="wallet-address" style="cursor:pointer" onclick="lookupWallet('${wallet}')">
+              ${isMUKT ? 'MUKT (APEX)' : wallet.slice(0, 8) + '...' + wallet.slice(-6)}
+            </td>
+            <td style="color: var(--gold); font-weight: 700;">${stats.total.toFixed(2)}</td>
+            <td>${stats.claims}</td>
+            <td>${avgPerDay}</td>
+            <td>${isBlacklisted ? '<span class="status-badge status-blacklisted">BLACKLISTED</span>' : '<span class="status-badge status-claimed">GOOD</span>'}</td>
+          </tr>
+        `;
+      }).join('') || '<tr><td colspan="6" style="text-align:center;color:rgba(255,255,255,0.5)">No data yet</td></tr>';
+    }
+
+    async function loadAlerts() {
+      const container = document.getElementById('alertsContainer');
+      const alerts = [];
+
+      const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+      const snapshots = await supabaseQuery('airdrop_snapshots', {
+        select: 'snapshot_date,claim_status,is_eligible',
+        eq: { snapshot_date: yesterday, claim_status: 'pending', is_eligible: true }
+      });
+
+      const pendingCount = snapshots?.length || 0;
+      if (pendingCount > 0) {
+        alerts.push({
+          type: 'warning',
+          icon: '⚠️',
+          title: `${pendingCount} Pending Claims`,
+          message: `There are ${pendingCount} eligible claims waiting to be collected for ${yesterday}`
+        });
+      }
+
+      const recentBlacklist = await supabaseQuery('lp_blacklist', {
+        select: 'id',
+        gte: { detected_at: new Date(Date.now() - 7 * 86400000).toISOString() }
+      });
+
+      if (recentBlacklist?.length > 5) {
+        alerts.push({
+          type: 'danger',
+          icon: '🚨',
+          title: 'High Blacklist Activity',
+          message: `${recentBlacklist.length} wallets blacklisted in the last 7 days`
+        });
+      }
+
+      const today = new Date().toISOString().split('T')[0];
+      const todaySnapshots = await supabaseQuery('airdrop_snapshots', {
+        select: 'id',
+        eq: { snapshot_date: today },
+        limit: 1
+      });
+
+      if (todaySnapshots?.length > 0) {
+        alerts.push({
+          type: 'success',
+          icon: '✅',
+          title: 'Snapshot Complete',
+          message: `Today's snapshot (${today}) has been processed successfully`
+        });
+      } else {
+        alerts.push({
+          type: 'warning',
+          icon: '⏳',
+          title: 'Snapshot Pending',
+          message: `Today's snapshot (${today}) has not run yet - check if random hour has passed`
+        });
+      }
+
+      container.innerHTML = alerts.map(a => `
+        <div class="alert alert-${a.type}">
+          <div class="alert-icon">${a.icon}</div>
+          <div class="alert-content">
+            <div class="alert-title">${a.title}</div>
+            <div class="alert-message">${a.message}</div>
+          </div>
+        </div>
+      `).join('') || '<div class="alert alert-success"><div class="alert-icon">✅</div><div class="alert-content"><div class="alert-title">All Systems Normal</div><div class="alert-message">No alerts at this time</div></div></div>';
+    }
+
+    async function loadSuspiciousActivity() {
+      const container = document.getElementById('suspiciousContainer');
+      const suspicious = [];
+
+      const snapshots = await supabaseQuery('airdrop_snapshots', {
+        select: 'wallet_address,snapshot_date,lp_tokens,honey_points_24h,is_eligible'
+      });
+
+      if (!snapshots || snapshots.error) {
+        container.innerHTML = '<div class="alert alert-success"><div class="alert-content"><div class="alert-title">No Suspicious Activity</div><div class="alert-message">All wallet patterns appear normal</div></div></div>';
+        return;
+      }
+
+      const walletActivity = {};
+      snapshots.forEach(s => {
+        if (!walletActivity[s.wallet_address]) {
+          walletActivity[s.wallet_address] = [];
+        }
+        walletActivity[s.wallet_address].push(s);
+      });
+
+      for (const [wallet, activities] of Object.entries(walletActivity)) {
+        const exactThreshold = activities.filter(a => a.honey_points_24h === 30).length;
+        if (exactThreshold >= 3) {
+          suspicious.push({ wallet, reason: 'Honey points exactly at threshold multiple times', severity: 'warning' });
+        }
+
+        const lpValues = activities.map(a => parseFloat(a.lp_tokens || 0)).filter(v => v > 0);
+        if (lpValues.length >= 2) {
+          const maxLP = Math.max(...lpValues);
+          const minLP = Math.min(...lpValues);
+          if (maxLP > 0 && (maxLP - minLP) / maxLP > 0.8) {
+            suspicious.push({ wallet, reason: 'Large LP token fluctuations detected', severity: 'danger' });
+          }
+        }
+      }
+
+      const badge = document.getElementById('suspiciousBadge');
+      if (suspicious.length > 0) {
+        badge.textContent = suspicious.length + ' DETECTED';
+        badge.className = 'card-badge badge-danger';
+      } else {
+        badge.textContent = 'ALL CLEAR';
+        badge.className = 'card-badge badge-live';
+      }
+
+      container.innerHTML = suspicious.length > 0 ? `
+        <div class="table-container">
+          <table>
+            <thead><tr><th>Wallet</th><th>Reason</th><th>Action</th></tr></thead>
+            <tbody>
+              ${suspicious.slice(0, 10).map(s => `
+                <tr>
+                  <td class="wallet-address" style="cursor:pointer" onclick="lookupWallet('${s.wallet}')">${s.wallet.slice(0, 8)}...${s.wallet.slice(-6)}</td>
+                  <td><span class="status-badge status-${s.severity === 'danger' ? 'ineligible' : 'pending'}">${s.reason}</span></td>
+                  <td><button class="quick-action-btn" onclick="lookupWallet('${s.wallet}')">Investigate</button></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      ` : '<div class="alert alert-success"><div class="alert-content"><div class="alert-title">No Suspicious Activity</div><div class="alert-message">All wallet patterns appear normal</div></div></div>';
+    }
+
+    async function searchWallet() {
+      const wallet = document.getElementById('walletInput').value.trim();
+      if (!wallet || !wallet.startsWith('r')) {
+        alert('Please enter a valid XRPL wallet address');
+        return;
+      }
+      await lookupWallet(wallet);
+    }
+
+    async function lookupWallet(wallet) {
+      document.getElementById('walletInput').value = wallet;
+      document.getElementById('walletDetail').classList.add('active');
+      document.getElementById('walletTitle').textContent = wallet === 'rKkkYMCvC63HEgxjQHmayKADaxYqnsMUkT' ? 'MUKT (APEX WALLET)' : `Wallet: ${wallet.slice(0, 12)}...`;
+
+      const snapshots = await supabaseQuery('airdrop_snapshots', {
+        select: '*',
+        eq: { wallet_address: wallet }
+      });
+
+      if (!snapshots || snapshots.error || snapshots.length === 0) {
+        document.getElementById('walletStats').innerHTML = '<p style="color: rgba(255,255,255,0.5);">No airdrop data found for this wallet</p>';
+        document.getElementById('walletHistory').innerHTML = '';
+        return;
+      }
+
+      const totalClaimed = snapshots.filter(s => s.claim_status === 'claimed').reduce((sum, s) => sum + parseFloat(s.total_reward || 0), 0);
+      const totalPending = snapshots.filter(s => s.claim_status === 'pending' && s.is_eligible).reduce((sum, s) => sum + parseFloat(s.total_reward || 0), 0);
+      const claimCount = snapshots.filter(s => s.claim_status === 'claimed').length;
+      const eligibleCount = snapshots.filter(s => s.is_eligible).length;
+      const avgHoney = snapshots.reduce((sum, s) => sum + (s.honey_points_24h || 0), 0) / snapshots.length;
+
+      const blacklistCheck = await supabaseQuery('lp_blacklist', {
+        select: '*',
+        eq: { wallet_address: wallet }
+      });
+
+      document.getElementById('walletStats').innerHTML = `
+        <div class="wallet-stat"><div class="wallet-stat-value">${totalClaimed.toFixed(2)}</div><div class="wallet-stat-label">$BEAR Claimed</div></div>
+        <div class="wallet-stat"><div class="wallet-stat-value" style="color: var(--stripe-purple);">${totalPending.toFixed(2)}</div><div class="wallet-stat-label">$BEAR Pending</div></div>
+        <div class="wallet-stat"><div class="wallet-stat-value">${claimCount}</div><div class="wallet-stat-label">Total Claims</div></div>
+        <div class="wallet-stat"><div class="wallet-stat-value">${eligibleCount}/${snapshots.length}</div><div class="wallet-stat-label">Eligible Days</div></div>
+        <div class="wallet-stat"><div class="wallet-stat-value">${avgHoney.toFixed(0)}</div><div class="wallet-stat-label">Avg Honey/Day</div></div>
+        <div class="wallet-stat"><div class="wallet-stat-value" style="color: ${blacklistCheck?.length > 0 ? 'var(--red)' : 'var(--stripe-green)'};">${blacklistCheck?.length > 0 ? 'YES' : 'NO'}</div><div class="wallet-stat-label">Blacklisted</div></div>
+      `;
+
+      document.getElementById('walletHistory').innerHTML = snapshots
+        .sort((a, b) => new Date(b.snapshot_date) - new Date(a.snapshot_date))
+        .map(s => {
+          let statusClass = 'status-' + s.claim_status;
+          if (s.is_blacklisted) statusClass = 'status-blacklisted';
+          return `
+            <tr>
+              <td>${s.snapshot_date}</td>
+              <td>${s.pixel_bears} PB + ${s.ultra_rares} UR</td>
+              <td>${parseFloat(s.lp_tokens || 0).toLocaleString()}</td>
+              <td style="color: var(--gold); font-weight: 700;">${parseFloat(s.total_reward).toFixed(2)}</td>
+              <td>${s.honey_points_24h}</td>
+              <td><span class="status-badge ${statusClass}">${s.is_blacklisted ? 'BLACKLISTED' : s.claim_status}</span></td>
+            </tr>
+          `;
+        }).join('');
+    }
+
+    document.getElementById('walletInput').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') searchWallet();
+    });
+  </script>
+</body>
+</html>
