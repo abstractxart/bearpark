@@ -5829,31 +5829,35 @@ app.post('/api/beardrops/claim', validateWallet, async (req, res) => {
       });
     }
 
-    // ========== SECURITY FIX #2: FIXED CLAIM WINDOW ==========
-    // Claims open at 00:00 UTC and close at 00:30 UTC every day
-    // You can ONLY claim YESTERDAY's snapshot during this 30-minute window!
+    // ========== CLAIM WINDOW LOGIC ==========
+    // Users have the FULL DAY to claim yesterday's snapshot
+    // Plus a 30-minute grace period at the start of the next day
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
+
+    // Yesterday's date (snapshot from yesterday is claimable all day today)
     const yesterdayDate = new Date(now);
     yesterdayDate.setUTCDate(yesterdayDate.getUTCDate() - 1);
     const yesterdayStr = yesterdayDate.toISOString().split('T')[0];
 
-    // Check if we're within the claim window (00:00 - 00:30 UTC)
+    // Day before yesterday (for grace period)
+    const twoDaysAgoDate = new Date(now);
+    twoDaysAgoDate.setUTCDate(twoDaysAgoDate.getUTCDate() - 2);
+    const twoDaysAgoStr = twoDaysAgoDate.toISOString().split('T')[0];
+
+    // Check if we're in the 30-minute grace period (00:00 - 00:30 UTC)
     const minutesPastMidnight = now.getUTCHours() * 60 + now.getUTCMinutes();
-    const CLAIM_WINDOW_MINUTES = 30;
+    const GRACE_PERIOD_MINUTES = 30;
+    const inGracePeriod = minutesPastMidnight < GRACE_PERIOD_MINUTES;
 
-    // Claims are ONLY valid during the 30-minute window at midnight UTC
-    if (minutesPastMidnight >= CLAIM_WINDOW_MINUTES) {
-      return res.status(403).json({
-        success: false,
-        error: `Claim window is closed! Claims are only available from 00:00 to 00:30 UTC daily. Current time: ${now.getUTCHours().toString().padStart(2, '0')}:${now.getUTCMinutes().toString().padStart(2, '0')} UTC`
-      });
-    }
-
-    console.log(`✅ Within claim window (${minutesPastMidnight} min past midnight). Processing claim for ${yesterdayStr}...`);
-
-    // Only yesterday's snapshot can be claimed
+    // Valid dates: yesterday is ALWAYS valid, plus 2-days-ago during grace period
     const validDates = [yesterdayStr];
+    if (inGracePeriod) {
+      validDates.push(twoDaysAgoStr);
+      console.log(`⏰ Grace period active! Can claim snapshots from ${yesterdayStr} or ${twoDaysAgoStr}`);
+    } else {
+      console.log(`📅 Normal claim window. Can claim snapshot from ${yesterdayStr}`);
+    }
 
     // Get the latest pending snapshot for this wallet (only valid dates)
     const { data: snapshot, error: snapshotError } = await supabase
