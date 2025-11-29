@@ -563,71 +563,6 @@
         <div id="bannedUsersList"></div>
       </div>
 
-      <!-- ANALYTICS DASHBOARD -->
-      <div class="card">
-        <h2 class="section-title">Analytics Dashboard</h2>
-        <div id="analyticsData"></div>
-      </div>
-
-      <!-- GAME SETTINGS -->
-      <div class="card">
-        <h2 class="section-title">Game Settings</h2>
-        <form id="settingsForm">
-        <div class="form-group">
-          <label for="maxMinutes">Max Daily Minutes</label>
-          <input type="number" id="maxMinutes" value="20" min="1" max="120">
-        </div>
-        <div class="form-group">
-          <label for="pointsPerMinute">Points Per Minute</label>
-          <input type="number" id="pointsPerMinute" value="1" min="0.1" max="10" step="0.1">
-        </div>
-        <button type="submit">⚙️ Update Settings</button>
-        </form>
-      </div>
-
-      <!-- RAID ANALYTICS -->
-      <div class="card">
-        <h2 class="section-title">Raid Analytics</h2>
-        <div id="raidAnalytics"></div>
-      </div>
-
-      <!-- POINT TRANSACTION HISTORY -->
-      <div class="card">
-        <h2 class="section-title">Point Transaction History</h2>
-        <div class="form-group">
-          <label for="transactionWallet">Filter by Wallet (optional)</label>
-          <input type="text" id="transactionWallet" placeholder="Leave empty for all transactions">
-          <button class="edit-btn" onclick="loadTransactions()" style="width: auto; margin-top: 10px;">🔍 Load Transactions</button>
-        </div>
-        <div id="transactionsList"></div>
-      </div>
-
-      <!-- BULK POINT OPERATIONS -->
-      <div class="card">
-        <h2 class="section-title">Bulk Point Operations</h2>
-        <form id="bulkForm">
-        <div class="form-group">
-          <label for="bulkWallets">Wallet Addresses *</label>
-          <textarea id="bulkWallets" placeholder="Enter one wallet address per line&#10;rXXXXXXXXXXXXXXXXXXXXXX&#10;rYYYYYYYYYYYYYYYYYYYYYY" style="min-height: 150px;"></textarea>
-          <div class="small-text">One wallet address per line</div>
-        </div>
-        <div class="form-group">
-          <label for="bulkAmount">Points Amount *</label>
-          <input type="number" id="bulkAmount" placeholder="100" required>
-        </div>
-        <div class="form-group">
-          <label for="bulkReason">Reason</label>
-          <textarea id="bulkReason" placeholder="Why are you awarding these points?"></textarea>
-        </div>
-        <button type="submit">🎁 Award Points to All</button>
-        </form>
-      </div>
-
-      <!-- ACTIVITY LOGS -->
-      <div class="card">
-        <h2 class="section-title">Admin Activity Logs</h2>
-        <div id="activityLogs"></div>
-      </div>
     </div>
 
     <div id="status" class="status"></div>
@@ -1075,152 +1010,6 @@
       }
     }
 
-    // Load Analytics
-    async function loadAnalytics() {
-      try {
-        const response = await adminFetch('/api/admin/analytics');
-        const result = await response.json();
-
-        const analyticsDiv = document.getElementById('analyticsData');
-
-        if (!response.ok) {
-          analyticsDiv.innerHTML = '<div class="no-raids">Error loading analytics</div>';
-          return;
-        }
-
-        const { analytics } = result;
-
-        analyticsDiv.innerHTML = `
-          <div class="raid-item" style="background: linear-gradient(135deg, rgba(104, 12, 217, 0.2), rgba(254, 181, 1, 0.1));">
-            <h3>📊 Overview</h3>
-            <p><strong>Total Users:</strong> ${analytics.total_users}</p>
-            <p><strong>Total Points Distributed:</strong> ${analytics.total_points_distributed}</p>
-          </div>
-          <div class="raid-item" style="background: linear-gradient(135deg, rgba(7, 174, 8, 0.2), rgba(104, 12, 217, 0.1));">
-            <h3>👥 Active Users</h3>
-            <p><strong>Last 24 Hours:</strong> ${analytics.active_users.last_24h}</p>
-            <p><strong>Last 7 Days:</strong> ${analytics.active_users.last_7d}</p>
-            <p><strong>Last 30 Days:</strong> ${analytics.active_users.last_30d}</p>
-          </div>
-          <div class="raid-item">
-            <h3>🎮 Game Statistics</h3>
-            ${Object.entries(analytics.game_stats).map(([gameId, stats]) => `
-              <p><strong>${gameId}:</strong> ${stats.total_sessions} sessions, ${Math.round(stats.total_minutes)} min, ${Math.round(stats.total_points)} pts</p>
-            `).join('')}
-          </div>
-        `;
-      } catch (error) {
-        console.error('Error loading analytics:', error);
-      }
-    }
-
-    // Game Settings
-    document.getElementById('settingsForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-
-      const settings = {
-        max_daily_minutes: document.getElementById('maxMinutes').value,
-        points_per_minute: document.getElementById('pointsPerMinute').value
-      };
-
-      try {
-        const response = await adminFetch('/api/admin/game-settings', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            settings,
-            admin_wallet: currentWallet
-          })
-        });
-
-        const result = await response.json();
-
-        if (response.ok) {
-          showStatus('✅ Game settings updated successfully!', 'success');
-        } else {
-          showStatus('❌ ' + (result.error || 'Failed to update settings'), 'error');
-        }
-      } catch (error) {
-        showStatus('❌ Error: ' + error.message, 'error');
-      }
-    });
-
-    async function loadGameSettings() {
-      try {
-        const response = await adminFetch('/api/admin/game-settings');
-        const result = await response.json();
-
-        if (result.success && result.settings) {
-          document.getElementById('maxMinutes').value = result.settings.max_daily_minutes || 20;
-          document.getElementById('pointsPerMinute').value = result.settings.points_per_minute || 1;
-        }
-      } catch (error) {
-        console.error('Error loading game settings:', error);
-      }
-    }
-
-    // Load Raid Analytics
-    async function loadRaidAnalytics() {
-      try {
-        const response = await adminFetch('/api/admin/raid-analytics');
-        const result = await response.json();
-
-        const analyticsDiv = document.getElementById('raidAnalytics');
-
-        if (!result.raid_analytics || result.raid_analytics.length === 0) {
-          analyticsDiv.innerHTML = '<div class="no-raids">No raid data available</div>';
-          return;
-        }
-
-        analyticsDiv.innerHTML = result.raid_analytics.map(raid => `
-          <div class="raid-item">
-            <h3>${raid.description}</h3>
-            <p><strong>Created:</strong> ${new Date(raid.created_at).toLocaleString()}</p>
-            <p><strong>Expires:</strong> ${new Date(raid.expires_at).toLocaleString()}</p>
-            <p><strong>Reward:</strong> ${raid.reward} points</p>
-            <p><strong>Active:</strong> ${raid.is_active ? '✅ Yes' : '❌ No'}</p>
-          </div>
-        `).join('');
-      } catch (error) {
-        console.error('Error loading raid analytics:', error);
-      }
-    }
-
-    // Load Transactions
-    async function loadTransactions() {
-      const wallet = document.getElementById('transactionWallet').value;
-
-      try {
-        const url = wallet
-          ? `/api/admin/point-transactions?wallet=${wallet}&limit=50`
-          : '/api/admin/point-transactions?limit=50';
-
-        const response = await fetch(url);
-        const result = await response.json();
-
-        const transactionsList = document.getElementById('transactionsList');
-
-        if (!result.transactions || result.transactions.length === 0) {
-          transactionsList.innerHTML = '<div class="no-raids">No transactions found</div>';
-          return;
-        }
-
-        transactionsList.innerHTML = result.transactions.map(tx => `
-          <div class="raid-item">
-            <h3>${tx.transaction_type.toUpperCase()}</h3>
-            <p><strong>Wallet:</strong> ${tx.wallet_address}</p>
-            <p><strong>Amount:</strong> ${tx.amount > 0 ? '+' : ''}${tx.amount} points</p>
-            <p><strong>Reason:</strong> ${tx.reason || 'N/A'}</p>
-            <p><strong>Time:</strong> ${new Date(tx.timestamp).toLocaleString()}</p>
-            ${tx.admin_wallet ? `<p><strong>Admin:</strong> ${tx.admin_wallet}</p>` : ''}
-          </div>
-        `).join('');
-      } catch (error) {
-        console.error('Error loading transactions:', error);
-        showStatus('❌ Error loading transactions', 'error');
-      }
-    }
-
     // =====================================================
     // ROLE MANAGEMENT FUNCTIONS
     // =====================================================
@@ -1303,7 +1092,6 @@
         if (response.ok) {
           showStatus('✅ Role removed successfully!', 'success');
           await loadCurrentRoles();
-          await loadActivityLogs();
         } else {
           showStatus('❌ ' + (result.error || 'Failed to remove role'), 'error');
         }
@@ -1345,7 +1133,6 @@
           showStatus(`✅ Successfully assigned ${role.toUpperCase()} role to ${wallet_address}!`, 'success');
           document.getElementById('assignRoleForm').reset();
           await loadCurrentRoles();
-          await loadActivityLogs();
         } else {
           showStatus('❌ ' + (result.error || 'Failed to assign role'), 'error');
         }
@@ -1353,75 +1140,6 @@
         showStatus('❌ Error: ' + error.message, 'error');
       }
     });
-
-    // Bulk Points
-    document.getElementById('bulkForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-
-      const walletsText = document.getElementById('bulkWallets').value;
-      const wallets = walletsText.split('\n').map(w => w.trim()).filter(w => w.length > 0);
-      const amount = parseFloat(document.getElementById('bulkAmount').value);
-      const reason = document.getElementById('bulkReason').value;
-
-      if (wallets.length === 0) {
-        showStatus('❌ Please enter at least one wallet address', 'error');
-        return;
-      }
-
-      if (!confirm(`Award ${amount} points to ${wallets.length} wallets?`)) return;
-
-      try {
-        const response = await adminFetch('/api/admin/bulk-points', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            wallets,
-            amount,
-            reason,
-            admin_wallet: currentWallet
-          })
-        });
-
-        const result = await response.json();
-
-        if (response.ok) {
-          const successCount = result.results.filter(r => r.success).length;
-          showStatus(`✅ Successfully awarded points to ${successCount}/${wallets.length} wallets!`, 'success');
-          document.getElementById('bulkForm').reset();
-        } else {
-          showStatus('❌ ' + (result.error || 'Failed to award bulk points'), 'error');
-        }
-      } catch (error) {
-        showStatus('❌ Error: ' + error.message, 'error');
-      }
-    });
-
-    // Load Activity Logs
-    async function loadActivityLogs() {
-      try {
-        const response = await adminFetch('/api/admin/activity-logs?limit=50');
-        const result = await response.json();
-
-        const logsDiv = document.getElementById('activityLogs');
-
-        if (!result.logs || result.logs.length === 0) {
-          logsDiv.innerHTML = '<div class="no-raids">No activity logs found</div>';
-          return;
-        }
-
-        logsDiv.innerHTML = result.logs.map(log => `
-          <div class="raid-item">
-            <h3>${log.action_type.replace(/_/g, ' ').toUpperCase()}</h3>
-            <p><strong>Admin:</strong> ${log.admin_wallet}</p>
-            <p><strong>Time:</strong> ${new Date(log.timestamp).toLocaleString()}</p>
-            ${log.target_wallet ? `<p><strong>Target:</strong> ${log.target_wallet}</p>` : ''}
-            <p><strong>Details:</strong> ${JSON.stringify(log.details)}</p>
-          </div>
-        `).join('');
-      } catch (error) {
-        console.error('Error loading activity logs:', error);
-      }
-    }
 
     // Auto-check if wallet is already connected
     window.addEventListener('DOMContentLoaded', async () => {
@@ -1476,10 +1194,6 @@
           allUsers = usersResult.users || [];
           filterUsers();
           await loadBannedUsers();
-          await loadAnalytics();
-          await loadGameSettings();
-          await loadRaidAnalytics();
-          await loadActivityLogs();
         } else {
           showStatus(`❌ Your wallet (${wallet}) does not have admin permissions. Please contact the site administrator.`, 'error');
           console.error('User does not have admin role:', wallet);
