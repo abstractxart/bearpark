@@ -10978,6 +10978,9 @@
                   <span class="daily-progress-points" id="dailyGamePoints">0 pts earned today</span>
                   <span class="daily-progress-remaining" id="dailyGamesRemaining">20 mins left</span>
                 </div>
+                <div class="daily-reset-timer" id="dailyResetTimer" style="text-align: center; margin-top: 10px; font-size: 12px; color: rgba(237,183,35,0.8);">
+                  ⏰ Resets in <span id="dailyResetCountdown">--:--:--</span> (00:00 UTC)
+                </div>
               </div>
 
               <!-- Your Rank -->
@@ -15048,8 +15051,20 @@
       const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
       const seconds = Math.floor((diff % (1000 * 60)) / 1000);
 
+      // Format with leading zeros
+      const hh = hours.toString().padStart(2, '0');
+      const mm = minutes.toString().padStart(2, '0');
+      const ss = seconds.toString().padStart(2, '0');
+
+      // Update the always-visible reset countdown
+      const resetCountdownEl = document.getElementById('dailyResetCountdown');
+      if (resetCountdownEl) {
+        resetCountdownEl.textContent = `${hh}h ${mm}m ${ss}s`;
+      }
+
+      // Only update dailyGamesRemaining if game limit was reached (already showing "Resets in")
       const remainingEl = document.getElementById('dailyGamesRemaining');
-      if (remainingEl) {
+      if (remainingEl && remainingEl.textContent.includes('Resets in')) {
         remainingEl.textContent = `Resets in ${hours}h ${minutes}m ${seconds}s`;
 
         // Dynamic color based on time remaining
@@ -15079,13 +15094,18 @@
     let countdownInterval;
     function startGameResetCountdown() {
       if (countdownInterval) clearInterval(countdownInterval);
+      // Update immediately
+      updateGameResetCountdown();
+      // Then update every second
       countdownInterval = setInterval(() => {
-        const remainingEl = document.getElementById('dailyGamesRemaining');
-        if (remainingEl && remainingEl.textContent.includes('Resets in')) {
-          updateGameResetCountdown();
-        }
+        updateGameResetCountdown();
       }, 1000);
     }
+
+    // Auto-start the daily reset countdown when page loads
+    document.addEventListener('DOMContentLoaded', () => {
+      startGameResetCountdown();
+    });
 
     function updatePointsDisplay(total, raiding, games, animate = false) {
       const totalEl = document.getElementById('totalHoneyPoints');
