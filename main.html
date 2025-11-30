@@ -13973,7 +13973,7 @@
     IntervalManager.set('updatePrices', updatePrices, 60000); // Use IntervalManager to prevent memory leaks
     document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) updatePrices(); });
 
-    // ===== XRPL Direct Trading Stats (More Accurate than DexScreener) =====
+    // ===== XRPL Direct Trading Stats (from OnTheDEX - More Accurate than DexScreener) =====
     async function fetchXRPLTradingStats() {
       try {
         const response = await fetch((window.API_BASE_URL || '') + '/api/xrpl/trading-stats');
@@ -13985,7 +13985,7 @@
         if (!data.success || !data.stats) return;
 
         const stats = data.stats;
-        console.log('📊 XRPL Trading Stats loaded:', stats);
+        console.log('📊 XRPL Trading Stats loaded (source: ' + data.source + '):', stats);
 
         // Update Trading Activity card with XRPL data (overrides DexScreener)
         const tradingVolXrp = $id('tradingVolXrp');
@@ -13997,7 +13997,7 @@
         const usdBuysBar = $id('usdBuysBar');
         const usdSellsBar = $id('usdSellsBar');
 
-        // Volume
+        // XRP Volume
         if (tradingVolXrp) {
           const volDisplay = stats.volume24hXRP >= 1000
             ? (stats.volume24hXRP / 1000).toFixed(1) + 'K XRP'
@@ -14005,36 +14005,37 @@
           tradingVolXrp.textContent = volDisplay;
         }
 
-        // Buy/Sell Volume in BEAR
-        if (tradingBuyVol) {
-          const buyDisplay = stats.buyVolumeBEAR >= 1000000
-            ? (stats.buyVolumeBEAR / 1000000).toFixed(1) + 'M BEAR'
-            : stats.buyVolumeBEAR >= 1000
-            ? (stats.buyVolumeBEAR / 1000).toFixed(0) + 'K BEAR'
-            : fmt0(stats.buyVolumeBEAR) + ' BEAR';
-          tradingBuyVol.textContent = buyDisplay;
+        // BEAR Volume (show as total since OnTheDEX doesn't break down buy/sell)
+        const bearVol = stats.volume24hBEAR || 0;
+        const bearDisplay = bearVol >= 1000000
+          ? (bearVol / 1000000).toFixed(1) + 'M BEAR'
+          : bearVol >= 1000
+          ? (bearVol / 1000).toFixed(0) + 'K BEAR'
+          : fmt0(bearVol) + ' BEAR';
+
+        if (tradingBuyVol) tradingBuyVol.textContent = bearDisplay;
+        if (tradingSellVol) tradingSellVol.textContent = '$' + fmt0(stats.volume24hUSD || 0);
+
+        // Total trades count
+        if (usdTxnsTotal) usdTxnsTotal.textContent = stats.totalTrades || 0;
+
+        // Price change indicator in buy/sell slots
+        const priceChange = stats.priceChange24h || 0;
+        if (usdBuys) {
+          usdBuys.textContent = (priceChange >= 0 ? '+' : '') + priceChange.toFixed(2) + '%';
+          usdBuys.style.color = priceChange >= 0 ? 'var(--color-success, #22c55e)' : 'var(--color-error, #ef4444)';
         }
-        if (tradingSellVol) {
-          const sellDisplay = stats.sellVolumeBEAR >= 1000000
-            ? (stats.sellVolumeBEAR / 1000000).toFixed(1) + 'M BEAR'
-            : stats.sellVolumeBEAR >= 1000
-            ? (stats.sellVolumeBEAR / 1000).toFixed(0) + 'K BEAR'
-            : fmt0(stats.sellVolumeBEAR) + ' BEAR';
-          tradingSellVol.textContent = sellDisplay;
+        if (usdSells) {
+          // Show price
+          const price = stats.price || 0;
+          usdSells.textContent = price.toFixed(6) + ' XRP';
         }
 
-        // Traders counts
-        if (usdTxnsTotal) usdTxnsTotal.textContent = stats.uniqueTraders;
-        if (usdBuys) usdBuys.textContent = stats.uniqueBuyers;
-        if (usdSells) usdSells.textContent = stats.uniqueSellers;
-
-        // Progress bar
-        const totalTraders = stats.uniqueBuyers + stats.uniqueSellers;
-        if (usdBuysBar && usdSellsBar && totalTraders > 0) {
-          const buyPct = (stats.uniqueBuyers / totalTraders) * 100;
-          const sellPct = (stats.uniqueSellers / totalTraders) * 100;
+        // Progress bar based on price change (positive = green side larger)
+        if (usdBuysBar && usdSellsBar) {
+          const buyPct = priceChange >= 0 ? Math.min(50 + Math.abs(priceChange) * 2, 80) : Math.max(20, 50 - Math.abs(priceChange) * 2);
           usdBuysBar.style.width = buyPct + '%';
-          usdSellsBar.style.width = sellPct + '%';
+          usdSellsBar.style.width = (100 - buyPct) + '%';
         }
 
       } catch (error) {
