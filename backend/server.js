@@ -6533,6 +6533,22 @@ app.post('/api/store/purchase-token', async (req, res) => {
 
     if (!hasTrustline) {
       await client.disconnect();
+
+      // Log the failed attempt (no trustline)
+      await supabase
+        .from('store_token_transactions')
+        .insert({
+          wallet_address,
+          token_type: token_type.toUpperCase(),
+          token_amount: token.amount,
+          honey_spent: 0,
+          tx_hash: null,
+          tx_status: 'failed',
+          error_message: `No ${token.currency} trustline set`
+        }).catch(() => {});
+
+      console.log(`❌ Token purchase FAILED: No trustline for ${token.currency} - ${wallet_address}`);
+
       return res.status(400).json({
         success: false,
         error: `YOU NEED TO SET THE ${token.currency} TRUST LINE FIRST!`,
