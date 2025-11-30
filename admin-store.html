@@ -438,12 +438,13 @@
                 <th>Token</th>
                 <th>Amount</th>
                 <th>HP Spent</th>
+                <th>Status</th>
                 <th>TX Hash</th>
                 <th>Timestamp</th>
               </tr>
             </thead>
             <tbody id="token-purchases-table">
-              <tr><td colspan="6" class="loading">Loading...</td></tr>
+              <tr><td colspan="7" class="loading">Loading...</td></tr>
             </tbody>
           </table>
         </div>
@@ -628,24 +629,32 @@
         document.getElementById('spiffy-count').textContent = spiffyCount;
         document.getElementById('total-hp-tokens').textContent = totalHP.toLocaleString();
 
-        tbody.innerHTML = purchases.map(purchase => `
-          <tr>
-            <td class="wallet" title="${purchase.wallet_address}">${formatWallet(purchase.wallet_address)}</td>
-            <td>
-              <img src="${TOKEN_LOGOS[purchase.token_type] || ''}" alt="" class="token-icon" onerror="this.style.display='none'">
-              ${purchase.token_type}
-            </td>
-            <td class="amount">${Number(purchase.token_amount || 0).toLocaleString()}</td>
-            <td class="hp-cost">${(purchase.honey_spent || 0).toLocaleString()} HP</td>
-            <td>${formatTxHash(purchase.tx_hash)}</td>
-            <td class="timestamp">${formatTimestamp(purchase.created_at)}</td>
-          </tr>
-        `).join('');
+        tbody.innerHTML = purchases.map(purchase => {
+          const status = purchase.tx_status || 'validated';
+          const statusColor = status === 'validated' ? '#4ade80' : status === 'failed' ? '#ef4444' : '#f59e0b';
+          const statusIcon = status === 'validated' ? '✓' : status === 'failed' ? '✗' : '⚠';
+          const errorTitle = purchase.error_message ? `title="${purchase.error_message}"` : '';
+
+          return `
+            <tr style="${status !== 'validated' ? 'background:rgba(239,68,68,0.1);' : ''}">
+              <td class="wallet" title="${purchase.wallet_address}">${formatWallet(purchase.wallet_address)}</td>
+              <td>
+                <img src="${TOKEN_LOGOS[purchase.token_type] || ''}" alt="" class="token-icon" onerror="this.style.display='none'">
+                ${purchase.token_type}
+              </td>
+              <td class="amount">${Number(purchase.token_amount || 0).toLocaleString()}</td>
+              <td class="hp-cost">${(purchase.honey_spent || 0).toLocaleString()} HP</td>
+              <td ${errorTitle} style="color:${statusColor}; font-weight:700;">${statusIcon} ${status.toUpperCase()}</td>
+              <td>${formatTxHash(purchase.tx_hash)}</td>
+              <td class="timestamp">${formatTimestamp(purchase.created_at)}</td>
+            </tr>
+          `;
+        }).join('');
 
       } catch (error) {
         console.error('Error loading token purchases:', error);
         document.getElementById('token-purchases-table').innerHTML = `
-          <tr><td colspan="6" style="color:#ef4444;">Error loading data: ${error.message}</td></tr>
+          <tr><td colspan="7" style="color:#ef4444;">Error loading data: ${error.message}</td></tr>
         `;
       }
     }

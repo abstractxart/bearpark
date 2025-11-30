@@ -6615,6 +6615,21 @@ app.post('/api/store/purchase-token', async (req, res) => {
         .update({ total_points: currentPoints })
         .eq('wallet_address', wallet_address);
 
+      // Log failed transaction
+      await supabase
+        .from('store_token_transactions')
+        .insert({
+          wallet_address,
+          token_type: token_type.toUpperCase(),
+          token_amount: token.amount,
+          honey_spent: 0, // Refunded
+          tx_hash: txHash || null,
+          tx_status: 'failed',
+          error_message: txResult
+        });
+
+      console.log(`❌ Token purchase FAILED: ${txResult} for ${wallet_address}`);
+
       res.status(500).json({
         success: false,
         error: `Transaction failed: ${txResult}. Your Honey Points have been refunded.`
@@ -6622,6 +6637,21 @@ app.post('/api/store/purchase-token', async (req, res) => {
     }
   } catch (error) {
     try { await client.disconnect(); } catch (e) {}
+
+    // Log error transaction
+    if (token) {
+      await supabase
+        .from('store_token_transactions')
+        .insert({
+          wallet_address,
+          token_type: token_type.toUpperCase(),
+          token_amount: token.amount,
+          honey_spent: 0,
+          tx_hash: null,
+          tx_status: 'error',
+          error_message: error.message?.substring(0, 255) || 'Unknown error'
+        }).catch(() => {}); // Ignore if insert fails
+    }
 
     // Handle account not found (no trustline)
     if (error.message?.includes('actNotFound')) {
