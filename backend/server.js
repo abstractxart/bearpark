@@ -6638,9 +6638,9 @@ app.get('/api/store/nfts', async (req, res) => {
 
     const purchasedIds = new Set((purchased || []).map(p => p.nft_token_id).filter(Boolean));
 
-    // Filter to only Pixel BEAR NFTs (from our issuer) and not yet purchased
+    // Filter out already purchased NFTs (show ALL NFTs in the wallet)
     const availableNfts = allNfts
-      .filter(nft => nft.Issuer === NFT_ISSUER && !purchasedIds.has(nft.NFTokenID))
+      .filter(nft => !purchasedIds.has(nft.NFTokenID))
       .map(nft => {
         // Decode URI to get metadata
         let uri = '';
