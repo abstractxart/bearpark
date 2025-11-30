@@ -14014,7 +14014,7 @@
           : fmt0(bearVol) + ' BEAR';
 
         if (tradingBuyVol) tradingBuyVol.textContent = bearDisplay;
-        if (tradingSellVol) tradingSellVol.textContent = '$' + fmt0(stats.volume24hUSD || 0);
+        if (tradingSellVol) tradingSellVol.textContent = bearDisplay;
 
         // Total trades count
         if (usdTxnsTotal) usdTxnsTotal.textContent = stats.totalTrades || 0;
