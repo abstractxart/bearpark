@@ -17148,16 +17148,12 @@
       nftEmpty.style.display = 'none';
 
       try {
-        // Connect to XRPL
-        if (typeof xrpl === 'undefined') {
-          console.error('XRPL library not loaded');
-          alert('Error: XRPL library not loaded');
-          nftLoading.style.display = 'none';
-          return;
-        }
-
-        const client = new xrpl.Client('wss://xrplcluster.com');
-        await client.connect();
+        // Use HTTP JSON-RPC instead of WebSocket for reliability
+        const xrplEndpoints = [
+          'https://xrplcluster.com/',
+          'https://s1.ripple.com:51234/',
+          'https://s2.ripple.com:51234/'
+        ];
 
         // Get ALL account NFTs with pagination
         let allNFTs = [];
@@ -17165,28 +17161,53 @@
         let pageCount = 0;
         const maxPages = 20; // Safety limit
 
-        console.log('[NFT] Fetching all NFTs from wallet (with pagination)...');
+        console.log('[NFT] Fetching all NFTs from wallet (with pagination via HTTP)...');
 
         do {
-          const nftRequest = {
-            command: 'account_nfts',
-            account: walletAddress,
-            ledger_index: 'validated',
-            limit: 400 // Maximum per page
-          };
+          let response = null;
+          let lastError = null;
 
-          if (marker) {
-            nftRequest.marker = marker;
+          // Try each endpoint until one works
+          for (const endpoint of xrplEndpoints) {
+            try {
+              console.log(`[NFT] Trying endpoint: ${endpoint}`);
+              response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  method: 'account_nfts',
+                  params: [{
+                    account: walletAddress,
+                    ledger_index: 'validated',
+                    limit: 400,
+                    ...(marker && { marker })
+                  }]
+                })
+              });
+              if (response.ok) {
+                console.log(`[NFT] Success with endpoint: ${endpoint}`);
+                break;
+              }
+            } catch (err) {
+              console.log(`[NFT] Endpoint ${endpoint} failed:`, err.message);
+              lastError = err;
+            }
           }
 
-          const nfts = await client.request(nftRequest);
-
-          if (nfts.result.account_nfts && nfts.result.account_nfts.length > 0) {
-            allNFTs = allNFTs.concat(nfts.result.account_nfts);
-            console.log(`[NFT] Page ${pageCount + 1}: Found ${nfts.result.account_nfts.length} NFTs`);
+          if (!response || !response.ok) {
+            console.error('[NFT] All XRPL endpoints failed');
+            throw new Error('All XRPL endpoints failed');
           }
 
-          marker = nfts.result.marker;
+          const data = await response.json();
+          const pageNfts = data.result?.account_nfts || [];
+
+          if (pageNfts.length > 0) {
+            allNFTs = allNFTs.concat(pageNfts);
+            console.log(`[NFT] Page ${pageCount + 1}: Found ${pageNfts.length} NFTs`);
+          }
+
+          marker = data.result?.marker;
           pageCount++;
 
         } while (marker && pageCount < maxPages);
@@ -17278,10 +17299,6 @@
             </div>
           </div>
         `).join('');
-
-        // Disconnect client - we have all the data we need
-        await client.disconnect();
-        console.log('[NFT] Client disconnected');
 
         // Load NFT images using backend API (handles IPFS encoding properly)
         const imageLoadPromises = filteredNFTs.map(async (nft) => {
@@ -17402,85 +17419,62 @@
 
             // Update media element (use img for all content types for reliability)
             const imgElement = document.querySelector(`img.nft-image-loading[data-nft-id="${nft.NFTokenID}"]`);
-            console.log('[NFT Image] imgElement found:', !!imgElement, 'imageUrl:', imageUrl ? imageUrl.substring(0, 50) + '...' : 'NONE');
+            console.log('[NFT Image] imgElement found:', !!imgElement, 'imageUrl:', imageUrl ? imageUrl : 'NONE');
+
+            // ALWAYS remove loading overlay immediately - don't wait for image
+            const loadingOverlay = document.querySelector(`.loading-overlay[data-nft-id="${nft.NFTokenID}"]`);
+            if (loadingOverlay) {
+              loadingOverlay.style.display = 'none';
+              console.log('[NFT Image] Overlay hidden for', nft.NFTokenID);
+            }
+
             if (imgElement && imageUrl) {
-              // Set up timeout for slow-loading animated content
-              let loadTimeout = null;
-              let hasLoaded = false;
-
-              // Set up error handler to try fallback image if animated content fails
-              if (fallbackImageUrl && isAnimated) {
-                // Timeout after 8 seconds for animated content
-                loadTimeout = setTimeout(() => {
-                  if (!hasLoaded && imgElement.src !== fallbackImageUrl) {
-                    console.log('[NFT Image] Animated content loading too slow, using static fallback for', nft.NFTokenID);
-                    imgElement.src = fallbackImageUrl;
-                  }
-                }, 8000);
-
-                imgElement.onerror = function() {
-                  clearTimeout(loadTimeout);
-                  if (this.src !== fallbackImageUrl) {
-                    console.log('[NFT Image] Animated content failed, trying static fallback for', nft.NFTokenID);
-                    this.src = fallbackImageUrl;
-                  }
-                };
-
-                imgElement.onload = function() {
-                  hasLoaded = true;
-                  clearTimeout(loadTimeout);
-                  console.log('[NFT Image] Successfully loaded image for', nft.NFTokenID);
-                };
-              }
-
               console.log('[NFT Image] Setting src to:', imageUrl);
               imgElement.src = imageUrl;
               imgElement.classList.remove('nft-image-loading');
-              console.log('[NFT Image] ✅ Image src SET for', bearName);
 
-              // Add visible onload/onerror handlers
-              imgElement.onload = function() {
-                console.log('[NFT Image] ✅✅ Image LOADED for', bearName);
-              };
+              // Set up error handler with fallback
               imgElement.onerror = function() {
-                console.error('[NFT Image] ❌❌ Image FAILED to load for', bearName, 'URL:', imageUrl);
+                console.error('[NFT Image] ❌ Image FAILED for', bearName, 'URL:', imageUrl);
+                // Try fallback if available
+                if (fallbackImageUrl && this.src !== fallbackImageUrl) {
+                  console.log('[NFT Image] Trying fallback:', fallbackImageUrl);
+                  this.src = fallbackImageUrl;
+                } else {
+                  // Show placeholder on error
+                  this.style.background = 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)';
+                  this.alt = bearName;
+                }
               };
 
-              // Remove loading overlay after image loads
-              const loadingOverlay = document.querySelector(`.loading-overlay[data-nft-id="${nft.NFTokenID}"]`);
-              if (loadingOverlay) {
-                // Wait for image to load before removing overlay
-                if (imgElement.complete) {
-                  loadingOverlay.remove();
-                } else {
-                  const removeOverlay = () => {
-                    loadingOverlay.remove();
-                    imgElement.removeEventListener('load', removeOverlay);
-                    imgElement.removeEventListener('error', removeOverlay);
-                  };
-                  imgElement.addEventListener('load', removeOverlay);
-                  imgElement.addEventListener('error', removeOverlay);
-                }
-              }
+              imgElement.onload = function() {
+                console.log('[NFT Image] ✅ LOADED:', bearName);
+              };
 
-              // Update NFT info section
-              const infoSection = document.querySelector(`.nft-info[data-nft-id="${nft.NFTokenID}"]`);
-              if (infoSection) {
-                infoSection.style.display = 'block';
-                infoSection.innerHTML = `
-                  <div style="text-align:center; margin-bottom:0;">
-                    <div style="color:var(--gold); font-weight:900; font-size:14px; margin-bottom:2px; text-shadow:0 2px 4px rgba(0,0,0,0.5);">${bearName}</div>
-                    <div style="color:rgba(255,255,255,0.8); font-size:12px; font-weight:700;">Rarity ${rarityNumber}</div>
-                  </div>
-                `;
-              }
+              console.log('[NFT Image] ✅ Image src SET for', bearName);
+            } else if (imgElement) {
+              // No imageUrl - show placeholder
+              console.warn('[NFT Image] No imageUrl for', nft.NFTokenID);
+              imgElement.style.background = 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)';
+            }
+
+            // Update NFT info section (always, even if no image)
+            const infoSection = document.querySelector(`.nft-info[data-nft-id="${nft.NFTokenID}"]`);
+            if (infoSection) {
+              infoSection.style.display = 'block';
+              infoSection.innerHTML = `
+                <div style="text-align:center; margin-bottom:0;">
+                  <div style="color:var(--gold); font-weight:900; font-size:14px; margin-bottom:2px; text-shadow:0 2px 4px rgba(0,0,0,0.5);">${bearName}</div>
+                  <div style="color:rgba(255,255,255,0.8); font-size:12px; font-weight:700;">Rarity ${rarityNumber}</div>
+                </div>
+              `;
             }
           } catch (err) {
             console.error('[NFT Image] Failed to load image for', nft.NFTokenID, err);
-            // Show error state
+            // Hide overlay even on error
             const loadingOverlay = document.querySelector(`.loading-overlay[data-nft-id="${nft.NFTokenID}"]`);
             if (loadingOverlay) {
-              loadingOverlay.innerHTML = '<div style="text-align:center;"><div style="font-size:20px; margin-bottom:4px;">⚠️</div><div>Failed to load</div></div>';
+              loadingOverlay.style.display = 'none';
             }
           }
         });
