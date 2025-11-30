@@ -6594,43 +6594,150 @@ app.post('/api/store/purchase-token', async (req, res) => {
 console.log('✅ Token Store endpoints initialized');
 
 // ============================================
-// BEAR STORE - NFT REQUESTS (Pixel BEARS)
+// BEAR STORE - NFT PURCHASES (Pixel BEARS)
 // ============================================
 
-const STORE_NFTS = {
-  PIXEL_BEAR: {
-    id: 'PIXEL_BEAR',
-    name: 'Pixel BEAR NFT',
-    honeyCost: 10000,
-    description: 'A unique Pixel BEAR NFT from the collection!',
-    image: 'https://files.catbox.moe/v2jedg.png' // Use a placeholder or BEAR image
-  }
-};
+const NFT_STORE_WALLET = 'rBEARKfWJS1LYdg2g6t99BgbvpWY5pgMB9';
+const NFT_ISSUER = 'rBEARKfWJS1LYdg2g6t99BgbvpWY5pgMB9';
+const NFT_HONEY_COST = 10000;
 
-// Get available NFTs for store
-app.get('/api/store/nfts', (req, res) => {
-  const nfts = Object.values(STORE_NFTS);
-  res.json({ success: true, nfts });
+// Helper to decode hex URI to string
+function hexToString(hex) {
+  let str = '';
+  for (let i = 0; i < hex.length; i += 2) {
+    const code = parseInt(hex.substr(i, 2), 16);
+    if (code) str += String.fromCharCode(code);
+  }
+  return str;
+}
+
+// Get available NFTs from the store wallet (filters out already purchased)
+app.get('/api/store/nfts', async (req, res) => {
+  const xrpl = require('xrpl');
+  const client = new xrpl.Client('wss://s1.ripple.com');
+
+  try {
+    await client.connect();
+
+    // Get all NFTs from the store wallet
+    const response = await client.request({
+      command: 'account_nfts',
+      account: NFT_STORE_WALLET,
+      limit: 100
+    });
+
+    await client.disconnect();
+
+    const allNfts = response.result.account_nfts || [];
+
+    // Get already purchased NFT token IDs from database
+    const { data: purchased } = await supabase
+      .from('nft_purchase_requests')
+      .select('nft_token_id')
+      .in('status', ['pending', 'fulfilled']);
+
+    const purchasedIds = new Set((purchased || []).map(p => p.nft_token_id).filter(Boolean));
+
+    // Filter to only Pixel BEAR NFTs (from our issuer) and not yet purchased
+    const availableNfts = allNfts
+      .filter(nft => nft.Issuer === NFT_ISSUER && !purchasedIds.has(nft.NFTokenID))
+      .map(nft => {
+        // Decode URI to get metadata
+        let uri = '';
+        let imageUrl = 'https://files.catbox.moe/v2jedg.png'; // default
+        let name = 'Pixel BEAR';
+
+        if (nft.URI) {
+          uri = hexToString(nft.URI);
+          // Try to extract image from URI (might be IPFS or direct URL)
+          if (uri.startsWith('ipfs://')) {
+            imageUrl = `https://ipfs.io/ipfs/${uri.replace('ipfs://', '')}`;
+          } else if (uri.startsWith('http')) {
+            imageUrl = uri;
+          }
+          // Extract name if it's in the URI
+          if (uri.includes('Pixel BEAR') || uri.includes('Pixel%20BEAR')) {
+            name = 'Pixel BEAR';
+          }
+        }
+
+        return {
+          nftTokenId: nft.NFTokenID,
+          name: name,
+          uri: uri,
+          imageUrl: imageUrl,
+          honeyCost: NFT_HONEY_COST,
+          issuer: nft.Issuer,
+          taxon: nft.NFTokenTaxon
+        };
+      });
+
+    res.json({
+      success: true,
+      nfts: availableNfts,
+      totalAvailable: availableNfts.length,
+      honeyCost: NFT_HONEY_COST
+    });
+
+  } catch (error) {
+    try { await client.disconnect(); } catch (e) {}
+    console.error('Error fetching store NFTs:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
-// Request NFT purchase (user claims, admin sends manually)
+// Request specific NFT purchase (by NFTokenID)
 app.post('/api/store/request-nft', async (req, res) => {
-  const { wallet_address, nft_type } = req.body;
+  const { wallet_address, nft_token_id } = req.body;
 
-  if (!wallet_address || !nft_type) {
+  if (!wallet_address || !nft_token_id) {
     return res.status(400).json({
       success: false,
-      error: 'wallet_address and nft_type are required'
+      error: 'wallet_address and nft_token_id are required'
     });
   }
 
-  const nft = STORE_NFTS[nft_type.toUpperCase()];
-  if (!nft) {
-    return res.status(400).json({ success: false, error: 'Invalid NFT type' });
-  }
-
   try {
-    // 1. Check user's honey points
+    // 1. Check if this NFT is already purchased/pending
+    const { data: existingPurchase } = await supabase
+      .from('nft_purchase_requests')
+      .select('id, status, wallet_address')
+      .eq('nft_token_id', nft_token_id)
+      .in('status', ['pending', 'fulfilled'])
+      .single();
+
+    if (existingPurchase) {
+      return res.status(400).json({
+        success: false,
+        error: 'NFT ALREADY PURCHASED! This NFT has been claimed by another user.',
+        alreadyPurchased: true
+      });
+    }
+
+    // 2. Verify NFT still exists in store wallet
+    const xrpl = require('xrpl');
+    const client = new xrpl.Client('wss://s1.ripple.com');
+    await client.connect();
+
+    const response = await client.request({
+      command: 'account_nfts',
+      account: NFT_STORE_WALLET,
+      limit: 100
+    });
+
+    await client.disconnect();
+
+    const nftExists = response.result.account_nfts.some(nft => nft.NFTokenID === nft_token_id);
+
+    if (!nftExists) {
+      return res.status(400).json({
+        success: false,
+        error: 'NFT ALREADY PURCHASED! This NFT is no longer available.',
+        alreadyPurchased: true
+      });
+    }
+
+    // 3. Check user's honey points
     const { data: pointsData } = await supabase
       .from('honey_points')
       .select('total_points')
@@ -6639,31 +6746,15 @@ app.post('/api/store/request-nft', async (req, res) => {
 
     const currentPoints = pointsData?.total_points || 0;
 
-    if (currentPoints < nft.honeyCost) {
+    if (currentPoints < NFT_HONEY_COST) {
       return res.status(400).json({
         success: false,
-        error: `Not enough Honey Points. Need ${nft.honeyCost.toLocaleString()}, have ${Math.floor(currentPoints).toLocaleString()}`
+        error: `Not enough Honey Points. Need ${NFT_HONEY_COST.toLocaleString()}, have ${Math.floor(currentPoints).toLocaleString()}`
       });
     }
 
-    // 2. Check if user already has a pending request for this NFT type
-    const { data: existingRequest } = await supabase
-      .from('nft_purchase_requests')
-      .select('id, status')
-      .eq('wallet_address', wallet_address)
-      .eq('nft_type', nft_type.toUpperCase())
-      .eq('status', 'pending')
-      .single();
-
-    if (existingRequest) {
-      return res.status(400).json({
-        success: false,
-        error: 'You already have a pending request for this NFT. Please wait for it to be fulfilled.'
-      });
-    }
-
-    // 3. Deduct honey points
-    const newPoints = currentPoints - nft.honeyCost;
+    // 4. Deduct honey points
+    const newPoints = currentPoints - NFT_HONEY_COST;
     const { error: pointsError } = await supabase
       .from('honey_points')
       .update({ total_points: newPoints })
@@ -6671,14 +6762,15 @@ app.post('/api/store/request-nft', async (req, res) => {
 
     if (pointsError) throw pointsError;
 
-    // 4. Create NFT request record
+    // 5. Create NFT request record with specific token ID
     const { data: request, error: requestError } = await supabase
       .from('nft_purchase_requests')
       .insert({
         wallet_address,
-        nft_type: nft_type.toUpperCase(),
-        nft_name: nft.name,
-        honey_spent: nft.honeyCost,
+        nft_token_id: nft_token_id,
+        nft_type: 'PIXEL_BEAR',
+        nft_name: 'Pixel BEAR NFT',
+        honey_spent: NFT_HONEY_COST,
         status: 'pending',
         requested_at: new Date().toISOString()
       })
@@ -6694,14 +6786,14 @@ app.post('/api/store/request-nft', async (req, res) => {
       throw requestError;
     }
 
-    console.log(`🎨 NFT Request: ${nft.name} requested by ${wallet_address}`);
+    console.log(`🎨 NFT Request: Pixel BEAR (${nft_token_id.slice(0, 16)}...) requested by ${wallet_address}`);
     console.log(`   Request ID: ${request.id}`);
 
     res.json({
       success: true,
-      message: `Your request for ${nft.name} has been submitted! It will be sent to you shortly.`,
+      message: 'Your Pixel BEAR NFT request has been submitted! It will be sent to you shortly.',
       request_id: request.id,
-      nft_name: nft.name,
+      nft_token_id: nft_token_id,
       new_balance: newPoints,
       status: 'pending'
     });

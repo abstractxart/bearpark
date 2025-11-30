@@ -394,7 +394,7 @@
             <thead>
               <tr>
                 <th>Wallet</th>
-                <th>NFT Type</th>
+                <th>NFT Token ID</th>
                 <th>HP Spent</th>
                 <th>Requested</th>
                 <th>Status</th>
@@ -534,7 +534,7 @@
         tbody.innerHTML = requests.map(req => `
           <tr>
             <td class="wallet" title="${req.wallet_address}">${formatWallet(req.wallet_address)}</td>
-            <td>${req.nft_name || req.nft_type}</td>
+            <td style="font-family:monospace; font-size:11px; color:#8b5cf6;" title="${req.nft_token_id || 'N/A'}">${req.nft_token_id ? req.nft_token_id.slice(0, 12) + '...' : req.nft_name || req.nft_type}</td>
             <td class="hp-cost">${(req.honey_spent || 0).toLocaleString()} HP</td>
             <td class="timestamp">${formatTimestamp(req.requested_at)}</td>
             <td><span class="status ${req.status}">${req.status}</span></td>
