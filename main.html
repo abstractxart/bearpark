@@ -25909,14 +25909,14 @@ if (typeof window.addEventListener !== 'undefined') {
           if (ct) ct.textContent = 'NEED ' + rm.toFixed(0) + ' MORE POINTS';
           _startTimer(false, true);
         } else {
-          // No pending claim - waiting for snapshot
-          if (ph) ph.textContent = 'No pending airdrop. Snapshot runs at a random time each day!';
+          // No pending claim - come back tomorrow
+          if (ph) ph.textContent = 'No pending airdrop. Come back at the next claim window!';
           if (cb) {
             cb.disabled = true;
             cb.classList.remove('claimed');
             cb.onclick = null;
           }
-          if (ct) ct.textContent = 'WAITING FOR SNAPSHOT';
+          if (ct) ct.textContent = 'COME BACK TOMORROW';
           _startTimer(false, false);
         }
       } catch (e) {}
