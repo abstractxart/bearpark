@@ -6215,295 +6215,61 @@ app.post('/api/beardrops/admin/batch-payout', verifyApex, async (req, res) => {
 console.log('✅ BEARDROPS airdrop endpoints initialized');
 
 // ========== XRPL TRADING DATA ENDPOINT ==========
-// Fetches real-time 24h trading data directly from XRPL DEX order book
+// Fetches real-time 24h trading data from OnTheDEX API (reliable XRPL DEX aggregator)
 
-const xrpl = require('xrpl');
 const BEAR_ISSUER = 'rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW';
-const XRPL_WS_URL = 'wss://xrplcluster.com';
+const ONTHEDEX_API = 'https://api.onthedex.live/public/v1';
 
-// Get transaction history for BEAR issuer account to find all trades
-async function getBEARTransactions(client, marker = null) {
-  const request = {
-    command: 'account_tx',
-    account: BEAR_ISSUER,
-    ledger_index_min: -1,
-    ledger_index_max: -1,
-    limit: 200,
-    forward: false
-  };
-  if (marker) request.marker = marker;
-
-  const response = await client.request(request);
-  return response.result;
-}
-
-// BEAR currency code in hex format (for 4+ char currencies on XRPL)
-const BEAR_HEX = '4245415200000000000000000000000000000000';
-
-// Check if a currency is BEAR (handles both ASCII and hex formats)
-function isBEARCurrency(currency, issuer) {
-  if (!currency) return false;
-  if (issuer !== BEAR_ISSUER) return false;
-  // Check both ASCII "BEAR" and hex format
-  return currency === 'BEAR' || currency.toUpperCase() === BEAR_HEX;
-}
-
-// Skip order book for now - just return empty (focus on transaction data)
-async function getOrderBook(client) {
-  // Order book query has currency format issues, skip for now
-  // The main trading data comes from transactions anyway
-  return { asks: [], bids: [] };
-}
-
-// Parse a transaction to extract BEAR/XRP trade info
-function parseTradeTransaction(tx) {
-  const meta = tx.meta || tx.metaData;
-  if (!meta || meta.TransactionResult !== 'tesSUCCESS') return null;
-
-  const txData = tx.tx || tx;
-  const txType = txData.TransactionType;
-
-  // Ripple epoch (Jan 1, 2000) to Unix timestamp
-  const timestamp = txData.date ? (txData.date + 946684800) * 1000 : null;
-
-  // We're interested in OfferCreate and Payment transactions
-  if (txType !== 'OfferCreate' && txType !== 'Payment') {
-    return null;
-  }
-
-  const affectedNodes = meta.AffectedNodes || [];
-  let xrpAmount = 0;
-  let bearAmount = 0;
-  let isBuy = false;
-  let isTrade = false;
-
-  // For OfferCreate - check if it's a BEAR/XRP trade
-  if (txType === 'OfferCreate') {
-    const takerGets = txData.TakerGets;
-    const takerPays = txData.TakerPays;
-
-    if (!takerGets || !takerPays) return null;
-
-    const getsXRP = typeof takerGets === 'string';
-    const paysXRP = typeof takerPays === 'string';
-    const getsBEAR = !getsXRP && isBEARCurrency(takerGets.currency, takerGets.issuer);
-    const paysBEAR = !paysXRP && isBEARCurrency(takerPays.currency, takerPays.issuer);
-
-    // Check if this is a BEAR/XRP pair
-    if ((getsXRP && paysBEAR) || (paysXRP && getsBEAR)) {
-      isTrade = true;
-
-      // Check meta for actual executed amounts (from deleted/modified offers)
-      for (const node of affectedNodes) {
-        const nodeData = node.DeletedNode || node.ModifiedNode;
-        if (!nodeData || nodeData.LedgerEntryType !== 'Offer') continue;
-
-        const prevFields = nodeData.PreviousFields || nodeData.FinalFields;
-        const finalFields = nodeData.FinalFields;
-
-        if (prevFields && finalFields) {
-          // Calculate executed amount from offer changes
-          const prevGets = prevFields.TakerGets;
-          const finalGets = finalFields.TakerGets;
-
-          if (prevGets && finalGets) {
-            if (typeof prevGets === 'string' && typeof finalGets === 'string') {
-              const executed = (parseInt(prevGets) - parseInt(finalGets)) / 1000000;
-              if (executed > 0) xrpAmount += executed;
-            } else if (isBEARCurrency(prevGets.currency, prevGets.issuer) && isBEARCurrency(finalGets.currency, finalGets.issuer)) {
-              const executed = parseFloat(prevGets.value) - parseFloat(finalGets.value);
-              if (executed > 0) bearAmount += executed;
-            }
-          }
-        }
-      }
-
-      // Fallback: use the offer amounts if no execution detected
-      if (xrpAmount === 0 && bearAmount === 0) {
-        if (getsXRP) {
-          xrpAmount = parseInt(takerGets) / 1000000;
-          bearAmount = parseFloat(takerPays.value);
-          isBuy = false; // Selling BEAR for XRP
-        } else {
-          xrpAmount = parseInt(takerPays) / 1000000;
-          bearAmount = parseFloat(takerGets.value);
-          isBuy = true; // Buying BEAR with XRP
-        }
-      } else {
-        // Determine direction from the offer
-        isBuy = paysXRP; // If paying XRP, buying BEAR
-      }
-    }
-  }
-
-  // For Payment - check if it involves BEAR token exchanges
-  if (txType === 'Payment') {
-    const amount = txData.Amount;
-    const sendMax = txData.SendMax;
-
-    // Check if this is a cross-currency payment involving BEAR
-    if (amount && sendMax) {
-      const amtIsBEAR = typeof amount !== 'string' && isBEARCurrency(amount.currency, amount.issuer);
-      const amtIsXRP = typeof amount === 'string';
-      const sendIsBEAR = typeof sendMax !== 'string' && isBEARCurrency(sendMax.currency, sendMax.issuer);
-      const sendIsXRP = typeof sendMax === 'string';
-
-      if ((amtIsBEAR && sendIsXRP) || (amtIsXRP && sendIsBEAR)) {
-        isTrade = true;
-
-        // Extract actual delivered amounts from meta
-        const delivered = meta.delivered_amount || meta.DeliveredAmount || amount;
-
-        if (typeof delivered === 'string') {
-          xrpAmount = parseInt(delivered) / 1000000;
-        } else if (isBEARCurrency(delivered.currency, delivered.issuer)) {
-          bearAmount = parseFloat(delivered.value);
-        }
-
-        isBuy = amtIsBEAR; // If receiving BEAR, it's a buy
-      }
-    }
-  }
-
-  if (!isTrade || (xrpAmount === 0 && bearAmount === 0)) {
-    return null;
-  }
-
-  return {
-    hash: txData.hash,
-    timestamp,
-    type: txType,
-    account: txData.Account,
-    xrpAmount: Math.abs(xrpAmount),
-    bearAmount: Math.abs(bearAmount),
-    isBuy
-  };
-}
-
-// Cache for XRPL trading data (refresh every 60 seconds)
+// Cache for trading data (refresh every 60 seconds)
 let xrplTradingCache = null;
 let xrplTradingCacheTime = 0;
 const XRPL_CACHE_TTL = 60000; // 60 seconds
 
 app.get('/api/xrpl/trading-stats', async (req, res) => {
-  const client = new xrpl.Client(XRPL_WS_URL);
-
   try {
     const now = Date.now();
-    const twentyFourHoursAgo = now - (24 * 60 * 60 * 1000);
 
     // Check cache
     if (xrplTradingCache && (now - xrplTradingCacheTime) < XRPL_CACHE_TTL) {
       return res.json({ ...xrplTradingCache, cached: true });
     }
 
-    console.log('📊 Fetching XRPL trading stats from DEX order book...');
+    console.log('📊 Fetching BEAR trading stats from OnTheDEX...');
 
-    await client.connect();
-    console.log('📊 Connected to XRPL');
+    // Fetch ticker data from OnTheDEX API
+    const tickerUrl = `${ONTHEDEX_API}/ticker/BEAR.${BEAR_ISSUER}:XRP`;
+    const tickerResponse = await fetch(tickerUrl);
 
-    // Fetch transactions in batches to get more history
-    let allTransactions = [];
-    let marker = null;
-    let batchCount = 0;
-    const maxBatches = 5; // Get up to 1000 transactions
-
-    while (batchCount < maxBatches) {
-      const result = await getBEARTransactions(client, marker);
-      allTransactions = allTransactions.concat(result.transactions || []);
-
-      // Check if we have enough 24h data
-      if (result.transactions && result.transactions.length > 0) {
-        const lastTx = result.transactions[result.transactions.length - 1];
-        const lastDate = lastTx.tx?.date ? (lastTx.tx.date + 946684800) * 1000 : 0;
-        if (lastDate < twentyFourHoursAgo) break; // We have all 24h data
-      }
-
-      if (!result.marker) break;
-      marker = result.marker;
-      batchCount++;
+    if (!tickerResponse.ok) {
+      throw new Error(`OnTheDEX API returned ${tickerResponse.status}`);
     }
 
-    console.log('📊 Fetched', allTransactions.length, 'transactions');
+    const tickerData = await tickerResponse.json();
 
-    // Get current order book for liquidity info
-    const orderBook = await getOrderBook(client);
-
-    await client.disconnect();
-
-    // Parse and filter 24h transactions
-    const trades = [];
-    const uniqueBuyers = new Set();
-    const uniqueSellers = new Set();
-    let totalVolumeXRP = 0;
-    let buyVolumeXRP = 0;
-    let sellVolumeXRP = 0;
-    let buyVolumeBEAR = 0;
-    let sellVolumeBEAR = 0;
-    let buyCount = 0;
-    let sellCount = 0;
-
-    for (const tx of allTransactions) {
-      const parsed = parseTradeTransaction(tx);
-      if (!parsed) continue;
-
-      // Filter for last 24 hours
-      if (parsed.timestamp && parsed.timestamp >= twentyFourHoursAgo) {
-        trades.push(parsed);
-        totalVolumeXRP += parsed.xrpAmount;
-
-        if (parsed.isBuy) {
-          buyCount++;
-          buyVolumeXRP += parsed.xrpAmount;
-          buyVolumeBEAR += parsed.bearAmount;
-          uniqueBuyers.add(parsed.account);
-        } else {
-          sellCount++;
-          sellVolumeXRP += parsed.xrpAmount;
-          sellVolumeBEAR += parsed.bearAmount;
-          uniqueSellers.add(parsed.account);
-        }
-      }
+    if (!tickerData.pairs || tickerData.pairs.length === 0) {
+      throw new Error('No trading pair data found');
     }
 
-    // Calculate unique traders
-    const allTraders = new Set([...uniqueBuyers, ...uniqueSellers]);
+    const pair = tickerData.pairs[0];
 
-    // Calculate order book depth (liquidity)
-    let askDepthXRP = 0;
-    let bidDepthXRP = 0;
-
-    for (const ask of orderBook.asks) {
-      if (typeof ask.TakerGets === 'string') {
-        askDepthXRP += parseInt(ask.TakerGets) / 1000000;
-      }
-    }
-
-    for (const bid of orderBook.bids) {
-      if (typeof bid.TakerPays === 'string') {
-        bidDepthXRP += parseInt(bid.TakerPays) / 1000000;
-      }
-    }
-
+    // Build response with trading stats
     const result = {
       success: true,
-      source: 'XRPL DEX Direct',
+      source: 'OnTheDEX',
       cached: false,
       timestamp: now,
       stats: {
-        volume24hXRP: Math.round(totalVolumeXRP * 100) / 100,
-        buyVolumeXRP: Math.round(buyVolumeXRP * 100) / 100,
-        sellVolumeXRP: Math.round(sellVolumeXRP * 100) / 100,
-        buyVolumeBEAR: Math.round(buyVolumeBEAR),
-        sellVolumeBEAR: Math.round(sellVolumeBEAR),
-        totalTrades: trades.length,
-        buys: buyCount,
-        sells: sellCount,
-        uniqueTraders: allTraders.size,
-        uniqueBuyers: uniqueBuyers.size,
-        uniqueSellers: uniqueSellers.size,
-        askDepthXRP: Math.round(askDepthXRP),
-        bidDepthXRP: Math.round(bidDepthXRP)
+        price: pair.last || 0,
+        price24hAgo: pair.ago24 || 0,
+        priceChange24h: pair.pc24 || 0,
+        priceHigh24h: pair.price_hi || 0,
+        priceLow24h: pair.price_lo || 0,
+        priceMid: pair.price_mid || 0,
+        volume24hBEAR: Math.round(pair.volume_base || 0),
+        volume24hXRP: Math.round(pair.volume_quote || 0),
+        volume24hUSD: Math.round(pair.volume_usd || 0),
+        totalTrades: pair.num_trades || 0,
+        lastUpdated: pair.time ? pair.time * 1000 : now
       }
     };
 
@@ -6511,12 +6277,11 @@ app.get('/api/xrpl/trading-stats', async (req, res) => {
     xrplTradingCache = result;
     xrplTradingCacheTime = now;
 
-    console.log('📊 XRPL Trading Stats:', result.stats);
+    console.log('📊 BEAR Trading Stats:', result.stats);
     res.json(result);
 
   } catch (error) {
-    console.error('❌ Error fetching XRPL trading stats:', error);
-    try { await client.disconnect(); } catch (e) {}
+    console.error('❌ Error fetching trading stats:', error);
 
     // Return cached data if available
     if (xrplTradingCache) {
