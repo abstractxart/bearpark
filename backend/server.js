@@ -6349,6 +6349,438 @@ app.get('/api/xrpl/trading-stats', async (req, res) => {
 
 console.log('✅ XRPL Trading Data endpoint initialized');
 
+// ============================================
+// BEAR STORE - TOKEN PURCHASES
+// ============================================
+
+// Token configurations for the store
+const STORE_TOKENS = {
+  FARM: {
+    currency: 'FARM',
+    currencyHex: '4641524D00000000000000000000000000000000', // FARM in hex
+    issuer: 'rPrAEfVATUNDTJm9CUa8tYeD7oJrVdEGhU',
+    amount: '25000',
+    honeyCost: 4000,
+    name: 'FARM Token',
+    logo: 'https://img.xmagnetic.org/u/rPrAEfVATUNDTJm9CUa8tYeD7oJrVdEGhU_FARM.webp'
+  },
+  SPIFFY: {
+    currency: 'SPIFFY',
+    currencyHex: '5350494646590000000000000000000000000000', // SPIFFY in hex
+    issuer: 'rZ4yugfiQQMWx1a2ZxvzskL75TZeGgMFp',
+    amount: '250',
+    honeyCost: 4000,
+    name: 'SPIFFY Token',
+    logo: 'https://img.xmagnetic.org/u/rZ4yugfiQQMWx1a2ZxvzskL75TZeGgMFp_SPIFFY.webp'
+  }
+};
+
+// Get available store tokens
+app.get('/api/store/tokens', (req, res) => {
+  const tokens = Object.entries(STORE_TOKENS).map(([key, token]) => ({
+    id: key,
+    name: token.name,
+    currency: token.currency,
+    amount: token.amount,
+    honeyCost: token.honeyCost,
+    logo: token.logo,
+    issuer: token.issuer
+  }));
+  res.json({ success: true, tokens });
+});
+
+// Check if user has trustline for a token
+app.get('/api/store/check-trustline/:wallet/:tokenType', async (req, res) => {
+  const xrpl = require('xrpl');
+  const { wallet, tokenType } = req.params;
+
+  const token = STORE_TOKENS[tokenType.toUpperCase()];
+  if (!token) {
+    return res.status(400).json({ success: false, error: 'Invalid token type' });
+  }
+
+  const client = new xrpl.Client('wss://s1.ripple.com');
+
+  try {
+    await client.connect();
+
+    const response = await client.request({
+      command: 'account_lines',
+      account: wallet,
+      peer: token.issuer
+    });
+
+    const hasTrustline = response.result.lines.some(
+      line => line.currency === token.currency || line.currency === token.currencyHex
+    );
+
+    await client.disconnect();
+
+    res.json({
+      success: true,
+      hasTrustline,
+      token: token.currency,
+      issuer: token.issuer
+    });
+  } catch (error) {
+    try { await client.disconnect(); } catch (e) {}
+
+    // If account not found, they definitely don't have trustline
+    if (error.message?.includes('actNotFound')) {
+      return res.json({ success: true, hasTrustline: false, token: token.currency, issuer: token.issuer });
+    }
+
+    console.error('Error checking trustline:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Purchase token from store
+app.post('/api/store/purchase-token', async (req, res) => {
+  const xrpl = require('xrpl');
+  const { wallet_address, token_type } = req.body;
+
+  if (!wallet_address || !token_type) {
+    return res.status(400).json({
+      success: false,
+      error: 'wallet_address and token_type are required'
+    });
+  }
+
+  const token = STORE_TOKENS[token_type.toUpperCase()];
+  if (!token) {
+    return res.status(400).json({ success: false, error: 'Invalid token type' });
+  }
+
+  const client = new xrpl.Client('wss://s1.ripple.com');
+
+  try {
+    // 1. Check user's honey points FIRST
+    const { data: pointsData } = await supabase
+      .from('honey_points')
+      .select('total_points')
+      .eq('wallet_address', wallet_address)
+      .single();
+
+    const currentPoints = pointsData?.total_points || 0;
+
+    if (currentPoints < token.honeyCost) {
+      return res.status(400).json({
+        success: false,
+        error: `Not enough Honey Points. Need ${token.honeyCost.toLocaleString()}, have ${Math.floor(currentPoints).toLocaleString()}`
+      });
+    }
+
+    // 2. Check trustline BEFORE deducting points
+    await client.connect();
+
+    const trustlineResponse = await client.request({
+      command: 'account_lines',
+      account: wallet_address,
+      peer: token.issuer
+    });
+
+    const hasTrustline = trustlineResponse.result.lines.some(
+      line => line.currency === token.currency || line.currency === token.currencyHex
+    );
+
+    if (!hasTrustline) {
+      await client.disconnect();
+      return res.status(400).json({
+        success: false,
+        error: `YOU NEED TO SET THE ${token.currency} TRUST LINE FIRST!`,
+        needsTrustline: true,
+        trustlineInfo: {
+          currency: token.currency,
+          issuer: token.issuer
+        }
+      });
+    }
+
+    // 3. Deduct honey points
+    const newPoints = currentPoints - token.honeyCost;
+    const { error: pointsError } = await supabase
+      .from('honey_points')
+      .update({ total_points: newPoints })
+      .eq('wallet_address', wallet_address);
+
+    if (pointsError) {
+      await client.disconnect();
+      throw pointsError;
+    }
+
+    // 4. Send tokens via XRPL
+    const airdropWallet = xrpl.Wallet.fromSecret(process.env.AIRDROP_WALLET_SECRET);
+
+    const payment = {
+      TransactionType: 'Payment',
+      Account: airdropWallet.address,
+      Destination: wallet_address,
+      Amount: {
+        currency: token.currencyHex,
+        issuer: token.issuer,
+        value: token.amount
+      }
+    };
+
+    const prepared = await client.autofill(payment);
+    const signed = airdropWallet.sign(prepared);
+    const result = await client.submitAndWait(signed.tx_blob);
+
+    const txHash = result.result.hash;
+    const txResult = result.result.meta.TransactionResult;
+
+    await client.disconnect();
+
+    if (txResult === 'tesSUCCESS') {
+      // Record transaction
+      await supabase
+        .from('store_token_transactions')
+        .insert({
+          wallet_address,
+          token_type: token_type.toUpperCase(),
+          token_amount: token.amount,
+          honey_spent: token.honeyCost,
+          tx_hash: txHash,
+          tx_status: 'validated'
+        })
+        .catch(err => console.log('Transaction record error (table may not exist):', err.message));
+
+      console.log(`🛒 Store purchase: ${token.amount} ${token.currency} sent to ${wallet_address}`);
+      console.log(`   TX: ${txHash}`);
+
+      res.json({
+        success: true,
+        message: `Successfully purchased ${Number(token.amount).toLocaleString()} ${token.currency}!`,
+        amount: token.amount,
+        currency: token.currency,
+        new_balance: newPoints,
+        tx_hash: txHash,
+        explorer_url: `https://xrpscan.com/tx/${txHash}`
+      });
+    } else {
+      // Transaction failed - REFUND honey points
+      await supabase
+        .from('honey_points')
+        .update({ total_points: currentPoints })
+        .eq('wallet_address', wallet_address);
+
+      res.status(500).json({
+        success: false,
+        error: `Transaction failed: ${txResult}. Your Honey Points have been refunded.`
+      });
+    }
+  } catch (error) {
+    try { await client.disconnect(); } catch (e) {}
+
+    // Handle account not found (no trustline)
+    if (error.message?.includes('actNotFound')) {
+      return res.status(400).json({
+        success: false,
+        error: `YOU NEED TO SET THE ${token.currency} TRUST LINE FIRST!`,
+        needsTrustline: true,
+        trustlineInfo: {
+          currency: token.currency,
+          issuer: token.issuer
+        }
+      });
+    }
+
+    console.error('Error purchasing token:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+console.log('✅ Token Store endpoints initialized');
+
+// ============================================
+// BEAR STORE - NFT REQUESTS (Pixel BEARS)
+// ============================================
+
+const STORE_NFTS = {
+  PIXEL_BEAR: {
+    id: 'PIXEL_BEAR',
+    name: 'Pixel BEAR NFT',
+    honeyCost: 10000,
+    description: 'A unique Pixel BEAR NFT from the collection!',
+    image: 'https://files.catbox.moe/v2jedg.png' // Use a placeholder or BEAR image
+  }
+};
+
+// Get available NFTs for store
+app.get('/api/store/nfts', (req, res) => {
+  const nfts = Object.values(STORE_NFTS);
+  res.json({ success: true, nfts });
+});
+
+// Request NFT purchase (user claims, admin sends manually)
+app.post('/api/store/request-nft', async (req, res) => {
+  const { wallet_address, nft_type } = req.body;
+
+  if (!wallet_address || !nft_type) {
+    return res.status(400).json({
+      success: false,
+      error: 'wallet_address and nft_type are required'
+    });
+  }
+
+  const nft = STORE_NFTS[nft_type.toUpperCase()];
+  if (!nft) {
+    return res.status(400).json({ success: false, error: 'Invalid NFT type' });
+  }
+
+  try {
+    // 1. Check user's honey points
+    const { data: pointsData } = await supabase
+      .from('honey_points')
+      .select('total_points')
+      .eq('wallet_address', wallet_address)
+      .single();
+
+    const currentPoints = pointsData?.total_points || 0;
+
+    if (currentPoints < nft.honeyCost) {
+      return res.status(400).json({
+        success: false,
+        error: `Not enough Honey Points. Need ${nft.honeyCost.toLocaleString()}, have ${Math.floor(currentPoints).toLocaleString()}`
+      });
+    }
+
+    // 2. Check if user already has a pending request for this NFT type
+    const { data: existingRequest } = await supabase
+      .from('nft_purchase_requests')
+      .select('id, status')
+      .eq('wallet_address', wallet_address)
+      .eq('nft_type', nft_type.toUpperCase())
+      .eq('status', 'pending')
+      .single();
+
+    if (existingRequest) {
+      return res.status(400).json({
+        success: false,
+        error: 'You already have a pending request for this NFT. Please wait for it to be fulfilled.'
+      });
+    }
+
+    // 3. Deduct honey points
+    const newPoints = currentPoints - nft.honeyCost;
+    const { error: pointsError } = await supabase
+      .from('honey_points')
+      .update({ total_points: newPoints })
+      .eq('wallet_address', wallet_address);
+
+    if (pointsError) throw pointsError;
+
+    // 4. Create NFT request record
+    const { data: request, error: requestError } = await supabase
+      .from('nft_purchase_requests')
+      .insert({
+        wallet_address,
+        nft_type: nft_type.toUpperCase(),
+        nft_name: nft.name,
+        honey_spent: nft.honeyCost,
+        status: 'pending',
+        requested_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (requestError) {
+      // Refund points if request creation failed
+      await supabase
+        .from('honey_points')
+        .update({ total_points: currentPoints })
+        .eq('wallet_address', wallet_address);
+      throw requestError;
+    }
+
+    console.log(`🎨 NFT Request: ${nft.name} requested by ${wallet_address}`);
+    console.log(`   Request ID: ${request.id}`);
+
+    res.json({
+      success: true,
+      message: `Your request for ${nft.name} has been submitted! It will be sent to you shortly.`,
+      request_id: request.id,
+      nft_name: nft.name,
+      new_balance: newPoints,
+      status: 'pending'
+    });
+  } catch (error) {
+    console.error('Error creating NFT request:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get user's NFT requests (for inventory)
+app.get('/api/store/nft-requests/:wallet', async (req, res) => {
+  const { wallet } = req.params;
+
+  try {
+    const { data: requests, error } = await supabase
+      .from('nft_purchase_requests')
+      .select('*')
+      .eq('wallet_address', wallet)
+      .order('requested_at', { ascending: false });
+
+    if (error) throw error;
+
+    res.json({ success: true, requests: requests || [] });
+  } catch (error) {
+    console.error('Error fetching NFT requests:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Admin: Get all pending NFT requests
+app.get('/api/admin/nft-requests', async (req, res) => {
+  try {
+    const { data: requests, error } = await supabase
+      .from('nft_purchase_requests')
+      .select('*')
+      .order('requested_at', { ascending: false });
+
+    if (error) throw error;
+
+    res.json({ success: true, requests: requests || [] });
+  } catch (error) {
+    console.error('Error fetching admin NFT requests:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Admin: Mark NFT request as fulfilled
+app.post('/api/admin/fulfill-nft-request', async (req, res) => {
+  const { request_id, tx_hash } = req.body;
+
+  if (!request_id) {
+    return res.status(400).json({ success: false, error: 'request_id is required' });
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('nft_purchase_requests')
+      .update({
+        status: 'fulfilled',
+        fulfilled_at: new Date().toISOString(),
+        tx_hash: tx_hash || null
+      })
+      .eq('id', request_id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    console.log(`✅ NFT Request ${request_id} fulfilled`);
+
+    res.json({ success: true, request: data });
+  } catch (error) {
+    console.error('Error fulfilling NFT request:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+console.log('✅ NFT Request endpoints initialized');
+
 // Start server for local development
 if (require.main === module) {
   app.listen(PORT, () => {
