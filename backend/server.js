@@ -4003,7 +4003,7 @@ app.get('/api/cosmetics/history', async (req, res) => {
       .from('cosmetics_transactions')
       .select(`
         *,
-        cosmetic:cosmetics_catalog(name, type, rarity, honey_cost, image_url)
+        cosmetic:cosmetics_catalog(name, cosmetic_type, rarity, honey_cost, image_url)
       `)
       .order('created_at', { ascending: false })
       .limit(parseInt(limit));
