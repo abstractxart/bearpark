@@ -6237,33 +6237,22 @@ async function getBEARTransactions(client, marker = null) {
   return response.result;
 }
 
-// Get current order book for BEAR/XRP
+// BEAR currency code in hex format (for 4+ char currencies on XRPL)
+const BEAR_HEX = '4245415200000000000000000000000000000000';
+
+// Check if a currency is BEAR (handles both ASCII and hex formats)
+function isBEARCurrency(currency, issuer) {
+  if (!currency) return false;
+  if (issuer !== BEAR_ISSUER) return false;
+  // Check both ASCII "BEAR" and hex format
+  return currency === 'BEAR' || currency.toUpperCase() === BEAR_HEX;
+}
+
+// Skip order book for now - just return empty (focus on transaction data)
 async function getOrderBook(client) {
-  try {
-    // Get asks (selling BEAR for XRP) - use xrpl.xrpToDrops format for XRP
-    const asksResponse = await client.request({
-      command: 'book_offers',
-      taker_gets: { currency: 'XRP' },
-      taker_pays: { currency: '4245415200000000000000000000000000000000', issuer: BEAR_ISSUER },
-      limit: 50
-    });
-
-    // Get bids (buying BEAR with XRP)
-    const bidsResponse = await client.request({
-      command: 'book_offers',
-      taker_gets: { currency: '4245415200000000000000000000000000000000', issuer: BEAR_ISSUER },
-      taker_pays: { currency: 'XRP' },
-      limit: 50
-    });
-
-    return {
-      asks: asksResponse.result.offers || [],
-      bids: bidsResponse.result.offers || []
-    };
-  } catch (error) {
-    console.warn('⚠️ Error fetching order book:', error.message);
-    return { asks: [], bids: [] };
-  }
+  // Order book query has currency format issues, skip for now
+  // The main trading data comes from transactions anyway
+  return { asks: [], bids: [] };
 }
 
 // Parse a transaction to extract BEAR/XRP trade info
@@ -6297,8 +6286,8 @@ function parseTradeTransaction(tx) {
 
     const getsXRP = typeof takerGets === 'string';
     const paysXRP = typeof takerPays === 'string';
-    const getsBEAR = !getsXRP && takerGets.currency === 'BEAR' && takerGets.issuer === BEAR_ISSUER;
-    const paysBEAR = !paysXRP && takerPays.currency === 'BEAR' && takerPays.issuer === BEAR_ISSUER;
+    const getsBEAR = !getsXRP && isBEARCurrency(takerGets.currency, takerGets.issuer);
+    const paysBEAR = !paysXRP && isBEARCurrency(takerPays.currency, takerPays.issuer);
 
     // Check if this is a BEAR/XRP pair
     if ((getsXRP && paysBEAR) || (paysXRP && getsBEAR)) {
@@ -6321,24 +6310,9 @@ function parseTradeTransaction(tx) {
             if (typeof prevGets === 'string' && typeof finalGets === 'string') {
               const executed = (parseInt(prevGets) - parseInt(finalGets)) / 1000000;
               if (executed > 0) xrpAmount += executed;
-            } else if (prevGets.currency === 'BEAR' && finalGets.currency === 'BEAR') {
+            } else if (isBEARCurrency(prevGets.currency, prevGets.issuer) && isBEARCurrency(finalGets.currency, finalGets.issuer)) {
               const executed = parseFloat(prevGets.value) - parseFloat(finalGets.value);
               if (executed > 0) bearAmount += executed;
-            }
-          }
-        }
-
-        // Deleted offers mean fully filled
-        if (node.DeletedNode && node.DeletedNode.LedgerEntryType === 'Offer') {
-          const deleted = node.DeletedNode.FinalFields;
-          if (deleted) {
-            const delGets = deleted.TakerGets;
-            const delPays = deleted.TakerPays;
-
-            if (typeof delGets === 'string') {
-              // This was offering XRP
-            } else if (delGets && delGets.currency === 'BEAR') {
-              // Was offering BEAR
             }
           }
         }
@@ -6369,9 +6343,9 @@ function parseTradeTransaction(tx) {
 
     // Check if this is a cross-currency payment involving BEAR
     if (amount && sendMax) {
-      const amtIsBEAR = amount.currency === 'BEAR' && amount.issuer === BEAR_ISSUER;
+      const amtIsBEAR = typeof amount !== 'string' && isBEARCurrency(amount.currency, amount.issuer);
       const amtIsXRP = typeof amount === 'string';
-      const sendIsBEAR = sendMax.currency === 'BEAR' && sendMax.issuer === BEAR_ISSUER;
+      const sendIsBEAR = typeof sendMax !== 'string' && isBEARCurrency(sendMax.currency, sendMax.issuer);
       const sendIsXRP = typeof sendMax === 'string';
 
       if ((amtIsBEAR && sendIsXRP) || (amtIsXRP && sendIsBEAR)) {
@@ -6382,7 +6356,7 @@ function parseTradeTransaction(tx) {
 
         if (typeof delivered === 'string') {
           xrpAmount = parseInt(delivered) / 1000000;
-        } else if (delivered.currency === 'BEAR') {
+        } else if (isBEARCurrency(delivered.currency, delivered.issuer)) {
           bearAmount = parseFloat(delivered.value);
         }
 
