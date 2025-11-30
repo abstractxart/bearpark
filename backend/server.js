@@ -6649,6 +6649,18 @@ app.get('/api/store/nfts', async (req, res) => {
       let name = 'Pixel BEAR';
       let rawUri = nft.URI || '';
 
+      // Helper to properly encode IPFS paths (handles spaces, #, etc.)
+      const encodeIpfsPath = (ipfsPath) => {
+        const parts = ipfsPath.split('/');
+        // First part is the CID, rest is the filename that needs encoding
+        const cid = parts[0];
+        const filename = parts.slice(1).join('/');
+        if (filename) {
+          return cid + '/' + encodeURIComponent(filename);
+        }
+        return cid;
+      };
+
       if (nft.URI) {
         uri = hexToString(nft.URI);
         console.log(`NFT ${nft.NFTokenID.substring(0, 8)}... Raw URI: ${uri}`);
@@ -6657,14 +6669,15 @@ app.get('/api/store/nfts', async (req, res) => {
         let metadataUrl = null;
 
         if (uri.startsWith('ipfs://')) {
-          // IPFS protocol URI
-          metadataUrl = `https://ipfs.io/ipfs/${uri.replace('ipfs://', '')}`;
+          // IPFS protocol URI - need to encode the path for special chars
+          const ipfsPath = uri.replace('ipfs://', '');
+          metadataUrl = `https://ipfs.io/ipfs/${encodeIpfsPath(ipfsPath)}`;
         } else if (uri.startsWith('https://') || uri.startsWith('http://')) {
           // Direct HTTP URL
           metadataUrl = uri;
         } else if (uri.match(/^Qm[a-zA-Z0-9]{44}/) || uri.match(/^bafy[a-zA-Z0-9]+/)) {
           // Raw IPFS CID (starts with Qm or bafy)
-          metadataUrl = `https://ipfs.io/ipfs/${uri}`;
+          metadataUrl = `https://ipfs.io/ipfs/${encodeIpfsPath(uri)}`;
         }
 
         // If we have a metadata URL, try to fetch it to get the image
@@ -6689,11 +6702,13 @@ app.get('/api/store/nfts', async (req, res) => {
 
               if (imgField) {
                 if (imgField.startsWith('ipfs://')) {
-                  imageUrl = `https://ipfs.io/ipfs/${imgField.replace('ipfs://', '')}`;
+                  // Encode the IPFS path properly for special chars like # and spaces
+                  const imgPath = imgField.replace('ipfs://', '');
+                  imageUrl = `https://ipfs.io/ipfs/${encodeIpfsPath(imgPath)}`;
                 } else if (imgField.startsWith('http')) {
                   imageUrl = imgField;
                 } else if (imgField.match(/^Qm[a-zA-Z0-9]{44}/) || imgField.match(/^bafy/)) {
-                  imageUrl = `https://ipfs.io/ipfs/${imgField}`;
+                  imageUrl = `https://ipfs.io/ipfs/${encodeIpfsPath(imgField)}`;
                 }
                 console.log(`Found image URL: ${imageUrl}`);
               }
