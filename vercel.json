@@ -89,6 +89,14 @@
       "dest": "/public/pong/$1"
     },
     {
+      "src": "/NFTrequests",
+      "dest": "/admin-store.html"
+    },
+    {
+      "src": "/store-admin",
+      "dest": "/admin-store.html"
+    },
+    {
       "src": "/(.*\\.(html|css|js|png|jpg|jpeg|gif|svg|ico))",
       "dest": "/$1"
     },

@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BEAR Park - Store Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --gold: #edb723;
+      --charcoal: #141619;
+      --card: #1e2226;
+      --stripe-purple: #680cd9;
+      --stripe-yellow: #feb501;
+      --stripe-green: #07ae08;
+      --success: #4ade80;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --tri-gradient: linear-gradient(135deg, var(--stripe-purple) 0%, var(--stripe-purple) 33.33%, var(--stripe-yellow) 33.33%, var(--stripe-yellow) 66.66%, var(--stripe-green) 66.66%, var(--stripe-green) 100%);
+      --elev-strong: 0 10px 28px rgba(0,0,0,.45), 0 1px 0 rgba(255,255,255,.03) inset;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: "Nunito", system-ui, -apple-system, sans-serif;
+      background: var(--charcoal);
+      background-image:
+        radial-gradient(100vmax 60vmax at 10% -10%, rgba(237,183,35,.055), transparent 60%),
+        radial-gradient(80vmax 60vmax at 100% 10%, rgba(139,92,246,.055), transparent 60%),
+        radial-gradient(80vmax 60vmax at 50% 110%, rgba(118,174,255,.045), transparent 60%);
+      min-height: 100vh;
+      padding: 20px;
+      color: #fff;
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    h1 {
+      color: var(--gold);
+      font-size: clamp(28px, 5vw, 42px);
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      text-shadow: 0 4px 0 rgba(0,0,0,.35);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      justify-content: center;
+    }
+
+    .subtitle {
+      color: rgba(255,255,255,0.7);
+      font-size: 16px;
+      font-weight: 600;
+      margin-top: 8px;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      margin-bottom: 32px;
+      flex-wrap: wrap;
+    }
+
+    .tab {
+      padding: 12px 24px;
+      background: rgba(255,255,255,0.05);
+      border: 2px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-transform: uppercase;
+    }
+
+    .tab:hover {
+      background: rgba(255,255,255,0.1);
+      border-color: var(--gold);
+    }
+
+    .tab.active {
+      background: var(--gold);
+      color: #000;
+      border-color: var(--gold);
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      border-radius: 20px;
+      border: 3px solid transparent;
+      box-shadow: var(--elev-strong);
+      padding: 24px;
+      margin-bottom: 24px;
+      position: relative;
+      overflow: hidden;
+      backdrop-filter: saturate(1.1) blur(2px);
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 20px;
+      padding: 3px;
+      background: var(--tri-gradient);
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      mask-composite: exclude;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .card-title {
+      color: var(--gold);
+      font-size: 20px;
+      font-weight: 900;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .stat-box {
+      background: rgba(0,0,0,0.3);
+      padding: 16px;
+      border-radius: 12px;
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 28px;
+      font-weight: 900;
+      color: var(--gold);
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: rgba(255,255,255,0.6);
+      text-transform: uppercase;
+      margin-top: 4px;
+    }
+
+    .table-container {
+      overflow-x: auto;
+      position: relative;
+      z-index: 1;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    th {
+      background: rgba(0,0,0,0.4);
+      padding: 14px 12px;
+      text-align: left;
+      color: var(--stripe-yellow);
+      font-weight: 700;
+      text-transform: uppercase;
+      font-size: 12px;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 14px 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      vertical-align: middle;
+    }
+
+    tr:hover td {
+      background: rgba(255,255,255,0.02);
+    }
+
+    .wallet {
+      font-family: monospace;
+      font-size: 13px;
+      color: #60a5fa;
+    }
+
+    .timestamp {
+      color: rgba(255,255,255,0.6);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .status {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .status.pending {
+      background: rgba(245,158,11,0.2);
+      color: var(--warning);
+      border: 1px solid var(--warning);
+    }
+
+    .status.fulfilled {
+      background: rgba(74,222,128,0.2);
+      color: var(--success);
+      border: 1px solid var(--success);
+    }
+
+    .status.validated {
+      background: rgba(74,222,128,0.2);
+      color: var(--success);
+      border: 1px solid var(--success);
+    }
+
+    .amount {
+      font-weight: 700;
+      color: var(--success);
+    }
+
+    .hp-cost {
+      color: var(--gold);
+      font-weight: 700;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-transform: uppercase;
+    }
+
+    .btn-fulfill {
+      background: linear-gradient(135deg, var(--stripe-green), #059669);
+      color: #fff;
+    }
+
+    .btn-fulfill:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(7,174,8,0.4);
+    }
+
+    .btn-fulfill:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 48px 24px;
+      color: rgba(255,255,255,0.5);
+    }
+
+    .empty-state-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 48px;
+      color: var(--gold);
+    }
+
+    .refresh-btn {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: var(--gold);
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      box-shadow: 0 4px 20px rgba(237,183,35,0.4);
+      transition: all 0.3s ease;
+      z-index: 1000;
+    }
+
+    .refresh-btn:hover {
+      transform: scale(1.1);
+    }
+
+    .token-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+
+    .back-link {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      color: var(--gold);
+      text-decoration: none;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: opacity 0.3s;
+    }
+
+    .back-link:hover {
+      opacity: 0.8;
+    }
+
+    @media (max-width: 768px) {
+      .tabs {
+        gap: 8px;
+      }
+      .tab {
+        padding: 10px 16px;
+        font-size: 12px;
+      }
+      th, td {
+        padding: 10px 8px;
+      }
+      .stat-value {
+        font-size: 22px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <a href="/" class="back-link">← Back to BEAR Park</a>
+
+  <div class="header">
+    <h1>🛒 STORE ADMIN</h1>
+    <p class="subtitle">Manage token purchases and NFT requests</p>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('nft-requests')">🎨 NFT Requests</button>
+    <button class="tab" onclick="switchTab('token-purchases')">🪙 Token Purchases</button>
+  </div>
+
+  <div class="container">
+    <!-- NFT Requests Section -->
+    <div id="nft-requests-section">
+      <div class="card">
+        <h2 class="card-title">🎨 Pixel BEAR NFT Requests</h2>
+
+        <div class="stats-row" id="nft-stats">
+          <div class="stat-box">
+            <div class="stat-value" id="pending-count">-</div>
+            <div class="stat-label">Pending</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value" id="fulfilled-count">-</div>
+            <div class="stat-label">Fulfilled</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value" id="total-hp-nft">-</div>
+            <div class="stat-label">Total HP Spent</div>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Wallet</th>
+                <th>NFT Type</th>
+                <th>HP Spent</th>
+                <th>Requested</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="nft-requests-table">
+              <tr><td colspan="6" class="loading">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Token Purchases Section -->
+    <div id="token-purchases-section" style="display: none;">
+      <div class="card">
+        <h2 class="card-title">🪙 Token Purchase History</h2>
+
+        <div class="stats-row" id="token-stats">
+          <div class="stat-box">
+            <div class="stat-value" id="farm-count">-</div>
+            <div class="stat-label">FARM Purchases</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value" id="spiffy-count">-</div>
+            <div class="stat-label">SPIFFY Purchases</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value" id="total-hp-tokens">-</div>
+            <div class="stat-label">Total HP Spent</div>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Wallet</th>
+                <th>Token</th>
+                <th>Amount</th>
+                <th>HP Spent</th>
+                <th>TX Hash</th>
+                <th>Timestamp</th>
+              </tr>
+            </thead>
+            <tbody id="token-purchases-table">
+              <tr><td colspan="6" class="loading">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <button class="refresh-btn" onclick="loadAllData()" title="Refresh">🔄</button>
+
+  <script>
+    // Supabase config
+    const SUPABASE_URL = 'https://trglxtqfebplmvhuzgso.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRyZ2x4dHFmZWJwbG12aHV6Z3NvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMwMDYwNDYsImV4cCI6MjA1ODU4MjA0Nn0.wRz6J7apnaEgM5mLFxVs2vgfgZ8xdakfNTKmQWOcpL4';
+    const API_BASE_URL = 'https://bearpark-production.up.railway.app';
+
+    const TOKEN_LOGOS = {
+      FARM: 'https://img.xmagnetic.org/u/rPrAEfVATUNDTJm9CUa8tYeD7oJrVdEGhU_FARM.webp',
+      SPIFFY: 'https://img.xmagnetic.org/u/rZ4yugfiQQMWx1a2ZxvzskL75TZeGgMFp_SPIFFY.webp'
+    };
+
+    let currentTab = 'nft-requests';
+
+    function switchTab(tab) {
+      currentTab = tab;
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      event.target.classList.add('active');
+
+      document.getElementById('nft-requests-section').style.display = tab === 'nft-requests' ? 'block' : 'none';
+      document.getElementById('token-purchases-section').style.display = tab === 'token-purchases' ? 'block' : 'none';
+    }
+
+    function formatWallet(wallet) {
+      return wallet.slice(0, 8) + '...' + wallet.slice(-6);
+    }
+
+    function formatTimestamp(timestamp) {
+      if (!timestamp) return '-';
+      const date = new Date(timestamp);
+      return date.toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+    }
+
+    function formatTxHash(hash) {
+      if (!hash) return '-';
+      return `<a href="https://xrpscan.com/tx/${hash}" target="_blank" style="color:#60a5fa;">${hash.slice(0, 8)}...</a>`;
+    }
+
+    async function loadNFTRequests() {
+      try {
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/nft_purchase_requests?order=requested_at.desc`, {
+          headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+          }
+        });
+
+        const requests = await response.json();
+        const tbody = document.getElementById('nft-requests-table');
+
+        if (!requests || requests.length === 0) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="6">
+                <div class="empty-state">
+                  <div class="empty-state-icon">🎨</div>
+                  <div>No NFT requests yet</div>
+                </div>
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
+        // Calculate stats
+        const pending = requests.filter(r => r.status === 'pending').length;
+        const fulfilled = requests.filter(r => r.status === 'fulfilled').length;
+        const totalHP = requests.reduce((sum, r) => sum + (r.honey_spent || 0), 0);
+
+        document.getElementById('pending-count').textContent = pending;
+        document.getElementById('fulfilled-count').textContent = fulfilled;
+        document.getElementById('total-hp-nft').textContent = totalHP.toLocaleString();
+
+        tbody.innerHTML = requests.map(req => `
+          <tr>
+            <td class="wallet" title="${req.wallet_address}">${formatWallet(req.wallet_address)}</td>
+            <td>${req.nft_name || req.nft_type}</td>
+            <td class="hp-cost">${(req.honey_spent || 0).toLocaleString()} HP</td>
+            <td class="timestamp">${formatTimestamp(req.requested_at)}</td>
+            <td><span class="status ${req.status}">${req.status}</span></td>
+            <td>
+              ${req.status === 'pending'
+                ? `<button class="btn btn-fulfill" onclick="fulfillRequest('${req.id}', this)">✓ Fulfill</button>`
+                : `<span style="color:#4ade80;">✓ Done</span>`
+              }
+            </td>
+          </tr>
+        `).join('');
+
+      } catch (error) {
+        console.error('Error loading NFT requests:', error);
+        document.getElementById('nft-requests-table').innerHTML = `
+          <tr><td colspan="6" style="color:#ef4444;">Error loading data: ${error.message}</td></tr>
+        `;
+      }
+    }
+
+    async function loadTokenPurchases() {
+      try {
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/store_token_transactions?order=created_at.desc`, {
+          headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+          }
+        });
+
+        const purchases = await response.json();
+        const tbody = document.getElementById('token-purchases-table');
+
+        if (!purchases || purchases.length === 0 || purchases.code) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="6">
+                <div class="empty-state">
+                  <div class="empty-state-icon">🪙</div>
+                  <div>No token purchases yet</div>
+                  <div style="font-size:12px;margin-top:8px;opacity:0.6;">Table may not exist yet</div>
+                </div>
+              </td>
+            </tr>
+          `;
+          document.getElementById('farm-count').textContent = '0';
+          document.getElementById('spiffy-count').textContent = '0';
+          document.getElementById('total-hp-tokens').textContent = '0';
+          return;
+        }
+
+        // Calculate stats
+        const farmCount = purchases.filter(p => p.token_type === 'FARM').length;
+        const spiffyCount = purchases.filter(p => p.token_type === 'SPIFFY').length;
+        const totalHP = purchases.reduce((sum, p) => sum + (p.honey_spent || 0), 0);
+
+        document.getElementById('farm-count').textContent = farmCount;
+        document.getElementById('spiffy-count').textContent = spiffyCount;
+        document.getElementById('total-hp-tokens').textContent = totalHP.toLocaleString();
+
+        tbody.innerHTML = purchases.map(purchase => `
+          <tr>
+            <td class="wallet" title="${purchase.wallet_address}">${formatWallet(purchase.wallet_address)}</td>
+            <td>
+              <img src="${TOKEN_LOGOS[purchase.token_type] || ''}" alt="" class="token-icon" onerror="this.style.display='none'">
+              ${purchase.token_type}
+            </td>
+            <td class="amount">${Number(purchase.token_amount || 0).toLocaleString()}</td>
+            <td class="hp-cost">${(purchase.honey_spent || 0).toLocaleString()} HP</td>
+            <td>${formatTxHash(purchase.tx_hash)}</td>
+            <td class="timestamp">${formatTimestamp(purchase.created_at)}</td>
+          </tr>
+        `).join('');
+
+      } catch (error) {
+        console.error('Error loading token purchases:', error);
+        document.getElementById('token-purchases-table').innerHTML = `
+          <tr><td colspan="6" style="color:#ef4444;">Error loading data: ${error.message}</td></tr>
+        `;
+      }
+    }
+
+    async function fulfillRequest(requestId, button) {
+      if (!confirm('Mark this NFT request as fulfilled? Make sure you have sent the NFT to the user.')) {
+        return;
+      }
+
+      const txHash = prompt('Enter the transaction hash (optional):');
+
+      button.disabled = true;
+      button.textContent = '...';
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/admin/fulfill-nft-request`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            request_id: requestId,
+            tx_hash: txHash || null
+          })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          alert('Request marked as fulfilled!');
+          loadNFTRequests();
+        } else {
+          throw new Error(data.error || 'Failed to fulfill request');
+        }
+      } catch (error) {
+        alert('Error: ' + error.message);
+        button.disabled = false;
+        button.textContent = '✓ Fulfill';
+      }
+    }
+
+    function loadAllData() {
+      loadNFTRequests();
+      loadTokenPurchases();
+    }
+
+    // Load data on page load
+    loadAllData();
+
+    // Auto-refresh every 30 seconds
+    setInterval(loadAllData, 30000);
+  </script>
+</body>
+</html>
