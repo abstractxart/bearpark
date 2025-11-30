@@ -352,14 +352,11 @@ async function runSnapshot() {
       // Skip if no reward (after blacklist adjustment)
       if (totalRewardAmount === 0) continue;
 
-      // Check eligibility - based on honey points only (blacklist only affects LP, not NFT rewards)
-      const honeyPoints = await getHoneyPoints24h(wallet);
-      const isElig = honeyPoints >= MIN_HONEY_POINTS_24H;
-
-      if (isElig) {
-        eligible++;
-        totalReward += totalRewardAmount;
-      }
+      // SNAPSHOT ONLY CAPTURES HOLDINGS
+      // Honey points requirement is checked at CLAIM TIME only
+      // Everyone with holdings is marked as eligible (pending)
+      eligible++;
+      totalReward += totalRewardAmount;
 
       snapshots.push({
         wallet_address: wallet,
@@ -371,9 +368,9 @@ async function runSnapshot() {
         lp_reward: lpReward,  // 0 if blacklisted
         total_reward: totalRewardAmount,
         is_blacklisted: isBlack,
-        is_eligible: isElig,
-        honey_points_24h: Math.floor(honeyPoints), // Must be integer
-        claim_status: isElig ? 'pending' : 'ineligible',
+        is_eligible: true,  // Always eligible at snapshot - HP checked at claim time
+        honey_points_24h: 0,  // Not checked at snapshot time
+        claim_status: 'pending',  // Always pending - HP checked at claim time
         lp_reward_forfeited: isBlack ? lpRewardRaw : 0  // Track what they would have earned
       });
 
