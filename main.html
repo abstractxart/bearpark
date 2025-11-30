@@ -23592,16 +23592,8 @@
       }
     ];
 
-    // NFT store items
-    const storeNfts = [
-      {
-        id: 'PIXEL_BEAR',
-        name: 'Pixel BEAR NFT',
-        honeyCost: 10000,
-        description: 'A unique Pixel BEAR NFT from the collection! Your request will be fulfilled manually.',
-        image: 'https://files.catbox.moe/v2jedg.png'
-      }
-    ];
+    // NFT store items - loaded dynamically from API
+    let storeNfts = [];
 
     function loadStoreItems(tab) {
       // Handle tokens tab
@@ -23634,33 +23626,12 @@
         return;
       }
 
-      // Handle NFTs tab
+      // Handle NFTs tab - fetch from API
       if (tab === 'nfts') {
         const grid = document.getElementById('storeNftsGrid');
-        let html = '<div class="store-grid" style="display:grid; gap:20px;">';
+        grid.innerHTML = '<div style="text-align:center; padding:40px; color:#888;"><div style="font-size:32px; margin-bottom:16px;">⏳</div>Loading NFTs...</div>';
 
-        storeNfts.forEach(nft => {
-          html += `
-            <div class="store-item nft-store-item" style="background:linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border:2px solid #8b5cf6; border-radius:16px; overflow:hidden;">
-              <div style="padding:20px; text-align:center;">
-                <img src="${nft.image}" alt="${nft.name}" style="width:150px; height:150px; border-radius:12px; margin-bottom:16px; border:3px solid #8b5cf6; box-shadow:0 0 20px rgba(139,92,246,0.3);">
-                <h3 style="color:#8b5cf6; font-size:20px; font-weight:900; margin:0 0 8px;">${nft.name}</h3>
-                <p style="color:#888; font-size:14px; margin:0 0 16px;">${nft.description}</p>
-                <div style="display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:16px;">
-                  <img src="https://files.catbox.moe/wyfjtc.png" alt="honey" style="width:24px; height:24px;">
-                  <span style="color:#fbbf24; font-size:18px; font-weight:700;">${nft.honeyCost.toLocaleString()} HP</span>
-                </div>
-                <button onclick="requestNFT('${nft.id}')" class="btn" style="width:100%; font-size:16px; padding:12px; background:linear-gradient(135deg, #8b5cf6, #7c3aed); color:#fff;">
-                  🎨 REQUEST NFT
-                </button>
-                <p style="color:#666; font-size:12px; margin:12px 0 0; font-style:italic;">NFT will be sent to your wallet manually</p>
-              </div>
-            </div>
-          `;
-        });
-
-        html += '</div>';
-        grid.innerHTML = html;
+        loadNFTsFromAPI();
         return;
       }
 
@@ -24055,17 +24026,90 @@
       }, 10000);
     }
 
-    // Request NFT from store (Pixel BEAR)
-    async function requestNFT(nftType) {
+    // Load NFTs from API
+    async function loadNFTsFromAPI() {
+      const grid = document.getElementById('storeNftsGrid');
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/store/nfts`);
+        const data = await response.json();
+
+        if (!data.success) {
+          throw new Error(data.error || 'Failed to load NFTs');
+        }
+
+        storeNfts = data.nfts;
+
+        if (storeNfts.length === 0) {
+          grid.innerHTML = `
+            <div style="grid-column: 1/-1; text-align:center; padding:60px 20px;">
+              <div style="font-size:64px; margin-bottom:20px;">🎨</div>
+              <div style="font-size:24px; font-weight:700; color:#8b5cf6; margin-bottom:10px;">ALL SOLD OUT!</div>
+              <div style="font-size:16px; color:#888;">All Pixel BEAR NFTs have been claimed. Check back later for more!</div>
+            </div>
+          `;
+          return;
+        }
+
+        let html = `
+          <div style="grid-column: 1/-1; text-align:center; margin-bottom:20px;">
+            <span style="background:rgba(139,92,246,0.2); color:#8b5cf6; padding:8px 16px; border-radius:20px; font-weight:700;">
+              ${storeNfts.length} NFT${storeNfts.length > 1 ? 's' : ''} Available
+            </span>
+          </div>
+          <div class="store-grid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap:20px;">
+        `;
+
+        storeNfts.forEach((nft, index) => {
+          html += `
+            <div class="store-item nft-store-item" data-token-id="${nft.nftTokenId}" style="background:linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border:2px solid #8b5cf6; border-radius:16px; overflow:hidden;">
+              <div style="padding:16px; text-align:center;">
+                <div style="position:relative;">
+                  <img src="${nft.imageUrl}" alt="${nft.name}" style="width:140px; height:140px; border-radius:12px; margin-bottom:12px; border:3px solid #8b5cf6; box-shadow:0 0 20px rgba(139,92,246,0.3); object-fit:cover;" onerror="this.src='https://files.catbox.moe/v2jedg.png'">
+                  <div style="position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.7); color:#8b5cf6; padding:4px 8px; border-radius:8px; font-size:11px; font-weight:700;">#${index + 1}</div>
+                </div>
+                <h3 style="color:#8b5cf6; font-size:16px; font-weight:900; margin:0 0 8px;">${nft.name}</h3>
+                <div style="display:flex; align-items:center; justify-content:center; gap:6px; margin-bottom:12px;">
+                  <img src="https://files.catbox.moe/wyfjtc.png" alt="honey" style="width:20px; height:20px;">
+                  <span style="color:#fbbf24; font-size:16px; font-weight:700;">${nft.honeyCost.toLocaleString()} HP</span>
+                </div>
+                <button onclick="requestNFT('${nft.nftTokenId}', this)" class="btn" style="width:100%; font-size:14px; padding:10px; background:linear-gradient(135deg, #8b5cf6, #7c3aed); color:#fff;">
+                  🎨 CLAIM NFT
+                </button>
+              </div>
+            </div>
+          `;
+        });
+
+        html += '</div>';
+        html += '<p style="grid-column: 1/-1; text-align:center; color:#666; font-size:12px; margin-top:16px; font-style:italic;">NFTs will be sent to your wallet manually after claiming</p>';
+        grid.innerHTML = html;
+
+      } catch (error) {
+        console.error('Error loading NFTs:', error);
+        grid.innerHTML = `
+          <div style="grid-column: 1/-1; text-align:center; padding:60px 20px;">
+            <div style="font-size:64px; margin-bottom:20px;">❌</div>
+            <div style="font-size:18px; color:#ef4444; margin-bottom:10px;">Failed to load NFTs</div>
+            <div style="font-size:14px; color:#888;">${error.message}</div>
+            <button onclick="loadNFTsFromAPI()" style="margin-top:20px; padding:10px 20px; background:#8b5cf6; color:#fff; border:none; border-radius:8px; cursor:pointer;">Try Again</button>
+          </div>
+        `;
+      }
+    }
+
+    // Request NFT from store (by NFTokenID)
+    async function requestNFT(nftTokenId, buttonElement) {
       const walletAddress = localStorage.getItem('bearpark_wallet');
       if (!walletAddress) {
         alert('Please connect your wallet first!');
         return;
       }
 
-      const nft = storeNfts.find(n => n.id === nftType);
+      const nft = storeNfts.find(n => n.nftTokenId === nftTokenId);
       if (!nft) {
-        alert('Invalid NFT type');
+        alert('NFT not found. Please refresh the page.');
+        loadNFTsFromAPI();
         return;
       }
 
@@ -24074,18 +24118,13 @@
         return;
       }
 
-      // Find the button
-      let button = null;
-      document.querySelectorAll('.nft-store-item').forEach(item => {
-        if (item.innerHTML.includes(nft.name)) {
-          button = item.querySelector('button');
-        }
-      });
+      // Use provided button or find it
+      const button = buttonElement || document.querySelector(`[data-token-id="${nftTokenId}"] button`);
 
       // Disable button during request
       if (button) {
         button.disabled = true;
-        button.innerHTML = '⏳ REQUESTING...';
+        button.innerHTML = '⏳ CLAIMING...';
       }
 
       try {
@@ -24100,44 +24139,46 @@
           },
           body: JSON.stringify({
             wallet_address: walletAddress,
-            nft_type: nftType
+            nft_token_id: nftTokenId
           })
         });
 
         const data = await response.json();
 
         if (!response.ok || !data.success) {
+          // Check for already purchased error
+          if (data.alreadyPurchased) {
+            alert('NFT ALREADY PURCHASED!\n\nThis NFT has been claimed by another user. Refreshing available NFTs...');
+            loadNFTsFromAPI(); // Refresh the list
+            return;
+          }
           throw new Error(data.error || 'Request failed');
         }
 
         console.log('✅ NFT request successful!', data);
 
         // Update balance
-        setTimeout(() => {
-          currentBalance = data.new_balance;
-          document.getElementById('storeHoneyBalance').textContent = currentBalance.toFixed(1);
+        currentBalance = data.new_balance;
+        document.getElementById('storeHoneyBalance').textContent = currentBalance.toFixed(1);
 
-          const honeyPointsEl = document.getElementById('totalHoneyPoints');
-          if (honeyPointsEl) {
-            honeyPointsEl.textContent = currentBalance.toFixed(1);
-          }
+        const honeyPointsEl = document.getElementById('totalHoneyPoints');
+        if (honeyPointsEl) {
+          honeyPointsEl.textContent = currentBalance.toFixed(1);
+        }
 
-          const welcomePoints = document.getElementById('welcomePoints');
-          if (welcomePoints) {
-            welcomePoints.textContent = currentBalance.toFixed(1);
-          }
+        const welcomePoints = document.getElementById('welcomePoints');
+        if (welcomePoints) {
+          welcomePoints.textContent = currentBalance.toFixed(1);
+        }
 
-          // Update button to show pending
-          if (button) {
-            button.disabled = true;
-            button.innerHTML = '⏳ PENDING';
-            button.style.background = 'linear-gradient(135deg, #6b7280, #4b5563)';
-          }
-        }, 400);
+        // Remove this NFT from the list and refresh display
+        storeNfts = storeNfts.filter(n => n.nftTokenId !== nftTokenId);
 
         // Show success message
         setTimeout(() => {
           showNFTRequestSuccess(nft, data.request_id);
+          // Refresh NFT display after success modal
+          setTimeout(() => loadNFTsFromAPI(), 500);
         }, 2600);
 
       } catch (error) {
@@ -24147,7 +24188,7 @@
         // Re-enable button on error
         if (button) {
           button.disabled = false;
-          button.innerHTML = '🎨 REQUEST NFT';
+          button.innerHTML = '🎨 CLAIM NFT';
         }
       }
     }
@@ -24171,12 +24212,12 @@
 
       overlay.innerHTML = `
         <div style="text-align:center; padding:40px; max-width:400px;">
-          <img src="${nft.image}" alt="${nft.name}" style="width:120px; height:120px; border-radius:12px; margin-bottom:24px; border:4px solid #8b5cf6; box-shadow:0 0 40px rgba(139,92,246,0.5); animation: pulse 1s ease infinite;">
-          <h2 style="color:#8b5cf6; font-size:28px; font-weight:900; margin:0 0 16px;">REQUEST SUBMITTED!</h2>
-          <p style="color:#fff; font-size:18px; margin:0 0 16px;">Your <strong style="color:#fbbf24;">${nft.name}</strong> request has been received!</p>
+          <img src="${nft.imageUrl || nft.image || 'https://files.catbox.moe/v2jedg.png'}" alt="${nft.name}" style="width:120px; height:120px; border-radius:12px; margin-bottom:24px; border:4px solid #8b5cf6; box-shadow:0 0 40px rgba(139,92,246,0.5); animation: pulse 1s ease infinite; object-fit:cover;">
+          <h2 style="color:#8b5cf6; font-size:28px; font-weight:900; margin:0 0 16px;">NFT CLAIMED!</h2>
+          <p style="color:#fff; font-size:18px; margin:0 0 16px;">Your <strong style="color:#fbbf24;">${nft.name}</strong> has been reserved!</p>
           <p style="color:#888; font-size:14px; margin:0 0 24px;">Request ID: ${requestId}<br>The NFT will be sent to your wallet shortly.</p>
           <button onclick="this.closest('div').parentElement.remove()" style="display:block; margin:0 auto; padding:12px 32px; background:linear-gradient(135deg, #8b5cf6, #7c3aed); color:#fff; font-size:16px; font-weight:700; border:none; border-radius:8px; cursor:pointer;">
-            GOT IT!
+            AWESOME!
           </button>
         </div>
       `;
