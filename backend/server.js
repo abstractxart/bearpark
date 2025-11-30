@@ -6755,6 +6755,108 @@ app.get('/api/store/nfts', async (req, res) => {
   }
 });
 
+// Fetch NFT image URL from URI (for inventory display)
+app.get('/api/nft/image/:hexUri', async (req, res) => {
+  try {
+    const hexUri = req.params.hexUri;
+    if (!hexUri) {
+      return res.json({ success: false, error: 'No URI provided' });
+    }
+
+    // Decode hex to string
+    const uri = hexToString(hexUri);
+    console.log(`[NFT Image API] Decoding URI: ${uri}`);
+
+    let imageUrl = null;
+    let name = 'BEAR';
+
+    // Helper to properly encode IPFS paths (handles spaces, #, etc.)
+    const encodeIpfsPath = (ipfsPath) => {
+      const parts = ipfsPath.split('/');
+      const cid = parts[0];
+      const filename = parts.slice(1).join('/');
+      if (filename) {
+        return cid + '/' + encodeURIComponent(filename);
+      }
+      return cid;
+    };
+
+    // Build metadata URL
+    let metadataUrl = null;
+    if (uri.startsWith('ipfs://')) {
+      const ipfsPath = uri.replace('ipfs://', '');
+      metadataUrl = `https://ipfs.io/ipfs/${encodeIpfsPath(ipfsPath)}`;
+    } else if (uri.startsWith('http')) {
+      metadataUrl = uri;
+    } else if (uri.match(/^Qm[a-zA-Z0-9]{44}/) || uri.match(/^bafy/)) {
+      metadataUrl = `https://ipfs.io/ipfs/${encodeIpfsPath(uri)}`;
+    }
+
+    if (metadataUrl) {
+      console.log(`[NFT Image API] Fetching metadata from: ${metadataUrl}`);
+      const metaResponse = await fetch(metadataUrl, { timeout: 10000 });
+      const contentType = metaResponse.headers.get('content-type') || '';
+
+      if (contentType.includes('application/json') || contentType.includes('text/')) {
+        const metadata = await metaResponse.json();
+
+        // Get name
+        if (metadata.name) {
+          name = metadata.name;
+        }
+
+        // Try to get image - check animation first for animated NFTs
+        let imgField = metadata.animation || metadata.animation_url ||
+                       metadata.image || metadata.image_url || metadata.media;
+
+        if (imgField) {
+          if (imgField.startsWith('ipfs://')) {
+            const imgPath = imgField.replace('ipfs://', '');
+            imageUrl = `https://ipfs.io/ipfs/${encodeIpfsPath(imgPath)}`;
+          } else if (imgField.startsWith('http')) {
+            imageUrl = imgField;
+          } else if (imgField.match(/^Qm[a-zA-Z0-9]{44}/) || imgField.match(/^bafy/)) {
+            imageUrl = `https://ipfs.io/ipfs/${encodeIpfsPath(imgField)}`;
+          }
+        }
+
+        // Also get fallback image if animation exists
+        let fallbackUrl = null;
+        if (metadata.animation && metadata.image) {
+          const fallbackField = metadata.image;
+          if (fallbackField.startsWith('ipfs://')) {
+            const imgPath = fallbackField.replace('ipfs://', '');
+            fallbackUrl = `https://ipfs.io/ipfs/${encodeIpfsPath(imgPath)}`;
+          } else if (fallbackField.startsWith('http')) {
+            fallbackUrl = fallbackField;
+          }
+        }
+
+        console.log(`[NFT Image API] Found image: ${imageUrl}`);
+        return res.json({
+          success: true,
+          imageUrl,
+          fallbackUrl,
+          name,
+          isAnimated: !!metadata.animation
+        });
+      } else if (contentType.includes('image/')) {
+        // URI points directly to image
+        return res.json({
+          success: true,
+          imageUrl: metadataUrl,
+          name
+        });
+      }
+    }
+
+    res.json({ success: false, error: 'Could not extract image URL' });
+  } catch (error) {
+    console.error('[NFT Image API] Error:', error.message);
+    res.json({ success: false, error: error.message });
+  }
+});
+
 // Request specific NFT purchase (by NFTokenID)
 app.post('/api/store/request-nft', async (req, res) => {
   const { wallet_address, nft_token_id } = req.body;
