@@ -23568,22 +23568,99 @@
       loadStoreItems(tab);
     }
 
-    // Placeholder data for new store tabs
-    const storeTokens = [];
-    const storeNfts = [];
+    // Token store items
+    const storeTokens = [
+      {
+        id: 'FARM',
+        name: 'FARM Token',
+        currency: 'FARM',
+        amount: '25000',
+        honeyCost: 4000,
+        logo: 'https://img.xmagnetic.org/u/rPrAEfVATUNDTJm9CUa8tYeD7oJrVdEGhU_FARM.webp',
+        issuer: 'rPrAEfVATUNDTJm9CUa8tYeD7oJrVdEGhU',
+        description: 'Get 25,000 FARM tokens!'
+      },
+      {
+        id: 'SPIFFY',
+        name: 'SPIFFY Token',
+        currency: 'SPIFFY',
+        amount: '250',
+        honeyCost: 4000,
+        logo: 'https://img.xmagnetic.org/u/rZ4yugfiQQMWx1a2ZxvzskL75TZeGgMFp_SPIFFY.webp',
+        issuer: 'rZ4yugfiQQMWx1a2ZxvzskL75TZeGgMFp',
+        description: 'Get 250 SPIFFY tokens!'
+      }
+    ];
+
+    // NFT store items
+    const storeNfts = [
+      {
+        id: 'PIXEL_BEAR',
+        name: 'Pixel BEAR NFT',
+        honeyCost: 10000,
+        description: 'A unique Pixel BEAR NFT from the collection! Your request will be fulfilled manually.',
+        image: 'https://files.catbox.moe/v2jedg.png'
+      }
+    ];
 
     function loadStoreItems(tab) {
-      // Handle new tabs with coming soon message
-      if (tab === 'tokens' || tab === 'nfts') {
-        const gridId = tab === 'tokens' ? 'storeTokensGrid' : 'storeNftsGrid';
-        const grid = document.getElementById(gridId);
-        grid.innerHTML = `
-          <div style="grid-column: 1/-1; text-align:center; padding:60px 20px;">
-            <div style="font-size:64px; margin-bottom:20px;">${tab === 'tokens' ? '🪙' : '🖼️'}</div>
-            <div style="font-size:24px; font-weight:700; color:#f59e0b; margin-bottom:10px;">COMING SOON</div>
-            <div style="font-size:16px; color:#888;">Stay tuned for exciting ${tab === 'tokens' ? 'token' : 'NFT'} rewards!</div>
-          </div>
-        `;
+      // Handle tokens tab
+      if (tab === 'tokens') {
+        const grid = document.getElementById('storeTokensGrid');
+        let html = '<div class="store-grid" style="display:grid; gap:20px;">';
+
+        storeTokens.forEach(token => {
+          html += `
+            <div class="store-item token-store-item" style="background:linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border:2px solid #f59e0b; border-radius:16px; overflow:hidden;">
+              <div style="padding:20px; text-align:center;">
+                <img src="${token.logo}" alt="${token.name}" style="width:100px; height:100px; border-radius:50%; margin-bottom:16px; border:3px solid #f59e0b; box-shadow:0 0 20px rgba(245,158,11,0.3);">
+                <h3 style="color:#f59e0b; font-size:20px; font-weight:900; margin:0 0 8px;">${token.name}</h3>
+                <div style="color:#4ade80; font-size:24px; font-weight:700; margin-bottom:8px;">${Number(token.amount).toLocaleString()} ${token.currency}</div>
+                <p style="color:#888; font-size:14px; margin:0 0 16px;">${token.description}</p>
+                <div style="display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:16px;">
+                  <img src="https://files.catbox.moe/wyfjtc.png" alt="honey" style="width:24px; height:24px;">
+                  <span style="color:#fbbf24; font-size:18px; font-weight:700;">${token.honeyCost.toLocaleString()} HP</span>
+                </div>
+                <button onclick="purchaseToken('${token.id}')" class="btn gold" style="width:100%; font-size:16px; padding:12px;">
+                  🛒 PURCHASE
+                </button>
+              </div>
+            </div>
+          `;
+        });
+
+        html += '</div>';
+        grid.innerHTML = html;
+        return;
+      }
+
+      // Handle NFTs tab
+      if (tab === 'nfts') {
+        const grid = document.getElementById('storeNftsGrid');
+        let html = '<div class="store-grid" style="display:grid; gap:20px;">';
+
+        storeNfts.forEach(nft => {
+          html += `
+            <div class="store-item nft-store-item" style="background:linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border:2px solid #8b5cf6; border-radius:16px; overflow:hidden;">
+              <div style="padding:20px; text-align:center;">
+                <img src="${nft.image}" alt="${nft.name}" style="width:150px; height:150px; border-radius:12px; margin-bottom:16px; border:3px solid #8b5cf6; box-shadow:0 0 20px rgba(139,92,246,0.3);">
+                <h3 style="color:#8b5cf6; font-size:20px; font-weight:900; margin:0 0 8px;">${nft.name}</h3>
+                <p style="color:#888; font-size:14px; margin:0 0 16px;">${nft.description}</p>
+                <div style="display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:16px;">
+                  <img src="https://files.catbox.moe/wyfjtc.png" alt="honey" style="width:24px; height:24px;">
+                  <span style="color:#fbbf24; font-size:18px; font-weight:700;">${nft.honeyCost.toLocaleString()} HP</span>
+                </div>
+                <button onclick="requestNFT('${nft.id}')" class="btn" style="width:100%; font-size:16px; padding:12px; background:linear-gradient(135deg, #8b5cf6, #7c3aed); color:#fff;">
+                  🎨 REQUEST NFT
+                </button>
+                <p style="color:#666; font-size:12px; margin:12px 0 0; font-style:italic;">NFT will be sent to your wallet manually</p>
+              </div>
+            </div>
+          `;
+        });
+
+        html += '</div>';
+        grid.innerHTML = html;
         return;
       }
 
@@ -23828,6 +23905,290 @@
           button.textContent = 'BUY NOW';
         }
       }
+    }
+
+    // Purchase token from store (FARM, SPIFFY)
+    async function purchaseToken(tokenType) {
+      const walletAddress = localStorage.getItem('bearpark_wallet');
+      if (!walletAddress) {
+        alert('Please connect your wallet first!');
+        return;
+      }
+
+      const token = storeTokens.find(t => t.id === tokenType);
+      if (!token) {
+        alert('Invalid token type');
+        return;
+      }
+
+      if (currentBalance < token.honeyCost) {
+        alert(`Not enough Honey Points! You need ${token.honeyCost.toLocaleString()} HP but only have ${Math.floor(currentBalance).toLocaleString()} HP.`);
+        return;
+      }
+
+      // Find the button
+      const buttons = document.querySelectorAll('.token-store-item button');
+      let button = null;
+      buttons.forEach(btn => {
+        if (btn.onclick && btn.onclick.toString().includes(tokenType)) {
+          button = btn;
+        }
+      });
+      // Fallback to finding by parent content
+      if (!button) {
+        document.querySelectorAll('.token-store-item').forEach(item => {
+          if (item.innerHTML.includes(token.name)) {
+            button = item.querySelector('button');
+          }
+        });
+      }
+
+      // Disable button during purchase
+      if (button) {
+        button.disabled = true;
+        button.innerHTML = '⏳ PURCHASING...';
+      }
+
+      try {
+        // Show hype message
+        showHypeMessage();
+
+        // Call API to purchase token
+        const response = await fetch(`${API_BASE_URL}/api/store/purchase-token`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            wallet_address: walletAddress,
+            token_type: tokenType
+          })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+          // Check if it's a trustline error
+          if (data.needsTrustline) {
+            throw new Error(`YOU NEED TO SET THE ${token.currency} TRUST LINE FIRST!\n\nIssuer: ${token.issuer}`);
+          }
+          throw new Error(data.error || 'Purchase failed');
+        }
+
+        console.log('✅ Token purchase successful!', data);
+
+        // Update balance
+        setTimeout(() => {
+          currentBalance = data.new_balance;
+          document.getElementById('storeHoneyBalance').textContent = currentBalance.toFixed(1);
+
+          const honeyPointsEl = document.getElementById('totalHoneyPoints');
+          if (honeyPointsEl) {
+            honeyPointsEl.textContent = currentBalance.toFixed(1);
+          }
+
+          const welcomePoints = document.getElementById('welcomePoints');
+          if (welcomePoints) {
+            welcomePoints.textContent = currentBalance.toFixed(1);
+          }
+
+          // Re-enable button for re-purchase
+          if (button) {
+            button.disabled = false;
+            button.innerHTML = '🛒 PURCHASE';
+          }
+        }, 400);
+
+        // Show success celebration
+        setTimeout(() => {
+          showTokenCelebration(token, data.tx_hash);
+        }, 2600);
+
+      } catch (error) {
+        console.error('❌ Token purchase error:', error);
+        alert(`Purchase failed: ${error.message}`);
+
+        // Re-enable button on error
+        if (button) {
+          button.disabled = false;
+          button.innerHTML = '🛒 PURCHASE';
+        }
+      }
+    }
+
+    // Show celebration for token purchase
+    function showTokenCelebration(token, txHash) {
+      const overlay = document.createElement('div');
+      overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.9);
+        z-index: 30000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: fadeIn 0.3s ease;
+      `;
+
+      overlay.innerHTML = `
+        <div style="text-align:center; padding:40px; max-width:400px;">
+          <img src="${token.logo}" alt="${token.name}" style="width:120px; height:120px; border-radius:50%; margin-bottom:24px; border:4px solid #4ade80; box-shadow:0 0 40px rgba(74,222,128,0.5); animation: pulse 1s ease infinite;">
+          <h2 style="color:#4ade80; font-size:32px; font-weight:900; margin:0 0 16px;">SUCCESS!</h2>
+          <p style="color:#fff; font-size:20px; margin:0 0 24px;">You received <strong style="color:#fbbf24;">${Number(token.amount).toLocaleString()} ${token.currency}</strong>!</p>
+          <a href="https://xrpscan.com/tx/${txHash}" target="_blank" rel="noopener noreferrer" style="color:#60a5fa; font-size:14px; text-decoration:underline;">View Transaction</a>
+          <button onclick="this.closest('div').parentElement.remove()" style="display:block; margin:24px auto 0; padding:12px 32px; background:linear-gradient(135deg, #f59e0b, #d97706); color:#000; font-size:16px; font-weight:700; border:none; border-radius:8px; cursor:pointer;">
+            AWESOME!
+          </button>
+        </div>
+      `;
+
+      document.body.appendChild(overlay);
+
+      // Auto-close after 10 seconds
+      setTimeout(() => {
+        if (overlay.parentElement) {
+          overlay.remove();
+        }
+      }, 10000);
+    }
+
+    // Request NFT from store (Pixel BEAR)
+    async function requestNFT(nftType) {
+      const walletAddress = localStorage.getItem('bearpark_wallet');
+      if (!walletAddress) {
+        alert('Please connect your wallet first!');
+        return;
+      }
+
+      const nft = storeNfts.find(n => n.id === nftType);
+      if (!nft) {
+        alert('Invalid NFT type');
+        return;
+      }
+
+      if (currentBalance < nft.honeyCost) {
+        alert(`Not enough Honey Points! You need ${nft.honeyCost.toLocaleString()} HP but only have ${Math.floor(currentBalance).toLocaleString()} HP.`);
+        return;
+      }
+
+      // Find the button
+      let button = null;
+      document.querySelectorAll('.nft-store-item').forEach(item => {
+        if (item.innerHTML.includes(nft.name)) {
+          button = item.querySelector('button');
+        }
+      });
+
+      // Disable button during request
+      if (button) {
+        button.disabled = true;
+        button.innerHTML = '⏳ REQUESTING...';
+      }
+
+      try {
+        // Show hype message
+        showHypeMessage();
+
+        // Call API to request NFT
+        const response = await fetch(`${API_BASE_URL}/api/store/request-nft`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            wallet_address: walletAddress,
+            nft_type: nftType
+          })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+          throw new Error(data.error || 'Request failed');
+        }
+
+        console.log('✅ NFT request successful!', data);
+
+        // Update balance
+        setTimeout(() => {
+          currentBalance = data.new_balance;
+          document.getElementById('storeHoneyBalance').textContent = currentBalance.toFixed(1);
+
+          const honeyPointsEl = document.getElementById('totalHoneyPoints');
+          if (honeyPointsEl) {
+            honeyPointsEl.textContent = currentBalance.toFixed(1);
+          }
+
+          const welcomePoints = document.getElementById('welcomePoints');
+          if (welcomePoints) {
+            welcomePoints.textContent = currentBalance.toFixed(1);
+          }
+
+          // Update button to show pending
+          if (button) {
+            button.disabled = true;
+            button.innerHTML = '⏳ PENDING';
+            button.style.background = 'linear-gradient(135deg, #6b7280, #4b5563)';
+          }
+        }, 400);
+
+        // Show success message
+        setTimeout(() => {
+          showNFTRequestSuccess(nft, data.request_id);
+        }, 2600);
+
+      } catch (error) {
+        console.error('❌ NFT request error:', error);
+        alert(`Request failed: ${error.message}`);
+
+        // Re-enable button on error
+        if (button) {
+          button.disabled = false;
+          button.innerHTML = '🎨 REQUEST NFT';
+        }
+      }
+    }
+
+    // Show success message for NFT request
+    function showNFTRequestSuccess(nft, requestId) {
+      const overlay = document.createElement('div');
+      overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.9);
+        z-index: 30000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: fadeIn 0.3s ease;
+      `;
+
+      overlay.innerHTML = `
+        <div style="text-align:center; padding:40px; max-width:400px;">
+          <img src="${nft.image}" alt="${nft.name}" style="width:120px; height:120px; border-radius:12px; margin-bottom:24px; border:4px solid #8b5cf6; box-shadow:0 0 40px rgba(139,92,246,0.5); animation: pulse 1s ease infinite;">
+          <h2 style="color:#8b5cf6; font-size:28px; font-weight:900; margin:0 0 16px;">REQUEST SUBMITTED!</h2>
+          <p style="color:#fff; font-size:18px; margin:0 0 16px;">Your <strong style="color:#fbbf24;">${nft.name}</strong> request has been received!</p>
+          <p style="color:#888; font-size:14px; margin:0 0 24px;">Request ID: ${requestId}<br>The NFT will be sent to your wallet shortly.</p>
+          <button onclick="this.closest('div').parentElement.remove()" style="display:block; margin:0 auto; padding:12px 32px; background:linear-gradient(135deg, #8b5cf6, #7c3aed); color:#fff; font-size:16px; font-weight:700; border:none; border-radius:8px; cursor:pointer;">
+            GOT IT!
+          </button>
+        </div>
+      `;
+
+      document.body.appendChild(overlay);
+
+      // Auto-close after 10 seconds
+      setTimeout(() => {
+        if (overlay.parentElement) {
+          overlay.remove();
+        }
+      }, 10000);
     }
 
     function showHypeMessage() {
