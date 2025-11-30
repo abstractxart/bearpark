@@ -7044,6 +7044,23 @@ app.get('/api/store/nft-requests/:wallet', async (req, res) => {
   }
 });
 
+// Admin: Get all token purchases
+app.get('/api/admin/token-purchases', async (req, res) => {
+  try {
+    const { data: purchases, error } = await supabase
+      .from('store_token_transactions')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    res.json({ success: true, purchases: purchases || [] });
+  } catch (error) {
+    console.error('Error fetching token purchases:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Admin: Get all pending NFT requests
 app.get('/api/admin/nft-requests', async (req, res) => {
   try {
