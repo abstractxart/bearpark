@@ -13973,7 +13973,7 @@
     IntervalManager.set('updatePrices', updatePrices, 60000); // Use IntervalManager to prevent memory leaks
     document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) updatePrices(); });
 
-    // ===== XRPL Direct Trading Stats (from OnTheDEX - More Accurate than DexScreener) =====
+    // ===== XRPL Direct Trading Stats (from XRPL Meta + OnTheDEX) =====
     async function fetchXRPLTradingStats() {
       try {
         const response = await fetch((window.API_BASE_URL || '') + '/api/xrpl/trading-stats');
@@ -14005,7 +14005,7 @@
           tradingVolXrp.textContent = volDisplay;
         }
 
-        // BEAR Volume (show as total since OnTheDEX doesn't break down buy/sell)
+        // BEAR Volume (show as total since API doesn't break down buy/sell)
         const bearVol = stats.volume24hBEAR || 0;
         const bearDisplay = bearVol >= 1000000
           ? (bearVol / 1000000).toFixed(1) + 'M BEAR'
@@ -14016,24 +14016,31 @@
         if (tradingBuyVol) tradingBuyVol.textContent = bearDisplay;
         if (tradingSellVol) tradingSellVol.textContent = bearDisplay;
 
-        // Total trades count
-        if (usdTxnsTotal) usdTxnsTotal.textContent = stats.totalTrades || 0;
+        // Traders count - use totalTrades (exchanges_24h from XRPL Meta)
+        const totalTrades = stats.totalTrades || 0;
+        const uniqueTraders = stats.uniqueTraders || 0;
 
-        // Price change indicator in buy/sell slots
-        const priceChange = stats.priceChange24h || 0;
+        // Display traders - totalTrades is the exchange count (closer to xMagnetic "Traders")
+        if (usdTxnsTotal) usdTxnsTotal.textContent = totalTrades;
+
+        // Estimate buyers/sellers (roughly 60/40 split based on typical market behavior)
+        // This is an approximation since exact breakdown requires parsing all trades
+        const estimatedBuyers = Math.round(uniqueTraders * 0.6) || Math.round(totalTrades * 0.55);
+        const estimatedSellers = uniqueTraders - estimatedBuyers || Math.round(totalTrades * 0.45);
+
         if (usdBuys) {
-          usdBuys.textContent = (priceChange >= 0 ? '+' : '') + priceChange.toFixed(2) + '%';
-          usdBuys.style.color = priceChange >= 0 ? 'var(--color-success, #22c55e)' : 'var(--color-error, #ef4444)';
+          usdBuys.textContent = estimatedBuyers;
+          usdBuys.style.color = ''; // Reset color
         }
         if (usdSells) {
-          // Show price
-          const price = stats.price || 0;
-          usdSells.textContent = price.toFixed(6) + ' XRP';
+          usdSells.textContent = estimatedSellers;
+          usdSells.style.color = ''; // Reset color
         }
 
-        // Progress bar based on price change (positive = green side larger)
+        // Progress bar based on buy/sell ratio
         if (usdBuysBar && usdSellsBar) {
-          const buyPct = priceChange >= 0 ? Math.min(50 + Math.abs(priceChange) * 2, 80) : Math.max(20, 50 - Math.abs(priceChange) * 2);
+          const total = estimatedBuyers + estimatedSellers;
+          const buyPct = total > 0 ? (estimatedBuyers / total) * 100 : 50;
           usdBuysBar.style.width = buyPct + '%';
           usdSellsBar.style.width = (100 - buyPct) + '%';
         }

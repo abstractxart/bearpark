@@ -6215,9 +6215,11 @@ app.post('/api/beardrops/admin/batch-payout', verifyApex, async (req, res) => {
 console.log('✅ BEARDROPS airdrop endpoints initialized');
 
 // ========== XRPL TRADING DATA ENDPOINT ==========
-// Fetches real-time 24h trading data from OnTheDEX API (reliable XRPL DEX aggregator)
+// Fetches real-time 24h trading data from XRPL Meta + OnTheDEX APIs
 
 const BEAR_ISSUER = 'rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW';
+const BEAR_HEX = '4245415200000000000000000000000000000000';
+const XRPLMETA_API = 'https://s1.xrplmeta.org';
 const ONTHEDEX_API = 'https://api.onthedex.live/public/v1';
 
 // Cache for trading data (refresh every 60 seconds)
@@ -6234,41 +6236,59 @@ app.get('/api/xrpl/trading-stats', async (req, res) => {
       return res.json({ ...xrplTradingCache, cached: true });
     }
 
-    console.log('📊 Fetching BEAR trading stats from OnTheDEX...');
+    console.log('📊 Fetching BEAR trading stats from XRPL Meta + OnTheDEX...');
 
-    // Fetch ticker data from OnTheDEX API
-    const tickerUrl = `${ONTHEDEX_API}/ticker/BEAR.${BEAR_ISSUER}:XRP`;
-    const tickerResponse = await fetch(tickerUrl);
+    // Fetch from both APIs in parallel
+    const [metaResponse, tickerResponse] = await Promise.all([
+      fetch(`${XRPLMETA_API}/token/BEAR:${BEAR_ISSUER}?metrics=true`),
+      fetch(`${ONTHEDEX_API}/ticker/BEAR.${BEAR_ISSUER}:XRP`)
+    ]);
 
-    if (!tickerResponse.ok) {
-      throw new Error(`OnTheDEX API returned ${tickerResponse.status}`);
+    let metaData = null;
+    let tickerData = null;
+
+    if (metaResponse.ok) {
+      metaData = await metaResponse.json();
     }
 
-    const tickerData = await tickerResponse.json();
-
-    if (!tickerData.pairs || tickerData.pairs.length === 0) {
-      throw new Error('No trading pair data found');
+    if (tickerResponse.ok) {
+      tickerData = await tickerResponse.json();
     }
 
-    const pair = tickerData.pairs[0];
+    // Extract data from XRPL Meta (more accurate trade/trader counts)
+    const metrics = metaData?.metrics || {};
 
-    // Build response with trading stats
+    // Extract data from OnTheDEX (volume and price data)
+    const pair = tickerData?.pairs?.[0] || {};
+
+    // Build response combining both sources
     const result = {
       success: true,
-      source: 'OnTheDEX',
+      source: 'XRPL Meta + OnTheDEX',
       cached: false,
       timestamp: now,
       stats: {
-        price: pair.last || 0,
+        // Price data from OnTheDEX
+        price: pair.last || parseFloat(metrics.price) || 0,
         price24hAgo: pair.ago24 || 0,
         priceChange24h: pair.pc24 || 0,
         priceHigh24h: pair.price_hi || 0,
         priceLow24h: pair.price_lo || 0,
-        priceMid: pair.price_mid || 0,
+
+        // Volume from XRPL Meta (more accurate) with OnTheDEX as fallback
+        volume24hXRP: Math.round(parseFloat(metrics.volume_24h) || pair.volume_quote || 0),
         volume24hBEAR: Math.round(pair.volume_base || 0),
-        volume24hXRP: Math.round(pair.volume_quote || 0),
         volume24hUSD: Math.round(pair.volume_usd || 0),
-        totalTrades: pair.num_trades || 0,
+
+        // Trade counts from XRPL Meta (matches xMagnetic better)
+        totalTrades: parseInt(metrics.exchanges_24h) || pair.num_trades || 0,
+        uniqueTraders: parseInt(metrics.takers_24h) || 0,
+
+        // Additional metrics from XRPL Meta
+        holders: parseInt(metrics.holders) || 0,
+        trustlines: parseInt(metrics.trustlines) || 0,
+        marketcap: Math.round(parseFloat(metrics.marketcap) || 0),
+
         lastUpdated: pair.time ? pair.time * 1000 : now
       }
     };
