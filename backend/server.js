@@ -6239,26 +6239,31 @@ async function getBEARTransactions(client, marker = null) {
 
 // Get current order book for BEAR/XRP
 async function getOrderBook(client) {
-  // Get asks (selling BEAR for XRP)
-  const asksResponse = await client.request({
-    command: 'book_offers',
-    taker_gets: { currency: 'XRP' },
-    taker_pays: { currency: 'BEAR', issuer: BEAR_ISSUER },
-    limit: 50
-  });
+  try {
+    // Get asks (selling BEAR for XRP) - use xrpl.xrpToDrops format for XRP
+    const asksResponse = await client.request({
+      command: 'book_offers',
+      taker_gets: { currency: 'XRP' },
+      taker_pays: { currency: '4245415200000000000000000000000000000000', issuer: BEAR_ISSUER },
+      limit: 50
+    });
 
-  // Get bids (buying BEAR with XRP)
-  const bidsResponse = await client.request({
-    command: 'book_offers',
-    taker_gets: { currency: 'BEAR', issuer: BEAR_ISSUER },
-    taker_pays: { currency: 'XRP' },
-    limit: 50
-  });
+    // Get bids (buying BEAR with XRP)
+    const bidsResponse = await client.request({
+      command: 'book_offers',
+      taker_gets: { currency: '4245415200000000000000000000000000000000', issuer: BEAR_ISSUER },
+      taker_pays: { currency: 'XRP' },
+      limit: 50
+    });
 
-  return {
-    asks: asksResponse.result.offers || [],
-    bids: bidsResponse.result.offers || []
-  };
+    return {
+      asks: asksResponse.result.offers || [],
+      bids: bidsResponse.result.offers || []
+    };
+  } catch (error) {
+    console.warn('⚠️ Error fetching order book:', error.message);
+    return { asks: [], bids: [] };
+  }
 }
 
 // Parse a transaction to extract BEAR/XRP trade info
