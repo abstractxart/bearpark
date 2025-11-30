@@ -17262,7 +17262,6 @@
             <div style="width:100%; aspect-ratio:1; position:relative; background:rgba(237,183,35,0.05);">
               <img src="" data-nft-id="${nft.NFTokenID}" class="nft-image-loading"
                    style="width:100%; height:100%; display:block; object-fit:contain; image-rendering:pixelated;"
-                   loading="lazy"
                    alt="${type} NFT">
               <a href="https://xrp.cafe/nft/${nft.NFTokenID}" target="_blank" rel="noopener noreferrer"
                  style="position:absolute; top:8px; left:8px; width:32px; height:32px; border-radius:50%; background:#fff; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(0,0,0,0.3); transition:all 0.2s; z-index:10; border:3px solid transparent; background-image: linear-gradient(#fff, #fff), var(--tri-gradient); background-origin: padding-box, border-box; background-clip: padding-box, border-box;"
@@ -17301,6 +17300,8 @@
         `).join('');
 
         // Load NFT images using backend API (handles IPFS encoding properly)
+        console.log('%c[NFT IMAGE LOADING STARTING] ' + filteredNFTs.length + ' NFTs', 'background: red; color: white; font-size: 20px;');
+
         const imageLoadPromises = filteredNFTs.map(async (nft) => {
           try {
             // Check if NFT has a URI field (hex-encoded)
@@ -17309,7 +17310,7 @@
               return;
             }
 
-            console.log('[NFT Image] Fetching via API for', nft.NFTokenID.substring(0, 16) + '...');
+            console.log('%c[NFT Image] Fetching: ' + nft.NFTokenID.substring(0, 16), 'background: blue; color: white;');
 
             // Use backend API to get properly encoded image URL
             let imageUrl = '';
@@ -17429,7 +17430,7 @@
             }
 
             if (imgElement && imageUrl) {
-              console.log('[NFT Image] Setting src to:', imageUrl);
+              console.log('%c[NFT Image] SETTING SRC: ' + imageUrl.substring(0, 80), 'background: green; color: white; font-size: 14px;');
               imgElement.src = imageUrl;
               imgElement.classList.remove('nft-image-loading');
 
