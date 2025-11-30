@@ -366,6 +366,7 @@
   <div class="tabs">
     <button class="tab active" onclick="switchTab('nft-requests')">🎨 NFT Requests</button>
     <button class="tab" onclick="switchTab('token-purchases')">🪙 Token Purchases</button>
+    <button class="tab" onclick="switchTab('cosmetics-history')">💍 Rings & Banners</button>
   </div>
 
   <div class="container">
@@ -448,6 +449,46 @@
         </div>
       </div>
     </div>
+
+    <!-- Cosmetics (Rings & Banners) History Section -->
+    <div id="cosmetics-history-section" style="display: none;">
+      <div class="card">
+        <h2 class="card-title">💍 Rings & Banners Purchase History</h2>
+
+        <div class="stats-row" id="cosmetics-stats">
+          <div class="stat-box">
+            <div class="stat-value" id="ring-count">-</div>
+            <div class="stat-label">Ring Purchases</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value" id="banner-count">-</div>
+            <div class="stat-label">Banner Purchases</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value" id="total-hp-cosmetics">-</div>
+            <div class="stat-label">Total HP Spent</div>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>User</th>
+                <th>Item</th>
+                <th>Type</th>
+                <th>Rarity</th>
+                <th>HP Spent</th>
+                <th>Timestamp</th>
+              </tr>
+            </thead>
+            <tbody id="cosmetics-history-table">
+              <tr><td colspan="6" class="loading">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </div>
 
   <button class="refresh-btn" onclick="loadAllData()" title="Refresh">🔄</button>
@@ -472,6 +513,7 @@
 
       document.getElementById('nft-requests-section').style.display = tab === 'nft-requests' ? 'block' : 'none';
       document.getElementById('token-purchases-section').style.display = tab === 'token-purchases' ? 'block' : 'none';
+      document.getElementById('cosmetics-history-section').style.display = tab === 'cosmetics-history' ? 'block' : 'none';
     }
 
     function formatWallet(wallet) {
@@ -653,9 +695,83 @@
       }
     }
 
+    async function loadCosmeticsHistory() {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/cosmetics/history?limit=200`);
+        const data = await response.json();
+        const tbody = document.getElementById('cosmetics-history-table');
+
+        if (!data.success || !data.transactions || data.transactions.length === 0) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="6">
+                <div class="empty-state">
+                  <div class="empty-state-icon">💍</div>
+                  <div>No cosmetic purchases yet</div>
+                </div>
+              </td>
+            </tr>
+          `;
+          document.getElementById('ring-count').textContent = '0';
+          document.getElementById('banner-count').textContent = '0';
+          document.getElementById('total-hp-cosmetics').textContent = '0';
+          return;
+        }
+
+        const transactions = data.transactions;
+
+        // Calculate stats
+        const ringCount = transactions.filter(t => t.cosmetic?.type === 'ring').length;
+        const bannerCount = transactions.filter(t => t.cosmetic?.type === 'banner').length;
+        const totalHP = transactions.reduce((sum, t) => sum + (t.honey_spent || 0), 0);
+
+        document.getElementById('ring-count').textContent = ringCount;
+        document.getElementById('banner-count').textContent = bannerCount;
+        document.getElementById('total-hp-cosmetics').textContent = totalHP.toLocaleString();
+
+        // Rarity colors
+        const rarityColors = {
+          'common': '#9ca3af',
+          'uncommon': '#22c55e',
+          'rare': '#3b82f6',
+          'epic': '#a855f7',
+          'legendary': '#f59e0b',
+          'bearableguy123': 'linear-gradient(90deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #8b00ff)'
+        };
+
+        tbody.innerHTML = transactions.map(t => {
+          const rarity = t.cosmetic?.rarity || 'common';
+          const rarityStyle = rarity === 'bearableguy123'
+            ? `background: ${rarityColors[rarity]}; -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 900;`
+            : `color: ${rarityColors[rarity] || '#9ca3af'}; font-weight: 700;`;
+
+          return `
+            <tr>
+              <td class="wallet" title="${t.wallet_address}">${t.display_name || formatWallet(t.wallet_address)}</td>
+              <td>
+                ${t.cosmetic?.image_url ? `<img src="${t.cosmetic.image_url}" alt="" style="width:24px;height:24px;object-fit:contain;vertical-align:middle;margin-right:6px;">` : ''}
+                ${t.cosmetic?.name || 'Unknown Item'}
+              </td>
+              <td style="text-transform: capitalize;">${t.cosmetic?.type || '-'}</td>
+              <td><span style="${rarityStyle}">${rarity.toUpperCase()}</span></td>
+              <td class="hp-cost">${(t.honey_spent || 0).toLocaleString()} HP</td>
+              <td class="timestamp">${formatTimestamp(t.created_at)}</td>
+            </tr>
+          `;
+        }).join('');
+
+      } catch (error) {
+        console.error('Error loading cosmetics history:', error);
+        document.getElementById('cosmetics-history-table').innerHTML = `
+          <tr><td colspan="6" style="color:#ef4444;">Error loading data: ${error.message}</td></tr>
+        `;
+      }
+    }
+
     function loadAllData() {
       loadNFTRequests();
       loadTokenPurchases();
+      loadCosmeticsHistory();
     }
 
     // Load data on page load

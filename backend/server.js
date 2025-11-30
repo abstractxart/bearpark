@@ -3994,6 +3994,53 @@ app.post('/api/cosmetics/unequip', async (req, res) => {
   }
 });
 
+// Get cosmetics purchase history (admin)
+app.get('/api/cosmetics/history', async (req, res) => {
+  try {
+    const { limit = 100 } = req.query;
+
+    const { data: transactions, error } = await supabase
+      .from('cosmetics_transactions')
+      .select(`
+        *,
+        cosmetic:cosmetics_catalog(name, type, rarity, honey_cost, image_url)
+      `)
+      .order('created_at', { ascending: false })
+      .limit(parseInt(limit));
+
+    if (error) throw error;
+
+    // Get display names for wallets
+    const walletAddresses = [...new Set(transactions.map(t => t.wallet_address))];
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('wallet_address, display_name')
+      .in('wallet_address', walletAddresses);
+
+    const profileMap = {};
+    if (profiles) {
+      profiles.forEach(p => {
+        profileMap[p.wallet_address] = p.display_name;
+      });
+    }
+
+    // Add display names to transactions
+    const enrichedTransactions = transactions.map(t => ({
+      ...t,
+      display_name: profileMap[t.wallet_address] || t.wallet_address.substring(0, 8) + '...'
+    }));
+
+    res.json({
+      success: true,
+      transactions: enrichedTransactions,
+      total: enrichedTransactions.length
+    });
+  } catch (error) {
+    console.error('Error fetching cosmetics history:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // =====================================================
 // BULLETIN BOARD API ROUTES
 // =====================================================
