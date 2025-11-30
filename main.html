@@ -14005,18 +14005,9 @@
           tradingVolXrp.textContent = volDisplay;
         }
 
-        // BEAR Volume - estimate buy/sell split based on price change
-        // If price is down, more selling; if price is up, more buying
-        const bearVol = stats.volume24hBEAR || 0;
-        const priceChange = stats.priceChange24h || 0;
-
-        // Estimate buy/sell ratio: neutral is 50/50, adjust based on price change
-        // Price change of -1.26% means slightly more selling
-        const sellRatio = Math.min(0.8, Math.max(0.2, 0.5 - (priceChange / 10)));
-        const buyRatio = 1 - sellRatio;
-
-        const buyVol = Math.round(bearVol * buyRatio);
-        const sellVol = Math.round(bearVol * sellRatio);
+        // BEAR Volume - use buy/sell breakdown from API (DexScreener ratio applied to volume)
+        const buyVol = stats.buyVolumeBEAR || 0;
+        const sellVol = stats.sellVolumeBEAR || 0;
 
         const formatBearVol = (vol) => vol >= 1000000
           ? (vol / 1000000).toFixed(1) + 'M BEAR'
@@ -14029,29 +14020,27 @@
 
         // Traders count - use totalTrades (exchanges_24h from XRPL Meta)
         const totalTrades = stats.totalTrades || 0;
-        const uniqueTraders = stats.uniqueTraders || 0;
 
-        // Display traders - totalTrades is the exchange count (closer to xMagnetic "Traders")
+        // Display total traders
         if (usdTxnsTotal) usdTxnsTotal.textContent = totalTrades;
 
-        // Estimate buyers/sellers (roughly 60/40 split based on typical market behavior)
-        // This is an approximation since exact breakdown requires parsing all trades
-        const estimatedBuyers = Math.round(uniqueTraders * 0.6) || Math.round(totalTrades * 0.55);
-        const estimatedSellers = uniqueTraders - estimatedBuyers || Math.round(totalTrades * 0.45);
+        // Use actual buy/sell transaction counts from DexScreener
+        const buys24h = stats.buys24h || 0;
+        const sells24h = stats.sells24h || 0;
 
         if (usdBuys) {
-          usdBuys.textContent = estimatedBuyers;
+          usdBuys.textContent = buys24h;
           usdBuys.style.color = ''; // Reset color
         }
         if (usdSells) {
-          usdSells.textContent = estimatedSellers;
+          usdSells.textContent = sells24h;
           usdSells.style.color = ''; // Reset color
         }
 
         // Progress bar based on buy/sell ratio
         if (usdBuysBar && usdSellsBar) {
-          const total = estimatedBuyers + estimatedSellers;
-          const buyPct = total > 0 ? (estimatedBuyers / total) * 100 : 50;
+          const total = buys24h + sells24h;
+          const buyPct = total > 0 ? (buys24h / total) * 100 : 50;
           usdBuysBar.style.width = buyPct + '%';
           usdSellsBar.style.width = (100 - buyPct) + '%';
         }

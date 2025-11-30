@@ -6236,16 +6236,18 @@ app.get('/api/xrpl/trading-stats', async (req, res) => {
       return res.json({ ...xrplTradingCache, cached: true });
     }
 
-    console.log('📊 Fetching BEAR trading stats from XRPL Meta + OnTheDEX...');
+    console.log('📊 Fetching BEAR trading stats from XRPL Meta + OnTheDEX + DexScreener...');
 
-    // Fetch from both APIs in parallel
-    const [metaResponse, tickerResponse] = await Promise.all([
+    // Fetch from all APIs in parallel
+    const [metaResponse, tickerResponse, dexScreenerResponse] = await Promise.all([
       fetch(`${XRPLMETA_API}/token/BEAR:${BEAR_ISSUER}?metrics=true`),
-      fetch(`${ONTHEDEX_API}/ticker/BEAR.${BEAR_ISSUER}:XRP`)
+      fetch(`${ONTHEDEX_API}/ticker/BEAR.${BEAR_ISSUER}:XRP`),
+      fetch('https://api.dexscreener.com/latest/dex/search?q=BEAR%20XRPL')
     ]);
 
     let metaData = null;
     let tickerData = null;
+    let dexScreenerData = null;
 
     if (metaResponse.ok) {
       metaData = await metaResponse.json();
@@ -6255,16 +6257,40 @@ app.get('/api/xrpl/trading-stats', async (req, res) => {
       tickerData = await tickerResponse.json();
     }
 
+    if (dexScreenerResponse.ok) {
+      const dsData = await dexScreenerResponse.json();
+      // Find BEAR pair
+      dexScreenerData = dsData.pairs?.find(p =>
+        p.baseToken?.symbol === 'BEAR' &&
+        p.chainId === 'xrpl'
+      );
+    }
+
     // Extract data from XRPL Meta (more accurate trade/trader counts)
     const metrics = metaData?.metrics || {};
 
     // Extract data from OnTheDEX (volume and price data)
     const pair = tickerData?.pairs?.[0] || {};
 
-    // Build response combining both sources
+    // Extract buy/sell counts from DexScreener
+    const dsTxns = dexScreenerData?.txns?.h24 || {};
+    const buys24h = dsTxns.buys || 0;
+    const sells24h = dsTxns.sells || 0;
+    const totalTxns = buys24h + sells24h;
+
+    // Calculate buy/sell ratio from DexScreener transaction counts
+    const buyRatio = totalTxns > 0 ? buys24h / totalTxns : 0.5;
+    const sellRatio = totalTxns > 0 ? sells24h / totalTxns : 0.5;
+
+    // Get total BEAR volume and split by buy/sell ratio
+    const totalBearVol = Math.round(pair.volume_base || 0);
+    const buyVolumeBEAR = Math.round(totalBearVol * buyRatio);
+    const sellVolumeBEAR = Math.round(totalBearVol * sellRatio);
+
+    // Build response combining all sources
     const result = {
       success: true,
-      source: 'XRPL Meta + OnTheDEX',
+      source: 'XRPL Meta + OnTheDEX + DexScreener',
       cached: false,
       timestamp: now,
       stats: {
@@ -6277,8 +6303,14 @@ app.get('/api/xrpl/trading-stats', async (req, res) => {
 
         // Volume from XRPL Meta (more accurate) with OnTheDEX as fallback
         volume24hXRP: Math.round(parseFloat(metrics.volume_24h) || pair.volume_quote || 0),
-        volume24hBEAR: Math.round(pair.volume_base || 0),
+        volume24hBEAR: totalBearVol,
         volume24hUSD: Math.round(pair.volume_usd || 0),
+
+        // Buy/Sell volume breakdown (using DexScreener ratio)
+        buyVolumeBEAR,
+        sellVolumeBEAR,
+        buys24h,
+        sells24h,
 
         // Trade counts from XRPL Meta (matches xMagnetic better)
         totalTrades: parseInt(metrics.exchanges_24h) || pair.num_trades || 0,
