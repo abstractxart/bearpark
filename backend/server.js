@@ -6639,38 +6639,92 @@ app.get('/api/store/nfts', async (req, res) => {
     const purchasedIds = new Set((purchased || []).map(p => p.nft_token_id).filter(Boolean));
 
     // Filter out already purchased NFTs (show ALL NFTs in the wallet)
-    const availableNfts = allNfts
-      .filter(nft => !purchasedIds.has(nft.NFTokenID))
-      .map(nft => {
-        // Decode URI to get metadata
-        let uri = '';
-        let imageUrl = 'https://files.catbox.moe/v2jedg.png'; // default
-        let name = 'Pixel BEAR';
+    // First map to basic info, then fetch metadata for each
+    const availableNftsBasic = allNfts.filter(nft => !purchasedIds.has(nft.NFTokenID));
 
-        if (nft.URI) {
-          uri = hexToString(nft.URI);
-          // Try to extract image from URI (might be IPFS or direct URL)
-          if (uri.startsWith('ipfs://')) {
-            imageUrl = `https://ipfs.io/ipfs/${uri.replace('ipfs://', '')}`;
-          } else if (uri.startsWith('http')) {
-            imageUrl = uri;
-          }
-          // Extract name if it's in the URI
-          if (uri.includes('Pixel BEAR') || uri.includes('Pixel%20BEAR')) {
-            name = 'Pixel BEAR';
-          }
+    // Process each NFT and try to fetch metadata for images
+    const availableNfts = await Promise.all(availableNftsBasic.map(async (nft) => {
+      let uri = '';
+      let imageUrl = 'https://files.catbox.moe/v2jedg.png'; // default
+      let name = 'Pixel BEAR';
+      let rawUri = nft.URI || '';
+
+      if (nft.URI) {
+        uri = hexToString(nft.URI);
+        console.log(`NFT ${nft.NFTokenID.substring(0, 8)}... Raw URI: ${uri}`);
+
+        // Handle different URI formats
+        let metadataUrl = null;
+
+        if (uri.startsWith('ipfs://')) {
+          // IPFS protocol URI
+          metadataUrl = `https://ipfs.io/ipfs/${uri.replace('ipfs://', '')}`;
+        } else if (uri.startsWith('https://') || uri.startsWith('http://')) {
+          // Direct HTTP URL
+          metadataUrl = uri;
+        } else if (uri.match(/^Qm[a-zA-Z0-9]{44}/) || uri.match(/^bafy[a-zA-Z0-9]+/)) {
+          // Raw IPFS CID (starts with Qm or bafy)
+          metadataUrl = `https://ipfs.io/ipfs/${uri}`;
         }
 
-        return {
-          nftTokenId: nft.NFTokenID,
-          name: name,
-          uri: uri,
-          imageUrl: imageUrl,
-          honeyCost: NFT_HONEY_COST,
-          issuer: nft.Issuer,
-          taxon: nft.NFTokenTaxon
-        };
-      });
+        // If we have a metadata URL, try to fetch it to get the image
+        if (metadataUrl) {
+          try {
+            console.log(`Fetching metadata from: ${metadataUrl}`);
+            const metaResponse = await fetch(metadataUrl, {
+              timeout: 5000,
+              headers: { 'Accept': 'application/json, image/*' }
+            });
+
+            const contentType = metaResponse.headers.get('content-type') || '';
+
+            if (contentType.includes('application/json') || contentType.includes('text/')) {
+              // It's JSON metadata - parse and get image
+              const metadata = await metaResponse.json();
+              console.log(`Metadata keys: ${Object.keys(metadata).join(', ')}`);
+
+              // Try common image field names
+              let imgField = metadata.image || metadata.image_url || metadata.imageUrl ||
+                           metadata.animation_url || metadata.file || metadata.media;
+
+              if (imgField) {
+                if (imgField.startsWith('ipfs://')) {
+                  imageUrl = `https://ipfs.io/ipfs/${imgField.replace('ipfs://', '')}`;
+                } else if (imgField.startsWith('http')) {
+                  imageUrl = imgField;
+                } else if (imgField.match(/^Qm[a-zA-Z0-9]{44}/) || imgField.match(/^bafy/)) {
+                  imageUrl = `https://ipfs.io/ipfs/${imgField}`;
+                }
+                console.log(`Found image URL: ${imageUrl}`);
+              }
+
+              // Get name from metadata
+              if (metadata.name) {
+                name = metadata.name;
+              }
+            } else if (contentType.includes('image/')) {
+              // The URI itself points directly to an image
+              imageUrl = metadataUrl;
+              console.log(`URI is direct image: ${imageUrl}`);
+            }
+          } catch (fetchError) {
+            console.log(`Could not fetch metadata: ${fetchError.message}`);
+            // Keep default image if metadata fetch fails
+          }
+        }
+      }
+
+      return {
+        nftTokenId: nft.NFTokenID,
+        name: name,
+        uri: uri,
+        rawUri: rawUri,
+        imageUrl: imageUrl,
+        honeyCost: NFT_HONEY_COST,
+        issuer: nft.Issuer,
+        taxon: nft.NFTokenTaxon
+      };
+    }));
 
     res.json({
       success: true,
