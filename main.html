@@ -17402,6 +17402,7 @@
 
             // Update media element (use img for all content types for reliability)
             const imgElement = document.querySelector(`img.nft-image-loading[data-nft-id="${nft.NFTokenID}"]`);
+            console.log('[NFT Image] imgElement found:', !!imgElement, 'imageUrl:', imageUrl ? imageUrl.substring(0, 50) + '...' : 'NONE');
             if (imgElement && imageUrl) {
               // Set up timeout for slow-loading animated content
               let loadTimeout = null;
@@ -17432,9 +17433,18 @@
                 };
               }
 
+              console.log('[NFT Image] Setting src to:', imageUrl);
               imgElement.src = imageUrl;
               imgElement.classList.remove('nft-image-loading');
-              console.log('[NFT Image] Successfully set image URL:', imageUrl);
+              console.log('[NFT Image] ✅ Image src SET for', bearName);
+
+              // Add visible onload/onerror handlers
+              imgElement.onload = function() {
+                console.log('[NFT Image] ✅✅ Image LOADED for', bearName);
+              };
+              imgElement.onerror = function() {
+                console.error('[NFT Image] ❌❌ Image FAILED to load for', bearName, 'URL:', imageUrl);
+              };
 
               // Remove loading overlay after image loads
               const loadingOverlay = document.querySelector(`.loading-overlay[data-nft-id="${nft.NFTokenID}"]`);
