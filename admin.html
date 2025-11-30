@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BEAR Park - Admin Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --gold: #edb723;
+      --charcoal: #141619;
+      --card: #1e2226;
+      --stripe-purple: #680cd9;
+      --stripe-yellow: #feb501;
+      --stripe-green: #07ae08;
+      --danger: #ef4444;
+      --tri-gradient: linear-gradient(135deg, var(--stripe-purple) 0%, var(--stripe-purple) 33.33%, var(--stripe-yellow) 33.33%, var(--stripe-yellow) 66.66%, var(--stripe-green) 66.66%, var(--stripe-green) 100%);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: "Nunito", system-ui, -apple-system, sans-serif;
+      background: var(--charcoal);
+      background-image:
+        radial-gradient(100vmax 60vmax at 10% -10%, rgba(237,183,35,.055), transparent 60%),
+        radial-gradient(80vmax 60vmax at 100% 10%, rgba(139,92,246,.055), transparent 60%),
+        radial-gradient(80vmax 60vmax at 50% 110%, rgba(118,174,255,.045), transparent 60%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      color: #fff;
+    }
+
+    .auth-container {
+      text-align: center;
+      max-width: 500px;
+    }
+
+    .auth-logo {
+      font-size: 80px;
+      margin-bottom: 20px;
+      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5));
+    }
+
+    .auth-title {
+      color: var(--gold);
+      font-size: 36px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      text-shadow: 0 4px 0 rgba(0,0,0,.35);
+      margin-bottom: 8px;
+    }
+
+    .auth-subtitle {
+      color: rgba(255,255,255,0.7);
+      font-size: 16px;
+      margin-bottom: 24px;
+    }
+
+    .auth-warning {
+      background: rgba(239, 68, 68, 0.15);
+      border: 2px solid rgba(239, 68, 68, 0.4);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 24px;
+      color: #fca5a5;
+      font-size: 14px;
+    }
+
+    .connect-btn {
+      background: var(--tri-gradient);
+      color: #fff;
+      font-size: 18px;
+      font-weight: 900;
+      padding: 16px 40px;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      box-shadow: 0 6px 0 rgba(0,0,0,0.3), 0 8px 20px rgba(0,0,0,0.4);
+      transition: all 0.2s ease;
+    }
+
+    .connect-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 0 rgba(0,0,0,0.3), 0 12px 30px rgba(0,0,0,0.5);
+    }
+
+    .connect-btn:active {
+      transform: translateY(2px);
+      box-shadow: 0 4px 0 rgba(0,0,0,0.3), 0 6px 15px rgba(0,0,0,0.4);
+    }
+
+    .connect-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .status {
+      margin-top: 16px;
+      font-size: 14px;
+      color: rgba(255,255,255,0.6);
+    }
+
+    .status.error {
+      color: #ef4444;
+    }
+
+    .status.success {
+      color: #4ade80;
+    }
+
+    /* Dashboard Styles */
+    .dashboard {
+      display: none;
+      width: 100%;
+      max-width: 900px;
+    }
+
+    .dashboard-header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .dashboard-title {
+      color: var(--gold);
+      font-size: 42px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      text-shadow: 0 4px 0 rgba(0,0,0,.35);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+    }
+
+    .dashboard-subtitle {
+      color: rgba(255,255,255,0.7);
+      font-size: 16px;
+      margin-top: 8px;
+    }
+
+    .admin-badge {
+      background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+      color: #000;
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      display: inline-block;
+      margin-top: 12px;
+    }
+
+    .admin-links {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+    }
+
+    .admin-card {
+      background: var(--card);
+      border-radius: 16px;
+      padding: 32px;
+      text-align: center;
+      border: 3px solid rgba(255,255,255,0.1);
+      transition: all 0.3s ease;
+      text-decoration: none;
+      display: block;
+    }
+
+    .admin-card:hover {
+      border-color: var(--gold);
+      transform: translateY(-4px);
+      box-shadow: 0 12px 30px rgba(0,0,0,0.4);
+    }
+
+    .admin-card-icon {
+      font-size: 56px;
+      margin-bottom: 16px;
+      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
+    }
+
+    .admin-card-title {
+      color: var(--gold);
+      font-size: 22px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+    }
+
+    .admin-card-desc {
+      color: rgba(255,255,255,0.6);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .logout-btn {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: rgba(239, 68, 68, 0.2);
+      border: 2px solid rgba(239, 68, 68, 0.5);
+      color: #fca5a5;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .logout-btn:hover {
+      background: rgba(239, 68, 68, 0.3);
+      border-color: #ef4444;
+    }
+
+    .back-link {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      color: rgba(255,255,255,0.6);
+      text-decoration: none;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: color 0.2s;
+    }
+
+    .back-link:hover {
+      color: var(--gold);
+    }
+  </style>
+</head>
+<body>
+  <!-- Auth Screen -->
+  <div class="auth-container" id="authScreen">
+    <div class="auth-logo">🐻</div>
+    <h1 class="auth-title">Admin Access</h1>
+    <p class="auth-subtitle">BEAR Park Administration Dashboard</p>
+
+    <div class="auth-warning">
+      ⚠️ This dashboard is restricted to authorized administrators only.
+      Unauthorized access attempts are logged.
+    </div>
+
+    <button class="connect-btn" id="connectBtn" onclick="connectWallet()">
+      🔐 Connect Wallet
+    </button>
+
+    <p class="status" id="status"></p>
+  </div>
+
+  <!-- Dashboard (hidden until auth) -->
+  <div class="dashboard" id="dashboard">
+    <a href="main.html" class="back-link">← Back to BEAR Park</a>
+    <button class="logout-btn" onclick="logout()">🚪 Logout</button>
+
+    <div class="dashboard-header">
+      <h1 class="dashboard-title">🐻 Admin Dashboard</h1>
+      <p class="dashboard-subtitle">Welcome back, APEX</p>
+      <span class="admin-badge">✓ Authorized Admin</span>
+    </div>
+
+    <div class="admin-links">
+      <a href="admin-store.html" class="admin-card">
+        <div class="admin-card-icon">🛒</div>
+        <div class="admin-card-title">Honey Store</div>
+        <div class="admin-card-desc">
+          Manage NFT requests, token purchases, and cosmetics (rings & banners) history
+        </div>
+      </a>
+
+      <a href="admin-beardrops.html" class="admin-card">
+        <div class="admin-card-icon">🎁</div>
+        <div class="admin-card-title">BEARDROPS</div>
+        <div class="admin-card-desc">
+          Manage airdrop eligibility, blacklist wallets, and view participant stats
+        </div>
+      </a>
+
+      <a href="admin-raids.html" class="admin-card">
+        <div class="admin-card-icon">⚔️</div>
+        <div class="admin-card-title">Bear Raids</div>
+        <div class="admin-card-desc">
+          Create raid events, manage targets, and track raid participation
+        </div>
+      </a>
+    </div>
+  </div>
+
+  <script>
+    // Authorized admin wallets
+    const ADMIN_WALLETS = [
+      'rKkkYMCvC63HEgxjQHmayKADaxYqnsMUkT' // MUKT (APEX)
+    ];
+
+    // Check if already authenticated
+    function checkAuth() {
+      const savedWallet = sessionStorage.getItem('admin_wallet');
+      if (savedWallet && ADMIN_WALLETS.includes(savedWallet)) {
+        showDashboard();
+      }
+    }
+
+    async function connectWallet() {
+      const btn = document.getElementById('connectBtn');
+      const status = document.getElementById('status');
+
+      btn.disabled = true;
+      btn.textContent = 'Connecting...';
+      status.className = 'status';
+      status.textContent = 'Requesting wallet connection...';
+
+      try {
+        // Check for GemWallet
+        if (typeof window.GemWalletApi === 'undefined' && typeof window.gemWallet === 'undefined') {
+          throw new Error('GemWallet not detected. Please install GemWallet extension.');
+        }
+
+        const gemApi = window.GemWalletApi || window.gemWallet;
+
+        // Check if GemWallet is installed
+        const isInstalled = await gemApi.isInstalled();
+        if (!isInstalled || !isInstalled.result?.isInstalled) {
+          throw new Error('GemWallet is not installed');
+        }
+
+        // Get wallet address
+        const response = await gemApi.getAddress();
+        if (!response || !response.result?.address) {
+          throw new Error('Failed to get wallet address');
+        }
+
+        const walletAddress = response.result.address;
+
+        // Check if authorized
+        if (ADMIN_WALLETS.includes(walletAddress)) {
+          status.className = 'status success';
+          status.textContent = '✓ Access granted! Loading dashboard...';
+
+          // Save to session
+          sessionStorage.setItem('admin_wallet', walletAddress);
+
+          setTimeout(() => {
+            showDashboard();
+          }, 500);
+        } else {
+          status.className = 'status error';
+          status.textContent = '⛔ ACCESS DENIED - You are not an authorized admin';
+          btn.textContent = 'Not Authorized';
+          btn.disabled = true;
+
+          // Log unauthorized attempt
+          console.warn('Unauthorized admin access attempt:', walletAddress);
+        }
+
+      } catch (error) {
+        status.className = 'status error';
+        status.textContent = error.message;
+        btn.disabled = false;
+        btn.textContent = '🔐 Connect Wallet';
+      }
+    }
+
+    function showDashboard() {
+      document.getElementById('authScreen').style.display = 'none';
+      document.getElementById('dashboard').style.display = 'block';
+    }
+
+    function logout() {
+      sessionStorage.removeItem('admin_wallet');
+      location.reload();
+    }
+
+    // Check auth on page load
+    checkAuth();
+  </script>
+</body>
+</html>
