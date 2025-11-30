@@ -20566,78 +20566,59 @@
 
         if (nft.URI) {
           try {
-            // Convert hex URI to string (browser-compatible)
-            const uriString = nft.URI.match(/.{1,2}/g).map(byte => String.fromCharCode(parseInt(byte, 16))).join('');
+            // Use backend API to fetch image URL (handles IPFS encoding properly)
+            console.log(`📡 [${i+1}/${nftsToShow.length}] Fetching image via API...`);
+            const apiResponse = await fetch(`${API_BASE_URL}/api/nft/image/${nft.URI}`);
+            const apiData = await apiResponse.json();
 
-            // Convert IPFS URL to HTTP gateway and properly encode
-            let metadataUrl = uriString;
-            if (uriString.startsWith('ipfs://')) {
-              // Split the IPFS URI to encode the path component properly
-              const ipfsPath = uriString.replace('ipfs://', '');
-              const parts = ipfsPath.split('/');
-              // Encode each part of the path (especially important for filenames with # or spaces)
-              const encodedPath = parts.map(part => encodeURIComponent(part)).join('/');
-              metadataUrl = 'https://ipfs.io/ipfs/' + encodedPath;
-            }
-
-            console.log(`📡 [${i+1}/${nftsToShow.length}] Fetching from:`, metadataUrl.substring(0, 80) + '...');
-
-            // Fetch the JSON metadata
-            const response = await fetch(metadataUrl);
-            if (response.ok) {
-              const metadata = await response.json();
-
-              // Debug log for first NFT to see metadata structure
-              if (i === 0) {
-                console.log(`🔍 First NFT metadata:`, metadata);
-                console.log(`🔍 Attributes array:`, metadata.attributes);
-                if (metadata.attributes && Array.isArray(metadata.attributes)) {
-                  metadata.attributes.forEach((attr, idx) => {
-                    console.log(`🔍 Attribute ${idx}:`, attr);
-                  });
-                }
-              }
-
-              // Extract BEAR name (e.g., "Pixel BEAR #3018")
-              if (metadata.name) {
-                bearName = metadata.name;
-              }
-
-              // Extract rarity from attributes - check multiple possible field names
-              if (metadata.attributes && Array.isArray(metadata.attributes)) {
-                // Try different possible attribute structures
-                const rarityAttr = metadata.attributes.find(attr =>
-                  attr.trait_type === 'Rarity' || attr.trait_type === 'rarity' || attr.trait_type === 'RARITY' ||
-                  attr.trait === 'Rarity' || attr.trait === 'rarity' || attr.trait === 'RARITY' ||
-                  attr.name === 'Rarity' || attr.name === 'rarity' || attr.name === 'RARITY'
-                );
-                if (rarityAttr) {
-                  bearRarity = rarityAttr.value || rarityAttr.val || rarityAttr.content;
-                }
-              }
-
-              // Extract image URL from metadata - try multiple field names
-              // Check animation fields first for animated NFTs, then fall back to image
-              imageUrl = metadata.animation || metadata.animation_url || metadata.video ||
-                         metadata.image || metadata.image_url || metadata.media || metadata.url;
-
-              if (imageUrl) {
-                // Convert IPFS image URLs to HTTP gateway and properly encode
-                if (imageUrl.startsWith('ipfs://')) {
-                  const ipfsPath = imageUrl.replace('ipfs://', '');
-                  const parts = ipfsPath.split('/');
-                  // Encode each part of the path (especially important for filenames with # or spaces)
-                  const encodedPath = parts.map(part => encodeURIComponent(part)).join('/');
-                  imageUrl = 'https://ipfs.io/ipfs/' + encodedPath;
-                  console.log(`✅ [${i+1}/${nftsToShow.length}] ${bearName || 'NFT'} loaded`);
-                } else {
-                  console.log(`✅ [${i+1}/${nftsToShow.length}] ${bearName || 'NFT'} loaded (non-IPFS)`);
-                }
-              } else {
-                console.warn(`⚠️ [${i+1}/${nftsToShow.length}] No image field. Metadata keys:`, Object.keys(metadata));
-              }
+            if (apiData.success && apiData.imageUrl) {
+              imageUrl = apiData.imageUrl;
+              bearName = apiData.name || null;
+              console.log(`✅ [${i+1}/${nftsToShow.length}] ${bearName || 'NFT'} loaded via API`);
             } else {
-              console.warn(`⚠️ [${i+1}/${nftsToShow.length}] Failed to fetch metadata: ${response.status}`);
+              console.warn(`⚠️ [${i+1}/${nftsToShow.length}] API failed:`, apiData.error);
+
+              // Fallback: try direct IPFS fetch
+              const uriString = nft.URI.match(/.{1,2}/g).map(byte => String.fromCharCode(parseInt(byte, 16))).join('');
+              let metadataUrl = uriString;
+              if (uriString.startsWith('ipfs://')) {
+                const ipfsPath = uriString.replace('ipfs://', '');
+                const parts = ipfsPath.split('/');
+                const encodedPath = parts.map(part => encodeURIComponent(part)).join('/');
+                metadataUrl = 'https://ipfs.io/ipfs/' + encodedPath;
+              }
+
+              const response = await fetch(metadataUrl);
+              if (response.ok) {
+                const metadata = await response.json();
+                bearName = metadata.name || null;
+
+                // Extract rarity from attributes
+                if (metadata.attributes && Array.isArray(metadata.attributes)) {
+                  const rarityAttr = metadata.attributes.find(attr =>
+                    attr.trait_type === 'Rarity' || attr.trait_type === 'rarity' ||
+                    attr.trait === 'Rarity' || attr.name === 'Rarity'
+                  );
+                  if (rarityAttr) {
+                    bearRarity = rarityAttr.value || rarityAttr.val || rarityAttr.content;
+                  }
+                }
+
+                // Get image URL
+                const imgField = metadata.animation || metadata.animation_url ||
+                               metadata.image || metadata.image_url || metadata.media;
+                if (imgField) {
+                  if (imgField.startsWith('ipfs://')) {
+                    const ipfsPath = imgField.replace('ipfs://', '');
+                    const parts = ipfsPath.split('/');
+                    const encodedPath = parts.map(part => encodeURIComponent(part)).join('/');
+                    imageUrl = 'https://ipfs.io/ipfs/' + encodedPath;
+                  } else {
+                    imageUrl = imgField;
+                  }
+                  console.log(`✅ [${i+1}/${nftsToShow.length}] ${bearName || 'NFT'} loaded (fallback)`);
+                }
+              }
             }
           } catch (error) {
             console.error(`❌ [${i+1}/${nftsToShow.length}] Error:`, error.message);
