@@ -6581,7 +6581,7 @@ app.post('/api/store/purchase-token', async (req, res) => {
 
     if (txResult === 'tesSUCCESS') {
       // Record transaction
-      await supabase
+      const { error: insertError } = await supabase
         .from('store_token_transactions')
         .insert({
           wallet_address,
@@ -6590,8 +6590,11 @@ app.post('/api/store/purchase-token', async (req, res) => {
           honey_spent: token.honeyCost,
           tx_hash: txHash,
           tx_status: 'validated'
-        })
-        .catch(err => console.log('Transaction record error (table may not exist):', err.message));
+        });
+
+      if (insertError) {
+        console.log('Transaction record error (table may not exist):', insertError.message);
+      }
 
       console.log(`🛒 Store purchase: ${token.amount} ${token.currency} sent to ${wallet_address}`);
       console.log(`   TX: ${txHash}`);
