@@ -6215,165 +6215,178 @@ app.post('/api/beardrops/admin/batch-payout', verifyApex, async (req, res) => {
 console.log('✅ BEARDROPS airdrop endpoints initialized');
 
 // ========== XRPL TRADING DATA ENDPOINT ==========
-// Fetches real-time 24h trading data directly from XRPL using the xrpl package
+// Fetches real-time 24h trading data directly from XRPL DEX order book
 
 const xrpl = require('xrpl');
 const BEAR_ISSUER = 'rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW';
 const XRPL_WS_URL = 'wss://xrplcluster.com';
 
-// Get AMM info for BEAR/XRP pair
-async function getAMMInfo() {
-  const client = new xrpl.Client(XRPL_WS_URL);
-  try {
-    await client.connect();
-    const response = await client.request({
-      command: 'amm_info',
-      asset: { currency: 'XRP' },
-      asset2: { currency: 'BEAR', issuer: BEAR_ISSUER }
-    });
-    await client.disconnect();
+// Get transaction history for BEAR issuer account to find all trades
+async function getBEARTransactions(client, marker = null) {
+  const request = {
+    command: 'account_tx',
+    account: BEAR_ISSUER,
+    ledger_index_min: -1,
+    ledger_index_max: -1,
+    limit: 200,
+    forward: false
+  };
+  if (marker) request.marker = marker;
 
-    if (response.result && response.result.amm) {
-      return response.result.amm;
-    }
-    throw new Error('AMM not found in response');
-  } catch (error) {
-    try { await client.disconnect(); } catch (e) {}
-    throw error;
-  }
+  const response = await client.request(request);
+  return response.result;
 }
 
-// Get transaction history for an account
-async function getAccountTransactions(account, limit = 200) {
-  const client = new xrpl.Client(XRPL_WS_URL);
-  try {
-    await client.connect();
-    const response = await client.request({
-      command: 'account_tx',
-      account: account,
-      ledger_index_min: -1,
-      ledger_index_max: -1,
-      limit: limit,
-      forward: false
-    });
-    await client.disconnect();
+// Get current order book for BEAR/XRP
+async function getOrderBook(client) {
+  // Get asks (selling BEAR for XRP)
+  const asksResponse = await client.request({
+    command: 'book_offers',
+    taker_gets: { currency: 'XRP' },
+    taker_pays: { currency: 'BEAR', issuer: BEAR_ISSUER },
+    limit: 50
+  });
 
-    if (response.result && response.result.transactions) {
-      return response.result.transactions;
-    }
-    return [];
-  } catch (error) {
-    try { await client.disconnect(); } catch (e) {}
-    throw error;
-  }
+  // Get bids (buying BEAR with XRP)
+  const bidsResponse = await client.request({
+    command: 'book_offers',
+    taker_gets: { currency: 'BEAR', issuer: BEAR_ISSUER },
+    taker_pays: { currency: 'XRP' },
+    limit: 50
+  });
+
+  return {
+    asks: asksResponse.result.offers || [],
+    bids: bidsResponse.result.offers || []
+  };
 }
 
-// Parse transaction to extract trading info
-function parseAMMTransaction(tx) {
+// Parse a transaction to extract BEAR/XRP trade info
+function parseTradeTransaction(tx) {
   const meta = tx.meta || tx.metaData;
   if (!meta || meta.TransactionResult !== 'tesSUCCESS') return null;
 
   const txData = tx.tx || tx;
   const txType = txData.TransactionType;
-  const timestamp = txData.date ? (txData.date + 946684800) * 1000 : null; // Ripple epoch to Unix ms
 
-  // Check if this is an AMM-related transaction
-  const affectedNodes = meta.AffectedNodes || [];
-  let isAMMTx = false;
-  let xrpAmount = 0;
-  let bearAmount = 0;
-  let isBuy = false; // Buy = user receives BEAR, Sell = user receives XRP
+  // Ripple epoch (Jan 1, 2000) to Unix timestamp
+  const timestamp = txData.date ? (txData.date + 946684800) * 1000 : null;
 
-  // For AMMDeposit/AMMWithdraw - these are liquidity events, not trades
-  if (txType === 'AMMDeposit' || txType === 'AMMWithdraw') {
-    return null; // Skip liquidity events
+  // We're interested in OfferCreate and Payment transactions
+  if (txType !== 'OfferCreate' && txType !== 'Payment') {
+    return null;
   }
 
-  // For Payment transactions that go through AMM
-  if (txType === 'Payment') {
-    // Check if AMM was involved by looking for AMM-related modified nodes
-    for (const node of affectedNodes) {
-      const nodeData = node.ModifiedNode || node.CreatedNode || node.DeletedNode;
-      if (nodeData && nodeData.LedgerEntryType === 'AMM') {
-        isAMMTx = true;
-        break;
-      }
-    }
+  const affectedNodes = meta.AffectedNodes || [];
+  let xrpAmount = 0;
+  let bearAmount = 0;
+  let isBuy = false;
+  let isTrade = false;
 
-    if (isAMMTx) {
-      // Analyze the balance changes to determine trade direction and amounts
+  // For OfferCreate - check if it's a BEAR/XRP trade
+  if (txType === 'OfferCreate') {
+    const takerGets = txData.TakerGets;
+    const takerPays = txData.TakerPays;
+
+    if (!takerGets || !takerPays) return null;
+
+    const getsXRP = typeof takerGets === 'string';
+    const paysXRP = typeof takerPays === 'string';
+    const getsBEAR = !getsXRP && takerGets.currency === 'BEAR' && takerGets.issuer === BEAR_ISSUER;
+    const paysBEAR = !paysXRP && takerPays.currency === 'BEAR' && takerPays.issuer === BEAR_ISSUER;
+
+    // Check if this is a BEAR/XRP pair
+    if ((getsXRP && paysBEAR) || (paysXRP && getsBEAR)) {
+      isTrade = true;
+
+      // Check meta for actual executed amounts (from deleted/modified offers)
       for (const node of affectedNodes) {
-        const nodeData = node.ModifiedNode || node.CreatedNode;
-        if (!nodeData) continue;
+        const nodeData = node.DeletedNode || node.ModifiedNode;
+        if (!nodeData || nodeData.LedgerEntryType !== 'Offer') continue;
 
-        // Check for AccountRoot changes (XRP balance)
-        if (nodeData.LedgerEntryType === 'AccountRoot') {
-          const prevBal = nodeData.PreviousFields?.Balance;
-          const finalBal = nodeData.FinalFields?.Balance;
-          if (prevBal && finalBal) {
-            const diff = (parseInt(finalBal) - parseInt(prevBal)) / 1000000; // drops to XRP
-            if (Math.abs(diff) > 0.001) {
-              xrpAmount = Math.abs(diff);
+        const prevFields = nodeData.PreviousFields || nodeData.FinalFields;
+        const finalFields = nodeData.FinalFields;
+
+        if (prevFields && finalFields) {
+          // Calculate executed amount from offer changes
+          const prevGets = prevFields.TakerGets;
+          const finalGets = finalFields.TakerGets;
+
+          if (prevGets && finalGets) {
+            if (typeof prevGets === 'string' && typeof finalGets === 'string') {
+              const executed = (parseInt(prevGets) - parseInt(finalGets)) / 1000000;
+              if (executed > 0) xrpAmount += executed;
+            } else if (prevGets.currency === 'BEAR' && finalGets.currency === 'BEAR') {
+              const executed = parseFloat(prevGets.value) - parseFloat(finalGets.value);
+              if (executed > 0) bearAmount += executed;
             }
           }
         }
 
-        // Check for RippleState changes (token balances)
-        if (nodeData.LedgerEntryType === 'RippleState') {
-          const prevBal = parseFloat(nodeData.PreviousFields?.Balance?.value || '0');
-          const finalBal = parseFloat(nodeData.FinalFields?.Balance?.value || '0');
-          const diff = finalBal - prevBal;
-          if (Math.abs(diff) > 0.001) {
-            bearAmount = Math.abs(diff);
-            // If BEAR balance increased for user, it's a buy
-            isBuy = diff > 0;
+        // Deleted offers mean fully filled
+        if (node.DeletedNode && node.DeletedNode.LedgerEntryType === 'Offer') {
+          const deleted = node.DeletedNode.FinalFields;
+          if (deleted) {
+            const delGets = deleted.TakerGets;
+            const delPays = deleted.TakerPays;
+
+            if (typeof delGets === 'string') {
+              // This was offering XRP
+            } else if (delGets && delGets.currency === 'BEAR') {
+              // Was offering BEAR
+            }
           }
         }
+      }
+
+      // Fallback: use the offer amounts if no execution detected
+      if (xrpAmount === 0 && bearAmount === 0) {
+        if (getsXRP) {
+          xrpAmount = parseInt(takerGets) / 1000000;
+          bearAmount = parseFloat(takerPays.value);
+          isBuy = false; // Selling BEAR for XRP
+        } else {
+          xrpAmount = parseInt(takerPays) / 1000000;
+          bearAmount = parseFloat(takerGets.value);
+          isBuy = true; // Buying BEAR with XRP
+        }
+      } else {
+        // Determine direction from the offer
+        isBuy = paysXRP; // If paying XRP, buying BEAR
       }
     }
   }
 
-  // For OfferCreate that might route through AMM
-  if (txType === 'OfferCreate') {
-    // Check for AMM involvement
-    for (const node of affectedNodes) {
-      const nodeData = node.ModifiedNode || node.CreatedNode || node.DeletedNode;
-      if (nodeData && nodeData.LedgerEntryType === 'AMM') {
-        isAMMTx = true;
-        break;
-      }
-    }
+  // For Payment - check if it involves BEAR token exchanges
+  if (txType === 'Payment') {
+    const amount = txData.Amount;
+    const sendMax = txData.SendMax;
 
-    if (!isAMMTx) {
-      // Check for order book trades (without AMM)
-      // Still count these as trades
-      const takerGets = txData.TakerGets;
-      const takerPays = txData.TakerPays;
+    // Check if this is a cross-currency payment involving BEAR
+    if (amount && sendMax) {
+      const amtIsBEAR = amount.currency === 'BEAR' && amount.issuer === BEAR_ISSUER;
+      const amtIsXRP = typeof amount === 'string';
+      const sendIsBEAR = sendMax.currency === 'BEAR' && sendMax.issuer === BEAR_ISSUER;
+      const sendIsXRP = typeof sendMax === 'string';
 
-      if (takerGets && takerPays) {
-        // Determine if this involves BEAR/XRP
-        const getsXRP = typeof takerGets === 'string';
-        const paysXRP = typeof takerPays === 'string';
-        const getsBEAR = takerGets?.currency === 'BEAR' && takerGets?.issuer === BEAR_ISSUER;
-        const paysBEAR = takerPays?.currency === 'BEAR' && takerPays?.issuer === BEAR_ISSUER;
+      if ((amtIsBEAR && sendIsXRP) || (amtIsXRP && sendIsBEAR)) {
+        isTrade = true;
 
-        if ((getsXRP && paysBEAR) || (paysXRP && getsBEAR)) {
-          isAMMTx = true; // Count order book trades too
-          if (getsXRP) {
-            xrpAmount = parseInt(takerGets) / 1000000;
-            bearAmount = parseFloat(takerPays.value);
-            isBuy = false; // Selling BEAR for XRP
-          } else {
-            xrpAmount = parseInt(takerPays) / 1000000;
-            bearAmount = parseFloat(takerGets.value);
-            isBuy = true; // Buying BEAR with XRP
-          }
+        // Extract actual delivered amounts from meta
+        const delivered = meta.delivered_amount || meta.DeliveredAmount || amount;
+
+        if (typeof delivered === 'string') {
+          xrpAmount = parseInt(delivered) / 1000000;
+        } else if (delivered.currency === 'BEAR') {
+          bearAmount = parseFloat(delivered.value);
         }
+
+        isBuy = amtIsBEAR; // If receiving BEAR, it's a buy
       }
     }
   }
 
-  if (!isAMMTx || (xrpAmount === 0 && bearAmount === 0)) {
+  if (!isTrade || (xrpAmount === 0 && bearAmount === 0)) {
     return null;
   }
 
@@ -6382,39 +6395,62 @@ function parseAMMTransaction(tx) {
     timestamp,
     type: txType,
     account: txData.Account,
-    xrpAmount,
-    bearAmount,
+    xrpAmount: Math.abs(xrpAmount),
+    bearAmount: Math.abs(bearAmount),
     isBuy
   };
 }
 
-// Cache for XRPL trading data (refresh every 30 seconds)
+// Cache for XRPL trading data (refresh every 60 seconds)
 let xrplTradingCache = null;
 let xrplTradingCacheTime = 0;
-const XRPL_CACHE_TTL = 30000; // 30 seconds
+const XRPL_CACHE_TTL = 60000; // 60 seconds
 
 app.get('/api/xrpl/trading-stats', async (req, res) => {
+  const client = new xrpl.Client(XRPL_WS_URL);
+
   try {
     const now = Date.now();
     const twentyFourHoursAgo = now - (24 * 60 * 60 * 1000);
 
     // Check cache
     if (xrplTradingCache && (now - xrplTradingCacheTime) < XRPL_CACHE_TTL) {
-      return res.json(xrplTradingCache);
+      return res.json({ ...xrplTradingCache, cached: true });
     }
 
-    console.log('📊 Fetching XRPL trading stats...');
+    console.log('📊 Fetching XRPL trading stats from DEX order book...');
 
-    // Get AMM info
-    const ammInfo = await getAMMInfo();
-    const ammAccount = ammInfo.account;
+    await client.connect();
+    console.log('📊 Connected to XRPL');
 
-    console.log('📊 AMM Account:', ammAccount);
+    // Fetch transactions in batches to get more history
+    let allTransactions = [];
+    let marker = null;
+    let batchCount = 0;
+    const maxBatches = 5; // Get up to 1000 transactions
 
-    // Get transaction history
-    const transactions = await getAccountTransactions(ammAccount, 400);
+    while (batchCount < maxBatches) {
+      const result = await getBEARTransactions(client, marker);
+      allTransactions = allTransactions.concat(result.transactions || []);
 
-    console.log('📊 Fetched', transactions.length, 'transactions');
+      // Check if we have enough 24h data
+      if (result.transactions && result.transactions.length > 0) {
+        const lastTx = result.transactions[result.transactions.length - 1];
+        const lastDate = lastTx.tx?.date ? (lastTx.tx.date + 946684800) * 1000 : 0;
+        if (lastDate < twentyFourHoursAgo) break; // We have all 24h data
+      }
+
+      if (!result.marker) break;
+      marker = result.marker;
+      batchCount++;
+    }
+
+    console.log('📊 Fetched', allTransactions.length, 'transactions');
+
+    // Get current order book for liquidity info
+    const orderBook = await getOrderBook(client);
+
+    await client.disconnect();
 
     // Parse and filter 24h transactions
     const trades = [];
@@ -6428,8 +6464,8 @@ app.get('/api/xrpl/trading-stats', async (req, res) => {
     let buyCount = 0;
     let sellCount = 0;
 
-    for (const tx of transactions) {
-      const parsed = parseAMMTransaction(tx);
+    for (const tx of allTransactions) {
+      const parsed = parseTradeTransaction(tx);
       if (!parsed) continue;
 
       // Filter for last 24 hours
@@ -6451,33 +6487,30 @@ app.get('/api/xrpl/trading-stats', async (req, res) => {
       }
     }
 
-    // Calculate unique traders (some may be both buyers and sellers)
+    // Calculate unique traders
     const allTraders = new Set([...uniqueBuyers, ...uniqueSellers]);
 
-    // Get pool liquidity
-    let liquidityXRP = 0;
-    let liquidityBEAR = 0;
-    if (ammInfo.amount) {
-      if (typeof ammInfo.amount === 'string') {
-        liquidityXRP = parseInt(ammInfo.amount) / 1000000;
-      } else if (ammInfo.amount.value) {
-        liquidityBEAR = parseFloat(ammInfo.amount.value);
+    // Calculate order book depth (liquidity)
+    let askDepthXRP = 0;
+    let bidDepthXRP = 0;
+
+    for (const ask of orderBook.asks) {
+      if (typeof ask.TakerGets === 'string') {
+        askDepthXRP += parseInt(ask.TakerGets) / 1000000;
       }
     }
-    if (ammInfo.amount2) {
-      if (typeof ammInfo.amount2 === 'string') {
-        liquidityXRP = parseInt(ammInfo.amount2) / 1000000;
-      } else if (ammInfo.amount2.value) {
-        liquidityBEAR = parseFloat(ammInfo.amount2.value);
+
+    for (const bid of orderBook.bids) {
+      if (typeof bid.TakerPays === 'string') {
+        bidDepthXRP += parseInt(bid.TakerPays) / 1000000;
       }
     }
 
     const result = {
       success: true,
-      source: 'XRPL Direct',
+      source: 'XRPL DEX Direct',
       cached: false,
       timestamp: now,
-      ammAccount,
       stats: {
         volume24hXRP: Math.round(totalVolumeXRP * 100) / 100,
         buyVolumeXRP: Math.round(buyVolumeXRP * 100) / 100,
@@ -6490,8 +6523,8 @@ app.get('/api/xrpl/trading-stats', async (req, res) => {
         uniqueTraders: allTraders.size,
         uniqueBuyers: uniqueBuyers.size,
         uniqueSellers: uniqueSellers.size,
-        liquidityXRP: Math.round(liquidityXRP),
-        liquidityBEAR: Math.round(liquidityBEAR)
+        askDepthXRP: Math.round(askDepthXRP),
+        bidDepthXRP: Math.round(bidDepthXRP)
       }
     };
 
@@ -6504,11 +6537,11 @@ app.get('/api/xrpl/trading-stats', async (req, res) => {
 
   } catch (error) {
     console.error('❌ Error fetching XRPL trading stats:', error);
+    try { await client.disconnect(); } catch (e) {}
 
     // Return cached data if available
     if (xrplTradingCache) {
-      xrplTradingCache.cached = true;
-      return res.json(xrplTradingCache);
+      return res.json({ ...xrplTradingCache, cached: true, error: 'Using cached data' });
     }
 
     res.status(500).json({
