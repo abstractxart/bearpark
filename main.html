@@ -17283,7 +17283,7 @@
         await client.disconnect();
         console.log('[NFT] Client disconnected');
 
-        // Load NFT images from metadata JSON files
+        // Load NFT images using backend API (handles IPFS encoding properly)
         const imageLoadPromises = filteredNFTs.map(async (nft) => {
           try {
             // Check if NFT has a URI field (hex-encoded)
@@ -17292,80 +17292,69 @@
               return;
             }
 
-            // Convert hex URI to string
-            const uriString = hexToString(nft.URI);
-            console.log('[NFT Image] NFT:', nft.NFTokenID, 'URI:', uriString);
+            console.log('[NFT Image] Fetching via API for', nft.NFTokenID.substring(0, 16) + '...');
 
-            // Convert IPFS URI to HTTP gateway URL
-            let metadataUrl = '';
-            if (uriString.startsWith('ipfs://')) {
-              const ipfsPath = uriString.replace('ipfs://', '');
-              // Split path and encode each component to handle spaces and special chars
-              const pathParts = ipfsPath.split('/');
-              const encodedPath = pathParts.map(part => encodeURIComponent(part)).join('/');
-              metadataUrl = `https://ipfs.io/ipfs/${encodedPath}`;
-            } else if (uriString.startsWith('http')) {
-              metadataUrl = uriString;
-            } else if (uriString.length > 0) {
-              // Might be just the IPFS hash without prefix
-              const pathParts = uriString.split('/');
-              const encodedPath = pathParts.map(part => encodeURIComponent(part)).join('/');
-              metadataUrl = `https://ipfs.io/ipfs/${encodedPath}`;
-            }
-
-            if (!metadataUrl) {
-              console.log('[NFT Image] Could not construct metadata URL for', nft.NFTokenID);
-              return;
-            }
-
-            // Fetch the metadata JSON
-            console.log('[NFT Image] Fetching metadata from:', metadataUrl);
-            const metadataResponse = await fetch(metadataUrl);
-
-            if (!metadataResponse.ok) {
-              throw new Error(`Failed to fetch metadata: ${metadataResponse.status} ${metadataResponse.statusText}`);
-            }
-
-            const metadata = await metadataResponse.json();
-
-            if (!metadata) {
-              throw new Error('Metadata is empty or invalid');
-            }
-
-            // Extract image URL from metadata (check image, animation, or image_url fields)
-            // Ultra Rare Bears use the "animation" field for their animated images
-            // Store both animation and static image if available for fallback
-            const isAnimated = !!metadata.animation;
-            let imageUrl = metadata.animation || metadata.image || metadata.image_url || '';
+            // Use backend API to get properly encoded image URL
+            let imageUrl = '';
             let fallbackImageUrl = null;
+            let isAnimated = false;
+            let metadata = null;
 
-            // If there's an animation, also get the static image as fallback
-            if (metadata.animation && metadata.image) {
-              fallbackImageUrl = metadata.image;
-            }
+            try {
+              const apiResponse = await fetch(`${API_BASE_URL}/api/nft/image/${nft.URI}`);
+              const apiData = await apiResponse.json();
 
-            // Helper to convert IPFS URL to HTTP gateway with multiple fallback gateways
-            const convertIpfsUrl = (url, gatewayIndex = 0) => {
-              if (url && url.startsWith('ipfs://')) {
-                const ipfsPath = url.replace('ipfs://', '');
-                const pathParts = ipfsPath.split('/');
-                const encodedPath = pathParts.map(part => encodeURIComponent(part)).join('/');
+              if (apiData.success && apiData.imageUrl) {
+                imageUrl = apiData.imageUrl;
+                fallbackImageUrl = apiData.fallbackUrl || null;
+                isAnimated = apiData.isAnimated || false;
+                metadata = { name: apiData.name };
+                console.log('[NFT Image] API success:', apiData.name, '->', imageUrl.substring(0, 60) + '...');
+              } else {
+                console.log('[NFT Image] API failed, trying direct fetch...');
+                // Fallback to direct IPFS fetch
+                const uriString = hexToString(nft.URI);
+                let metadataUrl = '';
+                if (uriString.startsWith('ipfs://')) {
+                  const ipfsPath = uriString.replace('ipfs://', '');
+                  const pathParts = ipfsPath.split('/');
+                  const encodedPath = pathParts.map(part => encodeURIComponent(part)).join('/');
+                  metadataUrl = `https://ipfs.io/ipfs/${encodedPath}`;
+                } else if (uriString.startsWith('http')) {
+                  metadataUrl = uriString;
+                }
 
-                // Multiple IPFS gateways for redundancy (using working gateways only)
-                const gateways = [
-                  'https://ipfs.io/ipfs/',
-                  'https://gateway.ipfs.io/ipfs/',
-                  'https://gateway.pinata.cloud/ipfs/',
-                  'https://dweb.link/ipfs/'
-                ];
-
-                return `${gateways[gatewayIndex % gateways.length]}${encodedPath}`;
+                if (metadataUrl) {
+                  const metadataResponse = await fetch(metadataUrl);
+                  if (metadataResponse.ok) {
+                    metadata = await metadataResponse.json();
+                    isAnimated = !!metadata.animation;
+                    const imgField = metadata.animation || metadata.image || metadata.image_url || '';
+                    if (imgField.startsWith('ipfs://')) {
+                      const imgPath = imgField.replace('ipfs://', '');
+                      const imgParts = imgPath.split('/');
+                      const encodedImg = imgParts.map(part => encodeURIComponent(part)).join('/');
+                      imageUrl = `https://ipfs.io/ipfs/${encodedImg}`;
+                    } else {
+                      imageUrl = imgField;
+                    }
+                    if (metadata.animation && metadata.image) {
+                      const fallbackField = metadata.image;
+                      if (fallbackField.startsWith('ipfs://')) {
+                        const fbPath = fallbackField.replace('ipfs://', '');
+                        const fbParts = fbPath.split('/');
+                        const encodedFb = fbParts.map(part => encodeURIComponent(part)).join('/');
+                        fallbackImageUrl = `https://ipfs.io/ipfs/${encodedFb}`;
+                      } else {
+                        fallbackImageUrl = fallbackField;
+                      }
+                    }
+                  }
+                }
               }
-              return url;
-            };
-
-            imageUrl = convertIpfsUrl(imageUrl);
-            fallbackImageUrl = convertIpfsUrl(fallbackImageUrl);
+            } catch (apiErr) {
+              console.error('[NFT Image] API error:', apiErr.message);
+            }
 
             console.log('[NFT Image]', isAnimated ? 'Animation' : 'Image', 'URL for', nft.NFTokenID, ':', imageUrl);
             if (fallbackImageUrl) {
