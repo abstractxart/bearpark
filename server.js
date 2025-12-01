@@ -367,6 +367,25 @@ app.get('/api/points/:wallet_address', async (req, res) => {
   }
 });
 
+// DEBUG: Test honey_points_activity table
+app.get('/api/debug/activity-table', async (req, res) => {
+  if (!supabase) {
+    return res.status(503).json({ error: 'Database not configured' });
+  }
+  try {
+    const { data, error } = await supabase
+      .from('honey_points_activity')
+      .select('*')
+      .limit(5);
+    if (error) {
+      return res.json({ success: false, error: error.message, code: error.code, details: error });
+    }
+    return res.json({ success: true, count: data?.length || 0, data });
+  } catch (e) {
+    return res.json({ success: false, error: e.message });
+  }
+});
+
 // Get user's honey points earned in last 24 hours (for BEARdrops eligibility)
 app.get('/api/honey-points/24h', async (req, res) => {
   if (!supabase) {
