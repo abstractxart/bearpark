@@ -7,10 +7,22 @@
  * Or run every hour and the script will check if it's time.
  */
 
-require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
+// Load .env only in local development (Railway injects env vars directly)
+if (process.env.NODE_ENV !== 'production') {
+  require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
+}
 const { createClient } = require('@supabase/supabase-js');
 const xrpl = require('xrpl');
 const crypto = require('crypto');
+
+// Check required env vars
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  console.error('❌ FATAL: Missing required environment variables!');
+  console.error('   SUPABASE_URL:', process.env.SUPABASE_URL ? '✓ set' : '✗ MISSING');
+  console.error('   SUPABASE_SERVICE_ROLE_KEY:', process.env.SUPABASE_SERVICE_ROLE_KEY ? '✓ set' : '✗ MISSING');
+  console.error('\n   Add these variables in Railway dashboard → compassionate-mercy → Variables');
+  process.exit(1);
+}
 
 // Initialize Supabase
 const supabase = createClient(
