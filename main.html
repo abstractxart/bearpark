@@ -26573,7 +26573,7 @@ if (typeof window.addEventListener !== 'undefined') {
           _startTimer(false, true);
         } else {
           // No pending claim - come back tomorrow
-          if (ph) ph.textContent = 'No pending airdrop. Come back at the next claim window!';
+          if (ph) ph.textContent = '';
           if (cb) {
             cb.disabled = true;
             cb.classList.remove('claimed');
