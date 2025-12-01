@@ -6521,17 +6521,22 @@ app.post('/api/store/purchase-token', async (req, res) => {
     }
 
     // 2. Check trustline BEFORE deducting points
+    console.log(`   Connecting to XRPL...`);
     await client.connect();
+    console.log(`   Connected! Checking trustline for ${token.currency}...`);
 
     const trustlineResponse = await client.request({
       command: 'account_lines',
       account: wallet_address,
       peer: token.issuer
     });
+    console.log(`   Got trustline response, lines: ${trustlineResponse.result?.lines?.length || 0}`);
 
-    const hasTrustline = trustlineResponse.result.lines.some(
+    const lines = trustlineResponse.result?.lines || [];
+    const hasTrustline = lines.some(
       line => line.currency === token.currency || line.currency === token.currencyHex
     );
+    console.log(`   Has trustline: ${hasTrustline}`);
 
     if (!hasTrustline) {
       await client.disconnect();
