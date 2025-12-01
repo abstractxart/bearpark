@@ -1,4 +1,5 @@
 require('dotenv').config();
+// VERSION: 2.0.1 - Fixed honey_points_activity column name (activity_type)
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
