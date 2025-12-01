@@ -367,6 +367,48 @@ app.get('/api/points/:wallet_address', async (req, res) => {
   }
 });
 
+// Get user's honey points earned in last 24 hours (for BEARdrops eligibility)
+app.get('/api/honey-points/24h', async (req, res) => {
+  if (!supabase) {
+    return res.status(503).json({ error: 'Database not configured' });
+  }
+
+  try {
+    const wallet = req.query.wallet;
+    if (!wallet) {
+      return res.status(400).json({ error: 'Wallet address required' });
+    }
+
+    // Get points from last 24 hours from honey_points_activity table
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+    const { data, error } = await supabase
+      .from('honey_points_activity')
+      .select('points')
+      .eq('wallet_address', wallet)
+      .gte('created_at', twentyFourHoursAgo);
+
+    if (error) {
+      console.error('Error fetching 24h honey points:', error);
+      // Return 0 on error instead of failing
+      return res.json({ success: true, points: 0, wallet });
+    }
+
+    // Sum up all points in the last 24 hours
+    const totalPoints = data?.reduce((sum, row) => sum + (row.points || 0), 0) || 0;
+
+    res.json({
+      success: true,
+      points: totalPoints,
+      wallet,
+      period: '24h'
+    });
+  } catch (error) {
+    console.error('Error fetching 24h honey points:', error);
+    res.json({ success: true, points: 0 }); // Return 0 on error
+  }
+});
+
 // Update/sync user's honey points - WITH SECURITY VALIDATION
 app.post('/api/points',
   // strictLimiter, // Strict rate limit for points - TEMPORARILY DISABLED
