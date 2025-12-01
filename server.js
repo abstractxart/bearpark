@@ -484,7 +484,8 @@ app.post('/api/points',
 
       // Log activity if points increased (for BEARdrops 24h tracking)
       if (pointsDelta > 0) {
-        await supabase
+        console.log(`📝 Logging activity: ${wallet_address} earned ${pointsDelta} points from games`);
+        const { error: activityError } = await supabase
           .from('honey_points_activity')
           .insert({
             wallet_address,
@@ -492,6 +493,11 @@ app.post('/api/points',
             source: 'games',
             created_at: new Date().toISOString()
           });
+        if (activityError) {
+          console.error('❌ Failed to log honey_points_activity:', activityError);
+        } else {
+          console.log(`✅ Activity logged successfully for ${wallet_address}`);
+        }
       }
 
       res.json({ success: true, points: data });
@@ -655,7 +661,8 @@ app.post('/api/raids/complete', async (req, res) => {
     }
 
     // Log activity for BEARdrops 24h tracking
-    await supabase
+    console.log(`📝 Logging raid activity: ${wallet_address} earned ${pointsToAdd} points`);
+    const { error: activityError } = await supabase
       .from('honey_points_activity')
       .insert({
         wallet_address,
@@ -663,6 +670,9 @@ app.post('/api/raids/complete', async (req, res) => {
         source: 'raids',
         created_at: new Date().toISOString()
       });
+    if (activityError) {
+      console.error('❌ Failed to log raid activity:', activityError);
+    }
 
     console.log(`✅ Raid completed: User ${wallet_address} earned ${pointsToAdd} points for raid ${raid_id}`);
 
