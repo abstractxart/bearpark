@@ -1,12 +1,10 @@
 /**
- * Daily Airdrop Snapshot - RANDOM TIMING SYSTEM
+ * Daily Airdrop Snapshot - FIXED TIMING SYSTEM
  *
- * SECURITY: Snapshots run at RANDOM times each day to prevent flash loan attacks.
- * The snapshot time is determined by a hash of the date + secret salt.
- * Nobody (not even admins) knows when the snapshot will run until it happens.
+ * Snapshots run at 06:29 UTC every day.
  *
- * Run via cron EVERY HOUR: 0 * * * * node /path/to/daily-airdrop-snapshot.js
- * The script checks if it's time to run based on the random schedule.
+ * Run via cron at 06:29 UTC: 29 6 * * * node /path/to/daily-airdrop-snapshot.js
+ * Or run every hour and the script will check if it's time.
  */
 
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
@@ -47,16 +45,11 @@ const XRPL_SERVERS = [
 ];
 
 /**
- * RANDOM SNAPSHOT TIMING
- * Generates a deterministic but unpredictable hour (0-23) for today's snapshot
- * Uses date + secret salt so only the server knows the time
+ * FIXED SNAPSHOT TIMING
+ * Snapshot runs at 06:29 UTC every day
  */
-function getRandomSnapshotHour(dateStr) {
-  const hash = crypto.createHash('sha256').update(dateStr + SNAPSHOT_SALT).digest('hex');
-  // Use first 2 hex chars to get a number 0-255, then mod 24 for hour
-  const hourSeed = parseInt(hash.substring(0, 2), 16);
-  return hourSeed % 24;
-}
+const SNAPSHOT_HOUR = 6;
+const SNAPSHOT_MINUTE = 29;
 
 /**
  * Check if we should run the snapshot now
@@ -65,10 +58,10 @@ async function shouldRunSnapshot() {
   const now = new Date();
   const todayStr = now.toISOString().split('T')[0];
   const currentHour = now.getUTCHours();
-  const targetHour = getRandomSnapshotHour(todayStr);
+  const currentMinute = now.getUTCMinutes();
 
-  console.log(`🎲 Random snapshot hour for ${todayStr}: ${targetHour}:00 UTC`);
-  console.log(`⏰ Current hour: ${currentHour}:00 UTC`);
+  console.log(`📅 Fixed snapshot time: ${SNAPSHOT_HOUR}:${SNAPSHOT_MINUTE.toString().padStart(2, '0')} UTC`);
+  console.log(`⏰ Current time: ${currentHour}:${currentMinute.toString().padStart(2, '0')} UTC`);
 
   // Check if snapshot already ran today
   const { data: existing } = await supabase
@@ -82,13 +75,16 @@ async function shouldRunSnapshot() {
     return false;
   }
 
-  // Check if it's time (current hour >= target hour)
-  if (currentHour >= targetHour) {
+  // Check if it's time (current time >= 06:29 UTC)
+  const currentTimeMinutes = currentHour * 60 + currentMinute;
+  const targetTimeMinutes = SNAPSHOT_HOUR * 60 + SNAPSHOT_MINUTE;
+
+  if (currentTimeMinutes >= targetTimeMinutes) {
     console.log('🚀 It\'s snapshot time! Running now...');
     return true;
   }
 
-  console.log(`⏳ Not yet time. Snapshot will run at ${targetHour}:00 UTC.`);
+  console.log(`⏳ Not yet time. Snapshot will run at ${SNAPSHOT_HOUR}:${SNAPSHOT_MINUTE.toString().padStart(2, '0')} UTC.`);
   return false;
 }
 
