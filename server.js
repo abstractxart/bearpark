@@ -509,7 +509,7 @@ app.post('/api/points',
           .insert({
             wallet_address,
             points: pointsDelta,
-            source: 'games',
+            activity_type: 'game',
             created_at: new Date().toISOString()
           });
         if (activityError) {
@@ -686,7 +686,7 @@ app.post('/api/raids/complete', async (req, res) => {
       .insert({
         wallet_address,
         points: pointsToAdd,
-        source: 'raids',
+        activity_type: 'raid',
         created_at: new Date().toISOString()
       });
     if (activityError) {
