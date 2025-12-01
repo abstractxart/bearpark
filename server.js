@@ -722,6 +722,68 @@ app.get('/api/leaderboard', async (req, res) => {
 });
 
 // ============================================
+// BEARDROPS API ENDPOINTS
+// ============================================
+
+// Get BEARdrops claim status for a wallet
+app.get('/api/beardrops/claim-status/:wallet', async (req, res) => {
+  if (!supabase) {
+    return res.status(503).json({ error: 'Database not configured' });
+  }
+
+  try {
+    const { wallet } = req.params;
+    const today = new Date().toISOString().split('T')[0];
+
+    // Check for today's snapshot
+    const { data: snapshot, error } = await supabase
+      .from('airdrop_snapshots')
+      .select('*')
+      .eq('wallet_address', wallet)
+      .eq('snapshot_date', today)
+      .single();
+
+    if (error && error.code !== 'PGRST116') { // PGRST116 = not found
+      throw error;
+    }
+
+    if (!snapshot) {
+      // No snapshot for today
+      return res.json({
+        success: true,
+        claimed_today: false,
+        total_pending: 0,
+        has_snapshot: false
+      });
+    }
+
+    // Has snapshot - check claim status
+    const claimedToday = snapshot.claim_status === 'claimed';
+    const totalPending = claimedToday ? 0 : (snapshot.total_reward || 0);
+
+    res.json({
+      success: true,
+      claimed_today: claimedToday,
+      total_pending: totalPending,
+      amount: snapshot.total_reward || 0,
+      has_snapshot: true,
+      snapshot_date: today,
+      claim_status: snapshot.claim_status,
+      is_eligible: snapshot.is_eligible,
+      is_blacklisted: snapshot.is_blacklisted,
+      pixel_bears: snapshot.pixel_bears,
+      ultra_rares: snapshot.ultra_rares,
+      lp_tokens: snapshot.lp_tokens,
+      nft_reward: snapshot.nft_reward,
+      lp_reward: snapshot.lp_reward
+    });
+  } catch (error) {
+    console.error('Error fetching claim status:', error);
+    res.status(500).json({ error: 'Failed to fetch claim status', details: error.message });
+  }
+});
+
+// ============================================
 // GAME LEADERBOARD API ENDPOINTS
 // ============================================
 
