@@ -342,8 +342,9 @@ const verifyAdmin = async (req, res, next) => {
       });
     }
 
-    // Check database for actual admin role
-    const { data: adminRole, error } = await supabase
+    // Check database for actual admin role (use service role to bypass RLS)
+    const adminClient = supabaseAdmin || supabase;
+    const { data: adminRole, error } = await adminClient
       .from('admin_roles')
       .select('role, is_active')
       .eq('wallet_address', admin_wallet)
@@ -352,6 +353,8 @@ const verifyAdmin = async (req, res, next) => {
 
     if (error || !adminRole) {
       console.warn(`🚫 Unauthorized admin access attempt by: ${admin_wallet}`);
+      console.warn(`   Database error: ${error?.message || 'No error'}`);
+      console.warn(`   Admin role found: ${adminRole ? 'yes' : 'no'}`);
       return res.status(403).json({
         success: false,
         error: 'Forbidden: You do not have admin privileges'
