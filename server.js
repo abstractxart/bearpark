@@ -458,6 +458,11 @@ app.post('/api/points',
         }
       }
 
+      // Calculate points delta for activity logging
+      const oldTotal = currentData?.total_points || 0;
+      const newTotal = total_points || 0;
+      const pointsDelta = newTotal - oldTotal;
+
       // Upsert points (insert or update if exists)
       const { data, error } = await supabase
         .from('honey_points')
@@ -475,6 +480,18 @@ app.post('/api/points',
 
       if (error) {
         throw error;
+      }
+
+      // Log activity if points increased (for BEARdrops 24h tracking)
+      if (pointsDelta > 0) {
+        await supabase
+          .from('honey_points_activity')
+          .insert({
+            wallet_address,
+            points: pointsDelta,
+            source: 'games',
+            created_at: new Date().toISOString()
+          });
       }
 
       res.json({ success: true, points: data });
@@ -636,6 +653,16 @@ app.post('/api/raids/complete', async (req, res) => {
     if (error) {
       throw error;
     }
+
+    // Log activity for BEARdrops 24h tracking
+    await supabase
+      .from('honey_points_activity')
+      .insert({
+        wallet_address,
+        points: pointsToAdd,
+        source: 'raids',
+        created_at: new Date().toISOString()
+      });
 
     console.log(`✅ Raid completed: User ${wallet_address} earned ${pointsToAdd} points for raid ${raid_id}`);
 
