@@ -6539,20 +6539,27 @@ app.post('/api/store/purchase-token', async (req, res) => {
     console.log(`   Has trustline: ${hasTrustline}`);
 
     if (!hasTrustline) {
-      await client.disconnect();
+      console.log(`   No trustline - disconnecting client...`);
+      try { await client.disconnect(); } catch (e) { console.log('   Disconnect error (ignored):', e.message); }
 
       // Log the failed attempt (no trustline)
-      await supabase
-        .from('store_token_transactions')
-        .insert({
-          wallet_address,
-          token_type: token_type.toUpperCase(),
-          token_amount: token.amount,
-          honey_spent: 0,
-          tx_hash: null,
-          tx_status: 'failed',
-          error_message: `No ${token.currency} trustline set`
-        }).catch(() => {});
+      console.log(`   Logging failed attempt to database...`);
+      try {
+        await supabase
+          .from('store_token_transactions')
+          .insert({
+            wallet_address,
+            token_type: token_type.toUpperCase(),
+            token_amount: token.amount,
+            honey_spent: 0,
+            tx_hash: null,
+            tx_status: 'failed',
+            error_message: `No ${token.currency} trustline set`
+          });
+        console.log(`   Database insert successful`);
+      } catch (dbErr) {
+        console.log(`   Database insert failed (ignored):`, dbErr.message);
+      }
 
       console.log(`❌ Token purchase FAILED: No trustline for ${token.currency} - ${wallet_address}`);
 
