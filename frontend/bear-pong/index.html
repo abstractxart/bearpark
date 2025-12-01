@@ -12,6 +12,17 @@
 
     <title>BEAR PONG - Multiplayer</title>
 
+    <!-- BROWSER COMPATIBILITY: Polyfills for old browsers (Opera, Brave, Edge, old Android/iOS) -->
+    <script>if(typeof Promise==='undefined'){document.write('<script src="https://cdn.jsdelivr.net/npm/promise-polyfill@8/dist/polyfill.min.js"><\/script>')}</script>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6,fetch,URLSearchParams,Array.from,Object.assign,Element.prototype.classList,requestAnimationFrame,PointerEvent"></script>
+    <script>
+    (function(){
+      if(!window.URLSearchParams){var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/url-search-params-polyfill@8.2.0/index.js';document.head.appendChild(s);}
+      if(!window.PointerEvent){window.PointerEvent=function(type,params){params=params||{bubbles:false,cancelable:false};var evt=document.createEvent('MouseEvent');evt.initMouseEvent(type,params.bubbles,params.cancelable,params.view||window,params.detail||0,params.screenX||0,params.screenY||0,params.clientX||0,params.clientY||0,params.ctrlKey||false,params.altKey||false,params.shiftKey||false,params.metaKey||false,params.button||0,params.relatedTarget||null);return evt;};}
+      if(!window.requestAnimationFrame){window.requestAnimationFrame=window.webkitRequestAnimationFrame||window.mozRequestAnimationFrame||function(cb){return setTimeout(cb,16)};}
+    })();
+    </script>
+
     <!-- BEAR Park Font -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
