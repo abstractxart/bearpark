@@ -23934,14 +23934,19 @@
           })
         });
 
-        const data = await response.json();
+        let data;
+        try {
+          data = await response.json();
+        } catch (e) {
+          throw new Error(`Server error (${response.status}). Please try again.`);
+        }
 
         if (!response.ok || !data.success) {
           // Check if it's a trustline error
           if (data.needsTrustline) {
             throw new Error(`YOU NEED TO SET THE ${token.currency} TRUST LINE FIRST!\n\nIssuer: ${token.issuer}`);
           }
-          throw new Error(data.error || 'Purchase failed');
+          throw new Error(data.error || data.message || `Server error (${response.status})`);
         }
 
         console.log('✅ Token purchase successful!', data);
