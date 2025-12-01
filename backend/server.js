@@ -5505,7 +5505,7 @@ app.post('/api/memes/reset-week', async (req, res) => {
 
     console.log('🆕 Creating new week...');
 
-    // Create new week (Monday to Sunday)
+    // Create new week (Monday 00:00 UTC to next Monday 00:00 UTC)
     const newWeekStart = new Date(weekEnd.getTime() + 1000); // 1 second after old week ends
     const nextMonday = new Date(newWeekStart);
 
@@ -5515,8 +5515,8 @@ app.post('/api/memes/reset-week', async (req, res) => {
     nextMonday.setHours(0, 0, 0, 0);
 
     const newWeekEnd = new Date(nextMonday);
-    newWeekEnd.setDate(newWeekEnd.getDate() + 6);
-    newWeekEnd.setHours(23, 59, 59, 999);
+    newWeekEnd.setDate(newWeekEnd.getDate() + 7); // Next Monday
+    newWeekEnd.setUTCHours(0, 0, 0, 0); // Monday 00:00:00 UTC
 
     const { data: newWeek, error: createError } = await supabase
       .from('meme_weeks')
