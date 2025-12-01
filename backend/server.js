@@ -6499,9 +6499,11 @@ app.post('/api/store/purchase-token', async (req, res) => {
     return res.status(400).json({ success: false, error: 'Invalid token type' });
   }
 
-  const client = new xrpl.Client('wss://s1.ripple.com');
+  const client = new xrpl.Client('wss://s1.ripple.com', { connectionTimeout: 10000 });
 
   try {
+    console.log(`🛒 Token purchase attempt: ${token_type} for ${wallet_address}`);
+
     // 1. Check user's honey points FIRST
     const { data: pointsData } = await supabase
       .from('honey_points')
@@ -6682,8 +6684,12 @@ app.post('/api/store/purchase-token', async (req, res) => {
       });
     }
 
-    console.error('Error purchasing token:', error);
-    res.status(500).json({ success: false, error: error.message });
+    console.error('Error purchasing token:', error.message, error.stack);
+
+    // Make sure we always send a response
+    if (!res.headersSent) {
+      res.status(500).json({ success: false, error: error.message || 'Unknown error occurred' });
+    }
   }
 });
 
