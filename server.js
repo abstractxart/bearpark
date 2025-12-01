@@ -1,6 +1,7 @@
 require('dotenv').config();
-// VERSION: 2.0.1 - Fixed honey_points_activity column name (activity_type)
+// VERSION: 2.0.2 - Added activity_id field and version endpoint
 const express = require('express');
+const SERVER_VERSION = '2.0.2';
 const cors = require('cors');
 const path = require('path');
 const fetch = require('node-fetch');
@@ -504,19 +505,21 @@ app.post('/api/points',
 
       // Log activity if points increased (for BEARdrops 24h tracking)
       if (pointsDelta > 0) {
-        console.log(`📝 Logging activity: ${wallet_address} earned ${pointsDelta} points from games`);
-        const { error: activityError } = await supabase
+        console.log(`📝 [v${SERVER_VERSION}] Logging activity: ${wallet_address} earned ${pointsDelta} points from games`);
+        const { data: activityData, error: activityError } = await supabase
           .from('honey_points_activity')
           .insert({
             wallet_address,
             points: pointsDelta,
             activity_type: 'game',
+            activity_id: 'games-sync',
             created_at: new Date().toISOString()
-          });
+          })
+          .select();
         if (activityError) {
-          console.error('❌ Failed to log honey_points_activity:', activityError);
+          console.error(`❌ [v${SERVER_VERSION}] Failed to log honey_points_activity:`, JSON.stringify(activityError));
         } else {
-          console.log(`✅ Activity logged successfully for ${wallet_address}`);
+          console.log(`✅ [v${SERVER_VERSION}] Activity logged successfully for ${wallet_address}:`, JSON.stringify(activityData));
         }
       }
 
@@ -681,17 +684,21 @@ app.post('/api/raids/complete', async (req, res) => {
     }
 
     // Log activity for BEARdrops 24h tracking
-    console.log(`📝 Logging raid activity: ${wallet_address} earned ${pointsToAdd} points`);
-    const { error: activityError } = await supabase
+    console.log(`📝 [v${SERVER_VERSION}] Logging raid activity: ${wallet_address} earned ${pointsToAdd} points for raid ${raid_id}`);
+    const { data: activityData, error: activityError } = await supabase
       .from('honey_points_activity')
       .insert({
         wallet_address,
         points: pointsToAdd,
         activity_type: 'raid',
+        activity_id: raid_id,
         created_at: new Date().toISOString()
-      });
+      })
+      .select();
     if (activityError) {
-      console.error('❌ Failed to log raid activity:', activityError);
+      console.error(`❌ [v${SERVER_VERSION}] Failed to log raid activity:`, JSON.stringify(activityError));
+    } else {
+      console.log(`✅ [v${SERVER_VERSION}] Raid activity logged:`, JSON.stringify(activityData));
     }
 
     console.log(`✅ Raid completed: User ${wallet_address} earned ${pointsToAdd} points for raid ${raid_id}`);
@@ -1152,12 +1159,17 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'main.html'));
 });
 
+// Version endpoint for deployment verification
+app.get('/api/version', (req, res) => {
+  res.json({ version: SERVER_VERSION, deployed: new Date().toISOString() });
+});
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
     message: 'BEAR Park API server running',
-    version: '2.0.0-secured',
+    version: SERVER_VERSION,
     features: {
       xaman: !!XAMAN_API_KEY,
       database: !!supabase,
