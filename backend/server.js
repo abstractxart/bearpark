@@ -1,5 +1,7 @@
 const path = require('path');
 // BEARpark Backend Server - Raid Leaderboard & Streak System
+// VERSION: 2.1.0 - Fixed activity logging with supabaseAdmin + error logging
+const SERVER_VERSION = '2.1.0';
 // Load .env only in local development (Vercel injects env vars directly)
 if (process.env.NODE_ENV !== 'production') {
   require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
@@ -1161,14 +1163,23 @@ app.post('/api/raids/complete', validateWallet, validateAmount, async (req, res)
     console.log(`✅ Raid completed: User ${wallet_address} earned ${points_awarded} points for raid ${raid_id}`);
 
     // Log to honey_points_activity for BEARDROPS 24h tracking
+    // Use supabaseAdmin to bypass RLS policies
+    const activityClient = supabaseAdmin || supabase;
     try {
-      await supabase.from('honey_points_activity').insert({
+      const { data, error } = await activityClient.from('honey_points_activity').insert({
         wallet_address,
         points: points_awarded,
         activity_type: 'raid',
         activity_id: raid_id
-      });
-    } catch (e) { /* ignore logging errors */ }
+      }).select();
+      if (error) {
+        console.error('❌ RAID activity insert failed:', error.message, error.code, error.details);
+      } else {
+        console.log('✅ RAID activity logged:', wallet_address, points_awarded, 'pts');
+      }
+    } catch (e) {
+      console.error('❌ RAID activity insert exception:', e.message);
+    }
 
     res.json({
       success: true,
@@ -1236,15 +1247,24 @@ app.post('/api/games/complete', validateWallet, async (req, res) => {
       console.log(`✅ Awarded ${result.points_awarded} pts to ${wallet_address} (${result.minutes_today}/${MAX_DAILY_MINUTES} mins today)`);
 
       // Log to honey_points_activity for BEARDROPS 24h tracking
+      // Use supabaseAdmin to bypass RLS policies
       if (result.points_awarded > 0) {
+        const activityClient = supabaseAdmin || supabase;
         try {
-          await supabase.from('honey_points_activity').insert({
+          const { data, error } = await activityClient.from('honey_points_activity').insert({
             wallet_address,
             points: result.points_awarded,
             activity_type: 'game',
             activity_id: game_id
-          });
-        } catch (e) { /* ignore logging errors */ }
+          }).select();
+          if (error) {
+            console.error('❌ GAME activity insert failed:', error.message, error.code, error.details);
+          } else {
+            console.log('✅ GAME activity logged:', wallet_address, result.points_awarded, 'pts for', game_id);
+          }
+        } catch (e) {
+          console.error('❌ GAME activity insert exception:', e.message);
+        }
       }
 
       res.json({
@@ -2638,9 +2658,22 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'main.html'));
 });
 
+// Version endpoint for deployment verification
+app.get('/api/version', (req, res) => {
+  res.json({
+    version: SERVER_VERSION,
+    deployed: new Date().toISOString(),
+    supabaseAdmin: !!supabaseAdmin
+  });
+});
+
 // Health check
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', message: 'BEAR Park API Server running' });
+  res.json({
+    status: 'ok',
+    message: 'BEAR Park API Server running',
+    version: SERVER_VERSION
+  });
 });
 
 // SECURITY: Debug endpoint removed - exposed sensitive data
