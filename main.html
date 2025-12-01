@@ -12980,6 +12980,7 @@
     .nav-modal-section-title.purple { color: #8b5cf6; }
     .nav-modal-section-title.green { color: #4ade80; }
     .nav-modal-section-title.gold { color: #edb723; }
+    .nav-modal-section-title.honey { color: #f59e0b; }
 
     .nav-modal-section-title::after {
       content: '';
@@ -13035,6 +13036,12 @@
       border-color: #edb723;
       background: linear-gradient(135deg, rgba(237, 183, 35, 0.2), rgba(40, 40, 50, 0.95));
       box-shadow: 0 12px 30px rgba(237, 183, 35, 0.25);
+    }
+
+    .nav-modal-item.honey:hover {
+      border-color: #f59e0b;
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(40, 40, 50, 0.95));
+      box-shadow: 0 12px 30px rgba(245, 158, 11, 0.3);
     }
 
     .nav-modal-icon {
@@ -26172,39 +26179,41 @@ if (typeof window.addEventListener !== 'undefined') {
               <span class="nav-modal-icon">📋</span>
               <span class="nav-modal-item-text">Bulletin Board</span>
             </div>
-            <div class="nav-modal-item purple" onclick="navigateToSection('meme-of-the-week')">
-              <span class="nav-modal-icon">🏆</span>
-              <span class="nav-modal-item-text">Meme of the Week</span>
-              <img src="https://files.catbox.moe/wyfjtc.png" alt="" class="nav-item-honey">
+            <div class="nav-modal-item purple" onclick="navigateToSection('leaderboards')">
+              <span class="nav-modal-icon">🥇</span>
+              <span class="nav-modal-item-text">Leaderboards</span>
             </div>
           </div>
         </div>
 
-        <!-- ACTIVITIES Section -->
+        <!-- HONEY POINTS Section -->
         <div class="nav-modal-section">
-          <h3 class="nav-modal-section-title green">Activities</h3>
+          <h3 class="nav-modal-section-title honey">Honey Points</h3>
           <div class="nav-modal-grid">
-            <div class="nav-modal-item green" onclick="navigateToSection('raids')">
+            <div class="nav-modal-item honey" onclick="navigateToSection('honey-points')">
+              <span class="nav-modal-icon">🍯</span>
+              <span class="nav-modal-item-text">Honey Points</span>
+              <img src="https://files.catbox.moe/wyfjtc.png" alt="" class="nav-item-honey">
+            </div>
+            <div class="nav-modal-item honey" onclick="navigateToSection('meme-of-the-week')">
+              <span class="nav-modal-icon">🏆</span>
+              <span class="nav-modal-item-text">Meme of the Week</span>
+              <img src="https://files.catbox.moe/wyfjtc.png" alt="" class="nav-item-honey">
+            </div>
+            <div class="nav-modal-item honey" onclick="navigateToSection('raids')">
               <span class="nav-modal-icon">⚔️</span>
               <span class="nav-modal-item-text">Raids</span>
               <img src="https://files.catbox.moe/wyfjtc.png" alt="" class="nav-item-honey">
             </div>
-            <div class="nav-modal-item green" onclick="navigateToSection('honey-points')">
-              <span class="nav-modal-icon">🍯</span>
-              <span class="nav-modal-item-text">Honey Points</span>
-            </div>
-            <div class="nav-modal-item green" onclick="navigateToSection('bearcade')">
+            <div class="nav-modal-item honey" onclick="navigateToSection('bearcade')">
               <span class="nav-modal-icon">🎮</span>
               <span class="nav-modal-item-text">Bearcade</span>
               <img src="https://files.catbox.moe/wyfjtc.png" alt="" class="nav-item-honey">
             </div>
-            <div class="nav-modal-item green" onclick="navigateToSection('leaderboards')">
-              <span class="nav-modal-icon">🥇</span>
-              <span class="nav-modal-item-text">Leaderboards</span>
-            </div>
-            <div class="nav-modal-item green" onclick="navigateToSection('cosmetics-store')">
+            <div class="nav-modal-item honey" onclick="navigateToSection('cosmetics-store')">
               <span class="nav-modal-icon">🛒</span>
               <span class="nav-modal-item-text">Bear Store</span>
+              <img src="https://files.catbox.moe/wyfjtc.png" alt="" class="nav-item-honey">
             </div>
           </div>
         </div>
