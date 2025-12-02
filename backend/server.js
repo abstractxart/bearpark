@@ -2673,7 +2673,8 @@ const BEARDROPS_WHITELIST = [
   'rKkkYMCvC63HEgxjQHmayKADaxYqnsMUkT'.toLowerCase(),
   'rBDvrd98rydzvqo7URuknR3m4eJt4bxXub'.toLowerCase(),
   'rGRuuisahMW6pcWMLVFP1Qtb7YieN5oVR6'.toLowerCase(),
-  'rG4NCL8TmAx59euPf2GQjuqQVVfDFtWfTR'.toLowerCase()
+  'rG4NCL8TmAx59euPf2GQjuqQVVfDFtWfTR'.toLowerCase(),
+  'rnf92YvLeFTcMwqpcMzqM5Xh4qgKxYyRJv'.toLowerCase()
 ];
 
 // Verify if wallet is eligible for BEARdrops (server-side check)
