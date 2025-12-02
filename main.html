@@ -22714,6 +22714,11 @@
               </div>
             </div>
 
+            <!-- Open in XAMAN button -->
+            <a id="merchXamanLink" href="#" target="_blank" style="display:block; background: linear-gradient(135deg, #3052ff, #00c3ff); color:#fff; text-decoration:none; padding:15px 30px; border-radius:12px; font-size:18px; font-weight:bold; margin-bottom:20px; text-align:center; box-shadow: 0 4px 15px rgba(48,82,255,0.4);">
+              📱 Open in XAMAN Wallet
+            </a>
+
             <div style="margin-top:20px;">
               <div class="merch-spinner" style="width:30px; height:30px; border-width:3px; margin:0 auto;"></div>
               <p style="color:#00ff88; margin-top:10px; font-size:14px;">Watching for your payment...</p>
@@ -26288,6 +26293,20 @@
         document.getElementById('merchPayOrderNum').textContent = paymentData.order_number;
         document.getElementById('merchPayAddress').textContent = paymentData.destination_address;
         document.getElementById('merchPayTag').textContent = paymentData.destination_tag;
+
+        // Build XAMAN deep link
+        // Format: xumm://xumm.app/sign/DESTINATION/AMOUNT/CURRENCY?dt=TAG
+        // Or use the PayString format: https://xumm.app/send
+        let xamanLink;
+        if (paymentData.currency === 'XRP') {
+          // For XRP payments (amount in drops for deep link, but we show regular XRP)
+          xamanLink = `https://xumm.app/send?to=${paymentData.destination_address}&amount=${paymentData.amount}&dt=${paymentData.destination_tag}`;
+        } else {
+          // For RLUSD or other issued currencies
+          // Include currency and issuer in the URL
+          xamanLink = `https://xumm.app/send?to=${paymentData.destination_address}&amount=${paymentData.amount}&currency=${paymentData.currency}&issuer=${paymentData.issuer || ''}&dt=${paymentData.destination_tag}`;
+        }
+        document.getElementById('merchXamanLink').href = xamanLink;
 
         // Poll for payment status
         let pollCount = 0;
