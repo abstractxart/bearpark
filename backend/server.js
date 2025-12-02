@@ -2886,9 +2886,11 @@ app.post('/api/merch/request-payment', async (req, res) => {
         let txAmount;
 
         if (payment_method === 'RLUSD') {
-          // RLUSD is a token - use object format with currency code
+          // RLUSD is a token - use hex format (tested and working)
+          // RLUSD in hex: R=52, L=4C, U=55, S=53, D=44, padded to 40 chars
+          const RLUSD_HEX = '524C555344000000000000000000000000000000';
           txAmount = {
-            currency: 'RLUSD',
+            currency: RLUSD_HEX,
             value: paymentAmount,
             issuer: RLUSD_ISSUER
           };
@@ -2927,46 +2929,6 @@ app.post('/api/merch/request-payment', async (req, res) => {
         }
       } catch (xummError) {
         console.error(`⚠️ XUMM payload creation failed for ${paymentCurrency}, falling back to manual:`, xummError.message);
-        // If RLUSD fails with currency code, try hex format
-        if (payment_method === 'RLUSD') {
-          try {
-            const RLUSD_HEX = '524C555344000000000000000000000000000000';
-            const payload = await xumm.payload.create({
-              txjson: {
-                TransactionType: 'Payment',
-                Destination: MERCH_WALLET,
-                Amount: {
-                  currency: RLUSD_HEX,
-                  value: paymentAmount,
-                  issuer: RLUSD_ISSUER
-                },
-                DestinationTag: destinationTag
-              },
-              options: {
-                expire: 30,
-                return_url: {
-                  web: `https://www.bearpark.xyz/?merch_order=${order.order_number}`
-                }
-              },
-              custom_meta: {
-                identifier: `merch-${order.order_number}`,
-                instruction: `Pay ${paymentAmount} RLUSD for BEAR Park merch order ${order.order_number}`
-              }
-            });
-
-            if (payload && payload.uuid) {
-              xummPayload = {
-                uuid: payload.uuid,
-                qr_png: payload.refs?.qr_png,
-                next_url: payload.next?.always,
-                websocket_url: payload.refs?.websocket_status
-              };
-              console.log(`✅ XUMM payload created for RLUSD (hex): ${payload.uuid}`);
-            }
-          } catch (hexError) {
-            console.error('⚠️ XUMM RLUSD hex format also failed:', hexError.message);
-          }
-        }
       }
     }
 
