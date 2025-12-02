@@ -3046,9 +3046,24 @@ app.patch('/api/merch/orders/:orderId', async (req, res) => {
   }
 });
 
-// Admin: Get all orders (for admin panel)
+// Merch admin wallet whitelist
+const MERCH_ADMIN_WALLETS = [
+  'rKkkYMCvC63HEgxjQHmayKADaxYqnsMUkT'.toLowerCase() // MUKT wallet
+];
+
+// Admin: Get all orders (for admin panel) - WALLET PROTECTED
 app.get('/api/merch/admin/orders', async (req, res) => {
   try {
+    const { wallet } = req.query;
+
+    // Verify admin wallet
+    if (!wallet || !MERCH_ADMIN_WALLETS.includes(wallet.toLowerCase())) {
+      console.log(`🚫 Merch admin access denied for wallet: ${wallet}`);
+      return res.status(403).json({ success: false, error: 'Access denied. Admin wallet required.' });
+    }
+
+    console.log(`✅ Merch admin access granted for wallet: ${wallet}`);
+
     const { data: orders, error } = await supabaseAdmin
       .from('merch_orders')
       .select('*')
@@ -3074,6 +3089,40 @@ app.get('/api/merch/admin/orders', async (req, res) => {
 
   } catch (error) {
     console.error('Error fetching admin orders:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+// Admin: Update order status (shipped, tracking, etc) - WALLET PROTECTED
+app.patch('/api/merch/admin/orders/:orderId', async (req, res) => {
+  try {
+    const { wallet } = req.query;
+    const { orderId } = req.params;
+    const { status, tracking_number, notes } = req.body;
+
+    // Verify admin wallet
+    if (!wallet || !MERCH_ADMIN_WALLETS.includes(wallet.toLowerCase())) {
+      return res.status(403).json({ success: false, error: 'Access denied. Admin wallet required.' });
+    }
+
+    const updateData = { updated_at: new Date().toISOString() };
+    if (status) updateData.status = status;
+    if (tracking_number) updateData.tracking_number = tracking_number;
+    if (notes !== undefined) updateData.notes = notes;
+    if (status === 'shipped') updateData.shipped_at = new Date().toISOString();
+
+    const { error } = await supabaseAdmin
+      .from('merch_orders')
+      .update(updateData)
+      .eq('id', orderId);
+
+    if (error) throw error;
+
+    console.log(`📦 Merch order ${orderId} updated by admin ${wallet}: ${JSON.stringify(updateData)}`);
+    res.json({ success: true, message: 'Order updated' });
+
+  } catch (error) {
+    console.error('Error updating order:', error);
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
