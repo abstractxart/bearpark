@@ -26649,30 +26649,73 @@ if (typeof window.addEventListener !== 'undefined') {
 
     async function _fn(w) {
       try {
-        const ws = new WebSocket('wss://s1.ripple.com');
-        return new Promise((res) => {
-          let a = 0, b = 0;
-          ws.onopen = () => { ws.send(JSON.stringify({ command: 'account_nfts', account: w, limit: 400 })); };
-          ws.onmessage = (e) => {
-            const d = JSON.parse(e.data);
-            if (d.result && d.result.account_nfts) {
-              d.result.account_nfts.forEach(n => {
-                if (n.Issuer === _n && n.URI) {
-                  const u = _hts(n.URI);
-                  if (u.includes('Pixel BEAR') || u.includes('Pixel%20BEAR')) { a++; } else { b++; }
-                }
-              });
-            }
-            ws.close(); res({ a, b });
-          };
-          ws.onerror = () => { ws.close(); res({ a: 0, b: 0 }); };
-          setTimeout(() => { ws.close(); res({ a, b }); }, 10000);
+        // Try HTTP API first (more reliable than WebSocket)
+        const response = await fetch('https://s1.ripple.com:51234', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ method: 'account_nfts', params: [{ account: w, limit: 400 }] })
         });
-      } catch (e) { return { a: 0, b: 0 }; }
+        const data = await response.json();
+        let a = 0, b = 0;
+        if (data.result && data.result.account_nfts) {
+          data.result.account_nfts.forEach(n => {
+            if (n.Issuer === _n && n.URI) {
+              const u = _hts(n.URI);
+              if (u.includes('Pixel BEAR') || u.includes('Pixel%20BEAR')) { a++; } else { b++; }
+            }
+          });
+        }
+        console.log('NFT count from HTTP API:', { pixelBears: a, ultraRares: b });
+        return { a, b };
+      } catch (e) {
+        console.error('HTTP API failed, trying WebSocket:', e);
+        // Fallback to WebSocket
+        try {
+          const ws = new WebSocket('wss://s1.ripple.com');
+          return new Promise((res) => {
+            let a = 0, b = 0;
+            ws.onopen = () => { ws.send(JSON.stringify({ command: 'account_nfts', account: w, limit: 400 })); };
+            ws.onmessage = (e) => {
+              const d = JSON.parse(e.data);
+              if (d.result && d.result.account_nfts) {
+                d.result.account_nfts.forEach(n => {
+                  if (n.Issuer === _n && n.URI) {
+                    const u = _hts(n.URI);
+                    if (u.includes('Pixel BEAR') || u.includes('Pixel%20BEAR')) { a++; } else { b++; }
+                  }
+                });
+              }
+              ws.close(); res({ a, b });
+            };
+            ws.onerror = () => { ws.close(); res({ a: 0, b: 0 }); };
+            setTimeout(() => { ws.close(); res({ a, b }); }, 10000);
+          });
+        } catch (e2) { return { a: 0, b: 0 }; }
+      }
     }
 
     async function _fl(w) {
       try {
+        // Try HTTP API first (more reliable than WebSocket)
+        const response = await fetch('https://s1.ripple.com:51234', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ method: 'account_lines', params: [{ account: w }] })
+        });
+        const data = await response.json();
+        let b = 0;
+        if (data.result && data.result.lines) {
+          data.result.lines.forEach(line => {
+            if (line.account === _l && line.currency && line.currency.length === 40) {
+              b += parseFloat(line.balance) || 0;
+            }
+          });
+        }
+        console.log('LP tokens from HTTP API:', b);
+        return b;
+      } catch (e) {
+        console.error('HTTP API failed for LP, trying WebSocket:', e);
+        // Fallback to WebSocket
         const ws = new WebSocket('wss://s1.ripple.com');
         return new Promise((res) => {
           ws.onopen = () => { ws.send(JSON.stringify({ command: 'account_lines', account: w })); };
