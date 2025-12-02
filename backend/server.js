@@ -6202,14 +6202,24 @@ app.get('/api/beardrops/claim-status/:wallet', async (req, res) => {
       .eq('snapshot_date', yesterdayStr)  // ONLY yesterday's snapshot is claimable
       .order('snapshot_date', { ascending: false });
 
-    // Get recent claims
+    // Get recent claims (include 'claimed' status)
     const { data: claimed } = await supabase
       .from('airdrop_snapshots')
-      .select('snapshot_date, total_reward, claimed_at, claim_tx_hash')
+      .select('snapshot_date, total_reward, claimed_at, claim_tx_hash, claim_status')
       .eq('wallet_address', wallet)
       .eq('claim_status', 'claimed')
       .order('claimed_at', { ascending: false })
       .limit(5);
+
+    // ALSO check if yesterday's snapshot was already claimed or is processing
+    // This catches the case where someone claimed but we need to show them as "already claimed"
+    const { data: yesterdayClaim } = await supabase
+      .from('airdrop_snapshots')
+      .select('claim_status, claimed_at, total_reward, claim_tx_hash')
+      .eq('wallet_address', wallet)
+      .eq('snapshot_date', yesterdayStr)
+      .in('claim_status', ['claimed', 'processing'])
+      .maybeSingle();
 
     // Get daily honey points (resets at 00:00 UTC)
     const midnightUTC = new Date();
@@ -6235,12 +6245,25 @@ app.get('/api/beardrops/claim-status/:wallet', async (req, res) => {
     // Calculate total pending
     const totalPending = pending?.reduce((sum, p) => sum + parseFloat(p.total_reward), 0) || 0;
 
-    // Check if claimed today (UTC)
+    // Check if claimed today (UTC) - multiple checks for robustness
     const todayUTC = new Date().toISOString().split('T')[0];
-    const claimedToday = claimed?.find(c => {
+
+    // Method 1: Check if any claim happened today
+    const claimedTodayByDate = claimed?.find(c => {
       const claimDate = c.claimed_at ? new Date(c.claimed_at).toISOString().split('T')[0] : null;
       return claimDate === todayUTC;
     });
+
+    // Method 2: Check if yesterday's snapshot (the one that's claimable) is already claimed/processing
+    const yesterdaySnapshotClaimed = yesterdayClaim &&
+      (yesterdayClaim.claim_status === 'claimed' || yesterdayClaim.claim_status === 'processing');
+
+    // Either method indicates they've already claimed/are claiming
+    const claimedToday = !!claimedTodayByDate || !!yesterdaySnapshotClaimed;
+    const claimedAmount = yesterdayClaim?.total_reward || claimedTodayByDate?.total_reward || null;
+    const claimedTxHash = yesterdayClaim?.claim_tx_hash || claimedTodayByDate?.claim_tx_hash || null;
+
+    console.log(`📊 Claim status for ${wallet}: claimedToday=${claimedToday}, yesterdayClaim=${JSON.stringify(yesterdayClaim)}, totalPending=${totalPending}`);
 
     res.json({
       success: true,
@@ -6248,12 +6271,18 @@ app.get('/api/beardrops/claim-status/:wallet', async (req, res) => {
       honey_points_24h: honeyPoints24h,
       min_required: minHoneyPoints,
       can_claim: honeyPoints24h >= minHoneyPoints && totalPending > 0 && !claimedToday,
-      claimed_today: !!claimedToday,
-      amount: claimedToday ? parseFloat(claimedToday.total_reward) : null,
-      tx_hash: claimedToday ? claimedToday.claim_tx_hash : null,
+      claimed_today: claimedToday,
+      claimed_amount: claimedAmount ? parseFloat(claimedAmount) : null,
+      amount: claimedAmount ? parseFloat(claimedAmount) : null,
+      tx_hash: claimedTxHash,
       pending_rewards: pending || [],
-      total_pending: totalPending,
-      recent_claims: claimed || []
+      total_pending: claimedToday ? 0 : totalPending,  // If claimed, show 0 pending
+      recent_claims: claimed || [],
+      debug: {
+        yesterdayClaim: yesterdayClaim,
+        claimedTodayByDate: !!claimedTodayByDate,
+        yesterdaySnapshotClaimed: !!yesterdaySnapshotClaimed
+      }
     });
   } catch (error) {
     console.error('❌ Error fetching claim status:', error);
