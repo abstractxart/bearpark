@@ -2690,20 +2690,7 @@ app.get('/api/beardrops/eligible', async (req, res) => {
       return res.json({ eligible: false, reason: 'not_whitelisted' });
     }
 
-    // Additional verification: Check if wallet exists in our database (has interacted with the platform)
-    if (supabase) {
-      const { data: userData } = await supabase
-        .from('honey_points')
-        .select('wallet_address')
-        .eq('wallet_address', wallet)
-        .maybeSingle();
-
-      // Wallet must have some activity on the platform
-      if (!userData) {
-        return res.json({ eligible: false, reason: 'no_activity' });
-      }
-    }
-
+    // Whitelist is sufficient - no additional checks needed
     return res.json({ eligible: true, wallet: wallet });
   } catch (error) {
     console.error('Error checking BEARdrops eligibility:', error);
