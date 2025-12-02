@@ -3084,16 +3084,22 @@ async function checkMerchPayments() {
       for (const order of pendingOrders) {
         // Look for a matching transaction
         for (const txData of transactions) {
-          const tx = txData.tx;
-          const meta = txData.meta;
+          // Handle both tx and tx_json formats
+          const tx = txData.tx || txData.tx_json || {};
+          const meta = txData.meta || {};
 
           // Skip if not a successful payment to us
           if (tx.TransactionType !== 'Payment') continue;
           if (tx.Destination !== MERCH_WALLET) continue;
           if (meta.TransactionResult !== 'tesSUCCESS') continue;
 
-          // Check destination tag matches
-          if (tx.DestinationTag !== order.destination_tag) continue;
+          // Check destination tag matches (convert both to numbers for comparison)
+          const txTag = parseInt(tx.DestinationTag);
+          const orderTag = parseInt(order.destination_tag);
+          if (isNaN(txTag) || isNaN(orderTag) || txTag !== orderTag) continue;
+
+          // Get amount (could be Amount or DeliverMax in different XRPL versions)
+          const txAmount = tx.DeliverMax || tx.Amount;
 
           // Check amount (with some tolerance for XRP)
           let amountMatches = false;
@@ -3101,16 +3107,17 @@ async function checkMerchPayments() {
 
           if (order.payment_currency === 'RLUSD') {
             // RLUSD payment
-            if (typeof tx.Amount === 'object' && tx.Amount.currency === 'RLUSD') {
-              const receivedAmount = parseFloat(tx.Amount.value);
+            if (typeof txAmount === 'object' && (txAmount.currency === 'RLUSD' || txAmount.currency?.includes('524C555344'))) {
+              const receivedAmount = parseFloat(txAmount.value);
               amountMatches = Math.abs(receivedAmount - expectedAmount) < 0.01;
             }
           } else {
             // XRP payment (amount in drops)
-            if (typeof tx.Amount === 'string') {
-              const receivedXRP = parseInt(tx.Amount) / 1000000;
-              // Allow 5% tolerance for XRP price fluctuation
-              amountMatches = receivedXRP >= expectedAmount * 0.95;
+            if (typeof txAmount === 'string' || typeof txAmount === 'number') {
+              const receivedXRP = parseInt(txAmount) / 1000000;
+              // Allow 10% tolerance for XRP price fluctuation
+              amountMatches = receivedXRP >= expectedAmount * 0.90;
+              console.log(`💰 XRP check: received ${receivedXRP} XRP, expected ${expectedAmount} XRP, matches: ${amountMatches}`);
             }
           }
 
