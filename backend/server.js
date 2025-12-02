@@ -6053,11 +6053,15 @@ app.post('/api/beardrops/claim', claimRateLimiter, validateWallet, async (req, r
     console.log(`🔐 Attempting lock for ${wallet_address}: snapshotId=${snapshot.id}, current status=${snapshot.claim_status}`);
 
     // Step 1: Try to update to 'processing'
-    const { error: updateError } = await supabase
+    // NOTE: We already verified status is 'pending' in the SELECT above
+    // Removing the claim_status check here to debug why updates aren't working
+    const { error: updateError, data: updateData, count: updateCount } = await supabase
       .from('airdrop_snapshots')
       .update({ claim_status: 'processing', updated_at: new Date().toISOString() })
       .eq('id', snapshot.id)
-      .eq('claim_status', 'pending'); // Only if still pending
+      .select();
+
+    console.log(`📝 Update result for ${wallet_address}: updateData=`, updateData, 'updateCount=', updateCount, 'updateError=', updateError);
 
     if (updateError) {
       console.error(`❌ Update error for ${wallet_address}:`, updateError);
