@@ -518,7 +518,7 @@
     let pollInterval = null;
     let sessionExpiry = null;
 
-    // Start XAMAN authentication
+    // Start XAMAN authentication - use existing working /api/xaman/payload endpoint
     async function startAuth() {
       const btn = document.getElementById('authBtn');
       const statusEl = document.getElementById('authStatus');
@@ -528,23 +528,22 @@
       btn.textContent = 'Requesting...';
 
       try {
-        // Request challenge from backend
-        const res = await fetch(`${API_BASE}/api/merch/admin/auth/challenge`, {
+        // Use the same endpoint that works for main site login
+        const res = await fetch(`${API_BASE}/api/xaman/payload`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' }
         });
 
         const data = await res.json();
-        console.log('Challenge response:', data);
+        console.log('Payload response:', data);
 
-        if (!data.success) {
-          const errorMsg = data.details ? `${data.error}: ${data.details}` : data.error;
-          throw new Error(errorMsg || 'Failed to create challenge');
+        if (!data || !data.uuid) {
+          throw new Error(data.error || 'Failed to create XAMAN payload');
         }
 
         // Show QR code
-        if (data.qr_png) {
-          document.getElementById('qrImage').src = data.qr_png;
+        if (data.refs?.qr_png) {
+          document.getElementById('qrImage').src = data.refs.qr_png;
           qrContainer.style.display = 'block';
         }
 
