@@ -2847,42 +2847,45 @@ app.post('/api/merch/request-payment', async (req, res) => {
     const RLUSD_ISSUER = 'rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De';
     const MERCH_WALLET = process.env.MERCH_WALLET || 'rBEARKfWJS1LYdg2g6t99BgbvpWY5pgMB9';
 
-    let payloadRequest;
-
-    // Use simple transaction format (same as working SignIn endpoint)
-    // No txjson wrapper, no options - just the raw transaction
-    if (payment_method === 'RLUSD') {
-      payloadRequest = {
-        TransactionType: 'Payment',
-        Destination: MERCH_WALLET,
-        Amount: {
-          currency: 'RLUSD',
-          issuer: RLUSD_ISSUER,
-          value: amount_usd.toString()
-        }
-      };
-    } else {
-      // XRP payment
-      const xrpAmount = (amount_usd / xrp_price).toFixed(6);
-      payloadRequest = {
-        TransactionType: 'Payment',
-        Destination: MERCH_WALLET,
-        Amount: Math.floor(parseFloat(xrpAmount) * 1000000).toString() // XRP in drops
-      };
-    }
-
     // Check XUMM SDK is initialized
     if (!xumm) {
       console.error('❌ XUMM SDK not initialized for payment request');
       return res.status(500).json({ success: false, error: 'XAMAN SDK not configured' });
     }
 
-    // Create XAMAN payload (same format as working SignIn endpoint)
-    console.log('Creating XAMAN payment payload for order:', order_id);
-    console.log('Payment request:', JSON.stringify(payloadRequest, null, 2));
+    let txjson;
 
-    // Use same format as working SignIn: xumm.payload.create(transaction, true)
-    const payload = await xumm.payload.create(payloadRequest, true);
+    if (payment_method === 'RLUSD') {
+      // RLUSD payment - use proper issued currency format
+      // Ensure value is a clean decimal string (no scientific notation)
+      const cleanValue = parseFloat(amount_usd).toFixed(2);
+
+      txjson = {
+        TransactionType: 'Payment',
+        Destination: MERCH_WALLET,
+        Amount: {
+          currency: 'RLUSD',
+          issuer: RLUSD_ISSUER,
+          value: cleanValue
+        }
+      };
+    } else {
+      // XRP payment - amount in drops (millionths of XRP)
+      const xrpAmount = amount_usd / xrp_price;
+      const drops = Math.floor(xrpAmount * 1000000);
+
+      txjson = {
+        TransactionType: 'Payment',
+        Destination: MERCH_WALLET,
+        Amount: String(drops)
+      };
+    }
+
+    console.log('Creating XAMAN payment payload for order:', order_id);
+    console.log('Transaction JSON:', JSON.stringify(txjson, null, 2));
+
+    // Use txjson wrapper format for Payment transactions
+    const payload = await xumm.payload.create({ txjson });
 
     console.log('Payload result:', JSON.stringify(payload, null, 2));
 
