@@ -3157,6 +3157,65 @@ app.get('/api/merch/admin/debug', (req, res) => {
   });
 });
 
+// Manual payment check endpoint
+app.get('/api/merch/check-payments', async (req, res) => {
+  try {
+    // Get pending orders
+    const { data: pendingOrders, error: ordersError } = await supabaseAdmin
+      .from('merch_orders')
+      .select('*')
+      .eq('status', 'pending')
+      .not('destination_tag', 'is', null);
+
+    if (ordersError) {
+      return res.json({ error: 'DB error', details: ordersError.message });
+    }
+
+    if (!pendingOrders || pendingOrders.length === 0) {
+      return res.json({ message: 'No pending orders with destination tags', pending_count: 0 });
+    }
+
+    // Get recent transactions
+    const xrplClient = new (require('xrpl')).Client('wss://xrplcluster.com');
+    await xrplClient.connect();
+
+    const response = await xrplClient.request({
+      command: 'account_tx',
+      account: MERCH_WALLET,
+      limit: 20,
+      forward: false
+    });
+
+    await xrplClient.disconnect();
+
+    const transactions = response.result?.transactions || [];
+    const recentPayments = transactions
+      .filter(t => t.tx.TransactionType === 'Payment' && t.tx.Destination === MERCH_WALLET)
+      .map(t => ({
+        hash: t.tx.hash,
+        from: t.tx.Account,
+        amount: t.tx.Amount,
+        destination_tag: t.tx.DestinationTag,
+        result: t.meta.TransactionResult
+      }));
+
+    res.json({
+      merch_wallet: MERCH_WALLET,
+      pending_orders: pendingOrders.map(o => ({
+        id: o.id,
+        order_number: o.order_number,
+        destination_tag: o.destination_tag,
+        payment_amount: o.payment_amount,
+        payment_currency: o.payment_currency,
+        status: o.status
+      })),
+      recent_payments: recentPayments
+    });
+  } catch (e) {
+    res.json({ error: e.message });
+  }
+});
+
 // TEST endpoint - try WITH and WITHOUT txjson wrapper
 app.get('/api/merch/test-payment', async (req, res) => {
   try {
