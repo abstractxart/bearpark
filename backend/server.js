@@ -3057,10 +3057,9 @@ app.get('/api/merch/admin/debug', (req, res) => {
   });
 });
 
-// TEST endpoint - bypass SDK and call XUMM API directly
+// TEST endpoint - test multiple scenarios
 app.get('/api/merch/test-payment', async (req, res) => {
   try {
-    const MERCH_WALLET = 'rBEARKfWJS1LYdg2g6t99BgbvpWY5pgMB9';
     const apiKey = process.env.XAMAN_API_KEY;
     const apiSecret = process.env.XAMAN_API_SECRET;
 
@@ -3068,46 +3067,62 @@ app.get('/api/merch/test-payment', async (req, res) => {
       return res.json({ error: 'API keys not configured' });
     }
 
-    // Call XUMM API directly with fetch
-    const payload = {
-      txjson: {
-        TransactionType: 'Payment',
-        Destination: MERCH_WALLET,
-        Amount: '1000000'
-      }
-    };
+    const results = {};
 
-    console.log('Calling XUMM API directly with payload:', JSON.stringify(payload));
-
-    const response = await fetch('https://xumm.app/api/v1/platform/payload', {
+    // Test 1: SignIn (should work)
+    const test1 = await fetch('https://xumm.app/api/v1/platform/payload', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-API-Key': apiKey,
         'X-API-Secret': apiSecret
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({ txjson: { TransactionType: 'SignIn' } })
     });
+    const test1Data = await test1.json();
+    results.signin = { status: test1.status, uuid: test1Data?.uuid || null, error: test1Data?.error };
 
-    const responseText = await response.text();
-    console.log('XUMM API response status:', response.status);
-    console.log('XUMM API response:', responseText);
-
-    let data;
-    try {
-      data = JSON.parse(responseText);
-    } catch (e) {
-      data = { raw: responseText };
-    }
-
-    res.json({
-      status: response.status,
-      headers: Object.fromEntries(response.headers.entries()),
-      data: data,
-      api_key_preview: apiKey.substring(0, 8) + '...'
+    // Test 2: Payment to our wallet
+    const test2 = await fetch('https://xumm.app/api/v1/platform/payload', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': apiKey,
+        'X-API-Secret': apiSecret
+      },
+      body: JSON.stringify({
+        txjson: {
+          TransactionType: 'Payment',
+          Destination: 'rBEARKfWJS1LYdg2g6t99BgbvpWY5pgMB9',
+          Amount: '1000000'
+        }
+      })
     });
+    const test2Data = await test2.json();
+    results.payment_our_wallet = { status: test2.status, uuid: test2Data?.uuid || null, error: test2Data?.error };
+
+    // Test 3: Payment to Bitstamp (known active wallet)
+    const test3 = await fetch('https://xumm.app/api/v1/platform/payload', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': apiKey,
+        'X-API-Secret': apiSecret
+      },
+      body: JSON.stringify({
+        txjson: {
+          TransactionType: 'Payment',
+          Destination: 'rDsbeomae4FXwgQTJp9Rs64Qg9vDiTCdBv',
+          Amount: '1000000'
+        }
+      })
+    });
+    const test3Data = await test3.json();
+    results.payment_bitstamp = { status: test3.status, uuid: test3Data?.uuid || null, error: test3Data?.error };
+
+    res.json(results);
   } catch (e) {
-    res.json({ error: e.message, stack: e.stack });
+    res.json({ error: e.message });
   }
 });
 
