@@ -2879,10 +2879,51 @@ app.post('/api/merch/request-payment', async (req, res) => {
 
     console.log(`✅ Payment request for order ${order.order_number}: ${paymentAmount} ${paymentCurrency} to ${MERCH_WALLET} with tag ${destinationTag}`);
 
+    // For XRP payments, try to create XUMM payload for seamless payment
+    let xummPayload = null;
+    if (payment_method === 'XRP' && xumm) {
+      try {
+        // Amount in drops (1 XRP = 1,000,000 drops)
+        const amountInDrops = Math.round(parseFloat(paymentAmount) * 1000000).toString();
+
+        const payload = await xumm.payload.create({
+          txjson: {
+            TransactionType: 'Payment',
+            Destination: MERCH_WALLET,
+            Amount: amountInDrops,
+            DestinationTag: destinationTag
+          },
+          options: {
+            expire: 30, // 30 minutes
+            return_url: {
+              web: `https://www.bearpark.xyz/?merch_order=${order.order_number}`
+            }
+          },
+          custom_meta: {
+            identifier: `merch-${order.order_number}`,
+            instruction: `Pay ${paymentAmount} XRP for BEAR Park merch order ${order.order_number}`
+          }
+        });
+
+        if (payload && payload.uuid) {
+          xummPayload = {
+            uuid: payload.uuid,
+            qr_png: payload.refs?.qr_png,
+            next_url: payload.next?.always,
+            websocket_url: payload.refs?.websocket_status
+          };
+          console.log(`✅ XUMM payload created: ${payload.uuid}`);
+        }
+      } catch (xummError) {
+        console.error('⚠️ XUMM payload creation failed, falling back to manual:', xummError.message);
+      }
+    }
+
     // Return payment instructions to frontend
     res.json({
       success: true,
-      payment_method: 'direct',
+      payment_method: xummPayload ? 'xumm' : 'direct',
+      xumm_payload: xummPayload,
       destination_address: MERCH_WALLET,
       destination_tag: destinationTag,
       amount: paymentAmount,
