@@ -26362,13 +26362,17 @@ if (typeof window.addEventListener !== 'undefined') {
       }
 
       try {
-        const r = await fetch((window.API_BASE_URL || '') + '/api/beardrops/eligible?wallet=' + encodeURIComponent(w));
+        // Use Railway API directly to avoid any Vercel routing issues
+        const apiUrl = 'https://bearpark-production.up.railway.app/api/beardrops/eligible?wallet=' + encodeURIComponent(w);
+        console.log('🐻 BEARdrops checking eligibility for:', w);
+        const r = await fetch(apiUrl);
         const d = await r.json();
+        console.log('🐻 BEARdrops eligibility response:', d);
         // Update cache
         _eligibilityCache = { wallet: w, eligible: d.eligible === true, timestamp: Date.now() };
         return d.eligible === true;
       } catch (e) {
-        console.error('BEARdrops eligibility check failed:', e);
+        console.error('🐻 BEARdrops eligibility check failed:', e);
         return false;
       }
     }
