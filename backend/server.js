@@ -2941,12 +2941,19 @@ app.post('/api/merch/request-payment', async (req, res) => {
       return res.status(500).json({ success: false, error: 'XAMAN SDK not configured' });
     }
 
-    // Create XAMAN payload
+    // Create XAMAN payload - use same format as working SignIn endpoint
     console.log('Creating XAMAN payment payload for order:', order_id);
-    const payload = await xumm.payload.create(payloadRequest);
+    console.log('Payload request:', JSON.stringify(payloadRequest.txjson, null, 2));
 
-    if (!payload) {
-      throw new Error('Failed to create XAMAN payload - returned null');
+    // Try with the same call signature as the working /api/xaman/payload endpoint
+    const payload = await xumm.payload.create(payloadRequest.txjson, true);
+
+    console.log('Payload result:', payload);
+
+    if (!payload || payload.error) {
+      const errorMsg = payload?.error || 'Failed to create XAMAN payload - returned null';
+      console.error('❌ Payload creation failed:', errorMsg);
+      throw new Error(errorMsg);
     }
 
     console.log('✅ Payment payload created:', payload.uuid);
