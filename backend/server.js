@@ -6263,14 +6263,23 @@ app.get('/api/beardrops/claim-status/:wallet', async (req, res) => {
     const claimedAmount = yesterdayClaim?.total_reward || claimedTodayByDate?.total_reward || null;
     const claimedTxHash = yesterdayClaim?.claim_tx_hash || claimedTodayByDate?.claim_tx_hash || null;
 
-    console.log(`📊 Claim status for ${wallet}: claimedToday=${claimedToday}, yesterdayClaim=${JSON.stringify(yesterdayClaim)}, totalPending=${totalPending}`);
+    // Final can_claim calculation - must have pending reward for YESTERDAY and not already claimed
+    const canClaim = honeyPoints24h >= minHoneyPoints && totalPending > 0 && !claimedToday;
+
+    console.log(`📊 Claim status for ${wallet}:`);
+    console.log(`   - yesterdayStr: ${yesterdayStr}`);
+    console.log(`   - pending count: ${pending?.length || 0}`);
+    console.log(`   - totalPending: ${totalPending}`);
+    console.log(`   - claimedToday: ${claimedToday}`);
+    console.log(`   - canClaim: ${canClaim}`);
+    console.log(`   - yesterdayClaim: ${JSON.stringify(yesterdayClaim)}`);
 
     res.json({
       success: true,
       wallet,
       honey_points_24h: honeyPoints24h,
       min_required: minHoneyPoints,
-      can_claim: honeyPoints24h >= minHoneyPoints && totalPending > 0 && !claimedToday,
+      can_claim: canClaim,
       claimed_today: claimedToday,
       claimed_amount: claimedAmount ? parseFloat(claimedAmount) : null,
       amount: claimedAmount ? parseFloat(claimedAmount) : null,
@@ -6279,6 +6288,8 @@ app.get('/api/beardrops/claim-status/:wallet', async (req, res) => {
       total_pending: claimedToday ? 0 : totalPending,  // If claimed, show 0 pending
       recent_claims: claimed || [],
       debug: {
+        yesterdayStr: yesterdayStr,
+        pendingCount: pending?.length || 0,
         yesterdayClaim: yesterdayClaim,
         claimedTodayByDate: !!claimedTodayByDate,
         yesterdaySnapshotClaimed: !!yesterdaySnapshotClaimed
