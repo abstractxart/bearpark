@@ -26231,7 +26231,10 @@
         const paymentData = await paymentResponse.json();
 
         if (!paymentData.success) {
-          throw new Error(paymentData.error || 'Failed to create payment request');
+          const errorMsg = paymentData.details
+            ? `${paymentData.error}: ${paymentData.details}`
+            : paymentData.error || 'Failed to create payment request';
+          throw new Error(errorMsg);
         }
 
         // Open XAMAN

@@ -2935,12 +2935,21 @@ app.post('/api/merch/request-payment', async (req, res) => {
       };
     }
 
+    // Check XUMM SDK is initialized
+    if (!xumm) {
+      console.error('❌ XUMM SDK not initialized for payment request');
+      return res.status(500).json({ success: false, error: 'XAMAN SDK not configured' });
+    }
+
     // Create XAMAN payload
+    console.log('Creating XAMAN payment payload for order:', order_id);
     const payload = await xumm.payload.create(payloadRequest);
 
     if (!payload) {
-      throw new Error('Failed to create XAMAN payload');
+      throw new Error('Failed to create XAMAN payload - returned null');
     }
+
+    console.log('✅ Payment payload created:', payload.uuid);
 
     // Update order with payload UUID
     await supabaseAdmin
@@ -2957,8 +2966,13 @@ app.post('/api/merch/request-payment', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error creating payment request:', error);
-    res.status(500).json({ success: false, error: 'Failed to create payment request' });
+    console.error('❌ Error creating payment request:', error.message);
+    console.error('Full error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create payment request',
+      details: error.message
+    });
   }
 });
 
