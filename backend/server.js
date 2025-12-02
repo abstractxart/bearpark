@@ -3057,72 +3057,56 @@ app.get('/api/merch/admin/debug', (req, res) => {
   });
 });
 
-// TEST endpoint - test multiple scenarios
+// TEST endpoint - try WITH and WITHOUT txjson wrapper
 app.get('/api/merch/test-payment', async (req, res) => {
   try {
     const apiKey = process.env.XAMAN_API_KEY;
     const apiSecret = process.env.XAMAN_API_SECRET;
-
-    if (!apiKey || !apiSecret) {
-      return res.json({ error: 'API keys not configured' });
-    }
-
     const results = {};
 
-    // Test 1: SignIn (should work)
-    const test1 = await fetch('https://xumm.app/api/v1/platform/payload', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-API-Key': apiKey,
-        'X-API-Secret': apiSecret
-      },
-      body: JSON.stringify({ txjson: { TransactionType: 'SignIn' } })
-    });
-    const test1Data = await test1.json();
-    results.signin = { status: test1.status, uuid: test1Data?.uuid || null, error: test1Data?.error };
+    // Test 1: SignIn WITH txjson wrapper
+    try {
+      const r1 = await fetch('https://xumm.app/api/v1/platform/payload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey, 'X-API-Secret': apiSecret },
+        body: JSON.stringify({ txjson: { TransactionType: 'SignIn' } })
+      });
+      results.signin_with_txjson = { status: r1.status, data: await r1.json() };
+    } catch (e) { results.signin_with_txjson = { error: e.message }; }
 
-    // Test 2: Payment to our wallet
-    const test2 = await fetch('https://xumm.app/api/v1/platform/payload', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-API-Key': apiKey,
-        'X-API-Secret': apiSecret
-      },
-      body: JSON.stringify({
-        txjson: {
-          TransactionType: 'Payment',
-          Destination: 'rBEARKfWJS1LYdg2g6t99BgbvpWY5pgMB9',
-          Amount: '1000000'
-        }
-      })
-    });
-    const test2Data = await test2.json();
-    results.payment_our_wallet = { status: test2.status, uuid: test2Data?.uuid || null, error: test2Data?.error };
+    // Test 2: SignIn WITHOUT txjson wrapper (direct)
+    try {
+      const r2 = await fetch('https://xumm.app/api/v1/platform/payload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey, 'X-API-Secret': apiSecret },
+        body: JSON.stringify({ TransactionType: 'SignIn' })
+      });
+      results.signin_direct = { status: r2.status, data: await r2.json() };
+    } catch (e) { results.signin_direct = { error: e.message }; }
 
-    // Test 3: Payment to Bitstamp (known active wallet)
-    const test3 = await fetch('https://xumm.app/api/v1/platform/payload', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-API-Key': apiKey,
-        'X-API-Secret': apiSecret
-      },
-      body: JSON.stringify({
-        txjson: {
-          TransactionType: 'Payment',
-          Destination: 'rDsbeomae4FXwgQTJp9Rs64Qg9vDiTCdBv',
-          Amount: '1000000'
-        }
-      })
-    });
-    const test3Data = await test3.json();
-    results.payment_bitstamp = { status: test3.status, uuid: test3Data?.uuid || null, error: test3Data?.error };
+    // Test 3: Payment WITH txjson wrapper
+    try {
+      const r3 = await fetch('https://xumm.app/api/v1/platform/payload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey, 'X-API-Secret': apiSecret },
+        body: JSON.stringify({ txjson: { TransactionType: 'Payment', Destination: 'rBEARKfWJS1LYdg2g6t99BgbvpWY5pgMB9', Amount: '1000000' } })
+      });
+      results.payment_with_txjson = { status: r3.status, data: await r3.json() };
+    } catch (e) { results.payment_with_txjson = { error: e.message }; }
+
+    // Test 4: Payment WITHOUT txjson wrapper (direct)
+    try {
+      const r4 = await fetch('https://xumm.app/api/v1/platform/payload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey, 'X-API-Secret': apiSecret },
+        body: JSON.stringify({ TransactionType: 'Payment', Destination: 'rBEARKfWJS1LYdg2g6t99BgbvpWY5pgMB9', Amount: '1000000' })
+      });
+      results.payment_direct = { status: r4.status, data: await r4.json() };
+    } catch (e) { results.payment_direct = { error: e.message }; }
 
     res.json(results);
   } catch (e) {
-    res.json({ error: e.message });
+    res.json({ outer_error: e.message });
   }
 });
 
