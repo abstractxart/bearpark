@@ -26281,20 +26281,35 @@
 
         // Check if XUMM payload was created (for XRP payments)
         if (paymentData.xumm_payload && paymentData.xumm_payload.next_url) {
-          // Open XUMM in new tab/popup
-          document.getElementById('merchProcessingTitle').textContent = 'Sign with XAMAN';
+          // Show QR code inline for scanning
+          document.getElementById('merchProcessingTitle').textContent = 'Complete Transaction in XAMAN';
+          const qrUrl = paymentData.xumm_payload.qr_png || '';
+          const deepLink = paymentData.xumm_payload.next_url;
+
           document.getElementById('merchSpinnerSection').innerHTML = `
-            <p style="color:#00ff88; font-size:16px; margin-bottom:15px;">Opening XAMAN wallet...</p>
-            <a href="${paymentData.xumm_payload.next_url}" target="_blank"
-               style="display:inline-block; background: linear-gradient(135deg, #3052ff, #00c3ff); color:#fff; text-decoration:none; padding:15px 30px; border-radius:12px; font-size:18px; font-weight:bold; margin-bottom:20px;">
-              📱 Open XAMAN Wallet
-            </a>
-            <p style="color:#888; font-size:12px;">If XAMAN didn't open automatically, click the button above.</p>
-            <div class="merch-spinner" style="width:30px; height:30px; border-width:3px; margin:20px auto 0;"></div>
-            <p style="color:#00ff88; margin-top:10px; font-size:14px;">Waiting for payment confirmation...</p>
+            <p style="color:#00ff88; font-size:16px; margin-bottom:15px;">Scan with XAMAN app or tap to open</p>
+
+            ${qrUrl ? `
+              <div style="background:#fff; padding:15px; border-radius:16px; display:inline-block; margin-bottom:20px;">
+                <img src="${qrUrl}" alt="Scan with XAMAN" style="width:200px; height:200px; display:block;">
+              </div>
+            ` : ''}
+
+            <div style="margin-bottom:15px;">
+              <a href="${deepLink}" target="_blank"
+                 style="display:inline-block; background: linear-gradient(135deg, #3052ff, #00c3ff); color:#fff; text-decoration:none; padding:15px 30px; border-radius:12px; font-size:18px; font-weight:bold;">
+                Open XAMAN Wallet
+              </a>
+            </div>
+
+            <p style="color:#888; font-size:13px; margin-bottom:20px;">
+              <strong>Amount:</strong> ${paymentData.amount} ${paymentData.currency}<br>
+              <strong>Order:</strong> ${paymentData.order_number}
+            </p>
+
+            <div class="merch-spinner" style="width:30px; height:30px; border-width:3px; margin:10px auto;"></div>
+            <p style="color:#00ff88; font-size:14px;">Waiting for payment confirmation...</p>
           `;
-          // Try to open XUMM automatically
-          window.open(paymentData.xumm_payload.next_url, '_blank');
         } else {
           // Manual payment flow (for RLUSD or fallback)
           document.getElementById('merchProcessingTitle').textContent = 'Complete Payment';
