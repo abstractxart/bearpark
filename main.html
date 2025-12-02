@@ -26574,15 +26574,17 @@ if (typeof window.addEventListener !== 'undefined') {
         const claimedToday = claimStatus.claimed_today || localClaimedFlag;
 
         // CRITICAL: Use backend's can_claim flag - it knows the real claim window rules
-        // Don't just check total_pending > 0, because that might show tomorrow's pending reward
+        // hasPendingClaim = true if there's ANY pending reward in database (even if can't claim yet due to low honey points)
+        // canActuallyClaim = true only if they meet ALL requirements (pending + honey points + not already claimed)
+        const hasPendingClaim = (claimStatus.total_pending || 0) > 0 && !claimedToday && !localClaimedFlag;
         const canActuallyClaim = claimStatus.can_claim === true && !claimedToday && !localClaimedFlag;
-        const hasPendingClaim = canActuallyClaim; // Only true if backend says we can claim
-        const pendingAmount = canActuallyClaim ? (claimStatus.total_pending || 0) : 0;
+        const pendingAmount = hasPendingClaim ? (claimStatus.total_pending || 0) : 0;
         const claimedAmount = claimStatus.claimed_amount || claimStatus.amount || 0;
 
         console.log('BEARDROPS DEBUG - claimedToday:', claimedToday, 'localFlag:', localClaimedFlag, 'backendFlag:', claimStatus.claimed_today);
+        console.log('BEARDROPS DEBUG - hasPendingClaim:', hasPendingClaim, 'total_pending:', claimStatus.total_pending);
         console.log('BEARDROPS DEBUG - canActuallyClaim:', canActuallyClaim, 'can_claim from API:', claimStatus.can_claim);
-        console.log('BEARDROPS DEBUG - hasPendingClaim:', hasPendingClaim, 'pendingAmount:', pendingAmount);
+        console.log('BEARDROPS DEBUG - honey points:', hp, '/', _hp, 'enough:', hp >= _hp);
 
         if (claimedToday) {
           // Already claimed - show CLEAR claimed state with greyed button
