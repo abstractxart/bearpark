@@ -13239,6 +13239,13 @@
 
   // === AUTHENTICATION CHECK - Prevent bypass ===
   (function checkAuth(){
+    // BACKWARDS COMPATIBILITY: Migrate sessionStorage to localStorage for old logins
+    if (!localStorage.getItem('bearpark_wallet') && sessionStorage.getItem('bearpark_wallet')) {
+      localStorage.setItem('bearpark_wallet', sessionStorage.getItem('bearpark_wallet'));
+      localStorage.setItem('bearpark_auth', 'true');
+      console.log('✅ Migrated wallet from sessionStorage to localStorage');
+    }
+
     const isAuthenticated = localStorage.getItem('bearpark_auth');
     const authenticatedWallet = localStorage.getItem('bearpark_wallet');
 
@@ -26352,8 +26359,13 @@ if (typeof window.addEventListener !== 'undefined') {
 
     // SECURITY: Server-side verification - cannot be bypassed via localStorage manipulation
     async function _chk() {
-      const w = localStorage.getItem('bearpark_wallet');
-      if (!w) return false;
+      // Get wallet from localStorage (or sessionStorage for backwards compatibility)
+      let w = localStorage.getItem('bearpark_wallet');
+      if (!w) w = sessionStorage.getItem('bearpark_wallet');
+      if (!w) {
+        console.log('🐻 BEARdrops: No wallet found');
+        return false;
+      }
 
       // Check cache first
       if (_eligibilityCache.wallet === w &&
