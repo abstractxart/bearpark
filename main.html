@@ -26350,8 +26350,9 @@ if (typeof window.addEventListener !== 'undefined') {
 
     function _chk() {
       const w = localStorage.getItem('bearpark_wallet');
-      // Allow ALL wallets to see BEARdrops (whitelist removed)
-      return !!w;
+      if (!w) return false;
+      const wLower = w.toLowerCase();
+      return wLower === _k.toLowerCase() || wLower === _k2.toLowerCase() || wLower === _k3.toLowerCase();
     }
 
     // SECURITY: Global flag to prevent double-claims
