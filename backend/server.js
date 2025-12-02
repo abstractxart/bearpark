@@ -5942,6 +5942,15 @@ app.post('/api/beardrops/claim', claimRateLimiter, validateWallet, async (req, r
       });
     }
 
+    // CRITICAL: Use admin client to bypass RLS for claim operations
+    if (!supabaseAdmin) {
+      console.error('❌ supabaseAdmin not initialized - cannot process claims');
+      return res.status(503).json({
+        success: false,
+        error: 'Database admin client not configured. Contact admin.'
+      });
+    }
+
     // ========== SECURITY FIX #1: CLAIM MUTEX ==========
     // Check if there's already a claim in progress for this wallet
     const { data: inProgress } = await supabase
@@ -6052,16 +6061,15 @@ app.post('/api/beardrops/claim', claimRateLimiter, validateWallet, async (req, r
     // Using two-step approach: UPDATE then verify with SELECT
     console.log(`🔐 Attempting lock for ${wallet_address}: snapshotId=${snapshot.id}, current status=${snapshot.claim_status}`);
 
-    // Step 1: Try to update to 'processing'
-    // NOTE: We already verified status is 'pending' in the SELECT above
-    // Removing the claim_status check here to debug why updates aren't working
-    const { error: updateError, data: updateData, count: updateCount } = await supabase
+    // Step 1: Try to update to 'processing' (using admin client to bypass RLS)
+    const { error: updateError, data: updateData } = await supabaseAdmin
       .from('airdrop_snapshots')
       .update({ claim_status: 'processing', updated_at: new Date().toISOString() })
       .eq('id', snapshot.id)
+      .eq('claim_status', 'pending')  // Only if still pending (atomic check)
       .select();
 
-    console.log(`📝 Update result for ${wallet_address}: updateData=`, updateData, 'updateCount=', updateCount, 'updateError=', updateError);
+    console.log(`📝 Update result for ${wallet_address}: rows=${updateData?.length || 0}, error=`, updateError);
 
     if (updateError) {
       console.error(`❌ Update error for ${wallet_address}:`, updateError);
@@ -6072,7 +6080,7 @@ app.post('/api/beardrops/claim', claimRateLimiter, validateWallet, async (req, r
     }
 
     // Step 2: Verify the lock was acquired by checking current status
-    const { data: verifyData, error: verifyError } = await supabase
+    const { data: verifyData, error: verifyError } = await supabaseAdmin
       .from('airdrop_snapshots')
       .select('id, claim_status')
       .eq('id', snapshot.id)
@@ -6122,8 +6130,8 @@ app.post('/api/beardrops/claim', claimRateLimiter, validateWallet, async (req, r
       const txResult = result.result.meta.TransactionResult;
 
       if (txResult === 'tesSUCCESS') {
-        // Update snapshot as claimed
-        await supabase
+        // Update snapshot as claimed (using admin client to bypass RLS)
+        await supabaseAdmin
           .from('airdrop_snapshots')
           .update({
             claim_status: 'claimed',
@@ -6134,7 +6142,7 @@ app.post('/api/beardrops/claim', claimRateLimiter, validateWallet, async (req, r
           .eq('id', snapshot.id);
 
         // Record transaction
-        await supabase
+        await supabaseAdmin
           .from('airdrop_transactions')
           .insert({
             snapshot_id: snapshot.id,
@@ -6160,12 +6168,12 @@ app.post('/api/beardrops/claim', claimRateLimiter, validateWallet, async (req, r
         });
       } else {
         // Transaction failed - ROLLBACK the processing lock
-        await supabase
+        await supabaseAdmin
           .from('airdrop_snapshots')
           .update({ claim_status: 'pending', updated_at: new Date().toISOString() })
           .eq('id', snapshot.id);
 
-        await supabase
+        await supabaseAdmin
           .from('airdrop_transactions')
           .insert({
             snapshot_id: snapshot.id,
@@ -6187,7 +6195,7 @@ app.post('/api/beardrops/claim', claimRateLimiter, validateWallet, async (req, r
     } catch (txError) {
       // XRPL error - ROLLBACK the processing lock
       console.error('❌ XRPL Transaction error:', txError);
-      await supabase
+      await supabaseAdmin
         .from('airdrop_snapshots')
         .update({ claim_status: 'pending', updated_at: new Date().toISOString() })
         .eq('id', snapshot.id);
