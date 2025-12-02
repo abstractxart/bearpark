@@ -435,8 +435,8 @@
         // Grant access if any requirement is met
         if(hasTokens || hasNFT){
           showStatus('✓ Access granted! Redirecting...', 'success');
-          sessionStorage.setItem('bearpark_auth', 'true');
-          sessionStorage.setItem('bearpark_wallet', walletAddress);
+          localStorage.setItem('bearpark_auth', 'true');
+          localStorage.setItem('bearpark_wallet', walletAddress);
           setTimeout(() => {
             window.location.href = 'main.html';
           }, 2000);
