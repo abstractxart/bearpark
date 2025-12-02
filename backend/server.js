@@ -2848,90 +2848,26 @@ app.post('/api/merch/request-payment', async (req, res) => {
     const MERCH_WALLET = process.env.MERCH_WALLET || 'rBEARKfWJS1LYdg2g6t99BgbvpWY5pgMB9';
 
     let payloadRequest;
-    const timestamp = new Date().toISOString();
-    const receiptText = `BEAR PARK MERCH RECEIPT | Order: ${order.order_number} | Item: ${order.product_id} (${order.size}) | Amount: $${amount_usd} USD | Date: ${timestamp.split('T')[0]} | www.bearpark.xyz`;
 
+    // Use simple transaction format (same as working SignIn endpoint)
+    // No txjson wrapper, no options - just the raw transaction
     if (payment_method === 'RLUSD') {
       payloadRequest = {
-        txjson: {
-          TransactionType: 'Payment',
-          Destination: MERCH_WALLET,
-          Amount: {
-            currency: 'RLUSD',
-            issuer: RLUSD_ISSUER,
-            value: amount_usd.toString()
-          },
-          Memos: [
-            {
-              Memo: {
-                MemoType: Buffer.from('text/plain').toString('hex').toUpperCase(),
-                MemoData: Buffer.from(receiptText).toString('hex').toUpperCase()
-              }
-            },
-            {
-              Memo: {
-                MemoType: Buffer.from('BEAR_MERCH').toString('hex').toUpperCase(),
-                MemoData: Buffer.from(JSON.stringify({
-                  order_id,
-                  order_number: order.order_number,
-                  product: order.product_id,
-                  size: order.size,
-                  amount_usd,
-                  currency: 'RLUSD',
-                  timestamp
-                })).toString('hex').toUpperCase()
-              }
-            }
-          ]
-        },
-        options: {
-          submit: true,
-          return_url: {
-            web: `https://www.bearpark.xyz/main.html?merch_order=${order_id}`
-          }
+        TransactionType: 'Payment',
+        Destination: MERCH_WALLET,
+        Amount: {
+          currency: 'RLUSD',
+          issuer: RLUSD_ISSUER,
+          value: amount_usd.toString()
         }
       };
     } else {
       // XRP payment
       const xrpAmount = (amount_usd / xrp_price).toFixed(6);
-      const xrpReceiptText = `BEAR PARK MERCH RECEIPT | Order: ${order.order_number} | Item: ${order.product_id} (${order.size}) | Amount: $${amount_usd} USD (~${xrpAmount} XRP @ $${xrp_price}) | Date: ${timestamp.split('T')[0]} | www.bearpark.xyz`;
-
       payloadRequest = {
-        txjson: {
-          TransactionType: 'Payment',
-          Destination: MERCH_WALLET,
-          Amount: (parseFloat(xrpAmount) * 1000000).toString(), // XRP in drops
-          Memos: [
-            {
-              Memo: {
-                MemoType: Buffer.from('text/plain').toString('hex').toUpperCase(),
-                MemoData: Buffer.from(xrpReceiptText).toString('hex').toUpperCase()
-              }
-            },
-            {
-              Memo: {
-                MemoType: Buffer.from('BEAR_MERCH_XRP').toString('hex').toUpperCase(),
-                MemoData: Buffer.from(JSON.stringify({
-                  order_id,
-                  order_number: order.order_number,
-                  product: order.product_id,
-                  size: order.size,
-                  amount_usd,
-                  xrp_amount: xrpAmount,
-                  xrp_price,
-                  currency: 'XRP',
-                  timestamp
-                })).toString('hex').toUpperCase()
-              }
-            }
-          ]
-        },
-        options: {
-          submit: true,
-          return_url: {
-            web: `https://www.bearpark.xyz/main.html?merch_order=${order_id}`
-          }
-        }
+        TransactionType: 'Payment',
+        Destination: MERCH_WALLET,
+        Amount: Math.floor(parseFloat(xrpAmount) * 1000000).toString() // XRP in drops
       };
     }
 
@@ -2941,12 +2877,12 @@ app.post('/api/merch/request-payment', async (req, res) => {
       return res.status(500).json({ success: false, error: 'XAMAN SDK not configured' });
     }
 
-    // Create XAMAN payload
+    // Create XAMAN payload (same format as working SignIn endpoint)
     console.log('Creating XAMAN payment payload for order:', order_id);
-    console.log('Full payload request:', JSON.stringify(payloadRequest, null, 2));
+    console.log('Payment request:', JSON.stringify(payloadRequest, null, 2));
 
-    // Pass the full payload object with txjson and options
-    const payload = await xumm.payload.create(payloadRequest);
+    // Use same format as working SignIn: xumm.payload.create(transaction, true)
+    const payload = await xumm.payload.create(payloadRequest, true);
 
     console.log('Payload result:', JSON.stringify(payload, null, 2));
 
