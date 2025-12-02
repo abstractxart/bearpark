@@ -2848,6 +2848,8 @@ app.post('/api/merch/request-payment', async (req, res) => {
     const MERCH_WALLET = process.env.MERCH_WALLET || 'rBEARKfWJS1LYdg2g6t99BgbvpWY5pgMB9';
 
     let payloadRequest;
+    const timestamp = new Date().toISOString();
+    const receiptText = `BEAR PARK MERCH RECEIPT | Order: ${order.order_number} | Item: ${order.product_id} (${order.size}) | Amount: $${amount_usd} USD | Date: ${timestamp.split('T')[0]} | www.bearpark.xyz`;
 
     if (payment_method === 'RLUSD') {
       payloadRequest = {
@@ -2859,12 +2861,28 @@ app.post('/api/merch/request-payment', async (req, res) => {
             issuer: RLUSD_ISSUER,
             value: amount_usd.toString()
           },
-          Memos: [{
-            Memo: {
-              MemoType: Buffer.from('BEAR_MERCH').toString('hex').toUpperCase(),
-              MemoData: Buffer.from(JSON.stringify({ order_id, order_number: order.order_number })).toString('hex').toUpperCase()
+          Memos: [
+            {
+              Memo: {
+                MemoType: Buffer.from('text/plain').toString('hex').toUpperCase(),
+                MemoData: Buffer.from(receiptText).toString('hex').toUpperCase()
+              }
+            },
+            {
+              Memo: {
+                MemoType: Buffer.from('BEAR_MERCH').toString('hex').toUpperCase(),
+                MemoData: Buffer.from(JSON.stringify({
+                  order_id,
+                  order_number: order.order_number,
+                  product: order.product_id,
+                  size: order.size,
+                  amount_usd,
+                  currency: 'RLUSD',
+                  timestamp
+                })).toString('hex').toUpperCase()
+              }
             }
-          }]
+          ]
         },
         options: {
           submit: true,
@@ -2876,17 +2894,37 @@ app.post('/api/merch/request-payment', async (req, res) => {
     } else {
       // XRP payment
       const xrpAmount = (amount_usd / xrp_price).toFixed(6);
+      const xrpReceiptText = `BEAR PARK MERCH RECEIPT | Order: ${order.order_number} | Item: ${order.product_id} (${order.size}) | Amount: $${amount_usd} USD (~${xrpAmount} XRP @ $${xrp_price}) | Date: ${timestamp.split('T')[0]} | www.bearpark.xyz`;
+
       payloadRequest = {
         txjson: {
           TransactionType: 'Payment',
           Destination: MERCH_WALLET,
           Amount: (parseFloat(xrpAmount) * 1000000).toString(), // XRP in drops
-          Memos: [{
-            Memo: {
-              MemoType: Buffer.from('BEAR_MERCH_XRP').toString('hex').toUpperCase(),
-              MemoData: Buffer.from(JSON.stringify({ order_id, order_number: order.order_number, swap_to_rlusd: true })).toString('hex').toUpperCase()
+          Memos: [
+            {
+              Memo: {
+                MemoType: Buffer.from('text/plain').toString('hex').toUpperCase(),
+                MemoData: Buffer.from(xrpReceiptText).toString('hex').toUpperCase()
+              }
+            },
+            {
+              Memo: {
+                MemoType: Buffer.from('BEAR_MERCH_XRP').toString('hex').toUpperCase(),
+                MemoData: Buffer.from(JSON.stringify({
+                  order_id,
+                  order_number: order.order_number,
+                  product: order.product_id,
+                  size: order.size,
+                  amount_usd,
+                  xrp_amount: xrpAmount,
+                  xrp_price,
+                  currency: 'XRP',
+                  timestamp
+                })).toString('hex').toUpperCase()
+              }
             }
-          }]
+          ]
         },
         options: {
           submit: true,
