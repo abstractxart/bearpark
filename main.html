@@ -22622,11 +22622,29 @@
           </div>
           <div class="merch-payment-info">
             <strong>ℹ️ PAYMENT INFO</strong><br>
-            Payment will be requested via XAMAN wallet. Make sure you have sufficient balance.<br><br>
+            Choose your preferred wallet to complete payment. Make sure you have sufficient balance.<br><br>
             If paying with XRP, it will be instantly swapped to RLUSD to lock in the $30 value.
           </div>
-          <button class="merch-btn-primary" onclick="merchCompletePurchase()" style="width:100%; margin-top:20px;">
-            🔐 COMPLETE PURCHASE WITH XAMAN
+
+          <!-- Wallet Selection -->
+          <div style="margin-top:20px;">
+            <p style="color:#00ff88; font-weight:600; margin-bottom:12px;">SELECT WALLET:</p>
+            <div style="display:flex; gap:12px; flex-wrap:wrap;">
+              <button class="merch-wallet-btn" id="walletXaman" onclick="selectMerchWallet('xaman')" style="flex:1; min-width:140px; padding:15px; border-radius:12px; border:2px solid #680cd9; background:linear-gradient(135deg, rgba(104,12,217,0.2), rgba(104,12,217,0.1)); color:#fff; cursor:pointer; transition:all 0.3s;">
+                <div style="font-size:28px; margin-bottom:8px;">📱</div>
+                <div style="font-weight:700; font-size:16px;">XAMAN</div>
+                <div style="font-size:11px; color:#888; margin-top:4px;">(formerly XUMM)</div>
+              </button>
+              <button class="merch-wallet-btn" id="walletJoey" onclick="selectMerchWallet('joey')" style="flex:1; min-width:140px; padding:15px; border-radius:12px; border:2px solid #f59e0b; background:linear-gradient(135deg, rgba(245,158,11,0.2), rgba(245,158,11,0.1)); color:#fff; cursor:pointer; transition:all 0.3s;">
+                <div style="font-size:28px; margin-bottom:8px;">🦘</div>
+                <div style="font-weight:700; font-size:16px;">JOEY</div>
+                <div style="font-size:11px; color:#888; margin-top:4px;">Wallet</div>
+              </button>
+            </div>
+          </div>
+
+          <button class="merch-btn-primary" id="merchFinalPayBtn" onclick="merchCompletePurchase()" style="width:100%; margin-top:20px;" disabled>
+            🔐 SELECT A WALLET ABOVE
           </button>
         </div>
       </div>
@@ -25969,6 +25987,7 @@
     let merchShippingData = {};
     let merchXrpPrice = 2.10;
     let merchRateInterval = null;
+    let merchSelectedWallet = null; // 'xaman' or 'joey'
 
     function openMerchStoreModal() {
       document.getElementById('merchStoreModal').classList.add('active');
@@ -25983,12 +26002,51 @@
       if (merchRateInterval) clearInterval(merchRateInterval);
     }
 
+    function selectMerchWallet(wallet) {
+      merchSelectedWallet = wallet;
+      const xamanBtn = document.getElementById('walletXaman');
+      const joeyBtn = document.getElementById('walletJoey');
+      const payBtn = document.getElementById('merchFinalPayBtn');
+
+      // Reset both buttons
+      xamanBtn.style.border = '2px solid #680cd9';
+      xamanBtn.style.background = 'linear-gradient(135deg, rgba(104,12,217,0.2), rgba(104,12,217,0.1))';
+      xamanBtn.style.transform = 'scale(1)';
+      joeyBtn.style.border = '2px solid #f59e0b';
+      joeyBtn.style.background = 'linear-gradient(135deg, rgba(245,158,11,0.2), rgba(245,158,11,0.1))';
+      joeyBtn.style.transform = 'scale(1)';
+
+      // Highlight selected wallet
+      if (wallet === 'xaman') {
+        xamanBtn.style.border = '3px solid #00ff88';
+        xamanBtn.style.background = 'linear-gradient(135deg, rgba(0,255,136,0.3), rgba(104,12,217,0.2))';
+        xamanBtn.style.transform = 'scale(1.05)';
+        payBtn.innerHTML = '📱 COMPLETE PAYMENT WITH XAMAN';
+      } else if (wallet === 'joey') {
+        joeyBtn.style.border = '3px solid #00ff88';
+        joeyBtn.style.background = 'linear-gradient(135deg, rgba(0,255,136,0.3), rgba(245,158,11,0.2))';
+        joeyBtn.style.transform = 'scale(1.05)';
+        payBtn.innerHTML = '🦘 COMPLETE PAYMENT WITH JOEY';
+      }
+
+      payBtn.disabled = false;
+      payBtn.style.opacity = '1';
+      payBtn.style.cursor = 'pointer';
+    }
+
     function merchResetState() {
       merchCurrentProduct = null;
       merchSelectedSize = null;
       merchShippingData = {};
+      merchSelectedWallet = null;
       document.querySelectorAll('.merch-screen').forEach(s => s.style.display = 'none');
       document.getElementById('merchScreen-gallery').style.display = 'block';
+      // Reset wallet selection UI
+      const payBtn = document.getElementById('merchFinalPayBtn');
+      if (payBtn) {
+        payBtn.innerHTML = '🔐 SELECT A WALLET ABOVE';
+        payBtn.disabled = true;
+      }
     }
 
     function merchShowScreen(screen) {
@@ -26230,6 +26288,11 @@
         return;
       }
 
+      if (!merchSelectedWallet) {
+        alert('Please select a wallet (XAMAN or Joey) to continue!');
+        return;
+      }
+
       // Reset processing screen to spinner state
       document.getElementById('merchSpinnerSection').style.display = 'block';
       document.getElementById('merchPaymentInstructions').style.display = 'none';
@@ -26268,7 +26331,8 @@
             order_id: orderData.order_id,
             payment_method: paymentMethod,
             amount_usd: 30,
-            xrp_price: merchXrpPrice
+            xrp_price: merchXrpPrice,
+            wallet_type: merchSelectedWallet // 'xaman' or 'joey'
           })
         });
 
@@ -26281,9 +26345,144 @@
           throw new Error(errorMsg);
         }
 
-        // Check if XUMM payload was created (for XRP payments)
-        if (paymentData.xumm_payload && paymentData.xumm_payload.next_url) {
-          // Show QR code inline for scanning
+        // Handle wallet-specific payment flows
+        if (merchSelectedWallet === 'joey') {
+          // Joey wallet flow - create deep link
+          document.getElementById('merchProcessingTitle').textContent = 'Complete Transaction in Joey';
+
+          // Build Joey deep link
+          const joeyAmount = paymentData.amount;
+          const joeyDestination = paymentData.destination_address;
+          const joeyTag = paymentData.destination_tag;
+          const joeyCurrency = paymentData.currency;
+          const joeyIssuer = paymentData.issuer || '';
+
+          let joeyDeepLink;
+          if (joeyCurrency === 'XRP') {
+            joeyDeepLink = `joeywallet://payment?to=${joeyDestination}&amount=${joeyAmount}&currency=XRP&dt=${joeyTag}`;
+          } else {
+            // For RLUSD and other tokens
+            joeyDeepLink = `joeywallet://payment?to=${joeyDestination}&amount=${joeyAmount}&currency=${joeyCurrency}&issuer=${joeyIssuer}&dt=${joeyTag}`;
+          }
+
+          document.getElementById('merchSpinnerSection').innerHTML = `
+            <style>
+              @keyframes joey-bounce {
+                0%, 100% { transform: translateY(0); }
+                50% { transform: translateY(-10px); }
+              }
+              @keyframes joey-rotate {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
+              @keyframes joey-glow {
+                0%, 100% { box-shadow: 0 0 20px rgba(245,158,11,0.3); }
+                50% { box-shadow: 0 0 40px rgba(245,158,11,0.6); }
+              }
+              .joey-icon {
+                font-size: 80px;
+                animation: joey-bounce 1s ease-in-out infinite;
+              }
+              .joey-spinner-ring {
+                width: 60px; height: 60px;
+                border: 4px solid rgba(245,158,11,0.2);
+                border-top: 4px solid #f59e0b;
+                border-radius: 50%;
+                animation: joey-rotate 1s linear infinite;
+                margin: 0 auto;
+              }
+              .joey-waiting-container {
+                background: linear-gradient(135deg, rgba(245,158,11,0.1), rgba(234,88,12,0.1));
+                border-radius: 16px;
+                padding: 25px;
+                margin-top: 20px;
+                border: 1px solid rgba(245,158,11,0.3);
+                animation: joey-glow 2s ease-in-out infinite;
+              }
+              .joey-step {
+                display: flex; align-items: center; gap: 12px;
+                padding: 10px 0; color: #888; font-size: 14px;
+                transition: all 0.3s ease;
+              }
+              .joey-step.active { color: #f59e0b; }
+              .joey-step.completed { color: #f59e0b; }
+              .joey-step-icon {
+                width: 24px; height: 24px;
+                border-radius: 50%;
+                display: flex; align-items: center; justify-content: center;
+                font-size: 12px;
+                background: rgba(255,255,255,0.1);
+                border: 2px solid currentColor;
+              }
+              .joey-step.active .joey-step-icon {
+                background: #f59e0b;
+                color: #000;
+                border-color: #f59e0b;
+              }
+              .joey-step.completed .joey-step-icon {
+                background: #f59e0b;
+                color: #000;
+              }
+            </style>
+
+            <div class="joey-icon">🦘</div>
+            <p style="color:#f59e0b; font-size:16px; margin:15px 0;">Tap below to open Joey Wallet</p>
+
+            <div style="margin-bottom:15px;">
+              <a href="${joeyDeepLink}"
+                 style="display:inline-block; background: linear-gradient(135deg, #f59e0b, #ea580c); color:#fff; text-decoration:none; padding:15px 30px; border-radius:12px; font-size:18px; font-weight:bold;">
+                🦘 Open Joey Wallet
+              </a>
+            </div>
+
+            <p style="color:#888; font-size:13px; margin-bottom:10px;">
+              <strong>Amount:</strong> ${paymentData.amount} ${paymentData.currency} &nbsp;|&nbsp; <strong>Order:</strong> ${paymentData.order_number}
+            </p>
+
+            <div class="joey-waiting-container">
+              <div class="joey-spinner-ring"></div>
+              <p class="joey-status-text" id="joeyStatusText" style="color:#f59e0b; font-size:18px; font-weight:600; margin-top:15px;">
+                Waiting for payment
+              </p>
+              <p style="color:#888; font-size:12px; margin-top:5px;">Complete transaction in Joey Wallet</p>
+
+              <div style="margin-top:20px; text-align:left; max-width:280px; margin-left:auto; margin-right:auto;">
+                <div class="joey-step active" id="joeyStep1">
+                  <div class="joey-step-icon">1</div>
+                  <span>Open Joey & confirm payment</span>
+                </div>
+                <div class="joey-step" id="joeyStep2">
+                  <div class="joey-step-icon">2</div>
+                  <span>Confirming on XRP Ledger</span>
+                </div>
+                <div class="joey-step" id="joeyStep3">
+                  <div class="joey-step-icon">3</div>
+                  <span>Payment verified</span>
+                </div>
+              </div>
+            </div>
+
+            <p style="color:#ff6b6b; font-size:13px; margin-top:20px; padding:12px 15px; background:rgba(255,107,107,0.1); border-radius:10px; border:1px solid rgba(255,107,107,0.3);">
+              <strong>Please wait after signing.</strong> Do not refresh or close this page!
+            </p>
+          `;
+
+          // Animate steps after a delay
+          setTimeout(() => {
+            const step1 = document.getElementById('joeyStep1');
+            const step2 = document.getElementById('joeyStep2');
+            const statusText = document.getElementById('joeyStatusText');
+            if (step1 && step2 && statusText) {
+              step1.classList.remove('active');
+              step1.classList.add('completed');
+              step1.querySelector('.joey-step-icon').innerHTML = '✓';
+              step2.classList.add('active');
+              statusText.textContent = 'Confirming payment';
+            }
+          }, 8000);
+
+        } else if (paymentData.xumm_payload && paymentData.xumm_payload.next_url) {
+          // XAMAN wallet flow - use XUMM payload with QR code
           document.getElementById('merchProcessingTitle').textContent = 'Complete Transaction in XAMAN';
           const qrUrl = paymentData.xumm_payload.qr_png || '';
           const deepLink = paymentData.xumm_payload.next_url;
