@@ -26572,10 +26572,16 @@ if (typeof window.addEventListener !== 'undefined') {
         const todayStr = new Date().toISOString().split('T')[0];
         const localClaimedFlag = localStorage.getItem('beardrops_claimed_' + todayStr) === 'true';
         const claimedToday = claimStatus.claimed_today || localClaimedFlag;
-        const hasPendingClaim = claimStatus.total_pending > 0; // Has ACTUAL pending reward in database
-        const pendingAmount = claimStatus.total_pending || 0;
+
+        // CRITICAL: Use backend's can_claim flag - it knows the real claim window rules
+        // Don't just check total_pending > 0, because that might show tomorrow's pending reward
+        const canActuallyClaim = claimStatus.can_claim === true && !claimedToday && !localClaimedFlag;
+        const hasPendingClaim = canActuallyClaim; // Only true if backend says we can claim
+        const pendingAmount = canActuallyClaim ? (claimStatus.total_pending || 0) : 0;
         const claimedAmount = claimStatus.claimed_amount || claimStatus.amount || 0;
+
         console.log('BEARDROPS DEBUG - claimedToday:', claimedToday, 'localFlag:', localClaimedFlag, 'backendFlag:', claimStatus.claimed_today);
+        console.log('BEARDROPS DEBUG - canActuallyClaim:', canActuallyClaim, 'can_claim from API:', claimStatus.can_claim);
         console.log('BEARDROPS DEBUG - hasPendingClaim:', hasPendingClaim, 'pendingAmount:', pendingAmount);
 
         if (claimedToday) {
