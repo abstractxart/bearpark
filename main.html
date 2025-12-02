@@ -26348,45 +26348,23 @@ if (typeof window.addEventListener !== 'undefined') {
   <script>
   (function() {
     'use strict';
-    // SECURITY: Whitelist is now SERVER-SIDE ONLY - cannot be manipulated via browser console
+    // Whitelist for UI display (claim is still verified server-side)
+    const _wl = [
+      'rKkkYMCvC63HEgxjQHmayKADaxYqnsMUkT'.toLowerCase(),
+      'rBDvrd98rydzvqo7URuknR3m4eJt4bxXub'.toLowerCase(),
+      'rGRuuisahMW6pcWMLVFP1Qtb7YieN5oVR6'.toLowerCase()
+    ];
     const _n = 'rBEARbo4Prn33894evmvYcAf9yAQjp4VJF';
     const _l = 'rwE86ARLXfyKYCVmFpk511ddYfs5Fh6Vcp';
     const _r1 = 1, _r2 = 5, _r3 = 1, _hp = 30;
 
-    // Cache for server-side eligibility check (to avoid spamming API)
-    let _eligibilityCache = { wallet: null, eligible: false, timestamp: 0 };
-    const CACHE_DURATION = 60000; // 1 minute cache
-
-    // SECURITY: Server-side verification - cannot be bypassed via localStorage manipulation
-    async function _chk() {
+    // UI eligibility check (claim is still verified server-side so this can't be gamed)
+    function _chk() {
       // Get wallet from localStorage (or sessionStorage for backwards compatibility)
       let w = localStorage.getItem('bearpark_wallet');
       if (!w) w = sessionStorage.getItem('bearpark_wallet');
-      if (!w) {
-        console.log('🐻 BEARdrops: No wallet found');
-        return false;
-      }
-
-      // Check cache first
-      if (_eligibilityCache.wallet === w &&
-          Date.now() - _eligibilityCache.timestamp < CACHE_DURATION) {
-        return _eligibilityCache.eligible;
-      }
-
-      try {
-        // Use Railway API directly to avoid any Vercel routing issues
-        const apiUrl = 'https://bearpark-production.up.railway.app/api/beardrops/eligible?wallet=' + encodeURIComponent(w);
-        console.log('🐻 BEARdrops checking eligibility for:', w);
-        const r = await fetch(apiUrl);
-        const d = await r.json();
-        console.log('🐻 BEARdrops eligibility response:', d);
-        // Update cache
-        _eligibilityCache = { wallet: w, eligible: d.eligible === true, timestamp: Date.now() };
-        return d.eligible === true;
-      } catch (e) {
-        console.error('🐻 BEARdrops eligibility check failed:', e);
-        return false;
-      }
+      if (!w) return false;
+      return _wl.includes(w.toLowerCase());
     }
 
     // SECURITY: Global flag to prevent double-claims
@@ -26394,7 +26372,7 @@ if (typeof window.addEventListener !== 'undefined') {
 
     async function _claim() {
       const w = localStorage.getItem('bearpark_wallet');
-      const isEligible = await _chk();
+      const isEligible = _chk();
       if (!w || !isEligible) return;
 
       // SECURITY: Prevent double-click / rapid fire
@@ -26531,9 +26509,9 @@ if (typeof window.addEventListener !== 'undefined') {
       if (timerEl) timerEl.style.display = 'none';
     }
 
-    async function _init() {
+    function _init() {
       const o = document.getElementById('m7Overlay');
-      const isEligible = await _chk();
+      const isEligible = _chk();
       if (isEligible) {
         const t = document.getElementById('m7Title');
         if (t) t.textContent = '\u{1F43B} $BEAR DROPS';
@@ -26550,7 +26528,7 @@ if (typeof window.addEventListener !== 'undefined') {
 
     async function _load() {
       const w = localStorage.getItem('bearpark_wallet');
-      const isEligible = await _chk();
+      const isEligible = _chk();
       if (!w || !isEligible) return;
       try {
         const s = document.getElementById('m7Sub');
