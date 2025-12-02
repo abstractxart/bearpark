@@ -26287,10 +26287,81 @@
           const deepLink = paymentData.xumm_payload.next_url;
 
           document.getElementById('merchSpinnerSection').innerHTML = `
+            <style>
+              @keyframes xaman-pulse {
+                0%, 100% { transform: scale(1); opacity: 1; }
+                50% { transform: scale(1.05); opacity: 0.8; }
+              }
+              @keyframes xaman-rotate {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
+              @keyframes xaman-dots {
+                0%, 20% { content: '.'; }
+                40% { content: '..'; }
+                60%, 100% { content: '...'; }
+              }
+              @keyframes xaman-glow {
+                0%, 100% { box-shadow: 0 0 20px rgba(0,255,136,0.3); }
+                50% { box-shadow: 0 0 40px rgba(0,255,136,0.6); }
+              }
+              @keyframes xaman-progress {
+                0% { width: 0%; }
+                100% { width: 100%; }
+              }
+              .xaman-qr-container {
+                animation: xaman-pulse 2s ease-in-out infinite;
+              }
+              .xaman-spinner-ring {
+                width: 60px; height: 60px;
+                border: 4px solid rgba(0,255,136,0.2);
+                border-top: 4px solid #00ff88;
+                border-radius: 50%;
+                animation: xaman-rotate 1s linear infinite;
+                margin: 0 auto;
+              }
+              .xaman-status-text::after {
+                animation: xaman-dots 1.5s steps(1) infinite;
+                content: '...';
+              }
+              .xaman-waiting-container {
+                background: linear-gradient(135deg, rgba(0,255,136,0.1), rgba(104,12,217,0.1));
+                border-radius: 16px;
+                padding: 25px;
+                margin-top: 20px;
+                border: 1px solid rgba(0,255,136,0.3);
+                animation: xaman-glow 2s ease-in-out infinite;
+              }
+              .xaman-step {
+                display: flex; align-items: center; gap: 12px;
+                padding: 10px 0; color: #888; font-size: 14px;
+                transition: all 0.3s ease;
+              }
+              .xaman-step.active { color: #00ff88; }
+              .xaman-step.completed { color: #00ff88; }
+              .xaman-step-icon {
+                width: 24px; height: 24px;
+                border-radius: 50%;
+                display: flex; align-items: center; justify-content: center;
+                font-size: 12px;
+                background: rgba(255,255,255,0.1);
+                border: 2px solid currentColor;
+              }
+              .xaman-step.active .xaman-step-icon {
+                background: #00ff88;
+                color: #000;
+                border-color: #00ff88;
+              }
+              .xaman-step.completed .xaman-step-icon {
+                background: #00ff88;
+                color: #000;
+              }
+            </style>
+
             <p style="color:#00ff88; font-size:16px; margin-bottom:15px;">Scan with XAMAN app or tap to open</p>
 
             ${qrUrl ? `
-              <div style="background:#fff; padding:15px; border-radius:16px; display:inline-block; margin-bottom:20px;">
+              <div class="xaman-qr-container" style="background:#fff; padding:15px; border-radius:16px; display:inline-block; margin-bottom:20px;">
                 <img src="${qrUrl}" alt="Scan with XAMAN" style="width:200px; height:200px; display:block;">
               </div>
             ` : ''}
@@ -26302,18 +26373,51 @@
               </a>
             </div>
 
-            <p style="color:#888; font-size:13px; margin-bottom:20px;">
-              <strong>Amount:</strong> ${paymentData.amount} ${paymentData.currency}<br>
-              <strong>Order:</strong> ${paymentData.order_number}
+            <p style="color:#888; font-size:13px; margin-bottom:10px;">
+              <strong>Amount:</strong> ${paymentData.amount} ${paymentData.currency} &nbsp;|&nbsp; <strong>Order:</strong> ${paymentData.order_number}
             </p>
 
-            <div class="merch-spinner" style="width:30px; height:30px; border-width:3px; margin:10px auto;"></div>
-            <p style="color:#00ff88; font-size:14px;">Waiting for payment confirmation...</p>
-            <p style="color:#ff6b6b; font-size:13px; margin-top:15px; padding:10px; background:rgba(255,107,107,0.1); border-radius:8px; border:1px solid rgba(255,107,107,0.3);">
-              <strong>Please wait a few seconds after signing.</strong><br>
-              Do not refresh or leave this page!
+            <div class="xaman-waiting-container">
+              <div class="xaman-spinner-ring"></div>
+              <p class="xaman-status-text" id="xamanStatusText" style="color:#00ff88; font-size:18px; font-weight:600; margin-top:15px;">
+                Waiting for signature
+              </p>
+              <p style="color:#888; font-size:12px; margin-top:5px;">This may take a moment</p>
+
+              <div style="margin-top:20px; text-align:left; max-width:280px; margin-left:auto; margin-right:auto;">
+                <div class="xaman-step active" id="step1">
+                  <div class="xaman-step-icon">1</div>
+                  <span>Open XAMAN & sign transaction</span>
+                </div>
+                <div class="xaman-step" id="step2">
+                  <div class="xaman-step-icon">2</div>
+                  <span>Confirming on XRP Ledger</span>
+                </div>
+                <div class="xaman-step" id="step3">
+                  <div class="xaman-step-icon">3</div>
+                  <span>Payment verified</span>
+                </div>
+              </div>
+            </div>
+
+            <p style="color:#ff6b6b; font-size:13px; margin-top:20px; padding:12px 15px; background:rgba(255,107,107,0.1); border-radius:10px; border:1px solid rgba(255,107,107,0.3);">
+              <strong>Please wait after signing.</strong> Do not refresh or close this page!
             </p>
           `;
+
+          // Animate steps after a delay (simulating signature detection)
+          setTimeout(() => {
+            const step1 = document.getElementById('step1');
+            const step2 = document.getElementById('step2');
+            const statusText = document.getElementById('xamanStatusText');
+            if (step1 && step2 && statusText) {
+              step1.classList.remove('active');
+              step1.classList.add('completed');
+              step1.querySelector('.xaman-step-icon').innerHTML = '✓';
+              step2.classList.add('active');
+              statusText.textContent = 'Confirming payment';
+            }
+          }, 8000);
         } else {
           // Manual payment flow (for RLUSD or fallback)
           document.getElementById('merchProcessingTitle').textContent = 'Complete Payment';
