@@ -3123,13 +3123,15 @@ async function checkMerchPayments() {
 
           if (amountMatches) {
             // Found matching payment! Update order
-            console.log(`✅ Found payment for order ${order.order_number}: ${tx.hash}`);
+            // Hash can be at txData.hash or tx.hash depending on XRPL response format
+            const txHash = txData.hash || tx.hash;
+            console.log(`✅ Found payment for order ${order.order_number}: ${txHash}`);
 
             await supabaseAdmin
               .from('merch_orders')
               .update({
                 status: 'paid',
-                payment_tx_hash: tx.hash,
+                payment_tx_hash: txHash,
                 paid_at: new Date().toISOString()
               })
               .eq('id', order.id);

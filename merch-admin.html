@@ -598,6 +598,9 @@
 
       // Load orders
       loadOrders();
+
+      // Auto-refresh orders every 30 seconds to catch payment updates
+      setInterval(loadOrders, 30000);
     }
 
     // Auth denied (not admin wallet)
