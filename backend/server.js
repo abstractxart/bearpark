@@ -2823,7 +2823,7 @@ app.post('/api/merch/orders', async (req, res) => {
   }
 });
 
-// Request payment for merch order
+// Request payment for merch order - uses destination tag approach (no XUMM SDK needed)
 app.post('/api/merch/request-payment', async (req, res) => {
   try {
     const { order_id, payment_method, amount_usd, xrp_price } = req.body;
@@ -2847,93 +2847,53 @@ app.post('/api/merch/request-payment', async (req, res) => {
     const RLUSD_ISSUER = 'rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De';
     const MERCH_WALLET = process.env.MERCH_WALLET || 'rBEARKfWJS1LYdg2g6t99BgbvpWY5pgMB9';
 
-    // Check XUMM SDK is initialized
-    if (!xumm) {
-      console.error('❌ XUMM SDK not initialized for payment request');
-      return res.status(500).json({ success: false, error: 'XAMAN SDK not configured' });
-    }
+    // Generate destination tag from order number (numeric part only)
+    // Order numbers are like "BEAR-001234" - extract the numeric part
+    const orderNumMatch = order.order_number.match(/(\d+)/);
+    const destinationTag = orderNumMatch ? parseInt(orderNumMatch[1]) : Math.floor(Date.now() / 1000);
 
-    // Check if xumm.payload exists
-    if (!xumm.payload || typeof xumm.payload.create !== 'function') {
-      console.error('❌ XUMM payload.create not available');
-      return res.status(500).json({ success: false, error: 'XAMAN SDK payload not initialized' });
-    }
-
-    let transaction;
+    let paymentAmount;
+    let paymentCurrency;
+    let xrpAmount = null;
 
     if (payment_method === 'RLUSD') {
-      // RLUSD payment
-      const cleanValue = parseFloat(amount_usd).toFixed(2);
-      transaction = {
-        TransactionType: 'Payment',
-        Destination: MERCH_WALLET,
-        Amount: {
-          currency: 'RLUSD',
-          issuer: RLUSD_ISSUER,
-          value: cleanValue
-        }
-      };
+      paymentAmount = parseFloat(amount_usd).toFixed(2);
+      paymentCurrency = 'RLUSD';
     } else {
-      // XRP payment - amount in drops
-      const xrpAmount = amount_usd / xrp_price;
-      const drops = Math.floor(xrpAmount * 1000000);
-      transaction = {
-        TransactionType: 'Payment',
-        Destination: MERCH_WALLET,
-        Amount: String(drops)
-      };
+      // XRP payment
+      xrpAmount = (amount_usd / xrp_price).toFixed(6);
+      paymentAmount = xrpAmount;
+      paymentCurrency = 'XRP';
     }
 
-    console.log('Creating XAMAN payment payload for order:', order_id);
-    console.log('Transaction:', JSON.stringify(transaction, null, 2));
-
-    // Try creating payload with detailed error catching
-    let payload;
-    try {
-      // Use exact same format as working SignIn: (transaction, true)
-      payload = await xumm.payload.create(transaction, true);
-      console.log('Payload create returned:', payload);
-    } catch (sdkError) {
-      console.error('SDK Error during payload.create:', sdkError);
-      console.error('SDK Error message:', sdkError?.message);
-      console.error('SDK Error data:', sdkError?.data);
-      console.error('SDK Error response:', sdkError?.response);
-      throw new Error(`XUMM SDK error: ${sdkError?.message || sdkError}`);
-    }
-
-    console.log('Payload result:', JSON.stringify(payload, null, 2));
-
-    if (!payload) {
-      throw new Error('Failed to create XAMAN payload - returned null');
-    }
-
-    if (payload.error) {
-      throw new Error(`XUMM error: ${payload.error}`);
-    }
-
-    if (!payload.uuid) {
-      throw new Error('XUMM payload missing uuid');
-    }
-
-    console.log('✅ Payment payload created:', payload.uuid);
-
-    // Update order with payload UUID
+    // Update order with destination tag and payment details
     await supabaseAdmin
       .from('merch_orders')
-      .update({ xaman_payload_id: payload.uuid })
+      .update({
+        destination_tag: destinationTag,
+        payment_currency: paymentCurrency,
+        payment_amount: paymentAmount,
+        xrp_price_at_order: xrp_price
+      })
       .eq('id', order_id);
 
+    console.log(`✅ Payment request for order ${order.order_number}: ${paymentAmount} ${paymentCurrency} to ${MERCH_WALLET} with tag ${destinationTag}`);
+
+    // Return payment instructions to frontend
     res.json({
       success: true,
-      uuid: payload.uuid,
-      qr_png: payload.refs?.qr_png,
-      next: payload.next,
-      refs: payload.refs
+      payment_method: 'direct',
+      destination_address: MERCH_WALLET,
+      destination_tag: destinationTag,
+      amount: paymentAmount,
+      currency: paymentCurrency,
+      issuer: payment_method === 'RLUSD' ? RLUSD_ISSUER : null,
+      order_number: order.order_number,
+      instructions: `Send ${paymentAmount} ${paymentCurrency} to ${MERCH_WALLET} with destination tag ${destinationTag}`
     });
 
   } catch (error) {
     console.error('❌ Error creating payment request:', error.message);
-    console.error('Full error:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to create payment request',
@@ -3044,6 +3004,105 @@ setInterval(() => {
     }
   }
 }, 60000); // Check every minute
+
+// ============================================
+// MERCH PAYMENT MONITOR - Watch for incoming payments
+// ============================================
+const MERCH_WALLET = process.env.MERCH_WALLET || 'rBEARKfWJS1LYdg2g6t99BgbvpWY5pgMB9';
+const RLUSD_ISSUER = 'rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De';
+
+async function checkMerchPayments() {
+  try {
+    // Get all pending orders with destination tags
+    const { data: pendingOrders, error: ordersError } = await supabaseAdmin
+      .from('merch_orders')
+      .select('*')
+      .eq('status', 'pending')
+      .not('destination_tag', 'is', null);
+
+    if (ordersError || !pendingOrders || pendingOrders.length === 0) {
+      return; // No pending orders to check
+    }
+
+    console.log(`🔍 Checking payments for ${pendingOrders.length} pending merch orders...`);
+
+    // Query XRPL for recent transactions to merch wallet
+    const xrplClient = new (require('xrpl')).Client('wss://xrplcluster.com');
+    await xrplClient.connect();
+
+    try {
+      const response = await xrplClient.request({
+        command: 'account_tx',
+        account: MERCH_WALLET,
+        limit: 50,
+        forward: false // Most recent first
+      });
+
+      const transactions = response.result?.transactions || [];
+
+      for (const order of pendingOrders) {
+        // Look for a matching transaction
+        for (const txData of transactions) {
+          const tx = txData.tx;
+          const meta = txData.meta;
+
+          // Skip if not a successful payment to us
+          if (tx.TransactionType !== 'Payment') continue;
+          if (tx.Destination !== MERCH_WALLET) continue;
+          if (meta.TransactionResult !== 'tesSUCCESS') continue;
+
+          // Check destination tag matches
+          if (tx.DestinationTag !== order.destination_tag) continue;
+
+          // Check amount (with some tolerance for XRP)
+          let amountMatches = false;
+          const expectedAmount = parseFloat(order.payment_amount);
+
+          if (order.payment_currency === 'RLUSD') {
+            // RLUSD payment
+            if (typeof tx.Amount === 'object' && tx.Amount.currency === 'RLUSD') {
+              const receivedAmount = parseFloat(tx.Amount.value);
+              amountMatches = Math.abs(receivedAmount - expectedAmount) < 0.01;
+            }
+          } else {
+            // XRP payment (amount in drops)
+            if (typeof tx.Amount === 'string') {
+              const receivedXRP = parseInt(tx.Amount) / 1000000;
+              // Allow 5% tolerance for XRP price fluctuation
+              amountMatches = receivedXRP >= expectedAmount * 0.95;
+            }
+          }
+
+          if (amountMatches) {
+            // Found matching payment! Update order
+            console.log(`✅ Found payment for order ${order.order_number}: ${tx.hash}`);
+
+            await supabaseAdmin
+              .from('merch_orders')
+              .update({
+                status: 'paid',
+                payment_tx_hash: tx.hash,
+                paid_at: new Date().toISOString()
+              })
+              .eq('id', order.id);
+
+            break; // Move to next order
+          }
+        }
+      }
+    } finally {
+      await xrplClient.disconnect();
+    }
+
+  } catch (error) {
+    console.error('Error checking merch payments:', error.message);
+  }
+}
+
+// Check for payments every 30 seconds
+setInterval(checkMerchPayments, 30000);
+// Also run once on startup after 5 seconds
+setTimeout(checkMerchPayments, 5000);
 
 // Debug endpoint - check XUMM SDK status
 app.get('/api/merch/admin/debug', (req, res) => {
