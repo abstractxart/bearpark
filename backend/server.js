@@ -3230,6 +3230,46 @@ app.get('/api/merch/check-payments', async (req, res) => {
   }
 });
 
+// Debug endpoint - show ALL recent orders
+app.get('/api/merch/debug-orders', async (req, res) => {
+  try {
+    const { data: allOrders, error } = await supabaseAdmin
+      .from('merch_orders')
+      .select('id, order_number, status, destination_tag, payment_amount, payment_currency, payment_tx_hash, created_at')
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    if (error) return res.json({ error: error.message });
+
+    // Also get recent transactions
+    const xrplClient = new (require('xrpl')).Client('wss://xrplcluster.com');
+    await xrplClient.connect();
+    const response = await xrplClient.request({
+      command: 'account_tx',
+      account: MERCH_WALLET,
+      limit: 10,
+      forward: false
+    });
+    await xrplClient.disconnect();
+
+    const transactions = response.result?.transactions || [];
+    const recentTx = transactions.map(t => {
+      const tx = t.tx || t.tx_json || {};
+      return {
+        hash: tx.hash?.substring(0, 16) + '...',
+        type: tx.TransactionType,
+        from: tx.Account,
+        dest_tag: tx.DestinationTag,
+        amount: tx.DeliverMax || tx.Amount
+      };
+    });
+
+    res.json({ orders: allOrders, recent_transactions: recentTx });
+  } catch (e) {
+    res.json({ error: e.message });
+  }
+});
+
 // TEST endpoint - try WITH and WITHOUT txjson wrapper
 app.get('/api/merch/test-payment', async (req, res) => {
   try {
