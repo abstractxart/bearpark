@@ -26354,13 +26354,38 @@ if (typeof window.addEventListener !== 'undefined') {
       return wLower === _k.toLowerCase() || wLower === _k2.toLowerCase();
     }
 
+    // SECURITY: Global flag to prevent double-claims
+    let _claimInProgress = false;
+
     async function _claim() {
       const w = localStorage.getItem('bearpark_wallet');
       if (!w || !_chk()) return;
+
+      // SECURITY: Prevent double-click / rapid fire
+      if (_claimInProgress) {
+        console.warn('Claim already in progress, ignoring duplicate request');
+        return;
+      }
+
+      // SECURITY: Check localStorage cooldown (60 second minimum between attempts)
+      const lastClaimAttempt = localStorage.getItem('beardrops_last_claim_attempt');
+      if (lastClaimAttempt) {
+        const elapsed = Date.now() - parseInt(lastClaimAttempt);
+        if (elapsed < 60000) { // 60 seconds
+          const remaining = Math.ceil((60000 - elapsed) / 1000);
+          alert(`Please wait ${remaining} seconds before trying again.`);
+          return;
+        }
+      }
+
+      _claimInProgress = true;
+      localStorage.setItem('beardrops_last_claim_attempt', Date.now().toString());
+
       const cb = document.getElementById('m7Btn');
       const ct = document.getElementById('m7BtnTxt');
       const ph = document.getElementById('m7Hint');
       if (cb) cb.disabled = true;
+      if (cb) cb.onclick = null; // SECURITY: Remove click handler entirely
       if (ct) ct.textContent = 'CLAIMING...';
       try {
         const r = await fetch((window.API_BASE_URL || '') + '/api/beardrops/claim', {
@@ -26372,6 +26397,8 @@ if (typeof window.addEventListener !== 'undefined') {
         if (d.success) {
           if (ph) ph.textContent = '\u2705 Claimed ' + d.amount + ' $BEAR! TX: ' + d.tx_hash.substring(0, 12) + '...';
           if (ct) ct.textContent = 'CLAIMED!';
+          // SECURITY: Set claimed flag in localStorage to prevent refresh exploit
+          localStorage.setItem('beardrops_claimed_' + new Date().toISOString().split('T')[0], 'true');
           setTimeout(_init, 3000);
         } else {
           if (ph) ph.textContent = '\u274C ' + (d.error || 'Claim failed');
@@ -26385,6 +26412,9 @@ if (typeof window.addEventListener !== 'undefined') {
         if (cb) cb.disabled = false;
         // Refresh UI after 2 seconds
         setTimeout(_init, 2000);
+      } finally {
+        // SECURITY: Reset flag after 30 seconds regardless
+        setTimeout(() => { _claimInProgress = false; }, 30000);
       }
     }
 

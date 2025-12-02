@@ -118,7 +118,7 @@ try {
 app.use(compression());
 
 // Rate limiting to prevent API abuse and brute force attacks
-// TEMPORARILY DISABLED - Fixing rate limiting issues
+// TEMPORARILY DISABLED for general API - but CLAIM endpoint has strict limiter
 /*
 const apiLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute window
@@ -129,7 +129,26 @@ const apiLimiter = rateLimit({
 });
 app.use('/api/', apiLimiter);
 */
-console.log('🚨 RATE LIMITING DISABLED - ALL API ROUTES UNRESTRICTED 🚨');
+console.log('⚠️ General rate limiting disabled - CLAIM endpoint has strict limiter');
+
+// ========== CRITICAL: STRICT RATE LIMITER FOR CLAIM ENDPOINT ==========
+// Prevents rapid-fire claim attempts (race condition exploit protection)
+const claimRateLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute window
+  max: 3, // Maximum 3 claim attempts per minute per IP
+  message: {
+    success: false,
+    error: 'Too many claim attempts. Please wait 1 minute before trying again.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    // Rate limit by BOTH IP and wallet address for extra protection
+    const wallet = req.body?.wallet_address || 'unknown';
+    return `${req.ip}-${wallet}`;
+  }
+});
+console.log('✅ Strict rate limiter enabled for /api/beardrops/claim (3 req/min)');
 
 app.use(cors({
   origin: [FRONTEND_URL, 'https://bearpark.xyz', 'https://www.bearpark.xyz', 'http://localhost:8080', 'http://127.0.0.1:8080'],
@@ -5907,7 +5926,11 @@ app.post('/api/beardrops/admin/config', verifyApex, async (req, res) => {
 // CLAIM AIRDROP - Send $BEAR tokens to eligible wallet
 // Requires AIRDROP_WALLET_SECRET env variable
 // SECURITY: Multiple layers of protection against exploits
-app.post('/api/beardrops/claim', validateWallet, async (req, res) => {
+// - Rate limiter: 3 requests per minute per IP+wallet
+// - Mutex check: Blocks if already processing
+// - Atomic lock: Only one request can acquire lock
+// - Row count verification: Ensures lock was actually acquired
+app.post('/api/beardrops/claim', claimRateLimiter, validateWallet, async (req, res) => {
   try {
     const { wallet_address } = req.body;
 
@@ -6023,18 +6046,25 @@ app.post('/api/beardrops/claim', validateWallet, async (req, res) => {
 
     // ========== SECURITY FIX #4: SET PROCESSING LOCK ==========
     // Mark as processing BEFORE sending transaction (prevents race condition)
-    const { error: lockError } = await supabase
+    // CRITICAL: Must check if rows were actually updated, not just if there was an error!
+    const { data: lockData, error: lockError } = await supabase
       .from('airdrop_snapshots')
       .update({ claim_status: 'processing', updated_at: new Date().toISOString() })
       .eq('id', snapshot.id)
-      .eq('claim_status', 'pending'); // Only if still pending (atomic check)
+      .eq('claim_status', 'pending') // Only if still pending (atomic check)
+      .select('id'); // CRITICAL: Returns updated rows so we can verify
 
-    if (lockError) {
+    // CRITICAL FIX: Check BOTH for errors AND that rows were actually updated
+    // If another request already changed status to 'processing', this returns 0 rows (no error!)
+    if (lockError || !lockData || lockData.length === 0) {
+      console.warn(`⚠️ Claim lock failed for ${wallet_address} - possible race condition blocked`);
       return res.status(409).json({
         success: false,
-        error: 'Claim conflict. Please try again.'
+        error: 'Claim already in progress or completed. Please refresh and try again.'
       });
     }
+
+    console.log(`🔒 Claim lock acquired for ${wallet_address}, snapshot ${snapshot.id}`);
 
     // Send $BEAR via XRPL
     const xrpl = require('xrpl');
