@@ -2853,14 +2853,18 @@ app.post('/api/merch/request-payment', async (req, res) => {
       return res.status(500).json({ success: false, error: 'XAMAN SDK not configured' });
     }
 
-    let txjson;
+    // Check if xumm.payload exists
+    if (!xumm.payload || typeof xumm.payload.create !== 'function') {
+      console.error('❌ XUMM payload.create not available');
+      return res.status(500).json({ success: false, error: 'XAMAN SDK payload not initialized' });
+    }
+
+    let transaction;
 
     if (payment_method === 'RLUSD') {
-      // RLUSD payment - use proper issued currency format
-      // Ensure value is a clean decimal string (no scientific notation)
+      // RLUSD payment
       const cleanValue = parseFloat(amount_usd).toFixed(2);
-
-      txjson = {
+      transaction = {
         TransactionType: 'Payment',
         Destination: MERCH_WALLET,
         Amount: {
@@ -2870,11 +2874,10 @@ app.post('/api/merch/request-payment', async (req, res) => {
         }
       };
     } else {
-      // XRP payment - amount in drops (millionths of XRP)
+      // XRP payment - amount in drops
       const xrpAmount = amount_usd / xrp_price;
       const drops = Math.floor(xrpAmount * 1000000);
-
-      txjson = {
+      transaction = {
         TransactionType: 'Payment',
         Destination: MERCH_WALLET,
         Amount: String(drops)
@@ -2882,10 +2885,21 @@ app.post('/api/merch/request-payment', async (req, res) => {
     }
 
     console.log('Creating XAMAN payment payload for order:', order_id);
-    console.log('Transaction JSON:', JSON.stringify(txjson, null, 2));
+    console.log('Transaction:', JSON.stringify(transaction, null, 2));
 
-    // Use txjson wrapper format for Payment transactions
-    const payload = await xumm.payload.create({ txjson });
+    // Try creating payload with detailed error catching
+    let payload;
+    try {
+      // Use exact same format as working SignIn: (transaction, true)
+      payload = await xumm.payload.create(transaction, true);
+      console.log('Payload create returned:', payload);
+    } catch (sdkError) {
+      console.error('SDK Error during payload.create:', sdkError);
+      console.error('SDK Error message:', sdkError?.message);
+      console.error('SDK Error data:', sdkError?.data);
+      console.error('SDK Error response:', sdkError?.response);
+      throw new Error(`XUMM SDK error: ${sdkError?.message || sdkError}`);
+    }
 
     console.log('Payload result:', JSON.stringify(payload, null, 2));
 
@@ -3035,10 +3049,55 @@ setInterval(() => {
 app.get('/api/merch/admin/debug', (req, res) => {
   res.json({
     xumm_initialized: !!xumm,
+    xumm_payload_exists: !!(xumm && xumm.payload),
+    xumm_payload_create_exists: !!(xumm && xumm.payload && typeof xumm.payload.create === 'function'),
     xaman_api_key_exists: !!process.env.XAMAN_API_KEY,
     xaman_api_secret_exists: !!process.env.XAMAN_API_SECRET,
     admin_wallets: MERCH_ADMIN_WALLETS.length
   });
+});
+
+// TEST endpoint - try simple XRP Payment to debug
+app.get('/api/merch/test-payment', async (req, res) => {
+  try {
+    if (!xumm) {
+      return res.json({ error: 'xumm not initialized' });
+    }
+    if (!xumm.payload) {
+      return res.json({ error: 'xumm.payload not available' });
+    }
+
+    const MERCH_WALLET = 'rBEARKfWJS1LYdg2g6t99BgbvpWY5pgMB9';
+
+    // Test 1: Simple XRP payment (same format as working SignIn)
+    console.log('TEST: Creating simple XRP payment...');
+    const simplePayment = {
+      TransactionType: 'Payment',
+      Destination: MERCH_WALLET,
+      Amount: '1000000' // 1 XRP
+    };
+
+    console.log('TEST transaction:', JSON.stringify(simplePayment, null, 2));
+
+    let result;
+    let error = null;
+    try {
+      result = await xumm.payload.create(simplePayment, true);
+      console.log('TEST result:', result);
+    } catch (e) {
+      error = { message: e.message, data: e.data, code: e.code };
+      console.error('TEST error:', e);
+    }
+
+    res.json({
+      transaction: simplePayment,
+      result: result || null,
+      error: error,
+      has_uuid: !!(result && result.uuid)
+    });
+  } catch (e) {
+    res.json({ outer_error: e.message });
+  }
 });
 
 // Simple admin login - verify wallet is admin and create session
