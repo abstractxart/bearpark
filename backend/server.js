@@ -3075,6 +3075,52 @@ app.get('/api/merch/admin/debug', (req, res) => {
   });
 });
 
+// Simple admin login - verify wallet is admin and create session
+// The wallet was already verified via XAMAN SignIn on the main site
+app.post('/api/merch/admin/login', (req, res) => {
+  try {
+    const { wallet } = req.body;
+
+    if (!wallet) {
+      return res.status(400).json({ success: false, error: 'Wallet address required' });
+    }
+
+    // Validate wallet format
+    if (!wallet.startsWith('r') || wallet.length < 25 || wallet.length > 35) {
+      return res.status(400).json({ success: false, error: 'Invalid wallet format' });
+    }
+
+    // Check if admin wallet
+    if (!MERCH_ADMIN_WALLETS.includes(wallet.toLowerCase())) {
+      console.log(`🚫 Admin login denied for wallet: ${wallet}`);
+      return res.status(403).json({ success: false, error: 'Access denied. Not an admin wallet.' });
+    }
+
+    // Generate session token
+    const sessionToken = crypto.randomBytes(32).toString('hex');
+    const expires = Date.now() + ADMIN_SESSION_EXPIRY;
+
+    adminSessions.set(sessionToken, {
+      wallet: wallet.toLowerCase(),
+      expires,
+      created: Date.now()
+    });
+
+    console.log(`✅ Admin session created for wallet: ${wallet}`);
+
+    res.json({
+      success: true,
+      session_token: sessionToken,
+      wallet,
+      expires_in: ADMIN_SESSION_EXPIRY / 1000 // seconds
+    });
+
+  } catch (error) {
+    console.error('Error in admin login:', error);
+    res.status(500).json({ success: false, error: 'Login failed' });
+  }
+});
+
 // Generate admin auth challenge (Step 1)
 app.post('/api/merch/admin/auth/challenge', async (req, res) => {
   try {

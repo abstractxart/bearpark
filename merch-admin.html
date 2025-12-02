@@ -510,113 +510,73 @@
   </div>
 
   <script>
-    // Use exact same API domain as main site login
-    const API_BASE = 'https://api.bearpark.xyz';
+    const API_BASE = 'https://bearpark-production.up.railway.app';
     let sessionToken = null;
     let connectedWallet = null;
     let allOrders = [];
     let currentFilter = 'all';
-    let pollInterval = null;
     let sessionExpiry = null;
 
-    // Start XAMAN authentication - use existing working /api/xaman/payload endpoint
-    async function startAuth() {
-      const btn = document.getElementById('authBtn');
+    // Check for existing wallet from main site login and auto-authenticate
+    async function checkExistingAuth() {
       const statusEl = document.getElementById('authStatus');
-      const qrContainer = document.getElementById('qrContainer');
+      const btn = document.getElementById('authBtn');
 
+      // Check localStorage for wallet from main site XAMAN login
+      const wallet = localStorage.getItem('bearpark_wallet');
+
+      if (!wallet) {
+        // No wallet - show login prompt
+        statusEl.className = 'auth-status';
+        statusEl.innerHTML = 'Please <a href="/" style="color:#00ff88;">login on the main site</a> first with your XAMAN wallet.';
+        statusEl.style.display = 'block';
+        btn.textContent = 'Check Login Status';
+        btn.onclick = checkExistingAuth;
+        return;
+      }
+
+      // Have wallet - verify with server
       btn.disabled = true;
-      btn.textContent = 'Requesting...';
+      btn.textContent = 'Verifying...';
+      statusEl.className = 'auth-status waiting';
+      statusEl.textContent = 'Checking admin access for ' + wallet.slice(0,8) + '...';
+      statusEl.style.display = 'block';
 
       try {
-        // Use the same endpoint that works for main site login
-        const res = await fetch(`${API_BASE}/api/xaman/payload`, {
+        const res = await fetch(`${API_BASE}/api/merch/admin/login`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ wallet })
         });
 
         const data = await res.json();
-        console.log('Payload response:', data);
 
-        if (!data || !data.uuid) {
-          // Show full error details from server
-          const errorMsg = data.message || data.error || 'Failed to create XAMAN payload';
-          console.error('Full error data:', JSON.stringify(data, null, 2));
-          throw new Error(errorMsg);
+        if (data.success) {
+          onAuthSuccess(data);
+        } else if (res.status === 403) {
+          onAuthDenied(wallet);
+        } else {
+          throw new Error(data.error || 'Login failed');
         }
-
-        // Show QR code
-        if (data.refs?.qr_png) {
-          document.getElementById('qrImage').src = data.refs.qr_png;
-          qrContainer.style.display = 'block';
-        }
-
-        // Show status
-        statusEl.className = 'auth-status waiting';
-        statusEl.innerHTML = 'Waiting for XAMAN signature...<br><small>Scan QR or check your XAMAN app</small>';
-        statusEl.style.display = 'block';
-
-        btn.textContent = 'Waiting for signature...';
-
-        // Open XAMAN on mobile
-        if (data.next?.always) {
-          window.open(data.next.always, '_blank');
-        }
-
-        // Poll for completion
-        pollForSignature(data.uuid);
 
       } catch (error) {
         console.error('Auth error:', error);
         statusEl.className = 'auth-status error';
         statusEl.textContent = 'Error: ' + error.message;
-        statusEl.style.display = 'block';
         btn.disabled = false;
-        btn.textContent = 'Sign in with XAMAN';
+        btn.textContent = 'Retry';
       }
     }
 
-    // Poll XAMAN for signature completion
-    function pollForSignature(uuid) {
-      let attempts = 0;
-      const maxAttempts = 60; // 5 minutes (5 sec intervals)
-
-      pollInterval = setInterval(async () => {
-        attempts++;
-
-        if (attempts > maxAttempts) {
-          clearInterval(pollInterval);
-          document.getElementById('authStatus').className = 'auth-status error';
-          document.getElementById('authStatus').textContent = 'Timeout - please try again';
-          document.getElementById('authBtn').disabled = false;
-          document.getElementById('authBtn').textContent = 'Sign in with XAMAN';
-          return;
-        }
-
-        try {
-          // Verify with backend
-          const res = await fetch(`${API_BASE}/api/merch/admin/auth/verify`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ payload_uuid: uuid })
-          });
-
-          const data = await res.json();
-
-          if (data.success) {
-            clearInterval(pollInterval);
-            onAuthSuccess(data);
-          } else if (res.status === 403) {
-            clearInterval(pollInterval);
-            onAuthDenied();
-          }
-          // If not signed yet, keep polling
-
-        } catch (error) {
-          // Keep polling on network errors
-        }
-      }, 5000); // Poll every 5 seconds
+    // Start authentication - just check existing login
+    function startAuth() {
+      checkExistingAuth();
     }
+
+    // Auto-check on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      checkExistingAuth();
+    });
 
     // Auth successful
     function onAuthSuccess(data) {
@@ -641,9 +601,17 @@
     }
 
     // Auth denied (not admin wallet)
-    function onAuthDenied() {
+    function onAuthDenied(wallet) {
       document.getElementById('authScreen').style.display = 'none';
-      document.getElementById('accessDenied').style.display = 'block';
+      const deniedEl = document.getElementById('accessDenied');
+      deniedEl.style.display = 'block';
+      if (wallet) {
+        deniedEl.innerHTML = `
+          <h2>ACCESS DENIED</h2>
+          <p>Your wallet <code style="background:rgba(0,0,0,0.3);padding:5px 10px;border-radius:5px;">${wallet}</code> is not authorized to access this admin panel.</p>
+          <p style="margin-top:20px; color:#666;">Only whitelisted admin wallets can access.</p>
+        `;
+      }
     }
 
     // Update session timer display
