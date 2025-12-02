@@ -6049,19 +6049,35 @@ app.post('/api/beardrops/claim', claimRateLimiter, validateWallet, async (req, r
 
     // ========== SECURITY FIX #4: SET PROCESSING LOCK ==========
     // Mark as processing BEFORE sending transaction (prevents race condition)
-    // CRITICAL: Must check if rows were actually updated, not just if there was an error!
-    const { data: lockData, error: lockError } = await supabase
+    // Using two-step approach: UPDATE then verify with SELECT
+    console.log(`🔐 Attempting lock for ${wallet_address}: snapshotId=${snapshot.id}, current status=${snapshot.claim_status}`);
+
+    // Step 1: Try to update to 'processing'
+    const { error: updateError } = await supabase
       .from('airdrop_snapshots')
       .update({ claim_status: 'processing', updated_at: new Date().toISOString() })
       .eq('id', snapshot.id)
-      .eq('claim_status', 'pending') // Only if still pending (atomic check)
-      .select('id'); // CRITICAL: Returns updated rows so we can verify
+      .eq('claim_status', 'pending'); // Only if still pending
 
-    // CRITICAL FIX: Check BOTH for errors AND that rows were actually updated
-    // If another request already changed status to 'processing', this returns 0 rows (no error!)
-    console.log(`🔐 Lock attempt for ${wallet_address}: snapshotId=${snapshot.id}, lockData=`, lockData, 'lockError=', lockError);
-    if (lockError || !lockData || lockData.length === 0) {
-      console.warn(`⚠️ Claim lock failed for ${wallet_address} - snapshotId=${snapshot.id}, lockData=${JSON.stringify(lockData)}, lockError=${JSON.stringify(lockError)}`);
+    if (updateError) {
+      console.error(`❌ Update error for ${wallet_address}:`, updateError);
+      return res.status(500).json({
+        success: false,
+        error: 'Database error during claim. Please try again.'
+      });
+    }
+
+    // Step 2: Verify the lock was acquired by checking current status
+    const { data: verifyData, error: verifyError } = await supabase
+      .from('airdrop_snapshots')
+      .select('id, claim_status')
+      .eq('id', snapshot.id)
+      .single();
+
+    console.log(`🔍 Lock verification for ${wallet_address}: verifyData=`, verifyData, 'verifyError=', verifyError);
+
+    if (verifyError || !verifyData || verifyData.claim_status !== 'processing') {
+      console.warn(`⚠️ Claim lock failed for ${wallet_address} - status is ${verifyData?.claim_status || 'unknown'}, expected 'processing'`);
       return res.status(409).json({
         success: false,
         error: 'Claim already in progress or completed. Please refresh and try again.'
