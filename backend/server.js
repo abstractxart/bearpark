@@ -3577,9 +3577,28 @@ app.get('/api/merch/admin/orders', verifyAdminSession, async (req, res) => {
 
     if (error) throw error;
 
-    // Decrypt shipping info for admin view
+    // Get unique wallet addresses to fetch usernames
+    const walletAddresses = [...new Set(orders.map(o => o.wallet_address).filter(Boolean))];
+
+    // Fetch display names from profiles
+    let profilesMap = {};
+    if (walletAddresses.length > 0) {
+      const { data: profiles } = await supabaseAdmin
+        .from('profiles')
+        .select('wallet_address, display_name')
+        .in('wallet_address', walletAddresses);
+
+      if (profiles) {
+        profiles.forEach(p => {
+          profilesMap[p.wallet_address] = p.display_name;
+        });
+      }
+    }
+
+    // Decrypt shipping info for admin view and add username
     const decryptedOrders = orders.map(order => ({
       ...order,
+      username: profilesMap[order.wallet_address] || null,
       shipping: {
         name: order.shipping_name_encrypted ? decryptData(order.shipping_name_encrypted) : null,
         street: order.shipping_street_encrypted ? decryptData(order.shipping_street_encrypted) : null,
@@ -3595,6 +3614,28 @@ app.get('/api/merch/admin/orders', verifyAdminSession, async (req, res) => {
 
   } catch (error) {
     console.error('Error fetching admin orders:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+// Admin: Delete order - SESSION PROTECTED
+app.delete('/api/merch/admin/orders/:orderId', verifyAdminSession, async (req, res) => {
+  try {
+    const { orderId } = req.params;
+
+    console.log(`🗑️ Admin ${req.adminWallet} deleting order: ${orderId}`);
+
+    const { error } = await supabaseAdmin
+      .from('merch_orders')
+      .delete()
+      .eq('id', orderId);
+
+    if (error) throw error;
+
+    res.json({ success: true, message: 'Order deleted' });
+
+  } catch (error) {
+    console.error('Error deleting order:', error);
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });

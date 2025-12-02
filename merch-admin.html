@@ -481,6 +481,7 @@
           <tr>
             <th>Order #</th>
             <th>Date</th>
+            <th>Customer</th>
             <th>Product</th>
             <th>Size</th>
             <th>Amount</th>
@@ -712,10 +713,20 @@
 
         const date = new Date(order.created_at).toLocaleDateString();
 
+        // Format customer display: username or "No Username", plus short wallet
+        const username = order.username || 'No Username';
+        const shortWallet = order.wallet_address ? order.wallet_address.slice(0,8) + '...' : 'N/A';
+        const destTag = order.destination_tag ? `<br><small style="color:#888;">Tag: ${order.destination_tag}</small>` : '';
+
         return `
           <tr>
             <td><strong>${order.order_number || order.id.slice(0,8)}</strong></td>
             <td>${date}</td>
+            <td>
+              <strong style="color:#00ff88;">${username}</strong><br>
+              <small style="color:#888;font-family:monospace;">${shortWallet}</small>
+              ${destTag}
+            </td>
             <td>${order.product_id}</td>
             <td>${order.size}</td>
             <td>$${order.amount_usd}</td>
@@ -724,6 +735,7 @@
             <td>
               <button class="action-btn details" onclick="showDetails('${order.id}')">Details</button>
               ${order.status === 'paid' ? `<button class="action-btn ship" onclick="markShipped('${order.id}')">Ship</button>` : ''}
+              <button class="action-btn delete" onclick="deleteOrder('${order.id}')" style="background:#ef4444;">Delete</button>
             </td>
           </tr>
         `;
@@ -743,14 +755,18 @@
         shipping.country
       ].filter(Boolean).join('\n');
 
+      const usernameDisplay = order.username || 'No Username';
+
       document.getElementById('modalBody').innerHTML = `
         <div class="detail-row"><span class="label">Order Number</span><span class="value">${order.order_number || order.id}</span></div>
         <div class="detail-row"><span class="label">Status</span><span class="value"><span class="status-badge ${order.status}">${order.status}</span></span></div>
+        <div class="detail-row"><span class="label">Customer</span><span class="value" style="color:#00ff88;font-weight:bold;">${usernameDisplay}</span></div>
+        <div class="detail-row"><span class="label">Wallet</span><span class="value" style="font-family:monospace;font-size:12px;">${order.wallet_address}</span></div>
+        ${order.destination_tag ? `<div class="detail-row"><span class="label">Destination Tag</span><span class="value" style="font-family:monospace;">${order.destination_tag}</span></div>` : ''}
         <div class="detail-row"><span class="label">Product</span><span class="value">${order.product_id}</span></div>
         <div class="detail-row"><span class="label">Size</span><span class="value">${order.size}</span></div>
         <div class="detail-row"><span class="label">Amount</span><span class="value">$${order.amount_usd} USD</span></div>
         <div class="detail-row"><span class="label">Payment Method</span><span class="value">${order.payment_method || 'RLUSD'}</span></div>
-        <div class="detail-row"><span class="label">Wallet</span><span class="value" style="font-family:monospace;font-size:12px;">${order.wallet_address}</span></div>
         <div class="detail-row"><span class="label">Created</span><span class="value">${new Date(order.created_at).toLocaleString()}</span></div>
         ${order.payment_tx_hash ? `<div class="detail-row"><span class="label">TX Hash</span><span class="value" style="font-family:monospace;font-size:11px;">${order.payment_tx_hash}</span></div>` : ''}
         ${order.tracking_number ? `<div class="detail-row"><span class="label">Tracking</span><span class="value">${order.tracking_number}</span></div>` : ''}
@@ -774,6 +790,7 @@
         ` : `
           <div class="modal-actions">
             <button class="cancel-btn" onclick="closeModal()">Close</button>
+            <button style="background:#ef4444;" onclick="closeModal(); deleteOrder('${order.id}')">Delete Order</button>
           </div>
         `}
       `;
@@ -807,6 +824,35 @@
         }
       } catch (error) {
         alert('Error updating order');
+      }
+    }
+
+    async function deleteOrder(orderId) {
+      const order = allOrders.find(o => o.id === orderId);
+      const orderNum = order ? order.order_number : orderId.slice(0,8);
+
+      if (!confirm(`Are you sure you want to DELETE order ${orderNum}?\n\nThis cannot be undone!`)) return;
+
+      try {
+        const res = await fetch(`${API_BASE}/api/merch/admin/orders/${orderId}`, {
+          method: 'DELETE',
+          headers: {
+            'X-Admin-Token': sessionToken
+          }
+        });
+
+        if (res.ok) {
+          alert('Order deleted!');
+          loadOrders();
+        } else if (res.status === 401) {
+          alert('Session expired. Please sign in again.');
+          location.reload();
+        } else {
+          const data = await res.json();
+          alert('Error: ' + (data.error || 'Failed to delete'));
+        }
+      } catch (error) {
+        alert('Error deleting order');
       }
     }
 
