@@ -16476,6 +16476,9 @@
           }
           loadTopRaiders();
 
+          // Dispatch event to update BEARdrops honey points in real-time
+          window.dispatchEvent(new CustomEvent('honeyPointsUpdated'));
+
           // Update the view after a delay for animation
           setTimeout(() => {
             filterRaids(currentFilter);
@@ -26770,6 +26773,8 @@ if (typeof window.addEventListener !== 'undefined') {
     else { _init(); }
     window.addEventListener('walletConnected', () => { setTimeout(_init, 500); });
     window.addEventListener('walletDisconnected', () => { setTimeout(_init, 500); });
+    // Real-time update when honey points change (raids, games, etc.)
+    window.addEventListener('honeyPointsUpdated', () => { setTimeout(_init, 500); });
     window._m7r = _init;
   })();
   </script>

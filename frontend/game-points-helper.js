@@ -58,6 +58,10 @@ async function awardGamePoints(gameId, minutesPlayed) {
 
       // Trigger event to refresh daily progress widget on main page
       window.dispatchEvent(new CustomEvent('gamePointsAwarded', { detail: data }));
+      // Also dispatch to parent window (for iframed games) to update BEARdrops
+      if (window.parent && window.parent !== window) {
+        window.parent.dispatchEvent(new CustomEvent('honeyPointsUpdated', { detail: data }));
+      }
 
       return data;
     } else {
