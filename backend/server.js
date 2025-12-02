@@ -3197,14 +3197,21 @@ app.get('/api/merch/check-payments', async (req, res) => {
 
     const transactions = response.result?.transactions || [];
     const recentPayments = transactions
-      .filter(t => t.tx.TransactionType === 'Payment' && t.tx.Destination === MERCH_WALLET)
-      .map(t => ({
-        hash: t.tx.hash,
-        from: t.tx.Account,
-        amount: t.tx.Amount,
-        destination_tag: t.tx.DestinationTag,
-        result: t.meta.TransactionResult
-      }));
+      .filter(t => {
+        const tx = t.tx || t.tx_json || {};
+        return tx.TransactionType === 'Payment' && tx.Destination === MERCH_WALLET;
+      })
+      .map(t => {
+        const tx = t.tx || t.tx_json || {};
+        const meta = t.meta || {};
+        return {
+          hash: tx.hash,
+          from: tx.Account,
+          amount: tx.DeliverMax || tx.Amount,
+          destination_tag: tx.DestinationTag,
+          result: meta.TransactionResult
+        };
+      });
 
     res.json({
       merch_wallet: MERCH_WALLET,
