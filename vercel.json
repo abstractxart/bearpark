@@ -97,6 +97,10 @@
       "dest": "/admin-store.html"
     },
     {
+      "src": "/merch-admin",
+      "dest": "/merch-admin.html"
+    },
+    {
       "src": "/(.*\\.(html|css|js|png|jpg|jpeg|gif|svg|ico))",
       "dest": "/$1"
     },
