@@ -510,7 +510,8 @@
   </div>
 
   <script>
-    const API_BASE = 'https://bearpark-production.up.railway.app';
+    // Use same domain as main site - goes through Vercel proxy to Railway
+    const API_BASE = 'https://www.bearpark.xyz';
     let sessionToken = null;
     let connectedWallet = null;
     let allOrders = [];
