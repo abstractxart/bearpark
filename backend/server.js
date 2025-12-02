@@ -6198,6 +6198,26 @@ app.post('/api/beardrops/claim', claimRateLimiter, validateWallet, async (req, r
   }
 });
 
+// DEBUG: Get ALL snapshots for a wallet (for debugging)
+app.get('/api/beardrops/debug-snapshots/:wallet', async (req, res) => {
+  try {
+    const { wallet } = req.params;
+    const { data: allSnapshots } = await supabase
+      .from('airdrop_snapshots')
+      .select('id, wallet_address, snapshot_date, claim_status, total_reward, is_eligible, is_blacklisted, created_at, updated_at')
+      .eq('wallet_address', wallet)
+      .order('snapshot_date', { ascending: false });
+
+    res.json({
+      wallet,
+      total_count: allSnapshots?.length || 0,
+      snapshots: allSnapshots || []
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // Get claim status for a wallet
 app.get('/api/beardrops/claim-status/:wallet', async (req, res) => {
   try {
