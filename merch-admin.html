@@ -538,7 +538,10 @@
         console.log('Payload response:', data);
 
         if (!data || !data.uuid) {
-          throw new Error(data.error || 'Failed to create XAMAN payload');
+          // Show full error details from server
+          const errorMsg = data.message || data.error || 'Failed to create XAMAN payload';
+          console.error('Full error data:', JSON.stringify(data, null, 2));
+          throw new Error(errorMsg);
         }
 
         // Show QR code
