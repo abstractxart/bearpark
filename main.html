@@ -26089,7 +26089,9 @@
 
       const buyBtn = document.getElementById('merchBuyBtn');
       buyBtn.disabled = false;
-      buyBtn.textContent = '🛒 BUY NOW - $30 RLUSD';
+      // Show both payment options
+      const xrpAmount = (30 / merchXrpPrice).toFixed(2);
+      buyBtn.innerHTML = '🛒 BUY NOW - <span style="color:#00ff88;">$30 RLUSD</span> or <span style="color:#00c3ff;">' + xrpAmount + ' XRP</span>';
 
       // Update stock for selected size
       const stock = merchCurrentProduct.sizes[size] || 0;
