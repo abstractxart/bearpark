@@ -2879,18 +2879,29 @@ app.post('/api/merch/request-payment', async (req, res) => {
 
     console.log(`✅ Payment request for order ${order.order_number}: ${paymentAmount} ${paymentCurrency} to ${MERCH_WALLET} with tag ${destinationTag}`);
 
-    // For XRP payments, try to create XUMM payload for seamless payment
+    // Try to create XUMM payload for seamless payment (both XRP and RLUSD)
     let xummPayload = null;
-    if (payment_method === 'XRP' && xumm) {
+    if (xumm) {
       try {
-        // Amount in drops (1 XRP = 1,000,000 drops)
-        const amountInDrops = Math.round(parseFloat(paymentAmount) * 1000000).toString();
+        let txAmount;
+
+        if (payment_method === 'RLUSD') {
+          // RLUSD is a token - use object format with currency code
+          txAmount = {
+            currency: 'RLUSD',
+            value: paymentAmount,
+            issuer: RLUSD_ISSUER
+          };
+        } else {
+          // XRP - amount in drops (1 XRP = 1,000,000 drops)
+          txAmount = Math.round(parseFloat(paymentAmount) * 1000000).toString();
+        }
 
         const payload = await xumm.payload.create({
           txjson: {
             TransactionType: 'Payment',
             Destination: MERCH_WALLET,
-            Amount: amountInDrops,
+            Amount: txAmount,
             DestinationTag: destinationTag
           },
           options: {
@@ -2901,7 +2912,7 @@ app.post('/api/merch/request-payment', async (req, res) => {
           },
           custom_meta: {
             identifier: `merch-${order.order_number}`,
-            instruction: `Pay ${paymentAmount} XRP for BEAR Park merch order ${order.order_number}`
+            instruction: `Pay ${paymentAmount} ${paymentCurrency} for BEAR Park merch order ${order.order_number}`
           }
         });
 
@@ -2912,10 +2923,50 @@ app.post('/api/merch/request-payment', async (req, res) => {
             next_url: payload.next?.always,
             websocket_url: payload.refs?.websocket_status
           };
-          console.log(`✅ XUMM payload created: ${payload.uuid}`);
+          console.log(`✅ XUMM payload created for ${paymentCurrency}: ${payload.uuid}`);
         }
       } catch (xummError) {
-        console.error('⚠️ XUMM payload creation failed, falling back to manual:', xummError.message);
+        console.error(`⚠️ XUMM payload creation failed for ${paymentCurrency}, falling back to manual:`, xummError.message);
+        // If RLUSD fails with currency code, try hex format
+        if (payment_method === 'RLUSD') {
+          try {
+            const RLUSD_HEX = '524C555344000000000000000000000000000000';
+            const payload = await xumm.payload.create({
+              txjson: {
+                TransactionType: 'Payment',
+                Destination: MERCH_WALLET,
+                Amount: {
+                  currency: RLUSD_HEX,
+                  value: paymentAmount,
+                  issuer: RLUSD_ISSUER
+                },
+                DestinationTag: destinationTag
+              },
+              options: {
+                expire: 30,
+                return_url: {
+                  web: `https://www.bearpark.xyz/?merch_order=${order.order_number}`
+                }
+              },
+              custom_meta: {
+                identifier: `merch-${order.order_number}`,
+                instruction: `Pay ${paymentAmount} RLUSD for BEAR Park merch order ${order.order_number}`
+              }
+            });
+
+            if (payload && payload.uuid) {
+              xummPayload = {
+                uuid: payload.uuid,
+                qr_png: payload.refs?.qr_png,
+                next_url: payload.next?.always,
+                websocket_url: payload.refs?.websocket_status
+              };
+              console.log(`✅ XUMM payload created for RLUSD (hex): ${payload.uuid}`);
+            }
+          } catch (hexError) {
+            console.error('⚠️ XUMM RLUSD hex format also failed:', hexError.message);
+          }
+        }
       }
     }
 
@@ -3110,6 +3161,7 @@ async function checkMerchPayments() {
             if (typeof txAmount === 'object' && (txAmount.currency === 'RLUSD' || txAmount.currency?.includes('524C555344'))) {
               const receivedAmount = parseFloat(txAmount.value);
               amountMatches = Math.abs(receivedAmount - expectedAmount) < 0.01;
+              console.log(`💵 RLUSD check: received ${receivedAmount}, expected ${expectedAmount}, matches: ${amountMatches}`);
             }
           } else {
             // XRP payment (amount in drops)
