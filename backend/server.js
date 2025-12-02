@@ -3065,6 +3065,16 @@ setInterval(() => {
   }
 }, 60000); // Check every minute
 
+// Debug endpoint - check XUMM SDK status
+app.get('/api/merch/admin/debug', (req, res) => {
+  res.json({
+    xumm_initialized: !!xumm,
+    xaman_api_key_exists: !!process.env.XAMAN_API_KEY,
+    xaman_api_secret_exists: !!process.env.XAMAN_API_SECRET,
+    admin_wallets: MERCH_ADMIN_WALLETS.length
+  });
+});
+
 // Generate admin auth challenge (Step 1)
 app.post('/api/merch/admin/auth/challenge', async (req, res) => {
   try {
