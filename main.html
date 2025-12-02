@@ -26412,8 +26412,8 @@ if (typeof window.addEventListener !== 'undefined') {
         if (d.success) {
           if (ph) ph.textContent = '\u2705 Claimed ' + d.amount + ' $BEAR! TX: ' + d.tx_hash.substring(0, 12) + '...';
           if (ct) ct.textContent = 'CLAIMED!';
-          // SECURITY: Set claimed flag in localStorage to prevent refresh exploit
-          localStorage.setItem('beardrops_claimed_' + new Date().toISOString().split('T')[0], 'true');
+          // SECURITY: Set claimed flag in localStorage to prevent refresh exploit (per-wallet)
+          localStorage.setItem('beardrops_claimed_' + w + '_' + new Date().toISOString().split('T')[0], 'true');
           setTimeout(_init, 3000);
         } else {
           if (ph) ph.textContent = '\u274C ' + (d.error || 'Claim failed');
@@ -26587,7 +26587,7 @@ if (typeof window.addEventListener !== 'undefined') {
         console.log('BEARDROPS DEBUG - total_pending:', claimStatus.total_pending, 'tr:', tr);
         // Check BOTH backend status AND localStorage flag (belt and suspenders)
         const todayStr = new Date().toISOString().split('T')[0];
-        const localClaimedFlag = localStorage.getItem('beardrops_claimed_' + todayStr) === 'true';
+        const localClaimedFlag = localStorage.getItem('beardrops_claimed_' + w + '_' + todayStr) === 'true';
         const claimedToday = claimStatus.claimed_today || localClaimedFlag;
 
         // CRITICAL: Use backend's can_claim flag - it knows the real claim window rules
