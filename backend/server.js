@@ -2907,7 +2907,7 @@ app.post('/api/merch/request-payment', async (req, res) => {
     // Update order with payload UUID
     await supabaseAdmin
       .from('merch_orders')
-      .update({ payment_payload_uuid: payload.uuid })
+      .update({ xaman_payload_id: payload.uuid })
       .eq('id', order_id);
 
     res.json({
