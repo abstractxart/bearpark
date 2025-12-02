@@ -3088,10 +3088,12 @@ app.post('/api/merch/admin/auth/challenge', async (req, res) => {
     }
 
     // Create XAMAN SignIn payload for wallet verification
-    // Use simple format that matches working /api/xaman/payload endpoint
+    // Use txjson format like merch payment endpoint
     const payload = await xumm.payload.create({
-      TransactionType: 'SignIn'
-    }, true);
+      txjson: {
+        TransactionType: 'SignIn'
+      }
+    });
 
     if (!payload) {
       throw new Error('Failed to create XAMAN payload');
