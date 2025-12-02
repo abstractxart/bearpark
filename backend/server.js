@@ -3068,6 +3068,15 @@ setInterval(() => {
 // Generate admin auth challenge (Step 1)
 app.post('/api/merch/admin/auth/challenge', async (req, res) => {
   try {
+    // Check if XUMM SDK is initialized
+    if (!xumm) {
+      console.error('❌ XUMM SDK not initialized - missing XAMAN_API_KEY/XAMAN_API_SECRET');
+      return res.status(500).json({
+        success: false,
+        error: 'XAMAN SDK not configured on server'
+      });
+    }
+
     // Create XAMAN SignIn payload for wallet verification
     const payload = await xumm.payload.create({
       txjson: {
@@ -3099,8 +3108,9 @@ app.post('/api/merch/admin/auth/challenge', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error creating admin challenge:', error);
-    res.status(500).json({ success: false, error: 'Failed to create auth challenge' });
+    console.error('❌ Error creating admin challenge:', error.message);
+    console.error('Full error:', error);
+    res.status(500).json({ success: false, error: 'Failed to create auth challenge', details: error.message });
   }
 });
 
@@ -3111,6 +3121,15 @@ app.post('/api/merch/admin/auth/verify', async (req, res) => {
 
     if (!payload_uuid) {
       return res.status(400).json({ success: false, error: 'Payload UUID required' });
+    }
+
+    // Check if XUMM SDK is initialized
+    if (!xumm) {
+      console.error('❌ XUMM SDK not initialized for verify');
+      return res.status(500).json({
+        success: false,
+        error: 'XAMAN SDK not configured on server'
+      });
     }
 
     // Get payload result from XAMAN
