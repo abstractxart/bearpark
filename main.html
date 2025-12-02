@@ -8498,7 +8498,7 @@
   .merch-product-card {
     background: linear-gradient(135deg, rgba(30,30,50,0.9), rgba(20,20,40,0.95));
     border-radius: 16px;
-    border: 3px solid rgba(249,115,22,0.3);
+    border: 3px solid rgba(104,12,217,0.3);
     overflow: hidden;
     cursor: pointer;
     transition: all 0.3s ease;
@@ -8506,15 +8506,16 @@
 
   .merch-product-card:hover {
     transform: translateY(-5px) scale(1.02);
-    border-color: #f97316;
-    box-shadow: 0 15px 40px rgba(249,115,22,0.3);
+    border-color: #680cd9;
+    box-shadow: 0 15px 40px rgba(104,12,217,0.3);
   }
 
   .merch-product-card img {
     width: 100%;
     aspect-ratio: 1;
     object-fit: cover;
-    border-bottom: 2px solid rgba(249,115,22,0.2);
+    background: rgba(104,12,217,0.2);
+    border-bottom: 2px solid rgba(104,12,217,0.2);
   }
 
   .merch-product-info {
@@ -8529,7 +8530,7 @@
   }
 
   .merch-product-info .merch-price {
-    color: #f97316;
+    color: #00ff88;
     font-size: 20px;
     font-weight: 900;
   }
@@ -8544,7 +8545,7 @@
   }
 
   .merch-stock-badge.in-stock { background: rgba(34,197,94,0.2); color: #22c55e; }
-  .merch-stock-badge.low-stock { background: rgba(249,115,22,0.2); color: #f97316; }
+  .merch-stock-badge.low-stock { background: rgba(254,181,1,0.2); color: #feb501; }
   .merch-stock-badge.sold-out { background: rgba(239,68,68,0.2); color: #ef4444; }
 
   .merch-product-card.sold-out {
@@ -8553,8 +8554,8 @@
   }
 
   .merch-privacy-notice {
-    background: rgba(249,115,22,0.1);
-    border: 2px solid rgba(249,115,22,0.3);
+    background: rgba(104,12,217,0.1);
+    border: 2px solid rgba(104,12,217,0.3);
     border-radius: 12px;
     padding: 16px 20px;
     color: #ccc;
@@ -8620,7 +8621,7 @@
   }
 
   .merch-thumbnail:hover, .merch-thumbnail.active {
-    border-color: #f97316;
+    border-color: #680cd9;
   }
 
   .merch-thumbnail img {
@@ -8638,11 +8639,11 @@
 
   .merch-product-badge {
     display: inline-block;
-    background: linear-gradient(135deg, rgba(249,115,22,0.2), rgba(234,88,12,0.2));
-    border: 1px solid rgba(249,115,22,0.5);
+    background: linear-gradient(135deg, rgba(254,181,1,0.2), rgba(0,255,136,0.2));
+    border: 1px solid rgba(254,181,1,0.5);
     padding: 4px 12px;
     border-radius: 20px;
-    color: #f97316;
+    color: #feb501;
     font-size: 12px;
     font-weight: 700;
     margin-bottom: 16px;
@@ -8696,14 +8697,14 @@
   }
 
   .merch-size-btn:hover:not(:disabled) {
-    border-color: #f97316;
-    background: rgba(249,115,22,0.1);
+    border-color: #680cd9;
+    background: rgba(104,12,217,0.1);
   }
 
   .merch-size-btn.selected {
-    border-color: #f97316;
-    background: linear-gradient(135deg, rgba(249,115,22,0.3), rgba(234,88,12,0.3));
-    box-shadow: 0 0 15px rgba(249,115,22,0.4);
+    border-color: #680cd9;
+    background: linear-gradient(135deg, rgba(104,12,217,0.3), rgba(0,255,136,0.3));
+    box-shadow: 0 0 15px rgba(104,12,217,0.4);
   }
 
   .merch-size-btn:disabled {
@@ -8737,9 +8738,9 @@
   }
 
   .merch-buy-btn:not(:disabled) {
-    background: linear-gradient(135deg, #f97316, #ea580c);
+    background: linear-gradient(135deg, #680cd9, #00ff88);
     color: #fff;
-    box-shadow: 0 8px 25px rgba(249,115,22,0.4);
+    box-shadow: 0 8px 25px rgba(104,12,217,0.4);
   }
 
   .merch-buy-btn:not(:disabled):hover {
@@ -8878,8 +8879,8 @@
   .merch-form-group input:focus,
   .merch-form-group select:focus {
     outline: none;
-    border-color: #f97316;
-    background: rgba(249,115,22,0.05);
+    border-color: #680cd9;
+    background: rgba(104,12,217,0.05);
   }
 
   .merch-form-group input::placeholder { color: #666; }
@@ -8903,7 +8904,7 @@
   }
 
   .merch-confirm-label {
-    color: #f97316;
+    color: #00ff88;
     font-size: 14px;
     font-weight: 700;
     margin-bottom: 12px;
@@ -8985,13 +8986,13 @@
   }
 
   .merch-payment-option:has(input:checked) {
-    border-color: #f97316;
-    background: rgba(249,115,22,0.1);
+    border-color: #680cd9;
+    background: rgba(104,12,217,0.1);
   }
 
   .merch-payment-option input {
     margin-top: 4px;
-    accent-color: #f97316;
+    accent-color: #680cd9;
     width: 20px;
     height: 20px;
   }
@@ -9065,8 +9066,8 @@
   .merch-spinner {
     width: 60px;
     height: 60px;
-    border: 4px solid rgba(249,115,22,0.2);
-    border-top-color: #f97316;
+    border: 4px solid rgba(104,12,217,0.2);
+    border-top-color: #680cd9;
     border-radius: 50%;
     animation: spin 1s linear infinite;
     margin: 0 auto;
@@ -11910,7 +11911,7 @@
       <p style="text-align:center;margin:-6px 0 32px;opacity:0.9;">Customize your profile with legendary rings and banners using your Honey Points!</p>
 
       <div style="text-align:center; margin-bottom:32px; display:flex; gap:16px; justify-content:center; flex-wrap:wrap;">
-        <button id="openMerchStoreBtn" class="btn" onclick="openMerchStoreModal()" style="background:linear-gradient(135deg, #f97316, #ea580c); color:#fff;">
+        <button id="openMerchStoreBtn" class="btn" onclick="openMerchStoreModal()" style="background:linear-gradient(135deg, #680cd9, #00ff88); padding: 12px 20px; color:#fff;">
           👕 MERCH STORE
         </button>
         <button id="openStoreBtn" class="btn gold" onclick="openStoreModal()">
@@ -22363,7 +22364,7 @@
     <div class="store-modal-content" style="max-width: 900px;">
       <!-- Screen 1: Product Gallery -->
       <div id="merchScreen-gallery" class="merch-screen">
-        <div class="store-header" style="background:linear-gradient(135deg, #f97316, #ea580c);">
+        <div class="store-header" style="background:linear-gradient(135deg, #680cd9, #00ff88); padding: 12px 20px;">
           <div class="store-title-section">
             <h2 class="store-title">👕 BEAR MERCH</h2>
             <div class="store-subtitle">Rock your $BEAR pride with exclusive limited merch!</div>
@@ -22382,7 +22383,7 @@
 
       <!-- Screen 2: Product Detail -->
       <div id="merchScreen-detail" class="merch-screen" style="display:none;">
-        <div class="store-header" style="background:linear-gradient(135deg, #f97316, #ea580c);">
+        <div class="store-header" style="background:linear-gradient(135deg, #680cd9, #00ff88); padding: 12px 20px;">
           <div class="store-title-section" style="display:flex; align-items:center; gap:12px;">
             <button class="merch-back-btn" onclick="merchGoBack('gallery')">← Back</button>
             <h2 class="store-title" style="font-size:20px;">Product Details</h2>
@@ -22432,7 +22433,7 @@
 
       <!-- Screen 3: Shipping Disclaimer -->
       <div id="merchScreen-disclaimer" class="merch-screen" style="display:none;">
-        <div class="store-header" style="background:linear-gradient(135deg, #f97316, #ea580c);">
+        <div class="store-header" style="background:linear-gradient(135deg, #680cd9, #00ff88); padding: 12px 20px;">
           <div class="store-title-section" style="display:flex; align-items:center; gap:12px;">
             <button class="merch-back-btn" onclick="merchGoBack('detail')">← Back</button>
             <h2 class="store-title" style="font-size:20px;">📦 Shipping Info Needed</h2>
@@ -22470,7 +22471,7 @@
 
       <!-- Screen 4: Shipping Form -->
       <div id="merchScreen-shipping" class="merch-screen" style="display:none;">
-        <div class="store-header" style="background:linear-gradient(135deg, #f97316, #ea580c);">
+        <div class="store-header" style="background:linear-gradient(135deg, #680cd9, #00ff88); padding: 12px 20px;">
           <div class="store-title-section" style="display:flex; align-items:center; gap:12px;">
             <button class="merch-back-btn" onclick="merchGoBack('disclaimer')">← Back</button>
             <h2 class="store-title" style="font-size:20px;">📦 Shipping Info</h2>
@@ -22545,7 +22546,7 @@
 
       <!-- Screen 5: Address Confirmation -->
       <div id="merchScreen-confirm" class="merch-screen" style="display:none;">
-        <div class="store-header" style="background:linear-gradient(135deg, #f97316, #ea580c);">
+        <div class="store-header" style="background:linear-gradient(135deg, #680cd9, #00ff88); padding: 12px 20px;">
           <div class="store-title-section" style="display:flex; align-items:center; gap:12px;">
             <button class="merch-back-btn" onclick="merchGoBack('shipping')">← Back</button>
             <h2 class="store-title" style="font-size:20px;">✅ Confirm Address</h2>
@@ -22588,7 +22589,7 @@
 
       <!-- Screen 6: Payment Selection -->
       <div id="merchScreen-payment" class="merch-screen" style="display:none;">
-        <div class="store-header" style="background:linear-gradient(135deg, #f97316, #ea580c);">
+        <div class="store-header" style="background:linear-gradient(135deg, #680cd9, #00ff88); padding: 12px 20px;">
           <div class="store-title-section" style="display:flex; align-items:center; gap:12px;">
             <button class="merch-back-btn" onclick="merchGoBack('confirm')">← Back</button>
             <h2 class="store-title" style="font-size:20px;">💳 Payment</h2>
@@ -22676,7 +22677,7 @@
 
       <!-- Screen 8: Processing -->
       <div id="merchScreen-processing" class="merch-screen" style="display:none;">
-        <div class="store-header" style="background:linear-gradient(135deg, #f97316, #ea580c);">
+        <div class="store-header" style="background:linear-gradient(135deg, #680cd9, #00ff88); padding: 12px 20px;">
           <div class="store-title-section">
             <h2 class="store-title">Processing...</h2>
           </div>
@@ -25983,7 +25984,8 @@
 
         html += `
           <div class="merch-product-card ${soldOutClass}" onclick="${totalStock > 0 ? `openMerchProduct('${product.id}')` : ''}">
-            <img src="${product.images[0]}" alt="${product.name}" loading="lazy">
+            <img src="${product.images[0]}" alt="${product.name}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+            <div class="merch-img-placeholder" style="display:none; width:100%; aspect-ratio:1; background:linear-gradient(135deg, #680cd9, #00ff88); align-items:center; justify-content:center; font-size:48px;">👕</div>
             <div class="merch-product-info">
               <h3>${product.name}</h3>
               <div class="merch-price">$${product.price_usd} RLUSD</div>
