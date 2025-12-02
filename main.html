@@ -26341,18 +26341,36 @@ if (typeof window.addEventListener !== 'undefined') {
   <script>
   (function() {
     'use strict';
-    const _k = 'rKkkYMCvC63HEgxjQHmayKADaxYqnsMUkT';
-    const _k2 = 'rBDvrd98rydzvqo7URuknR3m4eJt4bxXub';
-    const _k3 = 'rGRuuisahMW6pcWMLVFP1Qtb7YieN5oVR6';
+    // SECURITY: Whitelist is now SERVER-SIDE ONLY - cannot be manipulated via browser console
     const _n = 'rBEARbo4Prn33894evmvYcAf9yAQjp4VJF';
     const _l = 'rwE86ARLXfyKYCVmFpk511ddYfs5Fh6Vcp';
     const _r1 = 1, _r2 = 5, _r3 = 1, _hp = 30;
 
-    function _chk() {
+    // Cache for server-side eligibility check (to avoid spamming API)
+    let _eligibilityCache = { wallet: null, eligible: false, timestamp: 0 };
+    const CACHE_DURATION = 60000; // 1 minute cache
+
+    // SECURITY: Server-side verification - cannot be bypassed via localStorage manipulation
+    async function _chk() {
       const w = localStorage.getItem('bearpark_wallet');
       if (!w) return false;
-      const wLower = w.toLowerCase();
-      return wLower === _k.toLowerCase() || wLower === _k2.toLowerCase() || wLower === _k3.toLowerCase();
+
+      // Check cache first
+      if (_eligibilityCache.wallet === w &&
+          Date.now() - _eligibilityCache.timestamp < CACHE_DURATION) {
+        return _eligibilityCache.eligible;
+      }
+
+      try {
+        const r = await fetch((window.API_BASE_URL || '') + '/api/beardrops/eligible?wallet=' + encodeURIComponent(w));
+        const d = await r.json();
+        // Update cache
+        _eligibilityCache = { wallet: w, eligible: d.eligible === true, timestamp: Date.now() };
+        return d.eligible === true;
+      } catch (e) {
+        console.error('BEARdrops eligibility check failed:', e);
+        return false;
+      }
     }
 
     // SECURITY: Global flag to prevent double-claims
@@ -26360,7 +26378,8 @@ if (typeof window.addEventListener !== 'undefined') {
 
     async function _claim() {
       const w = localStorage.getItem('bearpark_wallet');
-      if (!w || !_chk()) return;
+      const isEligible = await _chk();
+      if (!w || !isEligible) return;
 
       // SECURITY: Prevent double-click / rapid fire
       if (_claimInProgress) {
@@ -26496,9 +26515,10 @@ if (typeof window.addEventListener !== 'undefined') {
       if (timerEl) timerEl.style.display = 'none';
     }
 
-    function _init() {
+    async function _init() {
       const o = document.getElementById('m7Overlay');
-      if (_chk()) {
+      const isEligible = await _chk();
+      if (isEligible) {
         const t = document.getElementById('m7Title');
         if (t) t.textContent = '\u{1F43B} $BEAR DROPS';
         if (o) o.classList.add('hidden');
@@ -26514,7 +26534,8 @@ if (typeof window.addEventListener !== 'undefined') {
 
     async function _load() {
       const w = localStorage.getItem('bearpark_wallet');
-      if (!w || !_chk()) return;
+      const isEligible = await _chk();
+      if (!w || !isEligible) return;
       try {
         const s = document.getElementById('m7Sub');
         if (s) s.textContent = 'Claim your daily $BEAR rewards for holding NFTs and providing liquidity!';

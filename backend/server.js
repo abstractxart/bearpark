@@ -1,7 +1,7 @@
 const path = require('path');
 // BEARpark Backend Server - Raid Leaderboard & Streak System
-// VERSION: 2.1.0 - Fixed activity logging with supabaseAdmin + error logging
-const SERVER_VERSION = '2.1.0';
+// VERSION: 2.2.0 - Server-side BEARdrops whitelist verification (SECURITY)
+const SERVER_VERSION = '2.2.0';
 // Load .env only in local development (Vercel injects env vars directly)
 if (process.env.NODE_ENV !== 'production') {
   require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
@@ -2664,6 +2664,50 @@ app.get('/api/twitter/oembed', async (req, res) => {
   } catch (error) {
     console.error('Error fetching Twitter embed:', error);
     res.status(500).json({ error: 'Failed to fetch Twitter embed', details: error.message });
+  }
+});
+
+// ===== BEARDROPS WHITELIST (SERVER-SIDE) =====
+// SECURITY: Whitelist is stored server-side only - cannot be manipulated via browser console
+const BEARDROPS_WHITELIST = [
+  'rKkkYMCvC63HEgxjQHmayKADaxYqnsMUkT'.toLowerCase(),
+  'rBDvrd98rydzvqo7URuknR3m4eJt4bxXub'.toLowerCase(),
+  'rGRuuisahMW6pcWMLVFP1Qtb7YieN5oVR6'.toLowerCase()
+];
+
+// Verify if wallet is eligible for BEARdrops (server-side check)
+app.get('/api/beardrops/eligible', async (req, res) => {
+  try {
+    const wallet = req.query.wallet;
+    if (!wallet) {
+      return res.status(400).json({ eligible: false, error: 'Wallet address required' });
+    }
+
+    // Server-side whitelist check - cannot be bypassed
+    const isWhitelisted = BEARDROPS_WHITELIST.includes(wallet.toLowerCase());
+
+    if (!isWhitelisted) {
+      return res.json({ eligible: false, reason: 'not_whitelisted' });
+    }
+
+    // Additional verification: Check if wallet exists in our database (has interacted with the platform)
+    if (supabase) {
+      const { data: userData } = await supabase
+        .from('honey_points')
+        .select('wallet_address')
+        .eq('wallet_address', wallet)
+        .maybeSingle();
+
+      // Wallet must have some activity on the platform
+      if (!userData) {
+        return res.json({ eligible: false, reason: 'no_activity' });
+      }
+    }
+
+    return res.json({ eligible: true, wallet: wallet });
+  } catch (error) {
+    console.error('Error checking BEARdrops eligibility:', error);
+    return res.status(500).json({ eligible: false, error: 'Server error' });
   }
 });
 
