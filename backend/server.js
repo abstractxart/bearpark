@@ -3203,14 +3203,16 @@ app.get('/api/merch/test-sdk-payment', async (req, res) => {
       results.sdk_payment_xrp = { error: e.message, details: e.toString() };
     }
 
-    // Test 3: Payment via SDK for RLUSD (IOU format)
+    // Test 3: Payment via SDK for RLUSD (IOU format - hex currency code)
+    // RLUSD in hex: R=52, L=4C, U=55, S=53, D=44, padded to 40 chars
+    const RLUSD_HEX = '524C555344000000000000000000000000000000';
     try {
       const rlusdPayload = await xumm.payload.create({
         txjson: {
           TransactionType: 'Payment',
           Destination: 'rBEARKfWJS1LYdg2g6t99BgbvpWY5pgMB9',
           Amount: {
-            currency: 'RLUSD',
+            currency: RLUSD_HEX,
             issuer: 'rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De',
             value: '30'
           },
