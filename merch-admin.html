@@ -47,6 +47,90 @@
     .wallet-info.connected { border: 2px solid #00ff88; }
     .wallet-info.not-connected { border: 2px solid #ef4444; }
 
+    /* Auth Screen */
+    .auth-screen {
+      text-align: center;
+      padding: 60px 20px;
+      max-width: 500px;
+      margin: 0 auto;
+    }
+
+    .auth-screen h2 {
+      font-size: 28px;
+      margin-bottom: 20px;
+      color: #00ff88;
+    }
+
+    .auth-screen p {
+      color: #888;
+      margin-bottom: 30px;
+      line-height: 1.6;
+    }
+
+    .auth-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 32px;
+      background: linear-gradient(135deg, #680cd9, #00ff88);
+      border: none;
+      border-radius: 12px;
+      color: #fff;
+      font-size: 18px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .auth-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 30px rgba(104,12,217,0.4);
+    }
+
+    .auth-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .qr-container {
+      margin: 30px auto;
+      padding: 20px;
+      background: #fff;
+      border-radius: 16px;
+      display: inline-block;
+    }
+
+    .qr-container img {
+      width: 200px;
+      height: 200px;
+    }
+
+    .auth-status {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 10px;
+      font-size: 14px;
+    }
+
+    .auth-status.waiting {
+      background: rgba(254,181,1,0.2);
+      border: 2px solid #feb501;
+      color: #feb501;
+    }
+
+    .auth-status.success {
+      background: rgba(34,197,94,0.2);
+      border: 2px solid #22c55e;
+      color: #22c55e;
+    }
+
+    .auth-status.error {
+      background: rgba(239,68,68,0.2);
+      border: 2px solid #ef4444;
+      color: #ef4444;
+    }
+
     .access-denied {
       text-align: center;
       padding: 100px 20px;
@@ -309,6 +393,12 @@
       color: #666;
     }
 
+    .session-timer {
+      font-size: 12px;
+      color: #888;
+      margin-top: 5px;
+    }
+
     @media (max-width: 768px) {
       .orders-table { display: block; overflow-x: auto; }
       .header { flex-direction: column; gap: 15px; text-align: center; }
@@ -319,17 +409,36 @@
   <div class="container">
     <div class="header">
       <h1>BEAR Merch Admin</h1>
-      <div id="walletStatus" class="wallet-info not-connected">
-        Not Connected
+      <div>
+        <div id="walletStatus" class="wallet-info not-connected">Not Authenticated</div>
+        <div id="sessionTimer" class="session-timer"></div>
       </div>
     </div>
 
-    <div id="accessDenied" class="access-denied" style="display:none;">
-      <h2>ACCESS DENIED</h2>
-      <p>This admin panel is restricted to authorized wallets only.</p>
-      <p style="margin-top:20px; font-family:monospace; color:#666;">Connect with an admin wallet to access.</p>
+    <!-- Auth Screen -->
+    <div id="authScreen" class="auth-screen">
+      <h2>Admin Authentication Required</h2>
+      <p>Sign with your XAMAN wallet to prove ownership and access the merch admin panel. Only authorized wallets can access this area.</p>
+
+      <button id="authBtn" class="auth-btn" onclick="startAuth()">
+        Sign in with XAMAN
+      </button>
+
+      <div id="qrContainer" class="qr-container" style="display:none;">
+        <img id="qrImage" src="" alt="Scan with XAMAN">
+      </div>
+
+      <div id="authStatus" class="auth-status" style="display:none;"></div>
     </div>
 
+    <!-- Access Denied -->
+    <div id="accessDenied" class="access-denied" style="display:none;">
+      <h2>ACCESS DENIED</h2>
+      <p>Your wallet is not authorized to access this admin panel.</p>
+      <p style="margin-top:20px; font-family:monospace; color:#666;">Only whitelisted admin wallets can access.</p>
+    </div>
+
+    <!-- Admin Content -->
     <div id="adminContent" style="display:none;">
       <div class="stats-row">
         <div class="stat-card">
@@ -402,55 +511,176 @@
 
   <script>
     const API_BASE = 'https://bearpark-production.up.railway.app';
+    let sessionToken = null;
     let connectedWallet = null;
     let allOrders = [];
     let currentFilter = 'all';
+    let pollInterval = null;
+    let sessionExpiry = null;
 
-    // Check for existing wallet connection from localStorage
-    function checkWalletConnection() {
-      const savedWallet = localStorage.getItem('connectedWallet');
-      if (savedWallet) {
-        connectedWallet = savedWallet;
-        updateWalletStatus();
-        checkAdminAccess();
-      } else {
-        document.getElementById('accessDenied').style.display = 'block';
-        document.getElementById('accessDenied').innerHTML = `
-          <h2>WALLET NOT CONNECTED</h2>
-          <p>Please connect your XAMAN wallet on the main site first.</p>
-          <p style="margin-top:20px;"><a href="/main.html" style="color:#680cd9;">Go to BEAR Park</a></p>
-        `;
-      }
-    }
+    // Start XAMAN authentication
+    async function startAuth() {
+      const btn = document.getElementById('authBtn');
+      const statusEl = document.getElementById('authStatus');
+      const qrContainer = document.getElementById('qrContainer');
 
-    function updateWalletStatus() {
-      const el = document.getElementById('walletStatus');
-      if (connectedWallet) {
-        el.textContent = connectedWallet.slice(0,8) + '...' + connectedWallet.slice(-6);
-        el.classList.remove('not-connected');
-        el.classList.add('connected');
-      }
-    }
+      btn.disabled = true;
+      btn.textContent = 'Requesting...';
 
-    async function checkAdminAccess() {
       try {
-        const res = await fetch(`${API_BASE}/api/merch/admin/orders?wallet=${connectedWallet}`);
+        // Request challenge from backend
+        const res = await fetch(`${API_BASE}/api/merch/admin/auth/challenge`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
 
-        if (res.status === 403) {
-          document.getElementById('accessDenied').style.display = 'block';
+        const data = await res.json();
+
+        if (!data.success) {
+          throw new Error(data.error || 'Failed to create challenge');
+        }
+
+        // Show QR code
+        if (data.qr_png) {
+          document.getElementById('qrImage').src = data.qr_png;
+          qrContainer.style.display = 'block';
+        }
+
+        // Show status
+        statusEl.className = 'auth-status waiting';
+        statusEl.innerHTML = 'Waiting for XAMAN signature...<br><small>Scan QR or check your XAMAN app</small>';
+        statusEl.style.display = 'block';
+
+        btn.textContent = 'Waiting for signature...';
+
+        // Open XAMAN on mobile
+        if (data.next?.always) {
+          window.open(data.next.always, '_blank');
+        }
+
+        // Poll for completion
+        pollForSignature(data.uuid);
+
+      } catch (error) {
+        console.error('Auth error:', error);
+        statusEl.className = 'auth-status error';
+        statusEl.textContent = 'Error: ' + error.message;
+        statusEl.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'Sign in with XAMAN';
+      }
+    }
+
+    // Poll XAMAN for signature completion
+    function pollForSignature(uuid) {
+      let attempts = 0;
+      const maxAttempts = 60; // 5 minutes (5 sec intervals)
+
+      pollInterval = setInterval(async () => {
+        attempts++;
+
+        if (attempts > maxAttempts) {
+          clearInterval(pollInterval);
+          document.getElementById('authStatus').className = 'auth-status error';
+          document.getElementById('authStatus').textContent = 'Timeout - please try again';
+          document.getElementById('authBtn').disabled = false;
+          document.getElementById('authBtn').textContent = 'Sign in with XAMAN';
+          return;
+        }
+
+        try {
+          // Verify with backend
+          const res = await fetch(`${API_BASE}/api/merch/admin/auth/verify`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ payload_uuid: uuid })
+          });
+
+          const data = await res.json();
+
+          if (data.success) {
+            clearInterval(pollInterval);
+            onAuthSuccess(data);
+          } else if (res.status === 403) {
+            clearInterval(pollInterval);
+            onAuthDenied();
+          }
+          // If not signed yet, keep polling
+
+        } catch (error) {
+          // Keep polling on network errors
+        }
+      }, 5000); // Poll every 5 seconds
+    }
+
+    // Auth successful
+    function onAuthSuccess(data) {
+      sessionToken = data.session_token;
+      connectedWallet = data.wallet;
+      sessionExpiry = Date.now() + (data.expires_in * 1000);
+
+      document.getElementById('authScreen').style.display = 'none';
+      document.getElementById('adminContent').style.display = 'block';
+
+      const walletEl = document.getElementById('walletStatus');
+      walletEl.textContent = connectedWallet.slice(0,8) + '...' + connectedWallet.slice(-6);
+      walletEl.classList.remove('not-connected');
+      walletEl.classList.add('connected');
+
+      // Start session timer
+      updateSessionTimer();
+      setInterval(updateSessionTimer, 1000);
+
+      // Load orders
+      loadOrders();
+    }
+
+    // Auth denied (not admin wallet)
+    function onAuthDenied() {
+      document.getElementById('authScreen').style.display = 'none';
+      document.getElementById('accessDenied').style.display = 'block';
+    }
+
+    // Update session timer display
+    function updateSessionTimer() {
+      if (!sessionExpiry) return;
+
+      const remaining = Math.max(0, sessionExpiry - Date.now());
+      const mins = Math.floor(remaining / 60000);
+      const secs = Math.floor((remaining % 60000) / 1000);
+
+      document.getElementById('sessionTimer').textContent =
+        `Session expires in ${mins}:${secs.toString().padStart(2, '0')}`;
+
+      if (remaining <= 0) {
+        sessionToken = null;
+        alert('Session expired. Please sign in again.');
+        location.reload();
+      }
+    }
+
+    // Load orders from API
+    async function loadOrders() {
+      try {
+        const res = await fetch(`${API_BASE}/api/merch/admin/orders`, {
+          headers: { 'X-Admin-Token': sessionToken }
+        });
+
+        if (res.status === 401) {
+          alert('Session expired. Please sign in again.');
+          location.reload();
           return;
         }
 
         const data = await res.json();
+
         if (data.success) {
-          document.getElementById('adminContent').style.display = 'block';
           allOrders = data.orders || [];
           updateStats();
           renderOrders();
         }
       } catch (error) {
-        console.error('Error checking admin access:', error);
-        document.getElementById('accessDenied').style.display = 'block';
+        console.error('Error loading orders:', error);
       }
     }
 
@@ -583,14 +813,20 @@
       if (!confirm('Mark this order as shipped?')) return;
 
       try {
-        const res = await fetch(`${API_BASE}/api/merch/admin/orders/${orderId}?wallet=${connectedWallet}`, {
+        const res = await fetch(`${API_BASE}/api/merch/admin/orders/${orderId}`, {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Admin-Token': sessionToken
+          },
           body: JSON.stringify({ status: 'shipped' })
         });
 
         if (res.ok) {
           alert('Order marked as shipped!');
+          loadOrders();
+        } else if (res.status === 401) {
+          alert('Session expired. Please sign in again.');
           location.reload();
         }
       } catch (error) {
@@ -603,9 +839,12 @@
       const notes = document.getElementById('notesInput').value;
 
       try {
-        const res = await fetch(`${API_BASE}/api/merch/admin/orders/${orderId}?wallet=${connectedWallet}`, {
+        const res = await fetch(`${API_BASE}/api/merch/admin/orders/${orderId}`, {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Admin-Token': sessionToken
+          },
           body: JSON.stringify({
             status: 'shipped',
             tracking_number: tracking,
@@ -616,15 +855,15 @@
         if (res.ok) {
           alert('Order updated and marked as shipped!');
           closeModal();
+          loadOrders();
+        } else if (res.status === 401) {
+          alert('Session expired. Please sign in again.');
           location.reload();
         }
       } catch (error) {
         alert('Error updating order');
       }
     }
-
-    // Initialize
-    checkWalletConnection();
   </script>
 </body>
 </html>

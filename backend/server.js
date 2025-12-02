@@ -3051,18 +3051,146 @@ const MERCH_ADMIN_WALLETS = [
   'rKkkYMCvC63HEgxjQHmayKADaxYqnsMUkT'.toLowerCase() // MUKT wallet
 ];
 
-// Admin: Get all orders (for admin panel) - WALLET PROTECTED
-app.get('/api/merch/admin/orders', async (req, res) => {
-  try {
-    const { wallet } = req.query;
+// Admin session storage (in-memory, expires after 30 min)
+const adminSessions = new Map();
+const ADMIN_SESSION_EXPIRY = 30 * 60 * 1000; // 30 minutes
 
-    // Verify admin wallet
-    if (!wallet || !MERCH_ADMIN_WALLETS.includes(wallet.toLowerCase())) {
-      console.log(`🚫 Merch admin access denied for wallet: ${wallet}`);
-      return res.status(403).json({ success: false, error: 'Access denied. Admin wallet required.' });
+// Clean expired sessions periodically
+setInterval(() => {
+  const now = Date.now();
+  for (const [token, session] of adminSessions) {
+    if (now > session.expires) {
+      adminSessions.delete(token);
+    }
+  }
+}, 60000); // Check every minute
+
+// Generate admin auth challenge (Step 1)
+app.post('/api/merch/admin/auth/challenge', async (req, res) => {
+  try {
+    // Create XAMAN SignIn payload for wallet verification
+    const payload = await xumm.payload.create({
+      txjson: {
+        TransactionType: 'SignIn'
+      },
+      options: {
+        expire: 5, // 5 minutes to sign
+        return_url: {
+          web: 'https://www.bearpark.xyz/merch-admin'
+        }
+      },
+      custom_meta: {
+        instruction: 'Sign to verify admin access to BEAR Merch orders'
+      }
+    });
+
+    if (!payload) {
+      throw new Error('Failed to create XAMAN payload');
     }
 
-    console.log(`✅ Merch admin access granted for wallet: ${wallet}`);
+    console.log(`🔐 Admin auth challenge created: ${payload.uuid}`);
+
+    res.json({
+      success: true,
+      uuid: payload.uuid,
+      qr_png: payload.refs?.qr_png,
+      next: payload.next,
+      refs: payload.refs
+    });
+
+  } catch (error) {
+    console.error('Error creating admin challenge:', error);
+    res.status(500).json({ success: false, error: 'Failed to create auth challenge' });
+  }
+});
+
+// Verify admin auth (Step 2 - after XAMAN sign)
+app.post('/api/merch/admin/auth/verify', async (req, res) => {
+  try {
+    const { payload_uuid } = req.body;
+
+    if (!payload_uuid) {
+      return res.status(400).json({ success: false, error: 'Payload UUID required' });
+    }
+
+    // Get payload result from XAMAN
+    const result = await xumm.payload.get(payload_uuid);
+
+    if (!result) {
+      return res.status(400).json({ success: false, error: 'Invalid payload' });
+    }
+
+    // Check if signed
+    if (!result.meta?.signed) {
+      return res.status(401).json({ success: false, error: 'Payload not signed' });
+    }
+
+    // Get the wallet that signed
+    const wallet = result.response?.account;
+
+    if (!wallet) {
+      return res.status(400).json({ success: false, error: 'Could not determine wallet' });
+    }
+
+    // Check if admin wallet
+    if (!MERCH_ADMIN_WALLETS.includes(wallet.toLowerCase())) {
+      console.log(`🚫 Admin auth denied for wallet: ${wallet}`);
+      return res.status(403).json({ success: false, error: 'Access denied. Not an admin wallet.' });
+    }
+
+    // Generate session token
+    const sessionToken = crypto.randomBytes(32).toString('hex');
+    const expires = Date.now() + ADMIN_SESSION_EXPIRY;
+
+    adminSessions.set(sessionToken, {
+      wallet: wallet.toLowerCase(),
+      expires,
+      created: Date.now()
+    });
+
+    console.log(`✅ Admin session created for wallet: ${wallet}`);
+
+    res.json({
+      success: true,
+      session_token: sessionToken,
+      wallet,
+      expires_in: ADMIN_SESSION_EXPIRY / 1000 // seconds
+    });
+
+  } catch (error) {
+    console.error('Error verifying admin auth:', error);
+    res.status(500).json({ success: false, error: 'Verification failed' });
+  }
+});
+
+// Middleware to verify admin session
+function verifyAdminSession(req, res, next) {
+  const token = req.headers['x-admin-token'] || req.query.token;
+
+  if (!token) {
+    return res.status(401).json({ success: false, error: 'Admin token required' });
+  }
+
+  const session = adminSessions.get(token);
+
+  if (!session) {
+    return res.status(401).json({ success: false, error: 'Invalid or expired session' });
+  }
+
+  if (Date.now() > session.expires) {
+    adminSessions.delete(token);
+    return res.status(401).json({ success: false, error: 'Session expired' });
+  }
+
+  // Attach wallet to request
+  req.adminWallet = session.wallet;
+  next();
+}
+
+// Admin: Get all orders (for admin panel) - SESSION PROTECTED
+app.get('/api/merch/admin/orders', verifyAdminSession, async (req, res) => {
+  try {
+    console.log(`✅ Merch admin access granted for wallet: ${req.adminWallet}`);
 
     const { data: orders, error } = await supabaseAdmin
       .from('merch_orders')
@@ -3093,17 +3221,11 @@ app.get('/api/merch/admin/orders', async (req, res) => {
   }
 });
 
-// Admin: Update order status (shipped, tracking, etc) - WALLET PROTECTED
-app.patch('/api/merch/admin/orders/:orderId', async (req, res) => {
+// Admin: Update order status (shipped, tracking, etc) - SESSION PROTECTED
+app.patch('/api/merch/admin/orders/:orderId', verifyAdminSession, async (req, res) => {
   try {
-    const { wallet } = req.query;
     const { orderId } = req.params;
     const { status, tracking_number, notes } = req.body;
-
-    // Verify admin wallet
-    if (!wallet || !MERCH_ADMIN_WALLETS.includes(wallet.toLowerCase())) {
-      return res.status(403).json({ success: false, error: 'Access denied. Admin wallet required.' });
-    }
 
     const updateData = { updated_at: new Date().toISOString() };
     if (status) updateData.status = status;
@@ -3118,7 +3240,7 @@ app.patch('/api/merch/admin/orders/:orderId', async (req, res) => {
 
     if (error) throw error;
 
-    console.log(`📦 Merch order ${orderId} updated by admin ${wallet}: ${JSON.stringify(updateData)}`);
+    console.log(`📦 Merch order ${orderId} updated by admin ${req.adminWallet}: ${JSON.stringify(updateData)}`);
     res.json({ success: true, message: 'Order updated' });
 
   } catch (error) {
