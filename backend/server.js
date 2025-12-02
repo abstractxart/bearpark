@@ -2700,6 +2700,348 @@ app.get('/api/beardrops/eligible', async (req, res) => {
   }
 });
 
+// ===== MERCH STORE API =====
+const crypto = require('crypto');
+
+// Encryption for sensitive shipping data
+const MERCH_ENCRYPTION_KEY = process.env.MERCH_ENCRYPTION_KEY || crypto.randomBytes(32).toString('hex');
+
+function encryptData(text) {
+  const iv = crypto.randomBytes(16);
+  const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(MERCH_ENCRYPTION_KEY.slice(0, 32), 'utf8'), iv);
+  let encrypted = cipher.update(text, 'utf8', 'hex');
+  encrypted += cipher.final('hex');
+  return iv.toString('hex') + ':' + encrypted;
+}
+
+function decryptData(text) {
+  try {
+    const [ivHex, encryptedHex] = text.split(':');
+    const iv = Buffer.from(ivHex, 'hex');
+    const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(MERCH_ENCRYPTION_KEY.slice(0, 32), 'utf8'), iv);
+    let decrypted = decipher.update(encryptedHex, 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
+    return decrypted;
+  } catch (e) {
+    return null;
+  }
+}
+
+// Merch products (in-memory for now, can move to DB later)
+const MERCH_PRODUCTS = {
+  'pocket-jester': {
+    id: 'pocket-jester',
+    name: 'POCKET JESTER',
+    price_usd: 30,
+    sizes: { S: 10, M: 15, L: 20, XL: 15, XXL: 10 }
+  }
+};
+
+// Get all merch products
+app.get('/api/merch/products', (req, res) => {
+  res.json({
+    success: true,
+    products: Object.values(MERCH_PRODUCTS)
+  });
+});
+
+// Create merch order
+app.post('/api/merch/orders', async (req, res) => {
+  try {
+    const { wallet_address, product_id, size, payment_method, shipping } = req.body;
+
+    if (!wallet_address || !product_id || !size || !shipping) {
+      return res.status(400).json({ success: false, error: 'Missing required fields' });
+    }
+
+    const product = MERCH_PRODUCTS[product_id];
+    if (!product) {
+      return res.status(404).json({ success: false, error: 'Product not found' });
+    }
+
+    if (!product.sizes[size] || product.sizes[size] <= 0) {
+      return res.status(400).json({ success: false, error: 'Size not available' });
+    }
+
+    // Generate order number
+    const orderNumber = `BEAR-${Date.now().toString(36).toUpperCase()}`;
+    const orderId = crypto.randomUUID();
+
+    // Encrypt shipping data
+    const encryptedShipping = {
+      name: encryptData(shipping.name),
+      street: encryptData(shipping.street),
+      apt: shipping.apt ? encryptData(shipping.apt) : null,
+      city: encryptData(shipping.city),
+      state: shipping.state,
+      zip: encryptData(shipping.zip),
+      country: shipping.country
+    };
+
+    // Store order in Supabase
+    const orderData = {
+      id: orderId,
+      order_number: orderNumber,
+      wallet_address,
+      product_id,
+      size,
+      payment_method: payment_method || 'RLUSD',
+      amount_usd: product.price_usd,
+      shipping_name_encrypted: encryptedShipping.name,
+      shipping_street_encrypted: encryptedShipping.street,
+      shipping_apt_encrypted: encryptedShipping.apt,
+      shipping_city_encrypted: encryptedShipping.city,
+      shipping_state: encryptedShipping.state,
+      shipping_zip_encrypted: encryptedShipping.zip,
+      shipping_country: encryptedShipping.country,
+      status: 'pending',
+      created_at: new Date().toISOString()
+    };
+
+    const { error: insertError } = await supabaseAdmin.from('merch_orders').insert(orderData);
+
+    if (insertError) {
+      console.error('Error creating merch order:', insertError);
+      return res.status(500).json({ success: false, error: 'Failed to create order' });
+    }
+
+    // Reserve stock (decrement)
+    MERCH_PRODUCTS[product_id].sizes[size]--;
+
+    console.log(`📦 Merch order created: ${orderNumber} - ${product.name} (${size}) for ${wallet_address}`);
+
+    res.json({
+      success: true,
+      order_id: orderId,
+      order_number: orderNumber,
+      message: 'Order created, awaiting payment'
+    });
+
+  } catch (error) {
+    console.error('Error creating merch order:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+// Request payment for merch order
+app.post('/api/merch/request-payment', async (req, res) => {
+  try {
+    const { order_id, payment_method, amount_usd, xrp_price } = req.body;
+
+    if (!order_id) {
+      return res.status(400).json({ success: false, error: 'Order ID required' });
+    }
+
+    // Get order from DB
+    const { data: order, error: orderError } = await supabaseAdmin
+      .from('merch_orders')
+      .select('*')
+      .eq('id', order_id)
+      .single();
+
+    if (orderError || !order) {
+      return res.status(404).json({ success: false, error: 'Order not found' });
+    }
+
+    // RLUSD issuer on mainnet
+    const RLUSD_ISSUER = 'rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De';
+    const MERCH_WALLET = process.env.MERCH_WALLET || 'rBEARbo4Prn33894evmvYcAf9yAQjp4VJF';
+
+    let payloadRequest;
+
+    if (payment_method === 'RLUSD') {
+      payloadRequest = {
+        txjson: {
+          TransactionType: 'Payment',
+          Destination: MERCH_WALLET,
+          Amount: {
+            currency: 'RLUSD',
+            issuer: RLUSD_ISSUER,
+            value: amount_usd.toString()
+          },
+          Memos: [{
+            Memo: {
+              MemoType: Buffer.from('BEAR_MERCH').toString('hex').toUpperCase(),
+              MemoData: Buffer.from(JSON.stringify({ order_id, order_number: order.order_number })).toString('hex').toUpperCase()
+            }
+          }]
+        },
+        options: {
+          submit: true,
+          return_url: {
+            web: `https://www.bearpark.xyz/main.html?merch_order=${order_id}`
+          }
+        }
+      };
+    } else {
+      // XRP payment
+      const xrpAmount = (amount_usd / xrp_price).toFixed(6);
+      payloadRequest = {
+        txjson: {
+          TransactionType: 'Payment',
+          Destination: MERCH_WALLET,
+          Amount: (parseFloat(xrpAmount) * 1000000).toString(), // XRP in drops
+          Memos: [{
+            Memo: {
+              MemoType: Buffer.from('BEAR_MERCH_XRP').toString('hex').toUpperCase(),
+              MemoData: Buffer.from(JSON.stringify({ order_id, order_number: order.order_number, swap_to_rlusd: true })).toString('hex').toUpperCase()
+            }
+          }]
+        },
+        options: {
+          submit: true,
+          return_url: {
+            web: `https://www.bearpark.xyz/main.html?merch_order=${order_id}`
+          }
+        }
+      };
+    }
+
+    // Create XAMAN payload
+    const payload = await xumm.payload.create(payloadRequest);
+
+    if (!payload) {
+      throw new Error('Failed to create XAMAN payload');
+    }
+
+    // Update order with payload UUID
+    await supabaseAdmin
+      .from('merch_orders')
+      .update({ payment_payload_uuid: payload.uuid })
+      .eq('id', order_id);
+
+    res.json({
+      success: true,
+      uuid: payload.uuid,
+      qr_png: payload.refs?.qr_png,
+      next: payload.next,
+      refs: payload.refs
+    });
+
+  } catch (error) {
+    console.error('Error creating payment request:', error);
+    res.status(500).json({ success: false, error: 'Failed to create payment request' });
+  }
+});
+
+// Get order status
+app.get('/api/merch/orders/:orderId/status', async (req, res) => {
+  try {
+    const { orderId } = req.params;
+
+    const { data: order, error } = await supabaseAdmin
+      .from('merch_orders')
+      .select('status, order_number, payment_tx_hash')
+      .eq('id', orderId)
+      .single();
+
+    if (error || !order) {
+      return res.status(404).json({ success: false, error: 'Order not found' });
+    }
+
+    res.json({
+      success: true,
+      status: order.status,
+      order_number: order.order_number,
+      tx_hash: order.payment_tx_hash
+    });
+
+  } catch (error) {
+    console.error('Error fetching order status:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+// Get user's merch orders
+app.get('/api/merch/orders/wallet/:wallet', async (req, res) => {
+  try {
+    const { wallet } = req.params;
+
+    const { data: orders, error } = await supabaseAdmin
+      .from('merch_orders')
+      .select('id, order_number, product_id, size, amount_usd, status, created_at, tracking_number')
+      .eq('wallet_address', wallet)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      throw error;
+    }
+
+    res.json({
+      success: true,
+      orders: orders || []
+    });
+
+  } catch (error) {
+    console.error('Error fetching user orders:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+// Admin: Update order status (for fulfillment)
+app.patch('/api/merch/orders/:orderId', async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { status, tracking_number } = req.body;
+
+    const updateData = {};
+    if (status) updateData.status = status;
+    if (tracking_number) {
+      updateData.tracking_number = tracking_number;
+      updateData.shipped_at = new Date().toISOString();
+    }
+
+    const { error } = await supabaseAdmin
+      .from('merch_orders')
+      .update(updateData)
+      .eq('id', orderId);
+
+    if (error) {
+      throw error;
+    }
+
+    res.json({ success: true, message: 'Order updated' });
+
+  } catch (error) {
+    console.error('Error updating order:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+// Admin: Get all orders (for admin panel)
+app.get('/api/merch/admin/orders', async (req, res) => {
+  try {
+    const { data: orders, error } = await supabaseAdmin
+      .from('merch_orders')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    // Decrypt shipping info for admin view
+    const decryptedOrders = orders.map(order => ({
+      ...order,
+      shipping: {
+        name: order.shipping_name_encrypted ? decryptData(order.shipping_name_encrypted) : null,
+        street: order.shipping_street_encrypted ? decryptData(order.shipping_street_encrypted) : null,
+        apt: order.shipping_apt_encrypted ? decryptData(order.shipping_apt_encrypted) : null,
+        city: order.shipping_city_encrypted ? decryptData(order.shipping_city_encrypted) : null,
+        state: order.shipping_state,
+        zip: order.shipping_zip_encrypted ? decryptData(order.shipping_zip_encrypted) : null,
+        country: order.shipping_country
+      }
+    }));
+
+    res.json({ success: true, orders: decryptedOrders });
+
+  } catch (error) {
+    console.error('Error fetching admin orders:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+// ===== END MERCH STORE API =====
+
 // ===== HEALTH & DEBUG =====
 
 // Serve main.html at root (with cache-busting headers to prevent old cached exploits)
