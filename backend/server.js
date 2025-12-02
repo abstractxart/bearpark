@@ -2845,7 +2845,7 @@ app.post('/api/merch/request-payment', async (req, res) => {
 
     // RLUSD issuer on mainnet
     const RLUSD_ISSUER = 'rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De';
-    const MERCH_WALLET = process.env.MERCH_WALLET || 'rBEARbo4Prn33894evmvYcAf9yAQjp4VJF';
+    const MERCH_WALLET = process.env.MERCH_WALLET || 'rBEARKfWJS1LYdg2g6t99BgbvpWY5pgMB9';
 
     let payloadRequest;
 
