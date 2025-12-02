@@ -3169,6 +3169,65 @@ app.get('/api/merch/test-payment', async (req, res) => {
   }
 });
 
+// TEST endpoint - try Payment via SDK (not direct fetch)
+app.get('/api/merch/test-sdk-payment', async (req, res) => {
+  try {
+    if (!xumm) {
+      return res.json({ error: 'XUMM SDK not initialized' });
+    }
+
+    const results = {};
+
+    // Test 1: SignIn via SDK (this should work)
+    try {
+      const signinPayload = await xumm.payload.create({
+        txjson: { TransactionType: 'SignIn' }
+      }, true);
+      results.sdk_signin = { success: true, uuid: signinPayload?.uuid, next: signinPayload?.next?.always };
+    } catch (e) {
+      results.sdk_signin = { error: e.message, details: e.toString() };
+    }
+
+    // Test 2: Payment via SDK for XRP (drops format)
+    try {
+      const xrpPayload = await xumm.payload.create({
+        txjson: {
+          TransactionType: 'Payment',
+          Destination: 'rBEARKfWJS1LYdg2g6t99BgbvpWY5pgMB9',
+          Amount: '1000000', // 1 XRP in drops
+          DestinationTag: 12345
+        }
+      }, true);
+      results.sdk_payment_xrp = { success: true, uuid: xrpPayload?.uuid, next: xrpPayload?.next?.always };
+    } catch (e) {
+      results.sdk_payment_xrp = { error: e.message, details: e.toString() };
+    }
+
+    // Test 3: Payment via SDK for RLUSD (IOU format)
+    try {
+      const rlusdPayload = await xumm.payload.create({
+        txjson: {
+          TransactionType: 'Payment',
+          Destination: 'rBEARKfWJS1LYdg2g6t99BgbvpWY5pgMB9',
+          Amount: {
+            currency: 'RLUSD',
+            issuer: 'rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De',
+            value: '30'
+          },
+          DestinationTag: 12345
+        }
+      }, true);
+      results.sdk_payment_rlusd = { success: true, uuid: rlusdPayload?.uuid, next: rlusdPayload?.next?.always };
+    } catch (e) {
+      results.sdk_payment_rlusd = { error: e.message, details: e.toString() };
+    }
+
+    res.json(results);
+  } catch (e) {
+    res.json({ outer_error: e.message });
+  }
+});
+
 // Simple admin login - verify wallet is admin and create session
 // The wallet was already verified via XAMAN SignIn on the main site
 app.post('/api/merch/admin/login', (req, res) => {
