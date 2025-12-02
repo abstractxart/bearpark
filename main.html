@@ -26462,9 +26462,12 @@ if (typeof window.addEventListener !== 'undefined') {
         timerEl.style.color = '#fbbf24';
 
         if (showClaimedMessage) {
-          // Already claimed - show countdown to next claim window
+          // Already claimed - show clear "come back tomorrow" message with grey styling
+          timerEl.style.background = 'rgba(107, 114, 128, 0.2)';
+          timerEl.style.borderColor = 'rgba(107, 114, 128, 0.4)';
+          timerEl.style.color = '#9ca3af';
           if (timerText) {
-            timerText.innerHTML = `✅ Claimed! Next claim window in <strong>${h}h ${m}m ${s}s</strong>`;
+            timerText.innerHTML = `✅ <strong>Already claimed today!</strong> Next window opens in <strong>${h}h ${m}m ${s}s</strong>`;
           }
         } else if (hasPendingClaim) {
           // Has pending claim - show countdown until midnight (when it expires)
@@ -26565,20 +26568,28 @@ if (typeof window.addEventListener !== 'undefined') {
         const claimStatus = await _checkClaimStatus(w);
         console.log('BEARDROPS DEBUG - claimStatus:', JSON.stringify(claimStatus));
         console.log('BEARDROPS DEBUG - total_pending:', claimStatus.total_pending, 'tr:', tr);
-        const claimedToday = claimStatus.claimed_today;
+        // Check BOTH backend status AND localStorage flag (belt and suspenders)
+        const todayStr = new Date().toISOString().split('T')[0];
+        const localClaimedFlag = localStorage.getItem('beardrops_claimed_' + todayStr) === 'true';
+        const claimedToday = claimStatus.claimed_today || localClaimedFlag;
         const hasPendingClaim = claimStatus.total_pending > 0; // Has ACTUAL pending reward in database
         const pendingAmount = claimStatus.total_pending || 0;
+        const claimedAmount = claimStatus.claimed_amount || claimStatus.amount || 0;
+        console.log('BEARDROPS DEBUG - claimedToday:', claimedToday, 'localFlag:', localClaimedFlag, 'backendFlag:', claimStatus.claimed_today);
         console.log('BEARDROPS DEBUG - hasPendingClaim:', hasPendingClaim, 'pendingAmount:', pendingAmount);
 
         if (claimedToday) {
-          // Already claimed - show claimed state
-          if (ph) ph.textContent = '\u2705 Claimed ' + (claimStatus.amount || tr) + ' $BEAR!';
+          // Already claimed - show CLEAR claimed state with greyed button
+          if (ph) ph.textContent = '';  // Clear hint - timer says it all
           if (cb) {
             cb.disabled = true;
             cb.classList.add('claimed');
             cb.onclick = null;
+            cb.style.background = 'linear-gradient(135deg, #374151, #1f2937)';
+            cb.style.cursor = 'not-allowed';
+            cb.style.boxShadow = 'none';
           }
-          if (ct) ct.textContent = '\u2705 CLAIMED';
+          if (ct) ct.textContent = 'ALREADY CLAIMED TODAY';
           _startTimer(true, false);
         } else if (hasPendingClaim && hp >= _hp) {
           // Has pending claim and enough honey points - can claim!
@@ -26587,6 +26598,10 @@ if (typeof window.addEventListener !== 'undefined') {
             cb.disabled = false;
             cb.classList.remove('claimed');
             cb.onclick = _claim;
+            // Reset to GREEN claimable style
+            cb.style.background = 'linear-gradient(135deg, #22c55e, #16a34a)';
+            cb.style.cursor = 'pointer';
+            cb.style.boxShadow = '0 4px 0 #15803d, 0 6px 20px rgba(34, 197, 94, 0.4)';
           }
           if (ct) ct.textContent = 'CLAIM ' + pendingAmount.toFixed(0) + ' $BEAR';
           _startTimer(false, true);
@@ -26598,6 +26613,10 @@ if (typeof window.addEventListener !== 'undefined') {
             cb.disabled = true;
             cb.classList.remove('claimed');
             cb.onclick = null;
+            // Orange/warning style - needs more points
+            cb.style.background = 'linear-gradient(135deg, #f59e0b, #d97706)';
+            cb.style.cursor = 'not-allowed';
+            cb.style.boxShadow = '0 4px 0 #b45309, 0 6px 20px rgba(245, 158, 11, 0.3)';
           }
           if (ct) ct.textContent = 'NEED ' + rm.toFixed(0) + ' MORE POINTS';
           _startTimer(false, true);
@@ -26608,8 +26627,12 @@ if (typeof window.addEventListener !== 'undefined') {
             cb.disabled = true;
             cb.classList.remove('claimed');
             cb.onclick = null;
+            // Grey disabled style
+            cb.style.background = 'linear-gradient(135deg, #374151, #1f2937)';
+            cb.style.cursor = 'not-allowed';
+            cb.style.boxShadow = 'none';
           }
-          if (ct) ct.textContent = 'COME BACK FOR THE NEXT CLAIM WINDOW';
+          if (ct) ct.textContent = 'NO PENDING CLAIM';
           _startTimer(false, false);
         }
       } catch (e) {}
