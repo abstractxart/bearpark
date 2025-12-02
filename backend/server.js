@@ -3088,20 +3088,10 @@ app.post('/api/merch/admin/auth/challenge', async (req, res) => {
     }
 
     // Create XAMAN SignIn payload for wallet verification
+    // Use simple format that matches working /api/xaman/payload endpoint
     const payload = await xumm.payload.create({
-      txjson: {
-        TransactionType: 'SignIn'
-      },
-      options: {
-        expire: 5, // 5 minutes to sign
-        return_url: {
-          web: 'https://www.bearpark.xyz/merch-admin'
-        }
-      },
-      custom_meta: {
-        instruction: 'Sign to verify admin access to BEAR Merch orders'
-      }
-    });
+      TransactionType: 'SignIn'
+    }, true);
 
     if (!payload) {
       throw new Error('Failed to create XAMAN payload');
