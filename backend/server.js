@@ -8154,4 +8154,3 @@ if (require.main === module) {
 
 // Export for Vercel serverless
 module.exports = app;
-# Trigger redeploy Tue, Dec  2, 2025 10:49:35 AM
