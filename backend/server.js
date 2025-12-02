@@ -5989,11 +5989,14 @@ app.post('/api/beardrops/claim', claimRateLimiter, validateWallet, async (req, r
       .single();
 
     if (snapshotError || !snapshot) {
+      console.log(`❌ Snapshot query failed for ${wallet_address}:`, snapshotError);
       return res.status(404).json({
         success: false,
         error: 'No pending airdrop found for this wallet'
       });
     }
+
+    console.log(`✅ Found snapshot for ${wallet_address}: id=${snapshot.id}, date=${snapshot.snapshot_date}, status=${snapshot.claim_status}`);
 
     // Double-check eligibility (daily honey points - resets at 00:00 UTC)
     const midnightUTC = new Date();
@@ -6056,8 +6059,9 @@ app.post('/api/beardrops/claim', claimRateLimiter, validateWallet, async (req, r
 
     // CRITICAL FIX: Check BOTH for errors AND that rows were actually updated
     // If another request already changed status to 'processing', this returns 0 rows (no error!)
+    console.log(`🔐 Lock attempt for ${wallet_address}: snapshotId=${snapshot.id}, lockData=`, lockData, 'lockError=', lockError);
     if (lockError || !lockData || lockData.length === 0) {
-      console.warn(`⚠️ Claim lock failed for ${wallet_address} - possible race condition blocked`);
+      console.warn(`⚠️ Claim lock failed for ${wallet_address} - snapshotId=${snapshot.id}, lockData=${JSON.stringify(lockData)}, lockError=${JSON.stringify(lockError)}`);
       return res.status(409).json({
         success: false,
         error: 'Claim already in progress or completed. Please refresh and try again.'
