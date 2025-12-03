@@ -26357,13 +26357,13 @@
           const joeyCurrency = paymentData.currency;
           const joeyIssuer = paymentData.issuer || '';
 
-          // Joey wallet deep link format
+          // Joey wallet deep link format - uses 'destination' and 'destinationTag' params
           let joeyDeepLink;
           if (joeyCurrency === 'XRP') {
-            joeyDeepLink = `joey://send?to=${joeyDestination}&amount=${joeyAmount}&dt=${joeyTag}`;
+            joeyDeepLink = `joey://payment?destination=${joeyDestination}&amount=${joeyAmount}&destinationTag=${joeyTag}`;
           } else {
-            // For RLUSD and other tokens - use issuer in the amount format
-            joeyDeepLink = `joey://send?to=${joeyDestination}&amount=${joeyAmount}&currency=${joeyCurrency}&issuer=${joeyIssuer}&dt=${joeyTag}`;
+            // For RLUSD and other tokens
+            joeyDeepLink = `joey://payment?destination=${joeyDestination}&amount=${joeyAmount}&currency=${joeyCurrency}&issuer=${joeyIssuer}&destinationTag=${joeyTag}`;
           }
 
           // Generate QR code using payment data (for scanning with Joey)
