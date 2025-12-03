@@ -22427,7 +22427,7 @@
               <h2 id="merchDetailName" class="merch-product-name"></h2>
               <div class="merch-product-badge">⭐ Limited Edition</div>
               <div class="merch-price-section">
-                <div class="merch-price-main">$30.00 <span style="font-size:16px; opacity:0.8;">RLUSD</span></div>
+                <div class="merch-price-main"><span id="merchDetailPrice">$30.00</span> <span style="font-size:16px; opacity:0.8;">RLUSD</span></div>
                 <div class="merch-price-xrp">or ~<span id="merchXrpPrice">--</span> XRP (live rate)</div>
               </div>
               <div class="merch-size-section">
@@ -22628,7 +22628,7 @@
               <input type="radio" name="merchPayment" value="RLUSD" checked>
               <div class="merch-payment-content">
                 <div class="merch-payment-title">💵 PAY WITH RLUSD</div>
-                <div class="merch-payment-amount">$30.00 RLUSD (Stablecoin)</div>
+                <div class="merch-payment-amount"><span id="merchRlusdPayAmount">$30.00</span> RLUSD (Stablecoin)</div>
                 <div class="merch-payment-note">✓ Exact amount, no price fluctuation</div>
               </div>
             </label>
@@ -22636,7 +22636,7 @@
               <input type="radio" name="merchPayment" value="XRP">
               <div class="merch-payment-content">
                 <div class="merch-payment-title">⚡ PAY WITH XRP</div>
-                <div class="merch-payment-amount">~<span id="merchPaymentXrpAmount">--</span> XRP ($30.00 USD)</div>
+                <div class="merch-payment-amount">~<span id="merchPaymentXrpAmount">--</span> XRP (<span id="merchXrpUsdEquiv">$30.00</span> USD)</div>
                 <div class="merch-payment-rate">📊 Live rate: 1 XRP = $<span id="merchXrpRate">--</span></div>
                 <div class="merch-payment-refresh">🔄 Rate refreshes in <span id="merchRateTimer">30</span>s</div>
                 <div class="merch-payment-note" style="color:#f59e0b;">⚠️ XRP auto-converts to RLUSD at purchase</div>
@@ -26501,6 +26501,10 @@
       document.getElementById('merchDetailName').textContent = product.name;
       document.getElementById('merchDetailDesc').textContent = product.description;
 
+      // Set dynamic price
+      const price = product.price_usd || 30;
+      document.getElementById('merchDetailPrice').textContent = `$${price.toFixed(2)}`;
+
       // Load thumbnails
       const thumbsContainer = document.getElementById('merchDetailThumbnails');
       thumbsContainer.innerHTML = product.images.map((img, i) => `
@@ -26654,11 +26658,24 @@
     function updateMerchXrpDisplay() {
       const price = merchCurrentProduct ? merchCurrentProduct.price_usd : 30;
       const xrpAmount = (price / merchXrpPrice).toFixed(2);
+      const priceFormatted = `$${price.toFixed(2)}`;
+
+      // Update XRP amounts
       document.querySelectorAll('#merchXrpPrice, #merchPaymentXrpAmount').forEach(el => {
         if (el) el.textContent = xrpAmount;
       });
+
+      // Update XRP rate
       const rateEl = document.getElementById('merchXrpRate');
       if (rateEl) rateEl.textContent = merchXrpPrice.toFixed(2);
+
+      // Update RLUSD price on payment screen
+      const rlusdEl = document.getElementById('merchRlusdPayAmount');
+      if (rlusdEl) rlusdEl.textContent = priceFormatted;
+
+      // Update USD equivalent on XRP option
+      const usdEquivEl = document.getElementById('merchXrpUsdEquiv');
+      if (usdEquivEl) usdEquivEl.textContent = priceFormatted;
     }
 
     function startMerchRateRefresh() {
