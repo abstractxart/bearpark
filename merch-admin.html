@@ -399,9 +399,243 @@
       margin-top: 5px;
     }
 
+    /* Tab Navigation */
+    .tab-nav {
+      display: flex;
+      gap: 0;
+      margin-bottom: 30px;
+      background: rgba(30,30,50,0.8);
+      border-radius: 12px;
+      padding: 6px;
+      border: 2px solid rgba(104,12,217,0.3);
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 14px 24px;
+      background: transparent;
+      border: none;
+      border-radius: 8px;
+      color: #888;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .tab-btn:hover {
+      color: #fff;
+      background: rgba(104,12,217,0.2);
+    }
+
+    .tab-btn.active {
+      background: linear-gradient(135deg, #680cd9, #00ff88);
+      color: #fff;
+    }
+
+    .tab-btn .tab-icon {
+      font-size: 20px;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* Inventory Styles */
+    .inventory-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+    }
+
+    .inventory-card {
+      background: rgba(30,30,50,0.8);
+      border: 2px solid rgba(104,12,217,0.3);
+      border-radius: 16px;
+      padding: 20px;
+      transition: all 0.3s;
+    }
+
+    .inventory-card:hover {
+      border-color: #680cd9;
+      transform: translateY(-2px);
+    }
+
+    .inventory-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 15px;
+    }
+
+    .inventory-card-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #00ff88;
+    }
+
+    .inventory-card-sku {
+      font-size: 12px;
+      color: #666;
+      font-family: monospace;
+    }
+
+    .inventory-status {
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .inventory-status.in-stock { background: rgba(34,197,94,0.2); color: #22c55e; }
+    .inventory-status.low-stock { background: rgba(254,181,1,0.2); color: #feb501; }
+    .inventory-status.out-of-stock { background: rgba(239,68,68,0.2); color: #ef4444; }
+
+    .size-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+      gap: 8px;
+      margin-top: 15px;
+    }
+
+    .size-item {
+      background: rgba(0,0,0,0.3);
+      border: 2px solid rgba(104,12,217,0.2);
+      border-radius: 8px;
+      padding: 10px 8px;
+      text-align: center;
+      transition: all 0.2s;
+    }
+
+    .size-item:hover {
+      border-color: #680cd9;
+    }
+
+    .size-item .size-label {
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+
+    .size-item .size-qty {
+      font-size: 20px;
+      font-weight: 800;
+      color: #00ff88;
+    }
+
+    .size-item.low .size-qty { color: #feb501; }
+    .size-item.out .size-qty { color: #ef4444; }
+
+    .size-item input {
+      width: 100%;
+      padding: 6px;
+      background: rgba(0,0,0,0.5);
+      border: 1px solid rgba(104,12,217,0.3);
+      border-radius: 4px;
+      color: #fff;
+      font-size: 16px;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .size-item input:focus {
+      outline: none;
+      border-color: #00ff88;
+    }
+
+    .inventory-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
+      padding-top: 15px;
+      border-top: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .inventory-btn {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .inventory-btn.edit {
+      background: rgba(104,12,217,0.3);
+      color: #fff;
+    }
+
+    .inventory-btn.edit:hover {
+      background: rgba(104,12,217,0.5);
+    }
+
+    .inventory-btn.save {
+      background: #22c55e;
+      color: #fff;
+    }
+
+    .inventory-btn.save:hover {
+      background: #16a34a;
+    }
+
+    .inventory-btn.cancel {
+      background: rgba(255,255,255,0.1);
+      color: #fff;
+    }
+
+    .add-product-btn {
+      background: linear-gradient(135deg, #680cd9, #00ff88);
+      border: none;
+      border-radius: 12px;
+      padding: 16px 24px;
+      color: #fff;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+      transition: all 0.3s;
+    }
+
+    .add-product-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 30px rgba(104,12,217,0.4);
+    }
+
+    .inventory-summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 15px;
+      margin-bottom: 25px;
+    }
+
+    .inventory-summary .stat-card {
+      padding: 15px;
+    }
+
+    .inventory-summary .stat-card .number {
+      font-size: 28px;
+    }
+
     @media (max-width: 768px) {
       .orders-table { display: block; overflow-x: auto; }
       .header { flex-direction: column; gap: 15px; text-align: center; }
+      .tab-btn { padding: 12px 16px; font-size: 14px; }
+      .tab-btn .tab-icon { display: none; }
     }
   </style>
 </head>
@@ -440,62 +674,114 @@
 
     <!-- Admin Content -->
     <div id="adminContent" style="display:none;">
-      <div class="stats-row">
-        <div class="stat-card">
-          <div class="number" id="totalOrders">0</div>
-          <div class="label">Total Orders</div>
+
+      <!-- Tab Navigation -->
+      <div class="tab-nav">
+        <button class="tab-btn active" onclick="switchTab('orders')">
+          <span class="tab-icon">📦</span> Orders
+        </button>
+        <button class="tab-btn" onclick="switchTab('inventory')">
+          <span class="tab-icon">📊</span> Inventory
+        </button>
+      </div>
+
+      <!-- ORDERS TAB -->
+      <div id="ordersTab" class="tab-content active">
+        <div class="stats-row">
+          <div class="stat-card">
+            <div class="number" id="totalOrders">0</div>
+            <div class="label">Total Orders</div>
+          </div>
+          <div class="stat-card pending">
+            <div class="number" id="pendingOrders">0</div>
+            <div class="label">Pending Payment</div>
+          </div>
+          <div class="stat-card">
+            <div class="number" id="paidOrders">0</div>
+            <div class="label">Paid (Awaiting Ship)</div>
+          </div>
+          <div class="stat-card shipped">
+            <div class="number" id="shippedOrders">0</div>
+            <div class="label">Shipped</div>
+          </div>
+          <div class="stat-card revenue">
+            <div class="number" id="totalRevenue">$0</div>
+            <div class="label">Total Revenue</div>
+          </div>
         </div>
-        <div class="stat-card pending">
-          <div class="number" id="pendingOrders">0</div>
-          <div class="label">Pending Payment</div>
+
+        <div class="filters">
+          <button class="filter-btn active" onclick="filterOrders('all')">All Orders</button>
+          <button class="filter-btn" onclick="filterOrders('pending')">Pending</button>
+          <button class="filter-btn" onclick="filterOrders('paid')">Paid</button>
+          <button class="filter-btn" onclick="filterOrders('shipped')">Shipped</button>
+          <button class="filter-btn" onclick="filterOrders('cancelled')">Cancelled</button>
         </div>
-        <div class="stat-card">
-          <div class="number" id="paidOrders">0</div>
-          <div class="label">Paid (Awaiting Ship)</div>
+
+        <div id="loadingOrders" class="loading">
+          <div class="spinner"></div>
+          <div>Loading orders...</div>
         </div>
-        <div class="stat-card shipped">
-          <div class="number" id="shippedOrders">0</div>
-          <div class="label">Shipped</div>
-        </div>
-        <div class="stat-card revenue">
-          <div class="number" id="totalRevenue">$0</div>
-          <div class="label">Total Revenue</div>
+
+        <table class="orders-table" id="ordersTable" style="display:none;">
+          <thead>
+            <tr>
+              <th>Order #</th>
+              <th>Date</th>
+              <th>Customer</th>
+              <th>Product</th>
+              <th>Size</th>
+              <th>Amount</th>
+              <th>Status</th>
+              <th>Shipping Address</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="ordersBody"></tbody>
+        </table>
+
+        <div id="noOrders" class="no-orders" style="display:none;">
+          No orders found.
         </div>
       </div>
 
-      <div class="filters">
-        <button class="filter-btn active" onclick="filterOrders('all')">All Orders</button>
-        <button class="filter-btn" onclick="filterOrders('pending')">Pending</button>
-        <button class="filter-btn" onclick="filterOrders('paid')">Paid</button>
-        <button class="filter-btn" onclick="filterOrders('shipped')">Shipped</button>
-        <button class="filter-btn" onclick="filterOrders('cancelled')">Cancelled</button>
+      <!-- INVENTORY TAB -->
+      <div id="inventoryTab" class="tab-content">
+        <div class="inventory-summary">
+          <div class="stat-card">
+            <div class="number" id="totalProducts">0</div>
+            <div class="label">Products</div>
+          </div>
+          <div class="stat-card shipped">
+            <div class="number" id="totalStock">0</div>
+            <div class="label">Total Stock</div>
+          </div>
+          <div class="stat-card pending">
+            <div class="number" id="lowStockCount">0</div>
+            <div class="label">Low Stock</div>
+          </div>
+          <div class="stat-card" style="border-color: rgba(239,68,68,0.5);">
+            <div class="number" id="outOfStockCount" style="color:#ef4444;">0</div>
+            <div class="label">Out of Stock</div>
+          </div>
+        </div>
+
+        <button class="add-product-btn" onclick="showAddProductModal()">
+          <span>➕</span> Add New Product
+        </button>
+
+        <div id="loadingInventory" class="loading" style="display:none;">
+          <div class="spinner"></div>
+          <div>Loading inventory...</div>
+        </div>
+
+        <div id="inventoryGrid" class="inventory-grid"></div>
+
+        <div id="noInventory" class="no-orders" style="display:none;">
+          No products in inventory. Add your first product!
+        </div>
       </div>
 
-      <div id="loadingOrders" class="loading">
-        <div class="spinner"></div>
-        <div>Loading orders...</div>
-      </div>
-
-      <table class="orders-table" id="ordersTable" style="display:none;">
-        <thead>
-          <tr>
-            <th>Order #</th>
-            <th>Date</th>
-            <th>Customer</th>
-            <th>Product</th>
-            <th>Size</th>
-            <th>Amount</th>
-            <th>Status</th>
-            <th>Shipping Address</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody id="ordersBody"></tbody>
-      </table>
-
-      <div id="noOrders" class="no-orders" style="display:none;">
-        No orders found.
-      </div>
     </div>
   </div>
 
@@ -507,6 +793,65 @@
         <button class="modal-close" onclick="closeModal()">&times;</button>
       </div>
       <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <!-- Inventory Modal -->
+  <div id="inventoryModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="inventoryModalTitle">Add New Product</h3>
+        <button class="modal-close" onclick="closeInventoryModal()">&times;</button>
+      </div>
+      <div id="inventoryModalBody">
+        <div class="form-group">
+          <label>Product ID / SKU</label>
+          <input type="text" id="productId" placeholder="e.g., bear-hoodie-black">
+        </div>
+        <div class="form-group">
+          <label>Product Name</label>
+          <input type="text" id="productName" placeholder="e.g., BEAR Hoodie - Black">
+        </div>
+        <div class="form-group">
+          <label>Price (USD)</label>
+          <input type="number" id="productPrice" placeholder="30.00" step="0.01">
+        </div>
+        <div class="form-group">
+          <label>Low Stock Threshold</label>
+          <input type="number" id="lowStockThreshold" placeholder="5" value="5">
+        </div>
+        <h4 style="margin: 20px 0 15px; color: #00ff88;">Stock by Size</h4>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px;">
+          <div class="form-group" style="margin:0;">
+            <label>XS</label>
+            <input type="number" id="stock_xs" placeholder="0" value="0">
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label>S</label>
+            <input type="number" id="stock_s" placeholder="0" value="0">
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label>M</label>
+            <input type="number" id="stock_m" placeholder="0" value="0">
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label>L</label>
+            <input type="number" id="stock_l" placeholder="0" value="0">
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label>XL</label>
+            <input type="number" id="stock_xl" placeholder="0" value="0">
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label>2XL</label>
+            <input type="number" id="stock_2xl" placeholder="0" value="0">
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button class="cancel-btn" onclick="closeInventoryModal()">Cancel</button>
+          <button class="save" id="saveProductBtn" onclick="saveProduct()">Save Product</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -885,6 +1230,285 @@
       } catch (error) {
         alert('Error updating order');
       }
+    }
+
+    // ============================================
+    // INVENTORY MANAGEMENT
+    // ============================================
+
+    let inventory = [];
+    let editingProductId = null;
+    const SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL'];
+
+    // Switch between tabs
+    function switchTab(tab) {
+      // Update tab buttons
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.closest('.tab-btn').classList.add('active');
+
+      // Update tab content
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+      if (tab === 'orders') {
+        document.getElementById('ordersTab').classList.add('active');
+      } else if (tab === 'inventory') {
+        document.getElementById('inventoryTab').classList.add('active');
+        loadInventory();
+      }
+    }
+
+    // Load inventory from localStorage (can be upgraded to API later)
+    async function loadInventory() {
+      document.getElementById('loadingInventory').style.display = 'block';
+      document.getElementById('inventoryGrid').innerHTML = '';
+
+      try {
+        // Try to load from API first
+        const res = await fetch(`${API_BASE}/api/merch/admin/inventory`, {
+          headers: { 'X-Admin-Token': sessionToken }
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success) {
+            inventory = data.inventory || [];
+          }
+        } else {
+          // Fallback to localStorage
+          const stored = localStorage.getItem('bearpark_inventory');
+          inventory = stored ? JSON.parse(stored) : getDefaultInventory();
+        }
+      } catch (error) {
+        console.log('Using localStorage for inventory');
+        const stored = localStorage.getItem('bearpark_inventory');
+        inventory = stored ? JSON.parse(stored) : getDefaultInventory();
+      }
+
+      document.getElementById('loadingInventory').style.display = 'none';
+      updateInventoryStats();
+      renderInventory();
+    }
+
+    // Default inventory items
+    function getDefaultInventory() {
+      return [
+        {
+          id: 'bear-hoodie-black',
+          name: 'BEAR Hoodie - Black',
+          price: 30.00,
+          lowStockThreshold: 5,
+          stock: { XS: 10, S: 15, M: 20, L: 20, XL: 15, '2XL': 10 }
+        },
+        {
+          id: 'bear-tshirt-white',
+          name: 'BEAR T-Shirt - White',
+          price: 20.00,
+          lowStockThreshold: 5,
+          stock: { XS: 8, S: 12, M: 18, L: 18, XL: 12, '2XL': 8 }
+        }
+      ];
+    }
+
+    // Save inventory to localStorage
+    function saveInventoryToStorage() {
+      localStorage.setItem('bearpark_inventory', JSON.stringify(inventory));
+
+      // Also try to save to API
+      fetch(`${API_BASE}/api/merch/admin/inventory`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Admin-Token': sessionToken
+        },
+        body: JSON.stringify({ inventory })
+      }).catch(err => console.log('API save failed, using localStorage'));
+    }
+
+    // Update inventory stats
+    function updateInventoryStats() {
+      let totalStock = 0;
+      let lowStock = 0;
+      let outOfStock = 0;
+
+      inventory.forEach(product => {
+        const productTotal = Object.values(product.stock).reduce((a, b) => a + b, 0);
+        totalStock += productTotal;
+
+        // Check each size for low/out of stock
+        Object.entries(product.stock).forEach(([size, qty]) => {
+          if (qty === 0) outOfStock++;
+          else if (qty <= product.lowStockThreshold) lowStock++;
+        });
+      });
+
+      document.getElementById('totalProducts').textContent = inventory.length;
+      document.getElementById('totalStock').textContent = totalStock;
+      document.getElementById('lowStockCount').textContent = lowStock;
+      document.getElementById('outOfStockCount').textContent = outOfStock;
+    }
+
+    // Render inventory grid
+    function renderInventory() {
+      const grid = document.getElementById('inventoryGrid');
+
+      if (inventory.length === 0) {
+        grid.innerHTML = '';
+        document.getElementById('noInventory').style.display = 'block';
+        return;
+      }
+
+      document.getElementById('noInventory').style.display = 'none';
+
+      grid.innerHTML = inventory.map(product => {
+        const totalStock = Object.values(product.stock).reduce((a, b) => a + b, 0);
+        const hasLowStock = Object.entries(product.stock).some(([s, q]) => q > 0 && q <= product.lowStockThreshold);
+        const hasOutOfStock = Object.values(product.stock).some(q => q === 0);
+
+        let statusClass = 'in-stock';
+        let statusText = 'In Stock';
+        if (totalStock === 0) {
+          statusClass = 'out-of-stock';
+          statusText = 'Out of Stock';
+        } else if (hasOutOfStock || hasLowStock) {
+          statusClass = 'low-stock';
+          statusText = 'Low Stock';
+        }
+
+        const sizeItems = SIZES.map(size => {
+          const qty = product.stock[size] || 0;
+          let sizeClass = '';
+          if (qty === 0) sizeClass = 'out';
+          else if (qty <= product.lowStockThreshold) sizeClass = 'low';
+
+          return `
+            <div class="size-item ${sizeClass}">
+              <div class="size-label">${size}</div>
+              <div class="size-qty">${qty}</div>
+            </div>
+          `;
+        }).join('');
+
+        return `
+          <div class="inventory-card" data-product-id="${product.id}">
+            <div class="inventory-card-header">
+              <div>
+                <div class="inventory-card-title">${product.name}</div>
+                <div class="inventory-card-sku">SKU: ${product.id}</div>
+                <div style="color:#00ff88; font-weight:700; margin-top:5px;">$${product.price.toFixed(2)}</div>
+              </div>
+              <span class="inventory-status ${statusClass}">${statusText}</span>
+            </div>
+            <div class="size-grid">${sizeItems}</div>
+            <div class="inventory-actions">
+              <button class="inventory-btn edit" onclick="editProduct('${product.id}')">Edit Stock</button>
+              <button class="inventory-btn" style="background:#ef4444;" onclick="deleteProduct('${product.id}')">Delete</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Show add product modal
+    function showAddProductModal() {
+      editingProductId = null;
+      document.getElementById('inventoryModalTitle').textContent = 'Add New Product';
+      document.getElementById('productId').value = '';
+      document.getElementById('productId').disabled = false;
+      document.getElementById('productName').value = '';
+      document.getElementById('productPrice').value = '';
+      document.getElementById('lowStockThreshold').value = '5';
+
+      SIZES.forEach(size => {
+        const sizeKey = size.toLowerCase().replace('2xl', '2xl');
+        document.getElementById('stock_' + sizeKey).value = '0';
+      });
+
+      document.getElementById('inventoryModal').classList.add('active');
+    }
+
+    // Edit product
+    function editProduct(productId) {
+      const product = inventory.find(p => p.id === productId);
+      if (!product) return;
+
+      editingProductId = productId;
+      document.getElementById('inventoryModalTitle').textContent = 'Edit Product';
+      document.getElementById('productId').value = product.id;
+      document.getElementById('productId').disabled = true;
+      document.getElementById('productName').value = product.name;
+      document.getElementById('productPrice').value = product.price;
+      document.getElementById('lowStockThreshold').value = product.lowStockThreshold;
+
+      document.getElementById('stock_xs').value = product.stock.XS || 0;
+      document.getElementById('stock_s').value = product.stock.S || 0;
+      document.getElementById('stock_m').value = product.stock.M || 0;
+      document.getElementById('stock_l').value = product.stock.L || 0;
+      document.getElementById('stock_xl').value = product.stock.XL || 0;
+      document.getElementById('stock_2xl').value = product.stock['2XL'] || 0;
+
+      document.getElementById('inventoryModal').classList.add('active');
+    }
+
+    // Save product
+    function saveProduct() {
+      const productId = document.getElementById('productId').value.trim();
+      const productName = document.getElementById('productName').value.trim();
+      const productPrice = parseFloat(document.getElementById('productPrice').value) || 0;
+      const lowStockThreshold = parseInt(document.getElementById('lowStockThreshold').value) || 5;
+
+      if (!productId || !productName) {
+        alert('Please enter product ID and name');
+        return;
+      }
+
+      const stock = {
+        XS: parseInt(document.getElementById('stock_xs').value) || 0,
+        S: parseInt(document.getElementById('stock_s').value) || 0,
+        M: parseInt(document.getElementById('stock_m').value) || 0,
+        L: parseInt(document.getElementById('stock_l').value) || 0,
+        XL: parseInt(document.getElementById('stock_xl').value) || 0,
+        '2XL': parseInt(document.getElementById('stock_2xl').value) || 0
+      };
+
+      if (editingProductId) {
+        // Update existing product
+        const idx = inventory.findIndex(p => p.id === editingProductId);
+        if (idx !== -1) {
+          inventory[idx] = { id: productId, name: productName, price: productPrice, lowStockThreshold, stock };
+        }
+      } else {
+        // Check if product ID already exists
+        if (inventory.some(p => p.id === productId)) {
+          alert('A product with this ID already exists!');
+          return;
+        }
+        // Add new product
+        inventory.push({ id: productId, name: productName, price: productPrice, lowStockThreshold, stock });
+      }
+
+      saveInventoryToStorage();
+      closeInventoryModal();
+      updateInventoryStats();
+      renderInventory();
+    }
+
+    // Delete product
+    function deleteProduct(productId) {
+      const product = inventory.find(p => p.id === productId);
+      if (!product) return;
+
+      if (!confirm(`Delete "${product.name}"?\n\nThis cannot be undone!`)) return;
+
+      inventory = inventory.filter(p => p.id !== productId);
+      saveInventoryToStorage();
+      updateInventoryStats();
+      renderInventory();
+    }
+
+    // Close inventory modal
+    function closeInventoryModal() {
+      document.getElementById('inventoryModal').classList.remove('active');
+      editingProductId = null;
     }
   </script>
 </body>
