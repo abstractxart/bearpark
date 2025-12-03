@@ -2738,11 +2738,48 @@ const MERCH_PRODUCTS = {
 };
 
 // Get all merch products
-app.get('/api/merch/products', (req, res) => {
-  res.json({
-    success: true,
-    products: Object.values(MERCH_PRODUCTS)
-  });
+app.get('/api/merch/products', async (req, res) => {
+  try {
+    // Fetch directly from database for accurate inventory
+    const { data, error } = await supabaseAdmin
+      .from('merch_inventory')
+      .select('*');
+
+    if (error) {
+      console.error('Error fetching products from DB:', error);
+      // Fallback to in-memory if DB fails
+      return res.json({
+        success: true,
+        products: Object.values(MERCH_PRODUCTS)
+      });
+    }
+
+    // Transform DB data to match expected format
+    const products = data.map(item => ({
+      id: item.id,
+      name: item.name,
+      description: item.description || '',
+      price_usd: parseFloat(item.price),
+      sizes: item.stock || { S: 0, M: 0, L: 0, XL: 0, '2XL': 0 },
+      images: item.images || []
+    }));
+
+    // Also sync in-memory cache
+    products.forEach(p => {
+      MERCH_PRODUCTS[p.id] = p;
+    });
+
+    res.json({
+      success: true,
+      products
+    });
+  } catch (err) {
+    console.error('Error in /api/merch/products:', err);
+    res.json({
+      success: true,
+      products: Object.values(MERCH_PRODUCTS)
+    });
+  }
 });
 
 // Create merch order
