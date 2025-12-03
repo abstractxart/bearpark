@@ -3181,7 +3181,119 @@ setInterval(() => {
 // MERCH PAYMENT MONITOR - Watch for incoming payments
 // ============================================
 const MERCH_WALLET = process.env.MERCH_WALLET || 'rBEARKfWJS1LYdg2g6t99BgbvpWY5pgMB9';
+const MERCH_WALLET_SECRET = process.env.MERCH_WALLET_SECRET; // Required for auto-conversion
 const RLUSD_ISSUER = 'rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De';
+const AUTO_CONVERT_XRP = process.env.AUTO_CONVERT_XRP === 'true'; // Enable XRP → RLUSD auto-conversion
+
+// ============================================
+// XRP TO RLUSD AUTO-CONVERSION (XRPL DEX)
+// ============================================
+async function convertXrpToRlusd(xrpAmount, orderNumber) {
+  if (!MERCH_WALLET_SECRET) {
+    console.log('⚠️ MERCH_WALLET_SECRET not set - skipping auto-conversion');
+    return { success: false, reason: 'no_secret' };
+  }
+
+  if (!AUTO_CONVERT_XRP) {
+    console.log('⚠️ AUTO_CONVERT_XRP disabled - skipping conversion');
+    return { success: false, reason: 'disabled' };
+  }
+
+  const xrpl = require('xrpl');
+  const client = new xrpl.Client('wss://xrplcluster.com');
+
+  try {
+    await client.connect();
+    console.log(`💱 Converting ${xrpAmount} XRP to RLUSD for order ${orderNumber}...`);
+
+    // Create wallet from secret
+    const wallet = xrpl.Wallet.fromSecret(MERCH_WALLET_SECRET);
+
+    // Get current XRP/RLUSD rate from order book
+    const orderBook = await client.request({
+      command: 'book_offers',
+      taker_gets: { currency: 'RLUSD', issuer: RLUSD_ISSUER },
+      taker_pays: { currency: 'XRP' },
+      limit: 10
+    });
+
+    // Calculate expected RLUSD based on best offer (with 2% slippage tolerance)
+    let expectedRlusd = 0;
+    if (orderBook.result.offers && orderBook.result.offers.length > 0) {
+      const bestOffer = orderBook.result.offers[0];
+      const xrpPerRlusd = parseInt(bestOffer.TakerPays) / 1000000 / parseFloat(bestOffer.TakerGets.value);
+      expectedRlusd = (xrpAmount / xrpPerRlusd) * 0.98; // 2% slippage buffer
+      console.log(`📊 Market rate: ~${(1/xrpPerRlusd).toFixed(4)} RLUSD per XRP, expecting ~${expectedRlusd.toFixed(2)} RLUSD`);
+    } else {
+      // Fallback: estimate based on typical rate
+      expectedRlusd = xrpAmount * 0.40 * 0.98; // Rough estimate with buffer
+      console.log(`📊 Using fallback rate, expecting ~${expectedRlusd.toFixed(2)} RLUSD`);
+    }
+
+    // Create OfferCreate to sell XRP for RLUSD
+    // Using tfSell flag to sell exact XRP amount
+    // Using tfImmediateOrCancel to fill immediately or cancel
+    const xrpDrops = Math.floor(xrpAmount * 1000000);
+
+    const offerTx = {
+      TransactionType: 'OfferCreate',
+      Account: wallet.address,
+      TakerGets: {
+        currency: 'RLUSD',
+        issuer: RLUSD_ISSUER,
+        value: expectedRlusd.toFixed(6)
+      },
+      TakerPays: xrpDrops.toString(), // XRP in drops
+      Flags: 0x00020000 | 0x00080000 // tfSell | tfImmediateOrCancel
+    };
+
+    // Prepare, sign, and submit
+    const prepared = await client.autofill(offerTx);
+    const signed = wallet.sign(prepared);
+    const result = await client.submitAndWait(signed.tx_blob);
+
+    if (result.result.meta.TransactionResult === 'tesSUCCESS') {
+      // Calculate actual RLUSD received from the trade
+      const affectedNodes = result.result.meta.AffectedNodes || [];
+      let rlusdReceived = 0;
+
+      for (const node of affectedNodes) {
+        const modified = node.ModifiedNode || node.CreatedNode;
+        if (modified && modified.LedgerEntryType === 'RippleState') {
+          const finalFields = modified.FinalFields || modified.NewFields;
+          if (finalFields && finalFields.Balance &&
+              (finalFields.HighLimit?.issuer === RLUSD_ISSUER || finalFields.LowLimit?.issuer === RLUSD_ISSUER)) {
+            // This is the RLUSD trust line
+            const prevBalance = parseFloat(modified.PreviousFields?.Balance?.value || '0');
+            const newBalance = parseFloat(finalFields.Balance.value || '0');
+            rlusdReceived = Math.abs(newBalance - prevBalance);
+          }
+        }
+      }
+
+      console.log(`✅ Auto-conversion SUCCESS for order ${orderNumber}`);
+      console.log(`   💰 Sold: ${xrpAmount} XRP`);
+      console.log(`   💵 Received: ~${rlusdReceived.toFixed(2)} RLUSD`);
+      console.log(`   📝 TX Hash: ${result.result.hash}`);
+
+      return {
+        success: true,
+        xrpSold: xrpAmount,
+        rlusdReceived: rlusdReceived,
+        txHash: result.result.hash
+      };
+    } else {
+      console.error(`❌ Conversion failed: ${result.result.meta.TransactionResult}`);
+      return { success: false, reason: result.result.meta.TransactionResult };
+    }
+
+  } catch (error) {
+    console.error(`❌ Error converting XRP to RLUSD for order ${orderNumber}:`, error.message);
+    return { success: false, reason: error.message };
+  } finally {
+    await client.disconnect();
+  }
+}
 
 async function checkMerchPayments() {
   try {
@@ -3236,6 +3348,9 @@ async function checkMerchPayments() {
           let amountMatches = false;
           const expectedAmount = parseFloat(order.payment_amount);
 
+          let receivedXRP = 0; // Track XRP amount for potential conversion
+          let isXrpPayment = false;
+
           if (order.payment_currency === 'RLUSD') {
             // RLUSD payment
             if (typeof txAmount === 'object' && (txAmount.currency === 'RLUSD' || txAmount.currency?.includes('524C555344'))) {
@@ -3246,7 +3361,8 @@ async function checkMerchPayments() {
           } else {
             // XRP payment (amount in drops)
             if (typeof txAmount === 'string' || typeof txAmount === 'number') {
-              const receivedXRP = parseInt(txAmount) / 1000000;
+              receivedXRP = parseInt(txAmount) / 1000000;
+              isXrpPayment = true;
               // Allow 10% tolerance for XRP price fluctuation
               amountMatches = receivedXRP >= expectedAmount * 0.90;
               console.log(`💰 XRP check: received ${receivedXRP} XRP, expected ${expectedAmount} XRP, matches: ${amountMatches}`);
@@ -3259,12 +3375,21 @@ async function checkMerchPayments() {
             const txHash = txData.hash || tx.hash;
             console.log(`✅ Found payment for order ${order.order_number}: ${txHash}`);
 
+            // Auto-convert XRP to RLUSD if enabled
+            let conversionResult = null;
+            if (isXrpPayment && AUTO_CONVERT_XRP) {
+              console.log(`💱 Triggering XRP → RLUSD auto-conversion for order ${order.order_number}...`);
+              conversionResult = await convertXrpToRlusd(receivedXRP, order.order_number);
+            }
+
             await supabaseAdmin
               .from('merch_orders')
               .update({
                 status: 'paid',
                 payment_tx_hash: txHash,
-                paid_at: new Date().toISOString()
+                paid_at: new Date().toISOString(),
+                conversion_tx_hash: conversionResult?.txHash || null,
+                rlusd_received: conversionResult?.rlusdReceived || null
               })
               .eq('id', order.id);
 
