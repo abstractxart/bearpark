@@ -729,8 +729,7 @@
               <th>Order #</th>
               <th>Date</th>
               <th>Customer</th>
-              <th>Product</th>
-              <th>Size</th>
+              <th>Items</th>
               <th>Amount</th>
               <th>Status</th>
               <th>Shipping Address</th>
@@ -1079,6 +1078,30 @@
         const shortWallet = order.wallet_address ? order.wallet_address.slice(0,8) + '...' : 'N/A';
         const destTag = order.destination_tag ? `<br><small style="color:#888;">Tag: ${order.destination_tag}</small>` : '';
 
+        // Parse items for multi-item orders
+        let itemsDisplay = '';
+        let orderItems = [];
+        try {
+          if (order.items) {
+            orderItems = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
+          }
+        } catch (e) {}
+
+        if (orderItems && orderItems.length > 0) {
+          // Multi-item order
+          const itemCount = orderItems.reduce((sum, item) => sum + (item.quantity || 1), 0);
+          const itemsList = orderItems.map(item =>
+            `${item.quantity || 1}x ${item.name || 'Product'} (${item.size || 'N/A'})`
+          ).join('<br>');
+          itemsDisplay = `<div style="font-size:12px;line-height:1.5;">${itemsList}</div><div style="font-size:10px;color:#888;margin-top:4px;">${itemCount} item(s) total</div>`;
+        } else if (order.items_summary) {
+          // Has summary string
+          itemsDisplay = `<div style="font-size:12px;">${order.items_summary}</div>`;
+        } else {
+          // Legacy single item
+          itemsDisplay = `<div style="font-size:12px;">${order.product_name || order.product_id || 'Product'} (${order.size || 'N/A'})</div>`;
+        }
+
         return `
           <tr>
             <td><strong>${order.order_number || order.id.slice(0,8)}</strong></td>
@@ -1088,8 +1111,7 @@
               <small style="color:#888;font-family:monospace;">${shortWallet}</small>
               ${destTag}
             </td>
-            <td>${order.product_id}</td>
-            <td>${order.size}</td>
+            <td>${itemsDisplay}</td>
             <td>$${order.amount_usd}</td>
             <td><span class="status-badge ${order.status}">${order.status}</span></td>
             <td class="address-cell">${address}</td>
@@ -1118,15 +1140,52 @@
 
       const usernameDisplay = order.username || 'No Username';
 
+      // Parse items for multi-item orders
+      let orderItems = [];
+      try {
+        if (order.items) {
+          orderItems = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
+        }
+      } catch (e) {}
+
+      const isMultiItem = orderItems && orderItems.length > 0;
+
+      // Build items HTML
+      let itemsHtml = '';
+      if (isMultiItem) {
+        itemsHtml = `
+          <h4 style="margin-top:20px;margin-bottom:10px;color:#00ff88;">Order Items (${orderItems.reduce((sum, i) => sum + (i.quantity || 1), 0)} total)</h4>
+          <div style="background:rgba(0,0,0,0.3);border-radius:12px;padding:15px;">
+            ${orderItems.map(item => `
+              <div style="display:flex;gap:12px;align-items:center;padding:10px;background:rgba(104,12,217,0.1);border-radius:8px;margin-bottom:8px;border:1px solid rgba(104,12,217,0.3);">
+                ${item.image ? `<img src="${item.image}" style="width:50px;height:50px;object-fit:cover;border-radius:6px;">` : '<div style="width:50px;height:50px;background:#333;border-radius:6px;display:flex;align-items:center;justify-content:center;">👕</div>'}
+                <div style="flex:1;">
+                  <div style="font-weight:700;color:#fff;">${item.name || 'Product'}</div>
+                  <div style="font-size:12px;color:#888;">Size: ${item.size || 'N/A'} | Qty: ${item.quantity || 1}</div>
+                </div>
+                <div style="font-weight:700;color:#00ff88;">$${((item.price || 0) * (item.quantity || 1)).toFixed(2)}</div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      } else {
+        // Legacy single item display
+        itemsHtml = `
+          <div class="detail-row"><span class="label">Product</span><span class="value">${order.product_name || order.product_id || 'Product'}</span></div>
+          <div class="detail-row"><span class="label">Size</span><span class="value">${order.size || 'N/A'}</span></div>
+        `;
+      }
+
       document.getElementById('modalBody').innerHTML = `
         <div class="detail-row"><span class="label">Order Number</span><span class="value">${order.order_number || order.id}</span></div>
         <div class="detail-row"><span class="label">Status</span><span class="value"><span class="status-badge ${order.status}">${order.status}</span></span></div>
         <div class="detail-row"><span class="label">Customer</span><span class="value" style="color:#00ff88;font-weight:bold;">${usernameDisplay}</span></div>
         <div class="detail-row"><span class="label">Wallet</span><span class="value" style="font-family:monospace;font-size:12px;">${order.wallet_address}</span></div>
         ${order.destination_tag ? `<div class="detail-row"><span class="label">Destination Tag</span><span class="value" style="font-family:monospace;">${order.destination_tag}</span></div>` : ''}
-        <div class="detail-row"><span class="label">Product</span><span class="value">${order.product_id}</span></div>
-        <div class="detail-row"><span class="label">Size</span><span class="value">${order.size}</span></div>
-        <div class="detail-row"><span class="label">Amount</span><span class="value">$${order.amount_usd} USD</span></div>
+
+        ${itemsHtml}
+
+        <div class="detail-row"><span class="label">Total Amount</span><span class="value" style="color:#00ff88;font-size:18px;font-weight:bold;">$${order.amount_usd} USD</span></div>
         <div class="detail-row"><span class="label">Payment Method</span><span class="value">${order.payment_method || 'RLUSD'}</span></div>
         <div class="detail-row"><span class="label">Created</span><span class="value">${new Date(order.created_at).toLocaleString()}</span></div>
         ${order.payment_tx_hash ? `<div class="detail-row"><span class="label">TX Hash</span><span class="value" style="font-family:monospace;font-size:11px;">${order.payment_tx_hash}</span></div>` : ''}
