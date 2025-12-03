@@ -3682,6 +3682,234 @@ app.patch('/api/merch/admin/orders/:orderId', verifyAdminSession, async (req, re
   }
 });
 
+// ===== INVENTORY MANAGEMENT API =====
+
+// Get all inventory - SESSION PROTECTED
+app.get('/api/merch/admin/inventory', verifyAdminSession, async (req, res) => {
+  try {
+    console.log(`📦 Admin ${req.adminWallet} fetching inventory`);
+
+    // Try to get from database first
+    const { data: inventory, error } = await supabaseAdmin
+      .from('merch_inventory')
+      .select('*')
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching inventory from DB:', error);
+      // Fall back to in-memory if DB fails
+      const inMemoryInventory = Object.values(MERCH_PRODUCTS).map(p => ({
+        id: p.id,
+        name: p.name,
+        price: p.price_usd,
+        low_stock_threshold: 5,
+        stock: p.sizes,
+        created_at: new Date().toISOString()
+      }));
+      return res.json({ success: true, inventory: inMemoryInventory, source: 'memory' });
+    }
+
+    // Sync in-memory MERCH_PRODUCTS with DB data
+    if (inventory && inventory.length > 0) {
+      inventory.forEach(item => {
+        MERCH_PRODUCTS[item.id] = {
+          id: item.id,
+          name: item.name,
+          price_usd: item.price,
+          sizes: item.stock || { S: 0, M: 0, L: 0, XL: 0, XXL: 0 }
+        };
+      });
+    }
+
+    res.json({ success: true, inventory: inventory || [], source: 'database' });
+  } catch (error) {
+    console.error('Error fetching inventory:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+// Get public inventory (for store) - NO AUTH REQUIRED
+app.get('/api/merch/inventory', async (req, res) => {
+  try {
+    const { data: inventory, error } = await supabaseAdmin
+      .from('merch_inventory')
+      .select('id, name, price, stock')
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching public inventory:', error);
+      // Fall back to in-memory
+      const inMemoryInventory = Object.values(MERCH_PRODUCTS).map(p => ({
+        id: p.id,
+        name: p.name,
+        price: p.price_usd,
+        stock: p.sizes
+      }));
+      return res.json({ success: true, inventory: inMemoryInventory });
+    }
+
+    res.json({ success: true, inventory: inventory || [] });
+  } catch (error) {
+    console.error('Error fetching public inventory:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+// Add new product to inventory - SESSION PROTECTED
+app.post('/api/merch/admin/inventory', verifyAdminSession, async (req, res) => {
+  try {
+    const { id, name, price, low_stock_threshold, stock } = req.body;
+
+    if (!id || !name || price === undefined) {
+      return res.status(400).json({ success: false, error: 'Missing required fields: id, name, price' });
+    }
+
+    const productId = id.toLowerCase().replace(/\s+/g, '-');
+    const productData = {
+      id: productId,
+      name: name.toUpperCase(),
+      price: parseFloat(price),
+      low_stock_threshold: low_stock_threshold || 5,
+      stock: stock || { S: 0, M: 0, L: 0, XL: 0, '2XL': 0 },
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    const { error } = await supabaseAdmin
+      .from('merch_inventory')
+      .upsert(productData, { onConflict: 'id' });
+
+    if (error) {
+      console.error('Error adding product:', error);
+      return res.status(500).json({ success: false, error: 'Failed to add product' });
+    }
+
+    // Update in-memory
+    MERCH_PRODUCTS[productId] = {
+      id: productId,
+      name: productData.name,
+      price_usd: productData.price,
+      sizes: productData.stock
+    };
+
+    console.log(`📦 Admin ${req.adminWallet} added product: ${productData.name}`);
+    res.json({ success: true, product: productData });
+  } catch (error) {
+    console.error('Error adding product:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+// Update product inventory - SESSION PROTECTED
+app.put('/api/merch/admin/inventory/:productId', verifyAdminSession, async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const { name, price, low_stock_threshold, stock } = req.body;
+
+    const updateData = { updated_at: new Date().toISOString() };
+    if (name) updateData.name = name.toUpperCase();
+    if (price !== undefined) updateData.price = parseFloat(price);
+    if (low_stock_threshold !== undefined) updateData.low_stock_threshold = low_stock_threshold;
+    if (stock) updateData.stock = stock;
+
+    const { error } = await supabaseAdmin
+      .from('merch_inventory')
+      .update(updateData)
+      .eq('id', productId);
+
+    if (error) {
+      console.error('Error updating product:', error);
+      return res.status(500).json({ success: false, error: 'Failed to update product' });
+    }
+
+    // Update in-memory
+    if (MERCH_PRODUCTS[productId]) {
+      if (name) MERCH_PRODUCTS[productId].name = updateData.name;
+      if (price !== undefined) MERCH_PRODUCTS[productId].price_usd = updateData.price;
+      if (stock) MERCH_PRODUCTS[productId].sizes = stock;
+    }
+
+    console.log(`📦 Admin ${req.adminWallet} updated product: ${productId}`);
+    res.json({ success: true, message: 'Product updated' });
+  } catch (error) {
+    console.error('Error updating product:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+// Delete product from inventory - SESSION PROTECTED
+app.delete('/api/merch/admin/inventory/:productId', verifyAdminSession, async (req, res) => {
+  try {
+    const { productId } = req.params;
+
+    const { error } = await supabaseAdmin
+      .from('merch_inventory')
+      .delete()
+      .eq('id', productId);
+
+    if (error) {
+      console.error('Error deleting product:', error);
+      return res.status(500).json({ success: false, error: 'Failed to delete product' });
+    }
+
+    // Remove from in-memory
+    delete MERCH_PRODUCTS[productId];
+
+    console.log(`🗑️ Admin ${req.adminWallet} deleted product: ${productId}`);
+    res.json({ success: true, message: 'Product deleted' });
+  } catch (error) {
+    console.error('Error deleting product:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+// Initialize inventory from database on startup
+async function initializeInventoryFromDB() {
+  try {
+    const { data: inventory, error } = await supabaseAdmin
+      .from('merch_inventory')
+      .select('*');
+
+    if (error) {
+      console.log('⚠️ Could not load inventory from DB, using defaults:', error.message);
+      return;
+    }
+
+    if (inventory && inventory.length > 0) {
+      // Clear existing and load from DB
+      Object.keys(MERCH_PRODUCTS).forEach(key => delete MERCH_PRODUCTS[key]);
+      inventory.forEach(item => {
+        MERCH_PRODUCTS[item.id] = {
+          id: item.id,
+          name: item.name,
+          price_usd: item.price,
+          sizes: item.stock || { S: 0, M: 0, L: 0, XL: 0, XXL: 0 }
+        };
+      });
+      console.log(`📦 Loaded ${inventory.length} products from database`);
+    } else {
+      // Seed database with default product if empty
+      const defaultProduct = {
+        id: 'pocket-jester',
+        name: 'POCKET JESTER',
+        price: 30,
+        low_stock_threshold: 5,
+        stock: { S: 10, M: 15, L: 20, XL: 15, '2XL': 10 },
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      await supabaseAdmin.from('merch_inventory').upsert(defaultProduct, { onConflict: 'id' });
+      console.log('📦 Seeded default inventory to database');
+    }
+  } catch (error) {
+    console.error('Error initializing inventory:', error);
+  }
+}
+
+// Call initialization after a short delay to ensure DB is ready
+setTimeout(initializeInventoryFromDB, 3000);
+
 // ===== END MERCH STORE API =====
 
 // ===== HEALTH & DEBUG =====
