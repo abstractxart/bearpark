@@ -177,6 +177,9 @@
 
   <!-- 🐻❄️ COCAINE BEAR: Defer ALL scripts (non-blocking) -->
   <script defer src="https://unpkg.com/xrpl@3.0.0/build/xrpl-latest-min.js"></script>
+
+  <!-- 🦘 JOEY WALLET: WalletConnect SDK for Joey integration -->
+  <script src="https://unpkg.com/@walletconnect/sign-client@2.11.0/dist/index.umd.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/luxon@3.4.4/build/global/luxon.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.3.1/dist/chartjs-adapter-luxon.umd.min.js"></script>
@@ -25989,6 +25992,266 @@
     let merchRateInterval = null;
     let merchSelectedWallet = null; // 'xaman' or 'joey'
 
+    // 🦘 JOEY WALLET: WalletConnect configuration
+    const WALLETCONNECT_PROJECT_ID = 'da711418529df39d15cc68772619e270';
+    let joeyWcClient = null;
+    let joeyWcSession = null;
+    let joeyPairingTopic = null;
+
+    // Initialize WalletConnect client for Joey
+    async function initJoeyWalletConnect() {
+      if (joeyWcClient) return joeyWcClient;
+
+      try {
+        // WalletConnect Sign Client
+        const SignClient = window.SignClient || (window.WalletConnectSignClient && window.WalletConnectSignClient.SignClient);
+
+        if (!SignClient) {
+          console.error('WalletConnect SignClient not loaded');
+          return null;
+        }
+
+        joeyWcClient = await SignClient.init({
+          projectId: WALLETCONNECT_PROJECT_ID,
+          metadata: {
+            name: 'BEAR Park Merch Store',
+            description: 'BEAR Park merchandise store - pay with XRPL',
+            url: 'https://bearpark.xyz',
+            icons: ['https://files.catbox.moe/qnd2tx.png']
+          }
+        });
+
+        // Listen for session events
+        joeyWcClient.on('session_event', (event) => {
+          console.log('WalletConnect session event:', event);
+        });
+
+        joeyWcClient.on('session_update', ({ topic, params }) => {
+          console.log('WalletConnect session update:', topic, params);
+        });
+
+        joeyWcClient.on('session_delete', () => {
+          console.log('WalletConnect session deleted');
+          joeyWcSession = null;
+        });
+
+        return joeyWcClient;
+      } catch (error) {
+        console.error('Failed to init WalletConnect:', error);
+        return null;
+      }
+    }
+
+    // Connect Joey wallet via WalletConnect and create payment
+    async function startJoeyWalletConnectPayment(paymentData, orderNumber) {
+      try {
+        // Initialize client if needed
+        const client = await initJoeyWalletConnect();
+        if (!client) {
+          throw new Error('WalletConnect not available. Please try again or use manual payment.');
+        }
+
+        // Create new pairing
+        const { uri, approval } = await client.connect({
+          requiredNamespaces: {
+            xrpl: {
+              methods: ['xrpl_signTransaction'],
+              chains: ['xrpl:0'],  // XRPL mainnet
+              events: ['chainChanged', 'accountsChanged']
+            }
+          }
+        });
+
+        // Generate QR code from WalletConnect URI
+        const wcQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(uri)}`;
+
+        // Update UI with QR code
+        document.getElementById('merchSpinnerSection').innerHTML = `
+          <style>
+            @keyframes joey-bounce {
+              0%, 100% { transform: translateY(0); }
+              50% { transform: translateY(-10px); }
+            }
+            @keyframes joey-rotate {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+            @keyframes joey-glow {
+              0%, 100% { box-shadow: 0 0 20px rgba(245,158,11,0.3); }
+              50% { box-shadow: 0 0 40px rgba(245,158,11,0.6); }
+            }
+            .joey-qr-container {
+              background: #fff;
+              padding: 15px;
+              border-radius: 16px;
+              display: inline-block;
+              margin: 15px 0;
+              animation: joey-glow 2s ease-in-out infinite;
+            }
+            .joey-spinner-ring {
+              width: 40px; height: 40px;
+              border: 3px solid rgba(245,158,11,0.2);
+              border-top: 3px solid #f59e0b;
+              border-radius: 50%;
+              animation: joey-rotate 1s linear infinite;
+              margin: 10px auto;
+            }
+            .joey-waiting-container {
+              background: linear-gradient(135deg, rgba(245,158,11,0.1), rgba(234,88,12,0.1));
+              border-radius: 16px;
+              padding: 20px;
+              margin-top: 15px;
+              border: 1px solid rgba(245,158,11,0.3);
+            }
+            .joey-step {
+              display: flex; align-items: center; gap: 12px;
+              padding: 8px 0; color: #888; font-size: 14px;
+              transition: all 0.3s ease;
+            }
+            .joey-step.active { color: #f59e0b; }
+            .joey-step.completed { color: #f59e0b; }
+            .joey-step-icon {
+              width: 24px; height: 24px;
+              border-radius: 50%;
+              display: flex; align-items: center; justify-content: center;
+              font-size: 12px;
+              background: rgba(255,255,255,0.1);
+              border: 2px solid currentColor;
+            }
+            .joey-step.active .joey-step-icon {
+              background: #f59e0b;
+              color: #000;
+              border-color: #f59e0b;
+            }
+            .joey-step.completed .joey-step-icon {
+              background: #f59e0b;
+              color: #000;
+            }
+          </style>
+
+          <p style="color:#f59e0b; font-size:18px; font-weight:700; margin-bottom:10px;">Scan with Joey Wallet</p>
+
+          <div class="joey-qr-container">
+            <img src="${wcQrUrl}" alt="Scan with Joey" style="width:200px; height:200px; display:block;">
+          </div>
+
+          <p style="color:#888; font-size:13px; margin:10px 0;">
+            <strong>Order:</strong> ${orderNumber}<br>
+            <strong>Amount:</strong> ${paymentData.amount} ${paymentData.currency}
+          </p>
+
+          <div class="joey-waiting-container">
+            <div class="joey-spinner-ring"></div>
+            <p id="joeyStatusText" style="color:#f59e0b; font-size:16px; font-weight:600; margin-top:10px;">
+              Waiting for Joey connection...
+            </p>
+            <p style="color:#666; font-size:12px;">Open Joey Wallet and scan the QR code</p>
+
+            <div style="margin-top:15px; text-align:left; max-width:280px; margin-left:auto; margin-right:auto;">
+              <div class="joey-step active" id="joeyStep1">
+                <div class="joey-step-icon">1</div>
+                <span>Connect Joey Wallet</span>
+              </div>
+              <div class="joey-step" id="joeyStep2">
+                <div class="joey-step-icon">2</div>
+                <span>Approve payment</span>
+              </div>
+              <div class="joey-step" id="joeyStep3">
+                <div class="joey-step-icon">3</div>
+                <span>Payment confirmed</span>
+              </div>
+            </div>
+          </div>
+
+          <p style="color:#ff6b6b; font-size:12px; margin-top:15px; padding:10px; background:rgba(255,107,107,0.1); border-radius:8px;">
+            ⚠️ Don't close this page until payment is complete
+          </p>
+        `;
+
+        // Wait for user to approve in Joey
+        joeyWcSession = await approval();
+        console.log('Joey WalletConnect session established:', joeyWcSession);
+
+        // Update UI - connected
+        const step1 = document.getElementById('joeyStep1');
+        const step2 = document.getElementById('joeyStep2');
+        const statusText = document.getElementById('joeyStatusText');
+        if (step1 && step2 && statusText) {
+          step1.classList.remove('active');
+          step1.classList.add('completed');
+          step1.querySelector('.joey-step-icon').innerHTML = '✓';
+          step2.classList.add('active');
+          statusText.textContent = 'Approve payment in Joey...';
+        }
+
+        // Get the connected account
+        const accounts = joeyWcSession.namespaces.xrpl?.accounts || [];
+        const userAccount = accounts[0]?.split(':')[2];  // Format: xrpl:0:rXXX
+
+        if (!userAccount) {
+          throw new Error('No XRPL account connected');
+        }
+
+        // Build XRPL payment transaction
+        let txPayload;
+        if (paymentData.currency === 'XRP') {
+          // XRP payment
+          txPayload = {
+            TransactionType: 'Payment',
+            Account: userAccount,
+            Destination: paymentData.destination_address,
+            Amount: String(Math.floor(paymentData.amount * 1000000)),  // Convert to drops
+            DestinationTag: paymentData.destination_tag
+          };
+        } else {
+          // RLUSD payment
+          txPayload = {
+            TransactionType: 'Payment',
+            Account: userAccount,
+            Destination: paymentData.destination_address,
+            Amount: {
+              currency: paymentData.currency === 'RLUSD' ? '524C555344000000000000000000000000000000' : paymentData.currency,
+              value: String(paymentData.amount),
+              issuer: paymentData.issuer
+            },
+            DestinationTag: paymentData.destination_tag
+          };
+        }
+
+        // Request signature from Joey
+        const result = await client.request({
+          topic: joeyWcSession.topic,
+          chainId: 'xrpl:0',
+          request: {
+            method: 'xrpl_signTransaction',
+            params: {
+              tx_json: txPayload
+            }
+          }
+        });
+
+        console.log('Joey payment result:', result);
+
+        // Update UI - payment sent
+        if (step2 && statusText) {
+          step2.classList.remove('active');
+          step2.classList.add('completed');
+          step2.querySelector('.joey-step-icon').innerHTML = '✓';
+          const step3 = document.getElementById('joeyStep3');
+          if (step3) {
+            step3.classList.add('active');
+          }
+          statusText.textContent = 'Confirming on XRPL...';
+        }
+
+        return { success: true, result };
+
+      } catch (error) {
+        console.error('Joey WalletConnect error:', error);
+        throw error;
+      }
+    }
+
     function openMerchStoreModal() {
       document.getElementById('merchStoreModal').classList.add('active');
       merchShowScreen('gallery');
@@ -26347,167 +26610,82 @@
 
         // Handle wallet-specific payment flows
         if (merchSelectedWallet === 'joey') {
-          // Joey wallet flow - create deep link and QR code
-          document.getElementById('merchProcessingTitle').textContent = 'Complete Transaction in Joey';
+          // Joey wallet flow - use WalletConnect for automated payment
+          document.getElementById('merchProcessingTitle').textContent = 'Connect Joey Wallet';
 
-          // Build Joey deep link - Joey uses joey:// scheme
-          const joeyAmount = paymentData.amount;
-          const joeyDestination = paymentData.destination_address;
-          const joeyTag = paymentData.destination_tag;
-          const joeyCurrency = paymentData.currency;
-          const joeyIssuer = paymentData.issuer || '';
+          // Start WalletConnect payment flow
+          try {
+            await startJoeyWalletConnectPayment(paymentData, paymentData.order_number);
+            // Payment was successful, the monitor will pick it up
+          } catch (wcError) {
+            console.error('WalletConnect error:', wcError);
+            // Fall back to manual payment details if WalletConnect fails
+            const joeyAmount = paymentData.amount;
+            const joeyDestination = paymentData.destination_address;
+            const joeyTag = paymentData.destination_tag;
+            const joeyCurrency = paymentData.currency;
+            const joeyIssuer = paymentData.issuer || '';
 
-          // Joey wallet deep link - try simple format
-          // Joey may use: joey://send?address=X&amount=Y&dt=Z
-          let joeyDeepLink;
-          if (joeyCurrency === 'XRP') {
-            // Try simpler parameter names
-            joeyDeepLink = `joey://send?address=${joeyDestination}&amount=${joeyAmount}&dt=${joeyTag}`;
-          } else {
-            // For RLUSD - include currency and issuer
-            joeyDeepLink = `joey://send?address=${joeyDestination}&amount=${joeyAmount}&dt=${joeyTag}&currency=${joeyCurrency}&issuer=${joeyIssuer}`;
-          }
+            document.getElementById('merchProcessingTitle').textContent = 'Send Payment in Joey';
+            document.getElementById('merchSpinnerSection').innerHTML = `
+              <style>
+                @keyframes joey-rotate {
+                  0% { transform: rotate(0deg); }
+                  100% { transform: rotate(360deg); }
+                }
+                @keyframes joey-glow {
+                  0%, 100% { box-shadow: 0 0 20px rgba(245,158,11,0.3); }
+                  50% { box-shadow: 0 0 40px rgba(245,158,11,0.6); }
+                }
+                .joey-spinner-ring {
+                  width: 50px; height: 50px;
+                  border: 4px solid rgba(245,158,11,0.2);
+                  border-top: 4px solid #f59e0b;
+                  border-radius: 50%;
+                  animation: joey-rotate 1s linear infinite;
+                  margin: 10px auto;
+                }
+                .joey-waiting-container {
+                  background: linear-gradient(135deg, rgba(245,158,11,0.1), rgba(234,88,12,0.1));
+                  border-radius: 16px;
+                  padding: 20px;
+                  margin-top: 15px;
+                  border: 1px solid rgba(245,158,11,0.3);
+                  animation: joey-glow 2s ease-in-out infinite;
+                }
+              </style>
 
-          // Generate QR code using payment data (for scanning with Joey)
-          // Create a payment string that Joey can scan
-          const joeyPaymentData = JSON.stringify({
-            to: joeyDestination,
-            amount: joeyAmount,
-            currency: joeyCurrency,
-            dt: joeyTag,
-            issuer: joeyIssuer || undefined
-          });
-          const joeyQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(joeyDeepLink)}`;
-
-          document.getElementById('merchSpinnerSection').innerHTML = `
-            <style>
-              @keyframes joey-bounce {
-                0%, 100% { transform: translateY(0); }
-                50% { transform: translateY(-10px); }
-              }
-              @keyframes joey-rotate {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-              }
-              @keyframes joey-glow {
-                0%, 100% { box-shadow: 0 0 20px rgba(245,158,11,0.3); }
-                50% { box-shadow: 0 0 40px rgba(245,158,11,0.6); }
-              }
-              .joey-icon {
-                font-size: 80px;
-                animation: joey-bounce 1s ease-in-out infinite;
-              }
-              .joey-spinner-ring {
-                width: 60px; height: 60px;
-                border: 4px solid rgba(245,158,11,0.2);
-                border-top: 4px solid #f59e0b;
-                border-radius: 50%;
-                animation: joey-rotate 1s linear infinite;
-                margin: 0 auto;
-              }
-              .joey-waiting-container {
-                background: linear-gradient(135deg, rgba(245,158,11,0.1), rgba(234,88,12,0.1));
-                border-radius: 16px;
-                padding: 25px;
-                margin-top: 20px;
-                border: 1px solid rgba(245,158,11,0.3);
-                animation: joey-glow 2s ease-in-out infinite;
-              }
-              .joey-step {
-                display: flex; align-items: center; gap: 12px;
-                padding: 10px 0; color: #888; font-size: 14px;
-                transition: all 0.3s ease;
-              }
-              .joey-step.active { color: #f59e0b; }
-              .joey-step.completed { color: #f59e0b; }
-              .joey-step-icon {
-                width: 24px; height: 24px;
-                border-radius: 50%;
-                display: flex; align-items: center; justify-content: center;
-                font-size: 12px;
-                background: rgba(255,255,255,0.1);
-                border: 2px solid currentColor;
-              }
-              .joey-step.active .joey-step-icon {
-                background: #f59e0b;
-                color: #000;
-                border-color: #f59e0b;
-              }
-              .joey-step.completed .joey-step-icon {
-                background: #f59e0b;
-                color: #000;
-              }
-            </style>
-
-            <p style="color:#f59e0b; font-size:16px; margin-bottom:15px;">Send payment using Joey Wallet</p>
-
-            <!-- Manual Payment Details - PROMINENT -->
-            <div style="background: linear-gradient(135deg, rgba(245,158,11,0.2), rgba(234,88,12,0.15)); border:2px solid #f59e0b; border-radius:16px; padding:20px; margin:15px 0; text-align:left;">
-              <p style="color:#f59e0b; font-weight:700; margin-bottom:15px; font-size:16px; text-align:center;">📋 SEND THIS IN JOEY:</p>
-              <div style="font-family:monospace; font-size:14px; color:#fff; background:rgba(0,0,0,0.3); padding:15px; border-radius:10px;">
-                <p style="margin:8px 0;"><strong style="color:#f59e0b;">To:</strong> <span style="word-break:break-all;">${joeyDestination}</span></p>
-                <p style="margin:8px 0;"><strong style="color:#f59e0b;">Amount:</strong> ${joeyAmount} ${joeyCurrency}</p>
-                <p style="margin:8px 0; padding:10px; background:rgba(255,107,107,0.2); border-radius:8px; border:1px solid #ff6b6b;">
-                  <strong style="color:#ff6b6b;">⚠️ DESTINATION TAG:</strong> <span style="color:#fff; font-size:18px; font-weight:bold;">${joeyTag}</span>
-                </p>
-                ${joeyIssuer ? `<p style="margin:8px 0;"><strong style="color:#f59e0b;">Issuer:</strong> <span style="word-break:break-all;">${joeyIssuer}</span></p>` : ''}
-              </div>
-              <p style="color:#ff6b6b; font-size:12px; margin-top:12px; text-align:center;">⚠️ You MUST include the Destination Tag or payment will be lost!</p>
-            </div>
-
-            <p style="color:#888; font-size:13px; margin-bottom:15px;">
-              <strong>Order:</strong> ${paymentData.order_number}
-            </p>
-
-            <div style="margin-bottom:15px;">
-              <a href="${joeyDeepLink}" id="joeyDeepLinkBtn"
-                 style="display:inline-block; background: linear-gradient(135deg, #f59e0b, #ea580c); color:#fff; text-decoration:none; padding:12px 25px; border-radius:12px; font-size:16px; font-weight:bold; cursor:pointer;">
-                🦘 Try Open Joey App
-              </a>
-              <p style="color:#666; font-size:11px; margin-top:8px;">If this doesn't work, manually enter the details above in Joey</p>
-            </div>
-
-            <div class="joey-waiting-container">
-              <div class="joey-spinner-ring"></div>
-              <p class="joey-status-text" id="joeyStatusText" style="color:#f59e0b; font-size:18px; font-weight:600; margin-top:15px;">
-                Waiting for payment
+              <p style="color:#ff6b6b; font-size:14px; margin-bottom:15px;">
+                WalletConnect unavailable - please send manually
               </p>
-              <p style="color:#888; font-size:12px; margin-top:5px;">Complete transaction in Joey Wallet</p>
 
-              <div style="margin-top:20px; text-align:left; max-width:280px; margin-left:auto; margin-right:auto;">
-                <div class="joey-step active" id="joeyStep1">
-                  <div class="joey-step-icon">1</div>
-                  <span>Open Joey & confirm payment</span>
+              <!-- Manual Payment Details -->
+              <div style="background: linear-gradient(135deg, rgba(245,158,11,0.2), rgba(234,88,12,0.15)); border:2px solid #f59e0b; border-radius:16px; padding:20px; margin:15px 0; text-align:left;">
+                <p style="color:#f59e0b; font-weight:700; margin-bottom:15px; font-size:16px; text-align:center;">Send this payment in Joey:</p>
+                <div style="font-family:monospace; font-size:14px; color:#fff; background:rgba(0,0,0,0.3); padding:15px; border-radius:10px;">
+                  <p style="margin:8px 0;"><strong style="color:#f59e0b;">To:</strong> <span style="word-break:break-all;">${joeyDestination}</span></p>
+                  <p style="margin:8px 0;"><strong style="color:#f59e0b;">Amount:</strong> ${joeyAmount} ${joeyCurrency}</p>
+                  <p style="margin:8px 0; padding:10px; background:rgba(255,107,107,0.2); border-radius:8px; border:1px solid #ff6b6b;">
+                    <strong style="color:#ff6b6b;">DESTINATION TAG:</strong> <span style="color:#fff; font-size:18px; font-weight:bold;">${joeyTag}</span>
+                  </p>
+                  ${joeyIssuer ? `<p style="margin:8px 0;"><strong style="color:#f59e0b;">Issuer:</strong> <span style="word-break:break-all;">${joeyIssuer}</span></p>` : ''}
                 </div>
-                <div class="joey-step" id="joeyStep2">
-                  <div class="joey-step-icon">2</div>
-                  <span>Confirming on XRP Ledger</span>
-                </div>
-                <div class="joey-step" id="joeyStep3">
-                  <div class="joey-step-icon">3</div>
-                  <span>Payment verified</span>
-                </div>
+                <p style="color:#ff6b6b; font-size:12px; margin-top:12px; text-align:center;">You MUST include the Destination Tag!</p>
               </div>
-            </div>
 
-            <p style="color:#ff6b6b; font-size:13px; margin-top:20px; padding:12px 15px; background:rgba(255,107,107,0.1); border-radius:10px; border:1px solid rgba(255,107,107,0.3);">
-              <strong>Please wait after signing.</strong> Do not refresh or close this page!
-            </p>
-          `;
+              <p style="color:#888; font-size:13px; margin-bottom:15px;">
+                <strong>Order:</strong> ${paymentData.order_number}
+              </p>
 
-          // Animate steps after a delay
-          setTimeout(() => {
-            const step1 = document.getElementById('joeyStep1');
-            const step2 = document.getElementById('joeyStep2');
-            const statusText = document.getElementById('joeyStatusText');
-            if (step1 && step2 && statusText) {
-              step1.classList.remove('active');
-              step1.classList.add('completed');
-              step1.querySelector('.joey-step-icon').innerHTML = '✓';
-              step2.classList.add('active');
-              statusText.textContent = 'Confirming payment';
-            }
-          }, 8000);
+              <div class="joey-waiting-container">
+                <div class="joey-spinner-ring"></div>
+                <p style="color:#f59e0b; font-size:16px; font-weight:600; margin-top:10px;">
+                  Waiting for payment...
+                </p>
+                <p style="color:#888; font-size:12px;">We'll detect it automatically once you send</p>
+              </div>
+            `;
+          }
 
         } else if (paymentData.xumm_payload && paymentData.xumm_payload.next_url) {
           // XAMAN wallet flow - use XUMM payload with QR code
