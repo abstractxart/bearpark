@@ -3068,18 +3068,19 @@ app.get('/api/merch/orders/wallet/:wallet', async (req, res) => {
       throw error;
     }
 
-    // Add product names from inventory
-    const ordersWithNames = (orders || []).map(order => {
+    // Add product names and images from inventory
+    const ordersWithDetails = (orders || []).map(order => {
       const product = MERCH_PRODUCTS[order.product_id];
       return {
         ...order,
-        product_name: product?.name || order.product_id || 'Merch Item'
+        product_name: product?.name || order.product_id || 'Merch Item',
+        product_image: product?.images?.[0] || null
       };
     });
 
     res.json({
       success: true,
-      orders: ordersWithNames
+      orders: ordersWithDetails
     });
 
   } catch (error) {
@@ -3106,18 +3107,19 @@ app.get('/api/merch/orders/my-orders', async (req, res) => {
       throw error;
     }
 
-    // Add product names from inventory
-    const ordersWithNames = (orders || []).map(order => {
+    // Add product names and images from inventory
+    const ordersWithDetails = (orders || []).map(order => {
       const product = MERCH_PRODUCTS[order.product_id];
       return {
         ...order,
-        product_name: product?.name || order.product_id || 'Merch Item'
+        product_name: product?.name || order.product_id || 'Merch Item',
+        product_image: product?.images?.[0] || null
       };
     });
 
     res.json({
       success: true,
-      orders: ordersWithNames
+      orders: ordersWithDetails
     });
 
   } catch (error) {
