@@ -22673,37 +22673,78 @@
             <button class="store-close-btn" onclick="closeMerchStoreModal()">×</button>
           </div>
         </div>
-        <div class="store-body" style="padding: 40px; text-align:center;">
-          <div style="font-size:80px; margin-bottom:20px;">✅</div>
-          <h3 style="font-size:24px; color:#22c55e; margin-bottom:20px;">Your order has been placed successfully!</h3>
-          <div class="merch-success-box">
+        <div class="store-body" style="padding: 30px; text-align:center;">
+          <div style="font-size:60px; margin-bottom:15px;">✅</div>
+          <h3 style="font-size:22px; color:#22c55e; margin-bottom:20px;">Your order has been placed successfully!</h3>
+
+          <!-- Receipt Box -->
+          <div id="merchReceiptBox" class="merch-success-box" style="text-align:left; background:rgba(0,0,0,0.4); border:2px solid rgba(34,197,94,0.3);">
+            <div style="text-align:center; margin-bottom:15px; padding-bottom:15px; border-bottom:2px dashed rgba(255,255,255,0.2);">
+              <div style="font-size:24px; font-weight:900; color:#00ff88;">BEAR PARK</div>
+              <div style="font-size:11px; color:#888; margin-top:5px;">OFFICIAL MERCH RECEIPT</div>
+            </div>
             <div class="merch-success-row">
               <span>ORDER #:</span>
-              <span id="merchOrderNumber">BEAR-2024-XXXXXX</span>
+              <span id="merchOrderNumber" style="font-family:monospace; color:#00ff88;">BEAR-2024-XXXXXX</span>
             </div>
+            <div class="merch-success-row">
+              <span>Date:</span>
+              <span id="merchOrderDate" style="color:#ccc;">--</span>
+            </div>
+            <div class="merch-success-divider"></div>
             <div class="merch-success-row">
               <span>Item:</span>
               <span id="merchOrderItem">Product (Size)</span>
             </div>
             <div class="merch-success-row">
-              <span>Total:</span>
-              <span id="merchOrderTotal">$30.00</span>
+              <span>Total Paid:</span>
+              <span id="merchOrderTotal" style="color:#00ff88; font-weight:700;">$30.00</span>
+            </div>
+            <div class="merch-success-row">
+              <span>Payment:</span>
+              <span id="merchOrderPayment" style="color:#ccc;">RLUSD</span>
             </div>
             <div class="merch-success-row">
               <span>Status:</span>
-              <span style="color:#f59e0b;">Processing</span>
+              <span style="color:#f59e0b; font-weight:600;">⏳ Processing</span>
             </div>
             <div class="merch-success-divider"></div>
-            <div style="text-align:left; color:#ccc;">
-              <strong>Shipping to:</strong><br>
-              <span id="merchOrderAddress"></span>
+            <div style="color:#ccc; font-size:13px;">
+              <strong style="color:#fff;">📦 Shipping to:</strong><br>
+              <span id="merchOrderAddress" style="line-height:1.6;"></span>
+            </div>
+            <div class="merch-success-divider"></div>
+            <div style="text-align:center; font-size:11px; color:#666;">
+              Thank you for supporting BEAR Park!
             </div>
           </div>
-          <p style="color:#888; margin:20px 0;">📧 Confirmation details saved to your wallet profile</p>
-          <p style="color:#ccc;">📦 Estimated shipping: 5-10 business days</p>
-          <button class="merch-btn-primary" onclick="closeMerchStoreModal()" style="margin-top:30px;">
-            🐻 BACK TO BEAR PARK
+
+          <!-- Save Receipt Button -->
+          <button onclick="saveMerchReceipt()" style="background:linear-gradient(135deg, #680cd9, #8b5cf6); color:#fff; border:none; padding:12px 24px; border-radius:10px; font-size:14px; font-weight:600; cursor:pointer; margin-top:20px; display:inline-flex; align-items:center; gap:8px;">
+            📥 SAVE RECEIPT (Screenshot This!)
           </button>
+
+          <p style="color:#888; margin:15px 0 5px; font-size:12px;">💡 Take a screenshot of this receipt for your records!</p>
+          <p style="color:#888; margin:5px 0; font-size:12px;">You can also view your orders anytime in "My Receipts"</p>
+          <p style="color:#ccc; margin:15px 0;">📦 Estimated shipping: 5-10 business days</p>
+
+          <!-- Support Contact Info -->
+          <div style="background:rgba(104,12,217,0.2); border:2px solid rgba(104,12,217,0.4); border-radius:12px; padding:15px; margin-top:20px; text-align:center;">
+            <div style="font-size:14px; font-weight:700; color:#fff; margin-bottom:10px;">❓ Questions or Issues?</div>
+            <div style="font-size:13px; color:#ccc; line-height:1.8;">
+              <div>🐦 <strong style="color:#00c3ff;">@APEX_589</strong> on X (Twitter)</div>
+              <div>💬 <strong style="color:#7c3aed;">cryptoapex</strong> on Discord</div>
+            </div>
+          </div>
+
+          <div style="display:flex; gap:10px; margin-top:25px; justify-content:center; flex-wrap:wrap;">
+            <button class="merch-btn-primary" onclick="openMyReceiptsModal()" style="background:rgba(104,12,217,0.3); border:2px solid #680cd9;">
+              📋 VIEW MY RECEIPTS
+            </button>
+            <button class="merch-btn-primary" onclick="closeMerchStoreModal()">
+              🐻 BACK TO BEAR PARK
+            </button>
+          </div>
         </div>
       </div>
 
@@ -25982,19 +26023,38 @@
     });
 
     // ===== MERCH STORE JAVASCRIPT =====
-    const MERCH_PRODUCTS = [
-      {
-        id: 'pocket-jester',
-        name: 'POCKET JESTER',
-        description: 'Premium heavyweight cotton tee featuring the iconic Pocket Jester design. This limited edition shirt showcases the playful and mischievous spirit of the BEAR community. Perfect for those who want to show their $BEAR pride in style!',
-        price_usd: 30,
-        images: [
-          'https://files.catbox.moe/n3rrso.webp'
-        ],
-        sizes: { S: 10, M: 15, L: 20, XL: 15, XXL: 10 },
-        total_stock: 70
+    // Products fetched from database - no more hardcoded inventory!
+    let MERCH_PRODUCTS = [];
+
+    // Fetch products from database API
+    async function fetchMerchProducts() {
+      try {
+        const response = await fetch('https://bearpark-production.up.railway.app/api/merch/products');
+        const data = await response.json();
+        if (data.success && data.products) {
+          MERCH_PRODUCTS = data.products.map(p => ({
+            ...p,
+            // Map 2XL from database to XXL for frontend display
+            sizes: {
+              S: p.sizes?.S || 0,
+              M: p.sizes?.M || 0,
+              L: p.sizes?.L || 0,
+              XL: p.sizes?.XL || 0,
+              XXL: p.sizes?.['2XL'] || p.sizes?.XXL || 0
+            },
+            total_stock: Object.values(p.sizes || {}).reduce((a, b) => a + b, 0)
+          }));
+          console.log('✅ Merch products loaded from database:', MERCH_PRODUCTS);
+        }
+      } catch (error) {
+        console.error('❌ Failed to fetch merch products:', error);
+        // Fallback to empty - store will show no products
+        MERCH_PRODUCTS = [];
       }
-    ];
+    }
+
+    // Fetch products on page load
+    fetchMerchProducts();
 
     let merchCurrentProduct = null;
     let merchSelectedSize = null;
@@ -26273,9 +26333,11 @@
       }
     }
 
-    function openMerchStoreModal() {
+    async function openMerchStoreModal() {
       document.getElementById('merchStoreModal').classList.add('active');
       merchShowScreen('gallery');
+      // Always fetch fresh inventory from database when opening store!
+      await fetchMerchProducts();
       loadMerchProducts();
       fetchXrpPrice();
     }
@@ -26959,10 +27021,26 @@
       });
     }
 
-    function showMerchSuccess(orderId, orderNumber) {
+    // Store last order data for receipts
+    let lastMerchOrderData = null;
+
+    function showMerchSuccess(orderId, orderNumber, paymentMethod = 'RLUSD') {
+      const now = new Date();
+      const dateStr = now.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
       document.getElementById('merchOrderNumber').textContent = orderNumber || `BEAR-${Date.now()}`;
+      document.getElementById('merchOrderDate').textContent = dateStr;
       document.getElementById('merchOrderItem').textContent = `${merchCurrentProduct.name} (${merchSelectedSize})`;
-      document.getElementById('merchOrderTotal').textContent = '$30.00 RLUSD';
+
+      const price = merchCurrentProduct.price_usd || 30;
+      document.getElementById('merchOrderTotal').textContent = `$${price.toFixed(2)}`;
+      document.getElementById('merchOrderPayment').textContent = paymentMethod || 'RLUSD';
 
       const addressHtml = `
         ${merchShippingData.name}<br>
@@ -26971,8 +27049,188 @@
       `;
       document.getElementById('merchOrderAddress').innerHTML = addressHtml;
 
+      // Store order data for receipt access
+      lastMerchOrderData = {
+        orderId,
+        orderNumber: orderNumber || `BEAR-${Date.now()}`,
+        date: dateStr,
+        item: `${merchCurrentProduct.name} (${merchSelectedSize})`,
+        total: `$${price.toFixed(2)}`,
+        payment: paymentMethod || 'RLUSD',
+        address: merchShippingData
+      };
+
       if (merchRateInterval) clearInterval(merchRateInterval);
       merchShowScreen('success');
+    }
+
+    // Save receipt - highlights the receipt box for screenshot
+    function saveMerchReceipt() {
+      const receiptBox = document.getElementById('merchReceiptBox');
+      if (receiptBox) {
+        // Flash animation to indicate "screenshot now!"
+        receiptBox.style.transition = 'all 0.3s';
+        receiptBox.style.boxShadow = '0 0 30px rgba(0,255,136,0.8)';
+        receiptBox.style.transform = 'scale(1.02)';
+
+        // Show alert with instructions
+        alert('📸 Take a screenshot now to save your receipt!\n\nYou can also view all your orders anytime by clicking "VIEW MY RECEIPTS"');
+
+        setTimeout(() => {
+          receiptBox.style.boxShadow = '';
+          receiptBox.style.transform = '';
+        }, 2000);
+      }
+    }
+
+    // Open My Receipts Modal - shows user's order history
+    async function openMyReceiptsModal() {
+      // Close merch store modal first
+      closeMerchStoreModal();
+
+      // Check if user has wallet connected
+      const walletAddress = localStorage.getItem('bearpark_wallet');
+      if (!walletAddress) {
+        alert('Please connect your wallet to view your order history.');
+        return;
+      }
+
+      // Show loading
+      showMyReceiptsModal(true);
+
+      try {
+        // Fetch user's orders from backend
+        const response = await fetch(`https://bearpark-production.up.railway.app/api/merch/orders/my-orders?wallet=${walletAddress}`);
+        const data = await response.json();
+
+        if (data.success && data.orders) {
+          renderMyReceipts(data.orders);
+        } else {
+          renderMyReceipts([]);
+        }
+      } catch (error) {
+        console.error('Error fetching orders:', error);
+        renderMyReceipts([]);
+      }
+
+      showMyReceiptsModal(false);
+    }
+
+    function showMyReceiptsModal(loading = false) {
+      let modal = document.getElementById('myReceiptsModal');
+
+      if (!modal) {
+        // Create the modal if it doesn't exist
+        modal = document.createElement('div');
+        modal.id = 'myReceiptsModal';
+        modal.className = 'store-modal';
+        modal.innerHTML = `
+          <div class="store-modal-content" style="max-width:600px;">
+            <div class="store-header" style="background:linear-gradient(135deg, #680cd9, #00ff88);">
+              <div class="store-title-section">
+                <h2 class="store-title">📋 MY PURCHASE RECEIPTS</h2>
+              </div>
+              <div class="store-balance-container">
+                <button class="store-close-btn" onclick="closeMyReceiptsModal()">×</button>
+              </div>
+            </div>
+            <div class="store-body" style="padding:20px; max-height:70vh; overflow-y:auto;">
+              <div id="myReceiptsContent">
+                <div style="text-align:center; padding:40px;">
+                  <div class="merch-spinner"></div>
+                  <p style="color:#888; margin-top:20px;">Loading your orders...</p>
+                </div>
+              </div>
+
+              <!-- Support Info -->
+              <div style="background:rgba(104,12,217,0.2); border:2px solid rgba(104,12,217,0.4); border-radius:12px; padding:15px; margin-top:20px; text-align:center;">
+                <div style="font-size:14px; font-weight:700; color:#fff; margin-bottom:10px;">❓ Questions or Issues with an Order?</div>
+                <div style="font-size:13px; color:#ccc; line-height:1.8;">
+                  <div>🐦 <strong style="color:#00c3ff;">@APEX_589</strong> on X (Twitter)</div>
+                  <div>💬 <strong style="color:#7c3aed;">cryptoapex</strong> on Discord</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(modal);
+
+        // Close on backdrop click
+        modal.addEventListener('click', (e) => {
+          if (e.target === modal) closeMyReceiptsModal();
+        });
+      }
+
+      modal.classList.add('active');
+    }
+
+    function closeMyReceiptsModal() {
+      const modal = document.getElementById('myReceiptsModal');
+      if (modal) modal.classList.remove('active');
+    }
+
+    function renderMyReceipts(orders) {
+      const container = document.getElementById('myReceiptsContent');
+
+      if (!orders || orders.length === 0) {
+        container.innerHTML = `
+          <div style="text-align:center; padding:40px;">
+            <div style="font-size:60px; margin-bottom:20px;">📦</div>
+            <h3 style="color:#fff; margin-bottom:10px;">No Orders Yet</h3>
+            <p style="color:#888;">Your purchase history will appear here after you make your first order!</p>
+            <button onclick="closeMyReceiptsModal(); setTimeout(openMerchStoreModal, 300);" class="merch-btn-primary" style="margin-top:20px;">
+              🛒 BROWSE MERCH STORE
+            </button>
+          </div>
+        `;
+        return;
+      }
+
+      // Sort by date, newest first
+      orders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+      let html = `<div style="margin-bottom:15px; color:#888; font-size:13px;">${orders.length} order(s) found</div>`;
+
+      orders.forEach(order => {
+        const date = new Date(order.created_at).toLocaleDateString('en-US', {
+          year: 'numeric', month: 'short', day: 'numeric'
+        });
+
+        const statusColors = {
+          'pending': '#f59e0b',
+          'paid': '#3b82f6',
+          'shipped': '#22c55e',
+          'delivered': '#10b981',
+          'cancelled': '#ef4444'
+        };
+        const statusColor = statusColors[order.status] || '#888';
+        const statusEmoji = {
+          'pending': '⏳',
+          'paid': '✅',
+          'shipped': '📦',
+          'delivered': '🎉',
+          'cancelled': '❌'
+        }[order.status] || '📋';
+
+        html += `
+          <div style="background:rgba(0,0,0,0.3); border:2px solid rgba(104,12,217,0.3); border-radius:12px; padding:15px; margin-bottom:15px;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;">
+              <div>
+                <div style="font-family:monospace; color:#00ff88; font-weight:700;">${order.order_number || order.id}</div>
+                <div style="font-size:12px; color:#888;">${date}</div>
+              </div>
+              <div style="background:rgba(0,0,0,0.3); padding:4px 10px; border-radius:20px; font-size:11px; font-weight:700; color:${statusColor};">
+                ${statusEmoji} ${(order.status || 'pending').toUpperCase()}
+              </div>
+            </div>
+            <div style="font-size:14px; color:#fff; margin-bottom:5px;">${order.product_name || 'Product'} (${order.size || 'N/A'})</div>
+            <div style="font-size:13px; color:#00ff88; font-weight:600;">$${parseFloat(order.amount_usd || 30).toFixed(2)}</div>
+            ${order.tracking_number ? `<div style="font-size:12px; color:#888; margin-top:8px;">📦 Tracking: <span style="color:#00c3ff;">${order.tracking_number}</span></div>` : ''}
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
     }
 
     // Close merch modal when clicking outside

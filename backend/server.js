@@ -3068,9 +3068,56 @@ app.get('/api/merch/orders/wallet/:wallet', async (req, res) => {
       throw error;
     }
 
+    // Add product names from inventory
+    const ordersWithNames = (orders || []).map(order => {
+      const product = MERCH_PRODUCTS[order.product_id];
+      return {
+        ...order,
+        product_name: product?.name || order.product_id || 'Merch Item'
+      };
+    });
+
     res.json({
       success: true,
-      orders: orders || []
+      orders: ordersWithNames
+    });
+
+  } catch (error) {
+    console.error('Error fetching user orders:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+// Alternative endpoint for my-orders (query param)
+app.get('/api/merch/orders/my-orders', async (req, res) => {
+  try {
+    const wallet = req.query.wallet;
+    if (!wallet) {
+      return res.status(400).json({ success: false, error: 'Wallet address required' });
+    }
+
+    const { data: orders, error } = await supabaseAdmin
+      .from('merch_orders')
+      .select('id, order_number, product_id, size, amount_usd, status, created_at, tracking_number')
+      .eq('wallet_address', wallet)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      throw error;
+    }
+
+    // Add product names from inventory
+    const ordersWithNames = (orders || []).map(order => {
+      const product = MERCH_PRODUCTS[order.product_id];
+      return {
+        ...order,
+        product_name: product?.name || order.product_id || 'Merch Item'
+      };
+    });
+
+    res.json({
+      success: true,
+      orders: ordersWithNames
     });
 
   } catch (error) {
