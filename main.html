@@ -22903,6 +22903,9 @@
           </div>
         </div>
         <div class="store-body" style="padding: 24px;">
+          <!-- Cart Items Preview -->
+          <div id="merchPaymentCartItems" style="margin-bottom:20px; max-height:200px; overflow-y:auto;"></div>
+
           <p style="color:#ccc; margin-bottom:20px;">Choose your payment method:</p>
           <div class="merch-payment-options">
             <label class="merch-payment-option" id="merchPayRLUSD">
@@ -22927,7 +22930,7 @@
           <div class="merch-payment-info">
             <strong>ℹ️ PAYMENT INFO</strong><br>
             Choose your preferred wallet to complete payment. Make sure you have sufficient balance.<br><br>
-            If paying with XRP, it will be instantly swapped to RLUSD to lock in the $30 value.
+            If paying with XRP, it will be instantly swapped to RLUSD to lock in the USD value.
           </div>
 
           <!-- Wallet Selection -->
@@ -26562,34 +26565,63 @@
       `;
     }
 
-    // Start checkout from cart
+    // Multi-item checkout state
+    let merchCheckoutItems = []; // Items being checked out
+    let merchCheckoutTotal = 0;  // Total price for checkout
+
+    // Start checkout from cart (supports multiple items)
     function startCartCheckout() {
       if (merchCart.length === 0) {
         alert('Your cart is empty!');
         return;
       }
 
-      // For now, checkout the first item (we'll need to handle multi-item orders later)
-      // TODO: Implement full multi-item checkout
-      if (merchCart.length > 1) {
-        alert('Note: Currently, you can only checkout one item at a time. Please remove extra items or checkout multiple times. Multi-item checkout coming soon!');
-      }
+      // Copy cart items for checkout
+      merchCheckoutItems = merchCart.map(item => ({
+        ...item,
+        product: MERCH_PRODUCTS.find(p => p.id === item.productId)
+      }));
 
-      const item = merchCart[0];
-      const product = MERCH_PRODUCTS.find(p => p.id === item.productId);
-
-      if (!product) {
-        alert('Product not found. Please try again.');
+      // Validate all products exist
+      const missingProducts = merchCheckoutItems.filter(item => !item.product);
+      if (missingProducts.length > 0) {
+        alert('Some products are no longer available. Please update your cart.');
         return;
       }
 
-      // Set current product and size for checkout flow
-      merchCurrentProduct = product;
-      merchSelectedSize = item.size;
+      // Calculate total
+      merchCheckoutTotal = merchCheckoutItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+      // For single item checkout, also set the legacy variables for compatibility
+      if (merchCheckoutItems.length === 1) {
+        merchCurrentProduct = merchCheckoutItems[0].product;
+        merchSelectedSize = merchCheckoutItems[0].size;
+      }
 
       // Close cart modal and proceed to checkout
       closeMerchCart();
       merchShowScreen('disclaimer');
+    }
+
+    // Generate checkout items summary for display
+    function getCheckoutItemsSummary() {
+      return merchCheckoutItems.map(item =>
+        `${item.quantity}x ${item.name} (${item.size})`
+      ).join(', ');
+    }
+
+    // Generate detailed checkout items HTML
+    function getCheckoutItemsHTML() {
+      return merchCheckoutItems.map(item => `
+        <div style="display:flex; gap:12px; align-items:center; padding:12px; background:rgba(0,0,0,0.2); border-radius:10px; margin-bottom:8px;">
+          <img src="${item.image}" style="width:50px; height:50px; border-radius:8px; object-fit:cover;">
+          <div style="flex:1;">
+            <div style="font-weight:700; color:#fff;">${item.name}</div>
+            <div style="font-size:12px; color:#888;">Size: ${item.size} | Qty: ${item.quantity}</div>
+          </div>
+          <div style="font-weight:700; color:#00ff88;">$${(item.price * item.quantity).toFixed(2)}</div>
+        </div>
+      `).join('');
     }
 
     // Load cart when page loads
@@ -27185,7 +27217,16 @@
     }
 
     function updateMerchXrpDisplay() {
-      const price = merchCurrentProduct ? merchCurrentProduct.price_usd : 30;
+      // Use cart total if checking out from cart, otherwise use single product price
+      let price;
+      if (merchCheckoutItems.length > 0) {
+        price = merchCheckoutTotal;
+      } else if (merchCurrentProduct) {
+        price = merchCurrentProduct.price_usd || 30;
+      } else {
+        price = 30;
+      }
+
       const xrpAmount = (price / merchXrpPrice).toFixed(2);
       const priceFormatted = `$${price.toFixed(2)}`;
 
@@ -27205,6 +27246,12 @@
       // Update USD equivalent on XRP option
       const usdEquivEl = document.getElementById('merchXrpUsdEquiv');
       if (usdEquivEl) usdEquivEl.textContent = priceFormatted;
+
+      // Update cart items preview on payment screen
+      const cartPreview = document.getElementById('merchPaymentCartItems');
+      if (cartPreview && merchCheckoutItems.length > 0) {
+        cartPreview.innerHTML = getCheckoutItemsHTML();
+      }
     }
 
     function startMerchRateRefresh() {
@@ -27247,14 +27294,51 @@
       merchShowScreen('processing');
 
       try {
+        // Prepare items for order - support both single item and cart checkout
+        let orderItems;
+        let totalAmount;
+
+        if (merchCheckoutItems.length > 0) {
+          // Multi-item checkout from cart
+          orderItems = merchCheckoutItems.map(item => ({
+            product_id: item.productId,
+            name: item.name,
+            size: item.size,
+            quantity: item.quantity,
+            price: item.price,
+            image: item.image
+          }));
+          totalAmount = merchCheckoutTotal;
+        } else {
+          // Single item checkout (Buy Now)
+          orderItems = [{
+            product_id: merchCurrentProduct.id,
+            name: merchCurrentProduct.name,
+            size: merchSelectedSize,
+            quantity: 1,
+            price: merchCurrentProduct.price_usd || 30,
+            image: merchCurrentProduct.images?.[0] || ''
+          }];
+          totalAmount = merchCurrentProduct.price_usd || 30;
+        }
+
+        // Generate items summary for memo/description
+        const itemsSummary = orderItems.map(item =>
+          `${item.quantity}x ${item.name} (${item.size})`
+        ).join(' | ');
+
         // Create order on backend first
         const orderResponse = await fetch(`${API_BASE_URL}/api/merch/orders`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             wallet_address: walletAddress,
-            product_id: merchCurrentProduct.id,
-            size: merchSelectedSize,
+            items: orderItems,
+            items_summary: itemsSummary,
+            total_amount: totalAmount,
+            // Legacy single-item fields for backward compatibility
+            product_id: orderItems[0].product_id,
+            size: orderItems[0].size,
             payment_method: paymentMethod,
             shipping: merchShippingData
           })
@@ -27275,7 +27359,7 @@
           body: JSON.stringify({
             order_id: orderData.order_id,
             payment_method: paymentMethod,
-            amount_usd: 30,
+            amount_usd: totalAmount,
             xrp_price: merchXrpPrice,
             wallet_type: merchSelectedWallet // 'xaman' or 'joey'
           })
@@ -27591,10 +27675,25 @@
 
       document.getElementById('merchOrderNumber').textContent = orderNumber || `BEAR-${Date.now()}`;
       document.getElementById('merchOrderDate').textContent = dateStr;
-      document.getElementById('merchOrderItem').textContent = `${merchCurrentProduct.name} (${merchSelectedSize})`;
 
-      const price = merchCurrentProduct.price_usd || 30;
-      document.getElementById('merchOrderTotal').textContent = `$${price.toFixed(2)}`;
+      // Handle multi-item or single item display
+      let itemsText = '';
+      let totalPrice = 0;
+
+      if (merchCheckoutItems.length > 0) {
+        // Multi-item order
+        itemsText = merchCheckoutItems.map(item =>
+          `${item.quantity}x ${item.name} (${item.size})`
+        ).join('<br>');
+        totalPrice = merchCheckoutTotal;
+      } else if (merchCurrentProduct) {
+        // Single item order
+        itemsText = `${merchCurrentProduct.name} (${merchSelectedSize})`;
+        totalPrice = merchCurrentProduct.price_usd || 30;
+      }
+
+      document.getElementById('merchOrderItem').innerHTML = itemsText;
+      document.getElementById('merchOrderTotal').textContent = `$${totalPrice.toFixed(2)}`;
       document.getElementById('merchOrderPayment').textContent = paymentMethod || 'RLUSD';
 
       const addressHtml = `
@@ -27609,23 +27708,45 @@
         orderId,
         orderNumber: orderNumber || `BEAR-${Date.now()}`,
         date: dateStr,
-        item: `${merchCurrentProduct.name} (${merchSelectedSize})`,
-        total: `$${price.toFixed(2)}`,
+        items: merchCheckoutItems.length > 0 ? merchCheckoutItems : [{
+          name: merchCurrentProduct?.name,
+          size: merchSelectedSize,
+          quantity: 1,
+          price: merchCurrentProduct?.price_usd || 30
+        }],
+        total: `$${totalPrice.toFixed(2)}`,
         payment: paymentMethod || 'RLUSD',
         address: merchShippingData
       };
 
       if (merchRateInterval) clearInterval(merchRateInterval);
 
-      // Clear the purchased item from cart
-      const purchasedItemIndex = merchCart.findIndex(
-        item => item.productId === merchCurrentProduct.id && item.size === merchSelectedSize
-      );
-      if (purchasedItemIndex >= 0) {
-        merchCart.splice(purchasedItemIndex, 1);
-        saveMerchCart();
-        updateCartBadge();
+      // Clear purchased items from cart
+      if (merchCheckoutItems.length > 0) {
+        // Multi-item checkout - clear all checkout items from cart
+        merchCheckoutItems.forEach(checkoutItem => {
+          const idx = merchCart.findIndex(
+            cartItem => cartItem.productId === checkoutItem.productId && cartItem.size === checkoutItem.size
+          );
+          if (idx >= 0) {
+            merchCart.splice(idx, 1);
+          }
+        });
+        // Reset checkout state
+        merchCheckoutItems = [];
+        merchCheckoutTotal = 0;
+      } else if (merchCurrentProduct) {
+        // Single item checkout
+        const purchasedItemIndex = merchCart.findIndex(
+          item => item.productId === merchCurrentProduct.id && item.size === merchSelectedSize
+        );
+        if (purchasedItemIndex >= 0) {
+          merchCart.splice(purchasedItemIndex, 1);
+        }
       }
+
+      saveMerchCart();
+      updateCartBadge();
 
       merchShowScreen('success');
     }
