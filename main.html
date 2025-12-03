@@ -26468,17 +26468,32 @@
       });
     }
 
-    // Add item to cart
+    // Add item to cart (with stock validation)
     function addToMerchCart() {
       if (!merchCurrentProduct || !merchSelectedSize) {
         alert('Please select a size first!');
         return;
       }
 
+      // Get available stock for this size
+      let sizeKey = merchSelectedSize;
+      if (sizeKey === 'XXL') sizeKey = '2XL';
+      const availableStock = merchCurrentProduct.sizes?.[sizeKey] || merchCurrentProduct.sizes?.[merchSelectedSize] || 0;
+
       // Check if item already in cart (same product + size)
       const existingIndex = merchCart.findIndex(
         item => item.productId === merchCurrentProduct.id && item.size === merchSelectedSize
       );
+
+      // Calculate current quantity in cart for this item
+      const currentQtyInCart = existingIndex >= 0 ? merchCart[existingIndex].quantity : 0;
+      const newQty = currentQtyInCart + 1;
+
+      // Check stock before adding
+      if (newQty > availableStock) {
+        showCartStockError(`Only ${availableStock} available in size ${merchSelectedSize}${currentQtyInCart > 0 ? ` (${currentQtyInCart} already in cart)` : ''}`);
+        return;
+      }
 
       if (existingIndex >= 0) {
         // Increase quantity
@@ -26567,17 +26582,92 @@
       renderMerchCart();
     }
 
-    // Update item quantity
+    // Update item quantity (with stock validation)
     function updateMerchCartQty(index, delta) {
       if (!merchCart[index]) return;
-      merchCart[index].quantity += delta;
-      if (merchCart[index].quantity <= 0) {
-        removeFromMerchCart(index);
-      } else {
-        saveMerchCart();
-        updateCartBadge();
-        renderMerchCart();
+
+      const item = merchCart[index];
+      const newQty = item.quantity + delta;
+
+      // If decreasing, just do it
+      if (delta < 0) {
+        if (newQty <= 0) {
+          removeFromMerchCart(index);
+        } else {
+          merchCart[index].quantity = newQty;
+          saveMerchCart();
+          updateCartBadge();
+          renderMerchCart();
+        }
+        return;
       }
+
+      // If increasing, check stock
+      const product = MERCH_PRODUCTS.find(p => p.id === item.productId);
+      if (!product) {
+        showCartStockError('Product not found');
+        return;
+      }
+
+      // Map size for stock check (XXL -> 2XL in some cases)
+      let sizeKey = item.size;
+      if (sizeKey === 'XXL') sizeKey = '2XL';
+      const availableStock = product.sizes?.[sizeKey] || product.sizes?.[item.size] || 0;
+
+      // Check if we have enough stock
+      if (newQty > availableStock) {
+        showCartStockError(`Only ${availableStock} available in size ${item.size}`);
+        return;
+      }
+
+      merchCart[index].quantity = newQty;
+      saveMerchCart();
+      updateCartBadge();
+      renderMerchCart();
+    }
+
+    // Show stock error message in cart
+    function showCartStockError(message) {
+      // Create toast notification
+      const toast = document.createElement('div');
+      toast.style.cssText = `
+        position: fixed;
+        top: 20%;
+        left: 50%;
+        transform: translateX(-50%);
+        background: linear-gradient(135deg, #ef4444, #dc2626);
+        color: white;
+        padding: 16px 28px;
+        border-radius: 12px;
+        font-weight: 700;
+        font-size: 15px;
+        z-index: 10002;
+        box-shadow: 0 10px 40px rgba(239,68,68,0.5);
+        animation: shakeToast 0.5s ease-out;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      `;
+      toast.innerHTML = `<span style="font-size:20px;">⚠️</span> ${message}`;
+      document.body.appendChild(toast);
+
+      // Add shake animation
+      const style = document.createElement('style');
+      style.textContent = `
+        @keyframes shakeToast {
+          0%, 100% { transform: translateX(-50%) rotate(0); }
+          20% { transform: translateX(-50%) rotate(-3deg); }
+          40% { transform: translateX(-50%) rotate(3deg); }
+          60% { transform: translateX(-50%) rotate(-2deg); }
+          80% { transform: translateX(-50%) rotate(2deg); }
+        }
+      `;
+      document.head.appendChild(style);
+
+      setTimeout(() => {
+        toast.remove();
+        style.remove();
+      }, 2500);
     }
 
     // Calculate cart subtotal
