@@ -1257,31 +1257,42 @@
       }
     }
 
-    // Load inventory from localStorage (can be upgraded to API later)
+    // Load inventory from API
     async function loadInventory() {
       document.getElementById('loadingInventory').style.display = 'block';
       document.getElementById('inventoryGrid').innerHTML = '';
 
       try {
-        // Try to load from API first
         const res = await fetch(`${API_BASE}/api/merch/admin/inventory`, {
           headers: { 'X-Admin-Token': sessionToken }
         });
 
+        if (res.status === 401) {
+          alert('Session expired. Please sign in again.');
+          location.reload();
+          return;
+        }
+
         if (res.ok) {
           const data = await res.json();
           if (data.success) {
-            inventory = data.inventory || [];
+            // Normalize field names from API (snake_case to camelCase)
+            inventory = (data.inventory || []).map(item => ({
+              id: item.id,
+              name: item.name,
+              price: item.price,
+              lowStockThreshold: item.low_stock_threshold || 5,
+              stock: item.stock || { S: 0, M: 0, L: 0, XL: 0, '2XL': 0 }
+            }));
+            console.log(`📦 Loaded ${inventory.length} products from database`);
           }
         } else {
-          // Fallback to localStorage
-          const stored = localStorage.getItem('bearpark_inventory');
-          inventory = stored ? JSON.parse(stored) : getDefaultInventory();
+          console.error('Failed to load inventory from API');
+          inventory = [];
         }
       } catch (error) {
-        console.log('Using localStorage for inventory');
-        const stored = localStorage.getItem('bearpark_inventory');
-        inventory = stored ? JSON.parse(stored) : getDefaultInventory();
+        console.error('Error loading inventory:', error);
+        inventory = [];
       }
 
       document.getElementById('loadingInventory').style.display = 'none';
@@ -1289,32 +1300,74 @@
       renderInventory();
     }
 
-    // Default inventory items - MUST match store products in main.html MERCH_PRODUCTS
-    function getDefaultInventory() {
-      return [
-        {
-          id: 'pocket-jester',
-          name: 'POCKET JESTER',
-          price: 30.00,
-          lowStockThreshold: 5,
-          stock: { S: 10, M: 15, L: 20, XL: 15, '2XL': 10 }
+    // Save product to API
+    async function saveProductToAPI(product, isNew = false) {
+      try {
+        const method = isNew ? 'POST' : 'PUT';
+        const url = isNew
+          ? `${API_BASE}/api/merch/admin/inventory`
+          : `${API_BASE}/api/merch/admin/inventory/${product.id}`;
+
+        const res = await fetch(url, {
+          method,
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Admin-Token': sessionToken
+          },
+          body: JSON.stringify({
+            id: product.id,
+            name: product.name,
+            price: product.price,
+            low_stock_threshold: product.lowStockThreshold,
+            stock: product.stock
+          })
+        });
+
+        if (res.status === 401) {
+          alert('Session expired. Please sign in again.');
+          location.reload();
+          return false;
         }
-      ];
+
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || 'Failed to save product');
+        }
+
+        console.log(`📦 Product ${product.id} saved to database`);
+        return true;
+      } catch (error) {
+        console.error('Error saving product:', error);
+        alert('Error saving product: ' + error.message);
+        return false;
+      }
     }
 
-    // Save inventory to localStorage
-    function saveInventoryToStorage() {
-      localStorage.setItem('bearpark_inventory', JSON.stringify(inventory));
+    // Delete product from API
+    async function deleteProductFromAPI(productId) {
+      try {
+        const res = await fetch(`${API_BASE}/api/merch/admin/inventory/${productId}`, {
+          method: 'DELETE',
+          headers: { 'X-Admin-Token': sessionToken }
+        });
 
-      // Also try to save to API
-      fetch(`${API_BASE}/api/merch/admin/inventory`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Admin-Token': sessionToken
-        },
-        body: JSON.stringify({ inventory })
-      }).catch(err => console.log('API save failed, using localStorage'));
+        if (res.status === 401) {
+          alert('Session expired. Please sign in again.');
+          location.reload();
+          return false;
+        }
+
+        if (!res.ok) {
+          throw new Error('Failed to delete product');
+        }
+
+        console.log(`🗑️ Product ${productId} deleted from database`);
+        return true;
+      } catch (error) {
+        console.error('Error deleting product:', error);
+        alert('Error deleting product: ' + error.message);
+        return false;
+      }
     }
 
     // Update inventory stats
@@ -1443,8 +1496,8 @@
     }
 
     // Save product
-    function saveProduct() {
-      const productId = document.getElementById('productId').value.trim();
+    async function saveProduct() {
+      const productId = document.getElementById('productId').value.trim().toLowerCase().replace(/\s+/g, '-');
       const productName = document.getElementById('productName').value.trim();
       const productPrice = parseFloat(document.getElementById('productPrice').value) || 0;
       const lowStockThreshold = parseInt(document.getElementById('lowStockThreshold').value) || 5;
@@ -1463,37 +1516,47 @@
         '2XL': parseInt(document.getElementById('stock_2xl').value) || 0
       };
 
-      if (editingProductId) {
-        // Update existing product
-        const idx = inventory.findIndex(p => p.id === editingProductId);
-        if (idx !== -1) {
-          inventory[idx] = { id: productId, name: productName, price: productPrice, lowStockThreshold, stock };
-        }
-      } else {
-        // Check if product ID already exists
-        if (inventory.some(p => p.id === productId)) {
-          alert('A product with this ID already exists!');
-          return;
-        }
-        // Add new product
-        inventory.push({ id: productId, name: productName, price: productPrice, lowStockThreshold, stock });
+      const product = { id: productId, name: productName.toUpperCase(), price: productPrice, lowStockThreshold, stock };
+      const isNew = !editingProductId;
+
+      // Check if product ID already exists when adding new
+      if (isNew && inventory.some(p => p.id === productId)) {
+        alert('A product with this ID already exists!');
+        return;
       }
 
-      saveInventoryToStorage();
+      // Save to API
+      const success = await saveProductToAPI(product, isNew);
+      if (!success) return;
+
+      // Update local inventory array
+      if (editingProductId) {
+        const idx = inventory.findIndex(p => p.id === editingProductId);
+        if (idx !== -1) {
+          inventory[idx] = product;
+        }
+      } else {
+        inventory.push(product);
+      }
+
       closeInventoryModal();
       updateInventoryStats();
       renderInventory();
     }
 
     // Delete product
-    function deleteProduct(productId) {
+    async function deleteProduct(productId) {
       const product = inventory.find(p => p.id === productId);
       if (!product) return;
 
       if (!confirm(`Delete "${product.name}"?\n\nThis cannot be undone!`)) return;
 
+      // Delete from API
+      const success = await deleteProductFromAPI(productId);
+      if (!success) return;
+
+      // Update local inventory array
       inventory = inventory.filter(p => p.id !== productId);
-      saveInventoryToStorage();
       updateInventoryStats();
       renderInventory();
     }
