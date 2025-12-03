@@ -26347,23 +26347,35 @@
 
         // Handle wallet-specific payment flows
         if (merchSelectedWallet === 'joey') {
-          // Joey wallet flow - create deep link
+          // Joey wallet flow - create deep link and QR code
           document.getElementById('merchProcessingTitle').textContent = 'Complete Transaction in Joey';
 
-          // Build Joey deep link
+          // Build Joey deep link - Joey uses joey:// scheme
           const joeyAmount = paymentData.amount;
           const joeyDestination = paymentData.destination_address;
           const joeyTag = paymentData.destination_tag;
           const joeyCurrency = paymentData.currency;
           const joeyIssuer = paymentData.issuer || '';
 
+          // Joey wallet deep link format
           let joeyDeepLink;
           if (joeyCurrency === 'XRP') {
-            joeyDeepLink = `joeywallet://payment?to=${joeyDestination}&amount=${joeyAmount}&currency=XRP&dt=${joeyTag}`;
+            joeyDeepLink = `joey://send?to=${joeyDestination}&amount=${joeyAmount}&dt=${joeyTag}`;
           } else {
-            // For RLUSD and other tokens
-            joeyDeepLink = `joeywallet://payment?to=${joeyDestination}&amount=${joeyAmount}&currency=${joeyCurrency}&issuer=${joeyIssuer}&dt=${joeyTag}`;
+            // For RLUSD and other tokens - use issuer in the amount format
+            joeyDeepLink = `joey://send?to=${joeyDestination}&amount=${joeyAmount}&currency=${joeyCurrency}&issuer=${joeyIssuer}&dt=${joeyTag}`;
           }
+
+          // Generate QR code using payment data (for scanning with Joey)
+          // Create a payment string that Joey can scan
+          const joeyPaymentData = JSON.stringify({
+            to: joeyDestination,
+            amount: joeyAmount,
+            currency: joeyCurrency,
+            dt: joeyTag,
+            issuer: joeyIssuer || undefined
+          });
+          const joeyQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(joeyDeepLink)}`;
 
           document.getElementById('merchSpinnerSection').innerHTML = `
             <style>
@@ -26425,12 +26437,15 @@
               }
             </style>
 
-            <div class="joey-icon">🦘</div>
-            <p style="color:#f59e0b; font-size:16px; margin:15px 0;">Tap below to open Joey Wallet</p>
+            <p style="color:#f59e0b; font-size:16px; margin-bottom:15px;">Scan QR code with Joey or tap to open</p>
+
+            <div class="joey-qr-container" style="background:#fff; padding:15px; border-radius:16px; display:inline-block; margin-bottom:20px; animation: joey-bounce 2s ease-in-out infinite;">
+              <img src="${joeyQrUrl}" alt="Scan with Joey" style="width:200px; height:200px; display:block;">
+            </div>
 
             <div style="margin-bottom:15px;">
-              <a href="${joeyDeepLink}"
-                 style="display:inline-block; background: linear-gradient(135deg, #f59e0b, #ea580c); color:#fff; text-decoration:none; padding:15px 30px; border-radius:12px; font-size:18px; font-weight:bold;">
+              <a href="${joeyDeepLink}" id="joeyDeepLinkBtn"
+                 style="display:inline-block; background: linear-gradient(135deg, #f59e0b, #ea580c); color:#fff; text-decoration:none; padding:15px 30px; border-radius:12px; font-size:18px; font-weight:bold; cursor:pointer;">
                 🦘 Open Joey Wallet
               </a>
             </div>
@@ -26438,6 +26453,18 @@
             <p style="color:#888; font-size:13px; margin-bottom:10px;">
               <strong>Amount:</strong> ${paymentData.amount} ${paymentData.currency} &nbsp;|&nbsp; <strong>Order:</strong> ${paymentData.order_number}
             </p>
+
+            <!-- Manual Payment Details (fallback) -->
+            <div style="background:rgba(0,0,0,0.3); border-radius:12px; padding:15px; margin:15px 0; text-align:left;">
+              <p style="color:#f59e0b; font-weight:600; margin-bottom:10px; font-size:14px;">📋 Manual Payment Details:</p>
+              <div style="font-family:monospace; font-size:12px; color:#ccc;">
+                <p style="margin:5px 0;"><strong style="color:#888;">To:</strong> ${joeyDestination}</p>
+                <p style="margin:5px 0;"><strong style="color:#888;">Amount:</strong> ${joeyAmount} ${joeyCurrency}</p>
+                <p style="margin:5px 0;"><strong style="color:#888;">Destination Tag:</strong> <span style="color:#f59e0b;">${joeyTag}</span></p>
+                ${joeyIssuer ? `<p style="margin:5px 0;"><strong style="color:#888;">Issuer:</strong> ${joeyIssuer}</p>` : ''}
+              </div>
+              <p style="color:#ff6b6b; font-size:11px; margin-top:10px;">⚠️ Destination Tag is REQUIRED!</p>
+            </div>
 
             <div class="joey-waiting-container">
               <div class="joey-spinner-ring"></div>
