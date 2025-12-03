@@ -642,8 +642,8 @@
       }
     }
 
-    // XAMAN API Integration via Production Backend
-    const PROXY_API_URL = 'https://api.bearpark.xyz/api/xaman';
+    // XAMAN API Integration via Production Backend (Railway)
+    const PROXY_API_URL = 'https://bearpark-production.up.railway.app/api/xaman';
 
     async function createXAMANPayload(){
       const response = await fetch(`${PROXY_API_URL}/payload`, {
