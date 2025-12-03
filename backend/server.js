@@ -2782,27 +2782,72 @@ app.get('/api/merch/products', async (req, res) => {
   }
 });
 
-// Create merch order
+// Create merch order (supports multiple items)
 app.post('/api/merch/orders', async (req, res) => {
   try {
-    const { wallet_address, product_id, size, payment_method, shipping } = req.body;
+    const { wallet_address, items, items_summary, total_amount, product_id, size, payment_method, shipping } = req.body;
 
-    if (!wallet_address || !product_id || !size || !shipping) {
+    if (!wallet_address || !shipping) {
       return res.status(400).json({ success: false, error: 'Missing required fields' });
     }
 
-    const product = MERCH_PRODUCTS[product_id];
-    if (!product) {
-      return res.status(404).json({ success: false, error: 'Product not found' });
-    }
+    // Handle multi-item or single item order
+    let orderItems = [];
+    let orderTotal = 0;
+    let primaryProductId = product_id;
+    let primarySize = size;
 
-    if (!product.sizes[size] || product.sizes[size] <= 0) {
-      return res.status(400).json({ success: false, error: 'Size not available' });
+    if (items && items.length > 0) {
+      // Multi-item order
+      orderItems = items;
+      orderTotal = total_amount || items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      primaryProductId = items[0].product_id;
+      primarySize = items[0].size;
+
+      // Validate all items exist and have stock
+      for (const item of items) {
+        const product = MERCH_PRODUCTS[item.product_id];
+        if (!product) {
+          return res.status(404).json({ success: false, error: `Product not found: ${item.product_id}` });
+        }
+        if (!product.sizes[item.size] || product.sizes[item.size] < item.quantity) {
+          return res.status(400).json({ success: false, error: `Insufficient stock for ${item.name} size ${item.size}` });
+        }
+      }
+    } else {
+      // Legacy single item order
+      if (!product_id || !size) {
+        return res.status(400).json({ success: false, error: 'Missing product_id or size' });
+      }
+
+      const product = MERCH_PRODUCTS[product_id];
+      if (!product) {
+        return res.status(404).json({ success: false, error: 'Product not found' });
+      }
+
+      if (!product.sizes[size] || product.sizes[size] <= 0) {
+        return res.status(400).json({ success: false, error: 'Size not available' });
+      }
+
+      orderItems = [{
+        product_id,
+        name: product.name,
+        size,
+        quantity: 1,
+        price: product.price_usd,
+        image: product.images?.[0] || ''
+      }];
+      orderTotal = product.price_usd;
     }
 
     // Generate order number
     const orderNumber = `BEAR-${Date.now().toString(36).toUpperCase()}`;
     const orderId = crypto.randomUUID();
+
+    // Generate items summary if not provided
+    const finalItemsSummary = items_summary || orderItems.map(item =>
+      `${item.quantity}x ${item.name} (${item.size})`
+    ).join(' | ');
 
     // Encrypt shipping data
     const encryptedShipping = {
@@ -2820,10 +2865,13 @@ app.post('/api/merch/orders', async (req, res) => {
       id: orderId,
       order_number: orderNumber,
       wallet_address,
-      product_id,
-      size,
+      product_id: primaryProductId,
+      product_name: orderItems[0].name,
+      size: primarySize,
+      items: JSON.stringify(orderItems),
+      items_summary: finalItemsSummary,
       payment_method: payment_method || 'RLUSD',
-      amount_usd: product.price_usd,
+      amount_usd: orderTotal,
       shipping_name_encrypted: encryptedShipping.name,
       shipping_street_encrypted: encryptedShipping.street,
       shipping_apt_encrypted: encryptedShipping.apt,
@@ -2842,47 +2890,50 @@ app.post('/api/merch/orders', async (req, res) => {
       return res.status(500).json({ success: false, error: 'Failed to create order' });
     }
 
-    // Reserve stock (decrement) - Update both in-memory and database
-    MERCH_PRODUCTS[product_id].sizes[size]--;
-
-    // Also update the database inventory
-    try {
-      // Map XXL to 2XL for database compatibility
-      const dbSize = size === 'XXL' ? '2XL' : size;
-
-      // Get current stock from database
-      const { data: invData, error: invError } = await supabaseAdmin
-        .from('merch_inventory')
-        .select('stock')
-        .eq('id', product_id)
-        .single();
-
-      if (!invError && invData && invData.stock) {
-        const currentStock = invData.stock;
-        // Decrement the specific size
-        if (currentStock[dbSize] !== undefined && currentStock[dbSize] > 0) {
-          currentStock[dbSize]--;
-
-          // Update the database
-          await supabaseAdmin
-            .from('merch_inventory')
-            .update({ stock: currentStock, updated_at: new Date().toISOString() })
-            .eq('id', product_id);
-
-          console.log(`📦 Inventory updated in database: ${product_id} size ${dbSize} now has ${currentStock[dbSize]} stock`);
-        }
+    // Reserve stock for all items
+    for (const item of orderItems) {
+      // Update in-memory stock
+      if (MERCH_PRODUCTS[item.product_id]) {
+        MERCH_PRODUCTS[item.product_id].sizes[item.size] -= item.quantity;
       }
-    } catch (invUpdateError) {
-      console.error('Warning: Failed to update inventory in database:', invUpdateError);
-      // Don't fail the order, just log the warning
+
+      // Update database inventory
+      try {
+        const dbSize = item.size === 'XXL' ? '2XL' : item.size;
+
+        const { data: invData, error: invError } = await supabaseAdmin
+          .from('merch_inventory')
+          .select('stock')
+          .eq('id', item.product_id)
+          .single();
+
+        if (!invError && invData && invData.stock) {
+          const currentStock = invData.stock;
+          if (currentStock[dbSize] !== undefined && currentStock[dbSize] >= item.quantity) {
+            currentStock[dbSize] -= item.quantity;
+
+            await supabaseAdmin
+              .from('merch_inventory')
+              .update({ stock: currentStock, updated_at: new Date().toISOString() })
+              .eq('id', item.product_id);
+
+            console.log(`📦 Inventory updated: ${item.product_id} size ${dbSize} now has ${currentStock[dbSize]} stock`);
+          }
+        }
+      } catch (invUpdateError) {
+        console.error('Warning: Failed to update inventory for', item.product_id, invUpdateError);
+      }
     }
 
-    console.log(`📦 Merch order created: ${orderNumber} - ${product.name} (${size}) for ${wallet_address}`);
+    console.log(`🛒 Order created: ${orderNumber} with ${orderItems.length} item(s), total: $${orderTotal} for ${wallet_address}`);
 
     res.json({
       success: true,
       order_id: orderId,
       order_number: orderNumber,
+      items_count: orderItems.length,
+      total: orderTotal,
+      items_summary: finalItemsSummary,
       message: 'Order created, awaiting payment'
     });
 
