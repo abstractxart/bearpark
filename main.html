@@ -27221,20 +27221,33 @@
           'cancelled': '❌'
         }[order.status] || '📋';
 
+        // Get product image from MERCH_PRODUCTS or use order's image
+        const product = MERCH_PRODUCTS.find(p => p.id === order.product_id);
+        const productImage = order.product_image || (product?.images?.[0]) || 'https://files.catbox.moe/n3rrso.webp';
+
         html += `
           <div style="background:rgba(0,0,0,0.3); border:2px solid rgba(104,12,217,0.3); border-radius:12px; padding:15px; margin-bottom:15px;">
-            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;">
-              <div>
-                <div style="font-family:monospace; color:#00ff88; font-weight:700;">${order.order_number || order.id}</div>
-                <div style="font-size:12px; color:#888;">${date}</div>
+            <div style="display:flex; gap:15px;">
+              <!-- Product Image -->
+              <div style="flex-shrink:0;">
+                <img src="${productImage}" alt="${order.product_name || 'Product'}" style="width:70px; height:70px; object-fit:cover; border-radius:10px; border:2px solid rgba(104,12,217,0.4);" onerror="this.src='https://files.catbox.moe/n3rrso.webp'">
               </div>
-              <div style="background:rgba(0,0,0,0.3); padding:4px 10px; border-radius:20px; font-size:11px; font-weight:700; color:${statusColor};">
-                ${statusEmoji} ${(order.status || 'pending').toUpperCase()}
+              <!-- Order Details -->
+              <div style="flex:1; min-width:0;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
+                  <div>
+                    <div style="font-family:monospace; color:#00ff88; font-weight:700; font-size:13px;">${order.order_number || order.id}</div>
+                    <div style="font-size:11px; color:#888;">${date}</div>
+                  </div>
+                  <div style="background:rgba(0,0,0,0.3); padding:4px 10px; border-radius:20px; font-size:11px; font-weight:700; color:${statusColor};">
+                    ${statusEmoji} ${(order.status || 'pending').toUpperCase()}
+                  </div>
+                </div>
+                <div style="font-size:14px; color:#fff; margin-bottom:4px; font-weight:600;">${order.product_name || 'Product'} (${order.size || 'N/A'})</div>
+                <div style="font-size:14px; color:#00ff88; font-weight:700;">$${parseFloat(order.amount_usd || 30).toFixed(2)}</div>
+                ${order.tracking_number ? `<div style="font-size:11px; color:#888; margin-top:6px;">📦 Tracking: <span style="color:#00c3ff;">${order.tracking_number}</span></div>` : ''}
               </div>
             </div>
-            <div style="font-size:14px; color:#fff; margin-bottom:5px;">${order.product_name || 'Product'} (${order.size || 'N/A'})</div>
-            <div style="font-size:13px; color:#00ff88; font-weight:600;">$${parseFloat(order.amount_usd || 30).toFixed(2)}</div>
-            ${order.tracking_number ? `<div style="font-size:12px; color:#888; margin-top:8px;">📦 Tracking: <span style="color:#00c3ff;">${order.tracking_number}</span></div>` : ''}
           </div>
         `;
       });
