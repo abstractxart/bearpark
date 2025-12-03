@@ -803,7 +803,7 @@
         <h3 id="inventoryModalTitle">Add New Product</h3>
         <button class="modal-close" onclick="closeInventoryModal()">&times;</button>
       </div>
-      <div id="inventoryModalBody">
+      <div id="inventoryModalBody" style="max-height: 70vh; overflow-y: auto;">
         <div class="form-group">
           <label>Product ID / SKU</label>
           <input type="text" id="productId" placeholder="e.g., bear-hoodie-black">
@@ -816,6 +816,22 @@
           <label>Price (USD)</label>
           <input type="number" id="productPrice" placeholder="30.00" step="0.01">
         </div>
+        <div class="form-group">
+          <label>Description</label>
+          <textarea id="productDescription" rows="4" placeholder="Enter product description..." style="width:100%; padding:12px; background:rgba(0,0,0,0.3); border:2px solid rgba(104,12,217,0.3); border-radius:8px; color:#fff; font-size:14px; resize:vertical;"></textarea>
+        </div>
+
+        <h4 style="margin: 20px 0 15px; color: #00ff88;">Product Images</h4>
+        <div id="imageUrlsContainer">
+          <div class="image-url-row" style="display:flex; gap:10px; margin-bottom:10px;">
+            <input type="text" class="image-url-input" placeholder="https://example.com/image.jpg" style="flex:1; padding:10px; background:rgba(0,0,0,0.3); border:2px solid rgba(104,12,217,0.3); border-radius:8px; color:#fff;">
+            <button type="button" onclick="removeImageUrl(this)" style="padding:10px 15px; background:#ef4444; border:none; border-radius:8px; color:#fff; cursor:pointer;">X</button>
+          </div>
+        </div>
+        <button type="button" onclick="addImageUrl()" style="padding:10px 20px; background:rgba(104,12,217,0.3); border:none; border-radius:8px; color:#fff; cursor:pointer; margin-bottom:15px;">+ Add Image URL</button>
+
+        <div id="imagePreviewContainer" style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:15px;"></div>
+
         <div class="form-group">
           <label>Low Stock Threshold</label>
           <input type="number" id="lowStockThreshold" placeholder="5" value="5">
@@ -1280,9 +1296,11 @@
             inventory = (data.inventory || []).map(item => ({
               id: item.id,
               name: item.name,
+              description: item.description || '',
               price: item.price,
               lowStockThreshold: item.low_stock_threshold || 5,
-              stock: item.stock || { S: 0, M: 0, L: 0, XL: 0, '2XL': 0 }
+              stock: item.stock || { S: 0, M: 0, L: 0, XL: 0, '2XL': 0 },
+              images: item.images || []
             }));
             console.log(`📦 Loaded ${inventory.length} products from database`);
           }
@@ -1317,9 +1335,11 @@
           body: JSON.stringify({
             id: product.id,
             name: product.name,
+            description: product.description,
             price: product.price,
             low_stock_threshold: product.lowStockThreshold,
-            stock: product.stock
+            stock: product.stock,
+            images: product.images
           })
         });
 
@@ -1434,19 +1454,29 @@
           `;
         }).join('');
 
+        // Image thumbnail
+        const imageThumb = product.images && product.images.length > 0
+          ? `<img src="${product.images[0]}" style="width:60px; height:60px; object-fit:cover; border-radius:8px; margin-right:15px;">`
+          : `<div style="width:60px; height:60px; background:linear-gradient(135deg,#680cd9,#00ff88); border-radius:8px; margin-right:15px; display:flex; align-items:center; justify-content:center; font-size:24px;">👕</div>`;
+
         return `
           <div class="inventory-card" data-product-id="${product.id}">
             <div class="inventory-card-header">
-              <div>
-                <div class="inventory-card-title">${product.name}</div>
-                <div class="inventory-card-sku">SKU: ${product.id}</div>
-                <div style="color:#00ff88; font-weight:700; margin-top:5px;">$${product.price.toFixed(2)}</div>
+              <div style="display:flex; align-items:flex-start;">
+                ${imageThumb}
+                <div>
+                  <div class="inventory-card-title">${product.name}</div>
+                  <div class="inventory-card-sku">SKU: ${product.id}</div>
+                  <div style="color:#00ff88; font-weight:700; margin-top:5px;">$${product.price.toFixed(2)}</div>
+                  ${product.images && product.images.length > 1 ? `<div style="font-size:11px; color:#888; margin-top:3px;">${product.images.length} images</div>` : ''}
+                </div>
               </div>
               <span class="inventory-status ${statusClass}">${statusText}</span>
             </div>
+            ${product.description ? `<div style="font-size:12px; color:#999; margin-bottom:10px; line-height:1.4; max-height:40px; overflow:hidden;">${product.description.substring(0,100)}${product.description.length > 100 ? '...' : ''}</div>` : ''}
             <div class="size-grid">${sizeItems}</div>
             <div class="inventory-actions">
-              <button class="inventory-btn edit" onclick="editProduct('${product.id}')">Edit Stock</button>
+              <button class="inventory-btn edit" onclick="editProduct('${product.id}')">Edit Product</button>
               <button class="inventory-btn" style="background:#ef4444;" onclick="deleteProduct('${product.id}')">Delete</button>
             </div>
           </div>
@@ -1462,7 +1492,11 @@
       document.getElementById('productId').disabled = false;
       document.getElementById('productName').value = '';
       document.getElementById('productPrice').value = '';
+      document.getElementById('productDescription').value = '';
       document.getElementById('lowStockThreshold').value = '5';
+
+      // Reset image URLs
+      resetImageUrls([]);
 
       SIZES.forEach(size => {
         const sizeKey = size.toLowerCase().replace('2xl', '2xl');
@@ -1483,7 +1517,11 @@
       document.getElementById('productId').disabled = true;
       document.getElementById('productName').value = product.name;
       document.getElementById('productPrice').value = product.price;
+      document.getElementById('productDescription').value = product.description || '';
       document.getElementById('lowStockThreshold').value = product.lowStockThreshold;
+
+      // Set image URLs
+      resetImageUrls(product.images || []);
 
       document.getElementById('stock_xs').value = product.stock.XS || 0;
       document.getElementById('stock_s').value = product.stock.S || 0;
@@ -1495,12 +1533,82 @@
       document.getElementById('inventoryModal').classList.add('active');
     }
 
+    // Reset image URL inputs
+    function resetImageUrls(images) {
+      const container = document.getElementById('imageUrlsContainer');
+      container.innerHTML = '';
+
+      if (images.length === 0) {
+        // Add one empty input
+        addImageUrl();
+      } else {
+        images.forEach(url => {
+          addImageUrl(url);
+        });
+      }
+      updateImagePreviews();
+    }
+
+    // Add image URL input
+    function addImageUrl(value = '') {
+      const container = document.getElementById('imageUrlsContainer');
+      const row = document.createElement('div');
+      row.className = 'image-url-row';
+      row.style.cssText = 'display:flex; gap:10px; margin-bottom:10px;';
+      row.innerHTML = `
+        <input type="text" class="image-url-input" value="${value}" placeholder="https://example.com/image.jpg" style="flex:1; padding:10px; background:rgba(0,0,0,0.3); border:2px solid rgba(104,12,217,0.3); border-radius:8px; color:#fff;" onchange="updateImagePreviews()">
+        <button type="button" onclick="removeImageUrl(this)" style="padding:10px 15px; background:#ef4444; border:none; border-radius:8px; color:#fff; cursor:pointer;">X</button>
+      `;
+      container.appendChild(row);
+    }
+
+    // Remove image URL input
+    function removeImageUrl(btn) {
+      const row = btn.closest('.image-url-row');
+      row.remove();
+      // Ensure at least one input exists
+      const container = document.getElementById('imageUrlsContainer');
+      if (container.children.length === 0) {
+        addImageUrl();
+      }
+      updateImagePreviews();
+    }
+
+    // Update image previews
+    function updateImagePreviews() {
+      const previewContainer = document.getElementById('imagePreviewContainer');
+      const inputs = document.querySelectorAll('.image-url-input');
+      let html = '';
+
+      inputs.forEach((input, idx) => {
+        const url = input.value.trim();
+        if (url) {
+          html += `<div style="position:relative;">
+            <img src="${url}" style="width:80px; height:80px; object-fit:cover; border-radius:8px; border:2px solid rgba(104,12,217,0.5);" onerror="this.style.display='none'">
+            <span style="position:absolute; top:-5px; left:-5px; background:#680cd9; color:#fff; width:20px; height:20px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:bold;">${idx + 1}</span>
+          </div>`;
+        }
+      });
+
+      previewContainer.innerHTML = html || '<span style="color:#666; font-size:13px;">No images added yet</span>';
+    }
+
+    // Get all image URLs
+    function getImageUrls() {
+      const inputs = document.querySelectorAll('.image-url-input');
+      return Array.from(inputs)
+        .map(input => input.value.trim())
+        .filter(url => url.length > 0);
+    }
+
     // Save product
     async function saveProduct() {
       const productId = document.getElementById('productId').value.trim().toLowerCase().replace(/\s+/g, '-');
       const productName = document.getElementById('productName').value.trim();
       const productPrice = parseFloat(document.getElementById('productPrice').value) || 0;
+      const productDescription = document.getElementById('productDescription').value.trim();
       const lowStockThreshold = parseInt(document.getElementById('lowStockThreshold').value) || 5;
+      const images = getImageUrls();
 
       if (!productId || !productName) {
         alert('Please enter product ID and name');
@@ -1516,7 +1624,15 @@
         '2XL': parseInt(document.getElementById('stock_2xl').value) || 0
       };
 
-      const product = { id: productId, name: productName.toUpperCase(), price: productPrice, lowStockThreshold, stock };
+      const product = {
+        id: productId,
+        name: productName.toUpperCase(),
+        description: productDescription,
+        price: productPrice,
+        lowStockThreshold,
+        stock,
+        images
+      };
       const isNew = !editingProductId;
 
       // Check if product ID already exists when adding new
