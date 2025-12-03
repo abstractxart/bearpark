@@ -2805,8 +2805,40 @@ app.post('/api/merch/orders', async (req, res) => {
       return res.status(500).json({ success: false, error: 'Failed to create order' });
     }
 
-    // Reserve stock (decrement)
+    // Reserve stock (decrement) - Update both in-memory and database
     MERCH_PRODUCTS[product_id].sizes[size]--;
+
+    // Also update the database inventory
+    try {
+      // Map XXL to 2XL for database compatibility
+      const dbSize = size === 'XXL' ? '2XL' : size;
+
+      // Get current stock from database
+      const { data: invData, error: invError } = await supabaseAdmin
+        .from('merch_inventory')
+        .select('stock')
+        .eq('id', product_id)
+        .single();
+
+      if (!invError && invData && invData.stock) {
+        const currentStock = invData.stock;
+        // Decrement the specific size
+        if (currentStock[dbSize] !== undefined && currentStock[dbSize] > 0) {
+          currentStock[dbSize]--;
+
+          // Update the database
+          await supabaseAdmin
+            .from('merch_inventory')
+            .update({ stock: currentStock, updated_at: new Date().toISOString() })
+            .eq('id', product_id);
+
+          console.log(`📦 Inventory updated in database: ${product_id} size ${dbSize} now has ${currentStock[dbSize]} stock`);
+        }
+      }
+    } catch (invUpdateError) {
+      console.error('Warning: Failed to update inventory in database:', invUpdateError);
+      // Don't fail the order, just log the warning
+    }
 
     console.log(`📦 Merch order created: ${orderNumber} - ${product.name} (${size}) for ${wallet_address}`);
 
