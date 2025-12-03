@@ -26342,29 +26342,38 @@
       merchShowScreen(screen);
     }
 
-    // Sync store products with inventory from API
+    // Sync store products with inventory from API (full sync - name, description, price, images, stock)
     async function syncMerchInventory() {
       try {
         const res = await fetch(`${API_BASE}/api/merch/inventory`);
         if (res.ok) {
           const data = await res.json();
-          if (data.success && data.inventory) {
-            // Update MERCH_PRODUCTS with inventory stock levels from API
-            MERCH_PRODUCTS.forEach(product => {
-              const invItem = data.inventory.find(i => i.id === product.id);
-              if (invItem && invItem.stock) {
-                // Map inventory stock to product sizes (handle 2XL vs XXL)
-                product.sizes = {
-                  S: invItem.stock.S || 0,
-                  M: invItem.stock.M || 0,
-                  L: invItem.stock.L || 0,
-                  XL: invItem.stock.XL || 0,
-                  XXL: invItem.stock['2XL'] || invItem.stock.XXL || 0
-                };
-                product.total_stock = Object.values(product.sizes).reduce((a, b) => a + b, 0);
-              }
+          if (data.success && data.inventory && data.inventory.length > 0) {
+            // Clear and rebuild MERCH_PRODUCTS from API data
+            MERCH_PRODUCTS.length = 0;
+
+            data.inventory.forEach(invItem => {
+              // Map inventory stock to product sizes (handle 2XL vs XXL)
+              const sizes = {
+                S: invItem.stock?.S || 0,
+                M: invItem.stock?.M || 0,
+                L: invItem.stock?.L || 0,
+                XL: invItem.stock?.XL || 0,
+                XXL: invItem.stock?.['2XL'] || invItem.stock?.XXL || 0
+              };
+
+              MERCH_PRODUCTS.push({
+                id: invItem.id,
+                name: invItem.name,
+                description: invItem.description || '',
+                price_usd: invItem.price,
+                images: invItem.images || [],
+                sizes: sizes,
+                total_stock: Object.values(sizes).reduce((a, b) => a + b, 0)
+              });
             });
-            console.log('📦 Inventory synced from API');
+
+            console.log(`📦 Inventory fully synced from API: ${MERCH_PRODUCTS.length} products`);
           }
         }
       } catch (e) {
@@ -26464,9 +26473,10 @@
 
       const buyBtn = document.getElementById('merchBuyBtn');
       buyBtn.disabled = false;
-      // Show both payment options
-      const xrpAmount = (30 / merchXrpPrice).toFixed(2);
-      buyBtn.innerHTML = '🛒 BUY NOW - <span style="color:#00ff88;">$30 RLUSD</span> or <span style="color:#00c3ff;">' + xrpAmount + ' XRP</span>';
+      // Show both payment options using actual product price
+      const price = merchCurrentProduct.price_usd || 30;
+      const xrpAmount = (price / merchXrpPrice).toFixed(2);
+      buyBtn.innerHTML = '🛒 BUY NOW - <span style="color:#00ff88;">$' + price + ' RLUSD</span> or <span style="color:#00c3ff;">' + xrpAmount + ' XRP</span>';
 
       // Update stock for selected size
       const stock = merchCurrentProduct.sizes[size] || 0;
@@ -26571,7 +26581,8 @@
     }
 
     function updateMerchXrpDisplay() {
-      const xrpAmount = (30 / merchXrpPrice).toFixed(2);
+      const price = merchCurrentProduct ? merchCurrentProduct.price_usd : 30;
+      const xrpAmount = (price / merchXrpPrice).toFixed(2);
       document.querySelectorAll('#merchXrpPrice, #merchPaymentXrpAmount').forEach(el => {
         if (el) el.textContent = xrpAmount;
       });

@@ -3733,7 +3733,7 @@ app.get('/api/merch/inventory', async (req, res) => {
   try {
     const { data: inventory, error } = await supabaseAdmin
       .from('merch_inventory')
-      .select('id, name, price, stock')
+      .select('id, name, description, price, stock, images')
       .order('created_at', { ascending: true });
 
     if (error) {
@@ -3742,8 +3742,10 @@ app.get('/api/merch/inventory', async (req, res) => {
       const inMemoryInventory = Object.values(MERCH_PRODUCTS).map(p => ({
         id: p.id,
         name: p.name,
+        description: p.description || '',
         price: p.price_usd,
-        stock: p.sizes
+        stock: p.sizes,
+        images: p.images || []
       }));
       return res.json({ success: true, inventory: inMemoryInventory });
     }
@@ -3758,7 +3760,7 @@ app.get('/api/merch/inventory', async (req, res) => {
 // Add new product to inventory - SESSION PROTECTED
 app.post('/api/merch/admin/inventory', verifyAdminSession, async (req, res) => {
   try {
-    const { id, name, price, low_stock_threshold, stock } = req.body;
+    const { id, name, description, price, low_stock_threshold, stock, images } = req.body;
 
     if (!id || !name || price === undefined) {
       return res.status(400).json({ success: false, error: 'Missing required fields: id, name, price' });
@@ -3768,9 +3770,11 @@ app.post('/api/merch/admin/inventory', verifyAdminSession, async (req, res) => {
     const productData = {
       id: productId,
       name: name.toUpperCase(),
+      description: description || '',
       price: parseFloat(price),
       low_stock_threshold: low_stock_threshold || 5,
       stock: stock || { S: 0, M: 0, L: 0, XL: 0, '2XL': 0 },
+      images: images || [],
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
@@ -3788,8 +3792,10 @@ app.post('/api/merch/admin/inventory', verifyAdminSession, async (req, res) => {
     MERCH_PRODUCTS[productId] = {
       id: productId,
       name: productData.name,
+      description: productData.description,
       price_usd: productData.price,
-      sizes: productData.stock
+      sizes: productData.stock,
+      images: productData.images
     };
 
     console.log(`📦 Admin ${req.adminWallet} added product: ${productData.name}`);
@@ -3804,13 +3810,15 @@ app.post('/api/merch/admin/inventory', verifyAdminSession, async (req, res) => {
 app.put('/api/merch/admin/inventory/:productId', verifyAdminSession, async (req, res) => {
   try {
     const { productId } = req.params;
-    const { name, price, low_stock_threshold, stock } = req.body;
+    const { name, description, price, low_stock_threshold, stock, images } = req.body;
 
     const updateData = { updated_at: new Date().toISOString() };
     if (name) updateData.name = name.toUpperCase();
+    if (description !== undefined) updateData.description = description;
     if (price !== undefined) updateData.price = parseFloat(price);
     if (low_stock_threshold !== undefined) updateData.low_stock_threshold = low_stock_threshold;
     if (stock) updateData.stock = stock;
+    if (images !== undefined) updateData.images = images;
 
     const { error } = await supabaseAdmin
       .from('merch_inventory')
@@ -3825,8 +3833,10 @@ app.put('/api/merch/admin/inventory/:productId', verifyAdminSession, async (req,
     // Update in-memory
     if (MERCH_PRODUCTS[productId]) {
       if (name) MERCH_PRODUCTS[productId].name = updateData.name;
+      if (description !== undefined) MERCH_PRODUCTS[productId].description = description;
       if (price !== undefined) MERCH_PRODUCTS[productId].price_usd = updateData.price;
       if (stock) MERCH_PRODUCTS[productId].sizes = stock;
+      if (images !== undefined) MERCH_PRODUCTS[productId].images = images;
     }
 
     console.log(`📦 Admin ${req.adminWallet} updated product: ${productId}`);
