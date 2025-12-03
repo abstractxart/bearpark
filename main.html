@@ -9093,6 +9093,277 @@
   @keyframes spin {
     to { transform: rotate(360deg); }
   }
+
+  /* Shopping Cart Styles */
+  .merch-cart-btn {
+    position: relative;
+    background: rgba(0,0,0,0.3);
+    border: 2px solid rgba(255,255,255,0.2);
+    border-radius: 10px;
+    padding: 8px 14px;
+    color: #fff;
+    font-size: 20px;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .merch-cart-btn:hover {
+    background: rgba(104,12,217,0.3);
+    border-color: #680cd9;
+  }
+
+  .merch-cart-badge {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: linear-gradient(135deg, #ef4444, #f97316);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 900;
+    min-width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(239,68,68,0.5);
+    animation: cartBadgePop 0.3s ease-out;
+  }
+
+  .merch-cart-badge.hidden {
+    display: none;
+  }
+
+  @keyframes cartBadgePop {
+    0% { transform: scale(0); }
+    50% { transform: scale(1.3); }
+    100% { transform: scale(1); }
+  }
+
+  .merch-cart-modal {
+    background: linear-gradient(135deg, rgba(30,30,50,0.98), rgba(20,20,40,0.99));
+    border-radius: 20px;
+    max-width: 600px;
+    width: 95%;
+    max-height: 85vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .merch-cart-header {
+    background: linear-gradient(135deg, #680cd9, #00ff88);
+    padding: 16px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .merch-cart-header h3 {
+    color: #fff;
+    font-size: 20px;
+    font-weight: 900;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .merch-cart-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+  }
+
+  .merch-cart-empty {
+    text-align: center;
+    padding: 40px 20px;
+  }
+
+  .merch-cart-empty-icon {
+    font-size: 60px;
+    margin-bottom: 15px;
+  }
+
+  .merch-cart-item {
+    display: flex;
+    gap: 15px;
+    background: rgba(0,0,0,0.3);
+    border: 2px solid rgba(104,12,217,0.3);
+    border-radius: 12px;
+    padding: 15px;
+    margin-bottom: 12px;
+    transition: all 0.2s;
+  }
+
+  .merch-cart-item:hover {
+    border-color: #680cd9;
+  }
+
+  .merch-cart-item-img {
+    width: 80px;
+    height: 80px;
+    border-radius: 10px;
+    object-fit: cover;
+    flex-shrink: 0;
+  }
+
+  .merch-cart-item-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .merch-cart-item-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 4px;
+  }
+
+  .merch-cart-item-size {
+    font-size: 13px;
+    color: #888;
+    margin-bottom: 8px;
+  }
+
+  .merch-cart-item-price {
+    font-size: 18px;
+    font-weight: 900;
+    color: #00ff88;
+  }
+
+  .merch-cart-item-actions {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: flex-end;
+  }
+
+  .merch-cart-remove-btn {
+    background: rgba(239,68,68,0.2);
+    border: none;
+    color: #ef4444;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .merch-cart-remove-btn:hover {
+    background: #ef4444;
+    color: #fff;
+  }
+
+  .merch-cart-qty {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(0,0,0,0.3);
+    border-radius: 8px;
+    padding: 4px;
+  }
+
+  .merch-cart-qty-btn {
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 6px;
+    background: rgba(104,12,217,0.3);
+    color: #fff;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .merch-cart-qty-btn:hover {
+    background: #680cd9;
+  }
+
+  .merch-cart-qty-num {
+    font-size: 16px;
+    font-weight: 700;
+    color: #fff;
+    min-width: 24px;
+    text-align: center;
+  }
+
+  .merch-cart-footer {
+    background: rgba(0,0,0,0.4);
+    padding: 20px;
+    border-top: 2px solid rgba(104,12,217,0.3);
+  }
+
+  .merch-cart-subtotal {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+  }
+
+  .merch-cart-subtotal-label {
+    font-size: 16px;
+    color: #888;
+  }
+
+  .merch-cart-subtotal-value {
+    font-size: 28px;
+    font-weight: 900;
+    color: #00ff88;
+  }
+
+  .merch-cart-checkout-btn {
+    width: 100%;
+    padding: 16px;
+    background: linear-gradient(135deg, #680cd9, #00ff88);
+    border: none;
+    border-radius: 12px;
+    color: #fff;
+    font-size: 18px;
+    font-weight: 900;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+  }
+
+  .merch-cart-checkout-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 30px rgba(104,12,217,0.4);
+  }
+
+  .merch-cart-checkout-btn:disabled {
+    background: linear-gradient(135deg, #374151, #1f2937);
+    color: #6b7280;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .merch-cart-continue {
+    width: 100%;
+    padding: 12px;
+    background: transparent;
+    border: 2px solid rgba(255,255,255,0.2);
+    border-radius: 10px;
+    color: #888;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: all 0.2s;
+  }
+
+  .merch-cart-continue:hover {
+    border-color: #680cd9;
+    color: #fff;
+  }
   /* ===== END MERCH STORE STYLES ===== */
 
   /* ===== END COSMETICS STORE STYLES ===== */
@@ -22386,7 +22657,11 @@
             <h2 class="store-title">👕 BEAR MERCH</h2>
             <div class="store-subtitle">Rock your $BEAR pride with exclusive limited merch!</div>
           </div>
-          <div class="store-balance-container">
+          <div class="store-balance-container" style="display:flex; align-items:center; gap:12px;">
+            <button class="merch-cart-btn" onclick="openMerchCart()">
+              🛒
+              <span id="merchCartBadge" class="merch-cart-badge hidden">0</span>
+            </button>
             <button class="store-close-btn" onclick="closeMerchStoreModal()">×</button>
           </div>
         </div>
@@ -22438,8 +22713,11 @@
                 <div class="merch-size-buttons" id="merchSizeButtons"></div>
               </div>
               <div class="merch-stock" id="merchDetailStock"></div>
-              <button class="merch-buy-btn" id="merchBuyBtn" onclick="merchProceedToDisclaimer()" disabled>
+              <button class="merch-buy-btn" id="merchAddToCartBtn" onclick="addToMerchCart()" disabled>
                 🛒 SELECT SIZE FIRST
+              </button>
+              <button class="merch-buy-btn" id="merchBuyNowBtn" onclick="merchProceedToDisclaimer()" disabled style="background:linear-gradient(135deg, #f59e0b, #ef4444); margin-top:10px; font-size:14px; padding:12px 20px;">
+                ⚡ BUY NOW (Skip Cart)
               </button>
               <div class="merch-description" id="merchDetailDesc"></div>
               <div class="merch-features">
@@ -26075,6 +26353,248 @@
     let merchRateInterval = null;
     let merchSelectedWallet = null; // 'xaman' or 'joey'
 
+    // Shopping Cart State
+    let merchCart = [];
+
+    // Load cart from localStorage on page load
+    function loadMerchCart() {
+      try {
+        const saved = localStorage.getItem('merchCart');
+        if (saved) {
+          merchCart = JSON.parse(saved);
+          updateCartBadge();
+        }
+      } catch (e) {
+        merchCart = [];
+      }
+    }
+
+    // Save cart to localStorage
+    function saveMerchCart() {
+      try {
+        localStorage.setItem('merchCart', JSON.stringify(merchCart));
+      } catch (e) {
+        console.error('Failed to save cart:', e);
+      }
+    }
+
+    // Update cart badge
+    function updateCartBadge() {
+      const badge = document.getElementById('merchCartBadge');
+      if (!badge) return;
+      const totalItems = merchCart.reduce((sum, item) => sum + item.quantity, 0);
+      badge.textContent = totalItems;
+      badge.classList.toggle('hidden', totalItems === 0);
+    }
+
+    // Add item to cart
+    function addToMerchCart() {
+      if (!merchCurrentProduct || !merchSelectedSize) {
+        alert('Please select a size first!');
+        return;
+      }
+
+      // Check if item already in cart (same product + size)
+      const existingIndex = merchCart.findIndex(
+        item => item.productId === merchCurrentProduct.id && item.size === merchSelectedSize
+      );
+
+      if (existingIndex >= 0) {
+        // Increase quantity
+        merchCart[existingIndex].quantity += 1;
+      } else {
+        // Add new item
+        merchCart.push({
+          productId: merchCurrentProduct.id,
+          name: merchCurrentProduct.name,
+          size: merchSelectedSize,
+          price: merchCurrentProduct.price_usd || 30,
+          image: merchCurrentProduct.images?.[0] || 'https://files.catbox.moe/n3rrso.webp',
+          quantity: 1
+        });
+      }
+
+      saveMerchCart();
+      updateCartBadge();
+
+      // Show confirmation
+      const btn = document.getElementById('merchAddToCartBtn');
+      const originalText = btn.innerHTML;
+      btn.innerHTML = '✅ ADDED TO CART!';
+      btn.style.background = 'linear-gradient(135deg, #22c55e, #10b981)';
+      setTimeout(() => {
+        btn.innerHTML = originalText;
+        btn.style.background = '';
+      }, 1500);
+    }
+
+    // Remove item from cart
+    function removeFromMerchCart(index) {
+      merchCart.splice(index, 1);
+      saveMerchCart();
+      updateCartBadge();
+      renderMerchCart();
+    }
+
+    // Update item quantity
+    function updateMerchCartQty(index, delta) {
+      if (!merchCart[index]) return;
+      merchCart[index].quantity += delta;
+      if (merchCart[index].quantity <= 0) {
+        removeFromMerchCart(index);
+      } else {
+        saveMerchCart();
+        updateCartBadge();
+        renderMerchCart();
+      }
+    }
+
+    // Calculate cart subtotal
+    function getMerchCartSubtotal() {
+      return merchCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    }
+
+    // Get total items in cart
+    function getMerchCartItemCount() {
+      return merchCart.reduce((sum, item) => sum + item.quantity, 0);
+    }
+
+    // Open cart modal
+    function openMerchCart() {
+      let modal = document.getElementById('merchCartModal');
+      if (!modal) {
+        // Create modal if it doesn't exist
+        modal = document.createElement('div');
+        modal.id = 'merchCartModal';
+        modal.className = 'store-modal';
+        modal.innerHTML = `
+          <div class="merch-cart-modal">
+            <div class="merch-cart-header">
+              <h3>🛒 Your Cart</h3>
+              <button class="store-close-btn" onclick="closeMerchCart()">×</button>
+            </div>
+            <div class="merch-cart-body" id="merchCartBody">
+              <!-- Cart items rendered here -->
+            </div>
+            <div class="merch-cart-footer" id="merchCartFooter">
+              <!-- Footer with subtotal and checkout -->
+            </div>
+          </div>
+        `;
+        modal.addEventListener('click', (e) => {
+          if (e.target === modal) closeMerchCart();
+        });
+        document.body.appendChild(modal);
+      }
+      renderMerchCart();
+      modal.classList.add('active');
+    }
+
+    // Close cart modal
+    function closeMerchCart() {
+      const modal = document.getElementById('merchCartModal');
+      if (modal) modal.classList.remove('active');
+    }
+
+    // Render cart contents
+    function renderMerchCart() {
+      const body = document.getElementById('merchCartBody');
+      const footer = document.getElementById('merchCartFooter');
+      if (!body || !footer) return;
+
+      if (merchCart.length === 0) {
+        body.innerHTML = `
+          <div class="merch-cart-empty">
+            <div class="merch-cart-empty-icon">🛒</div>
+            <h3 style="color:#fff; margin-bottom:10px;">Your cart is empty</h3>
+            <p style="color:#888; margin-bottom:20px;">Add some awesome BEAR merch!</p>
+            <button onclick="closeMerchCart()" class="merch-cart-continue">
+              👕 Continue Shopping
+            </button>
+          </div>
+        `;
+        footer.innerHTML = '';
+        return;
+      }
+
+      // Render cart items
+      let itemsHtml = '';
+      merchCart.forEach((item, index) => {
+        itemsHtml += `
+          <div class="merch-cart-item">
+            <img src="${item.image}" alt="${item.name}" class="merch-cart-item-img">
+            <div class="merch-cart-item-info">
+              <div class="merch-cart-item-name">${item.name}</div>
+              <div class="merch-cart-item-size">Size: ${item.size}</div>
+              <div class="merch-cart-item-price">$${item.price.toFixed(2)} RLUSD</div>
+            </div>
+            <div class="merch-cart-item-actions">
+              <button class="merch-cart-remove-btn" onclick="removeFromMerchCart(${index})">🗑️ Remove</button>
+              <div class="merch-cart-qty">
+                <button class="merch-cart-qty-btn" onclick="updateMerchCartQty(${index}, -1)">−</button>
+                <span class="merch-cart-qty-num">${item.quantity}</span>
+                <button class="merch-cart-qty-btn" onclick="updateMerchCartQty(${index}, 1)">+</button>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+      body.innerHTML = itemsHtml;
+
+      // Render footer with subtotal
+      const subtotal = getMerchCartSubtotal();
+      const itemCount = getMerchCartItemCount();
+      const xrpEquiv = (subtotal / merchXrpPrice).toFixed(2);
+      footer.innerHTML = `
+        <div class="merch-cart-subtotal">
+          <span class="merch-cart-subtotal-label">${itemCount} item${itemCount > 1 ? 's' : ''}</span>
+          <div>
+            <div class="merch-cart-subtotal-value">$${subtotal.toFixed(2)} RLUSD</div>
+            <div style="font-size:13px; color:#00c3ff; text-align:right;">≈ ${xrpEquiv} XRP</div>
+          </div>
+        </div>
+        <button class="merch-cart-checkout-btn" onclick="startCartCheckout()">
+          💳 PROCEED TO CHECKOUT
+        </button>
+        <button class="merch-cart-continue" onclick="closeMerchCart()">
+          👕 Continue Shopping
+        </button>
+      `;
+    }
+
+    // Start checkout from cart
+    function startCartCheckout() {
+      if (merchCart.length === 0) {
+        alert('Your cart is empty!');
+        return;
+      }
+
+      // For now, checkout the first item (we'll need to handle multi-item orders later)
+      // TODO: Implement full multi-item checkout
+      if (merchCart.length > 1) {
+        alert('Note: Currently, you can only checkout one item at a time. Please remove extra items or checkout multiple times. Multi-item checkout coming soon!');
+      }
+
+      const item = merchCart[0];
+      const product = MERCH_PRODUCTS.find(p => p.id === item.productId);
+
+      if (!product) {
+        alert('Product not found. Please try again.');
+        return;
+      }
+
+      // Set current product and size for checkout flow
+      merchCurrentProduct = product;
+      merchSelectedSize = item.size;
+
+      // Close cart modal and proceed to checkout
+      closeMerchCart();
+      merchShowScreen('disclaimer');
+    }
+
+    // Load cart when page loads
+    loadMerchCart();
+
     // 🦘 JOEY WALLET: WalletConnect configuration
     const WALLETCONNECT_PROJECT_ID = 'da711418529df39d15cc68772619e270';
     let joeyWcClient = null;
@@ -26527,10 +27047,12 @@
       const totalStock = Object.values(product.sizes).reduce((a, b) => a + b, 0);
       document.getElementById('merchDetailStock').textContent = `Stock: ${totalStock} remaining`;
 
-      // Reset buy button
-      const buyBtn = document.getElementById('merchBuyBtn');
-      buyBtn.disabled = true;
-      buyBtn.textContent = '🛒 SELECT SIZE FIRST';
+      // Reset buttons
+      const addToCartBtn = document.getElementById('merchAddToCartBtn');
+      const buyNowBtn = document.getElementById('merchBuyNowBtn');
+      addToCartBtn.disabled = true;
+      addToCartBtn.textContent = '🛒 SELECT SIZE FIRST';
+      buyNowBtn.disabled = true;
 
       // Update XRP price
       updateMerchXrpDisplay();
@@ -26549,12 +27071,16 @@
       document.querySelectorAll('.merch-size-btn').forEach(b => b.classList.remove('selected'));
       btn.classList.add('selected');
 
-      const buyBtn = document.getElementById('merchBuyBtn');
-      buyBtn.disabled = false;
-      // Show both payment options using actual product price
+      // Enable both buttons
+      const addToCartBtn = document.getElementById('merchAddToCartBtn');
+      const buyNowBtn = document.getElementById('merchBuyNowBtn');
+      addToCartBtn.disabled = false;
+      buyNowBtn.disabled = false;
+
+      // Show price on Add to Cart button
       const price = merchCurrentProduct.price_usd || 30;
       const xrpAmount = (price / merchXrpPrice).toFixed(2);
-      buyBtn.innerHTML = '🛒 BUY NOW - <span style="color:#00ff88;">$' + price + ' RLUSD</span> or <span style="color:#00c3ff;">' + xrpAmount + ' XRP</span>';
+      addToCartBtn.innerHTML = '🛒 ADD TO CART - <span style="color:#00ff88;">$' + price + ' RLUSD</span>';
 
       // Update stock for selected size
       const stock = merchCurrentProduct.sizes[size] || 0;
@@ -27090,6 +27616,17 @@
       };
 
       if (merchRateInterval) clearInterval(merchRateInterval);
+
+      // Clear the purchased item from cart
+      const purchasedItemIndex = merchCart.findIndex(
+        item => item.productId === merchCurrentProduct.id && item.size === merchSelectedSize
+      );
+      if (purchasedItemIndex >= 0) {
+        merchCart.splice(purchasedItemIndex, 1);
+        saveMerchCart();
+        updateCartBadge();
+      }
+
       merchShowScreen('success');
     }
 
