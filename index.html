@@ -722,11 +722,14 @@
           // Generate QR code
           const qrContainer = document.createElement('div');
 
+          // Create proper Joey Wallet deep link
+          const joeyDeepLink = `https://link.joeywallet.app/wc?uri=${encodeURIComponent(uri)}`;
+
           qrContainer.innerHTML = `<p style="font-size: 16px; margin: 10px 0;">Connect with Joey Wallet:</p>
                              <div style="margin: 20px auto; padding: 20px; background: white; border-radius: 12px; max-width: 300px; display: inline-block;">
                                <div id="joeyQR"></div>
                              </div>
-                             <a id="openJoeyBtn" href="${uri}" style="display: inline-block; margin: 15px auto; padding: 12px 24px; background: #8b5cf6; color: white; border: 3px solid transparent; border-image: var(--tri-gradient) 1; border-radius: 12px; font-family: 'Luckiest Guy', Arial; font-size: 16px; cursor: pointer; box-shadow: 0 6px 0 #5b21b6; text-decoration: none;">Open Joey Wallet</a>
+                             <a id="openJoeyBtn" href="${joeyDeepLink}" style="display: inline-block; margin: 15px auto; padding: 12px 24px; background: #8b5cf6; color: white; border: 3px solid transparent; border-image: var(--tri-gradient) 1; border-radius: 12px; font-family: 'Luckiest Guy', Arial; font-size: 16px; cursor: pointer; box-shadow: 0 6px 0 #5b21b6; text-decoration: none;">Open Joey Wallet</a>
                              <p style="font-size: 14px; margin: 15px 0; color: #999; font-family: Arial, sans-serif;">Scan the QR code OR click "Open Joey Wallet" to connect automatically</p>
                              <p style="font-size: 13px; margin: 20px 0; color: #999; font-family: Arial, sans-serif;">Note: If Joey Wallet isn't opening or scanning properly, please try XAMAN wallet instead for a more reliable connection.</p>`;
 
