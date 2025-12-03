@@ -1289,22 +1289,15 @@
       renderInventory();
     }
 
-    // Default inventory items
+    // Default inventory items - MUST match store products in main.html MERCH_PRODUCTS
     function getDefaultInventory() {
       return [
         {
-          id: 'bear-hoodie-black',
-          name: 'BEAR Hoodie - Black',
+          id: 'pocket-jester',
+          name: 'POCKET JESTER',
           price: 30.00,
           lowStockThreshold: 5,
-          stock: { XS: 10, S: 15, M: 20, L: 20, XL: 15, '2XL': 10 }
-        },
-        {
-          id: 'bear-tshirt-white',
-          name: 'BEAR T-Shirt - White',
-          price: 20.00,
-          lowStockThreshold: 5,
-          stock: { XS: 8, S: 12, M: 18, L: 18, XL: 12, '2XL': 8 }
+          stock: { S: 10, M: 15, L: 20, XL: 15, '2XL': 10 }
         }
       ];
     }

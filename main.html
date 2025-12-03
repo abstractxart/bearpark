@@ -26342,7 +26342,38 @@
       merchShowScreen(screen);
     }
 
+    // Sync store products with inventory from admin (localStorage)
+    function syncMerchInventory() {
+      try {
+        const stored = localStorage.getItem('bearpark_inventory');
+        if (stored) {
+          const inventory = JSON.parse(stored);
+          // Update MERCH_PRODUCTS with inventory stock levels
+          MERCH_PRODUCTS.forEach(product => {
+            const invItem = inventory.find(i => i.id === product.id);
+            if (invItem && invItem.stock) {
+              // Map inventory stock to product sizes (handle 2XL vs XXL)
+              product.sizes = {
+                S: invItem.stock.S || 0,
+                M: invItem.stock.M || 0,
+                L: invItem.stock.L || 0,
+                XL: invItem.stock.XL || 0,
+                XXL: invItem.stock['2XL'] || invItem.stock.XXL || 0
+              };
+              product.total_stock = Object.values(product.sizes).reduce((a, b) => a + b, 0);
+            }
+          });
+          console.log('📦 Inventory synced from admin storage');
+        }
+      } catch (e) {
+        console.log('Using default inventory');
+      }
+    }
+
     function loadMerchProducts() {
+      // First sync with inventory from admin
+      syncMerchInventory();
+
       const grid = document.getElementById('merchProductsGrid');
       let html = '';
 
