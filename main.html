@@ -6,11 +6,7 @@
   // 🐻❄️ COCAINE BEAR: Register service worker for caching (PERFORMANCE!)
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function() {
-      navigator.serviceWorker.register('/sw.js').then(function(reg) {
-        console.log('SW registered for scope:', reg.scope);
-      }).catch(function(err) {
-        console.log('SW registration failed:', err);
-      });
+      navigator.serviceWorker.register('/sw.js').catch(function(){});
     });
   }
   </script>
@@ -13465,14 +13461,12 @@
         bear.element.style.left = bear.x + 'px';
 
         cityBears.push(bear);
-        console.log('🐻✨ New bear spawned from ' + (spawnFromLeft ? 'LEFT' : 'RIGHT') + ' at safe Y position! Total: ' + cityBears.length);
       }
 
       // Initialize with responsive number of bears - SPAWN ON SCREEN!
       function initializeBears() {
         const maxBears = getMaxBears();
-        console.error('🐻🏙️ Initializing BEAR CITY with ' + maxBears + ' bears');
-        console.error('🐻🏙️ Container:', containerWidth, 'x', containerHeight);
+        // 🐻❄️ COCAINE BEAR: Console logs removed for clean production
 
         // Spawn bears DIRECTLY ON SCREEN (not off-screen)
         for (let i = 0; i < maxBears; i++) {
@@ -13496,10 +13490,8 @@
           bear.element.style.top = bear.y + 'px';
 
           cityBears.push(bear);
-          console.error('🐻✅ Bear #' + (i+1) + ' spawned at', bear.x.toFixed(0), bear.y.toFixed(0));
         }
-
-        console.error('🐻🏙️💥 ALL ' + maxBears + ' BEARS SPAWNED! 💥');
+        // 🐻❄️ All bears spawned silently
       }
 
       // Spawn new bears periodically
@@ -13552,7 +13544,7 @@
       initializeBears();
       animate();
 
-      console.log('🐻🏙️💥 BEAR CITY IS ALIVE! 💥🏙️🐻');
+      // 🐻❄️ BEAR CITY initialized silently
     })();
   </script>
 
@@ -22109,7 +22101,7 @@
       // Add click-outside listener after a short delay to prevent immediate close
       setTimeout(() => {
         document.addEventListener('mousedown', handleClickOutside, true);
-        document.addEventListener('touchstart', handleClickOutsideTouch, true);
+        document.addEventListener('touchstart', handleClickOutsideTouch, { passive: true, capture: true });
       }, 100);
 
       // Add touch/swipe listeners for mobile
@@ -29115,7 +29107,7 @@ if (typeof window.addEventListener !== 'undefined') {
         mouseX = touch.clientX;
         mouseY = touch.clientY;
         bear.el.style.transition = 'none';
-      });
+      }, { passive: false });
 
       document.addEventListener('touchmove', (e) => {
         if (!bear.isDragging) return;
@@ -29369,7 +29361,7 @@ if (typeof window.addEventListener !== 'undefined') {
         if (bear.despawnTimeout) {
           clearTimeout(bear.despawnTimeout);
         }
-      });
+      }, { passive: false });
 
       document.addEventListener('touchmove', (e) => {
         if (!bear.isDragging) return;
@@ -30011,8 +30003,7 @@ if (typeof window.addEventListener !== 'undefined') {
         console.log('NFT count from HTTP API:', { pixelBears: a, ultraRares: b });
         return { a, b };
       } catch (e) {
-        console.error('HTTP API failed, trying WebSocket:', e);
-        // Fallback to WebSocket
+        // 🐻❄️ Silent fallback to WebSocket
         try {
           const ws = new WebSocket('wss://s1.ripple.com');
           return new Promise((res) => {
@@ -30057,8 +30048,7 @@ if (typeof window.addEventListener !== 'undefined') {
         console.log('LP tokens from HTTP API:', b);
         return b;
       } catch (e) {
-        console.error('HTTP API failed for LP, trying WebSocket:', e);
-        // Fallback to WebSocket
+        // 🐻❄️ Silent fallback to WebSocket
         const ws = new WebSocket('wss://s1.ripple.com');
         return new Promise((res) => {
           ws.onopen = () => { ws.send(JSON.stringify({ command: 'account_lines', account: w })); };
