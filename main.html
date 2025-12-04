@@ -26823,13 +26823,14 @@
       // Render cart items
       let itemsHtml = '';
       merchCart.forEach((item, index) => {
+        const itemXrp = (item.price / merchXrpPrice).toFixed(2);
         itemsHtml += `
           <div class="merch-cart-item">
             <img src="${item.image}" alt="${item.name}" class="merch-cart-item-img">
             <div class="merch-cart-item-info">
               <div class="merch-cart-item-name">${item.name}</div>
               <div class="merch-cart-item-size">Size: ${item.size}</div>
-              <div class="merch-cart-item-price">$${item.price.toFixed(2)} RLUSD</div>
+              <div class="merch-cart-item-price">~${itemXrp} XRP <span style="font-size:12px; color:#888; font-weight:normal;">($${item.price.toFixed(2)} RLUSD)</span></div>
             </div>
             <div class="merch-cart-item-actions">
               <button class="merch-cart-remove-btn" onclick="removeFromMerchCart(${index})">🗑️ Remove</button>
@@ -26918,16 +26919,22 @@
 
     // Generate detailed checkout items HTML
     function getCheckoutItemsHTML() {
-      return merchCheckoutItems.map(item => `
+      return merchCheckoutItems.map(item => {
+        const itemTotal = item.price * item.quantity;
+        const itemXrp = (itemTotal / merchXrpPrice).toFixed(2);
+        return `
         <div style="display:flex; gap:12px; align-items:center; padding:12px; background:rgba(0,0,0,0.2); border-radius:10px; margin-bottom:8px;">
           <img src="${item.image}" style="width:50px; height:50px; border-radius:8px; object-fit:cover;">
           <div style="flex:1;">
             <div style="font-weight:700; color:#fff;">${item.name}</div>
             <div style="font-size:12px; color:#888;">Size: ${item.size} | Qty: ${item.quantity}</div>
           </div>
-          <div style="font-weight:700; color:#00ff88;">$${(item.price * item.quantity).toFixed(2)}</div>
+          <div style="text-align:right;">
+            <div style="font-weight:700; color:#00ff88;">~${itemXrp} XRP</div>
+            <div style="font-size:11px; color:#888;">$${itemTotal.toFixed(2)} RLUSD</div>
+          </div>
         </div>
-      `).join('');
+      `}).join('');
     }
 
     // Load cart when page loads
@@ -27516,12 +27523,15 @@
           return `
           <div class="merch-summary-row" style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.1);">
             <span style="color:#fff;">${item.quantity}x ${item.name} (${item.size})</span>
-            <span style="color:#00ff88; font-weight:600;">$${(item.price * item.quantity).toFixed(2)}</span>
+            <span style="text-align:right;">
+              <span style="color:#00ff88; font-weight:600;">~${itemXrp} XRP</span>
+              <span style="font-size:11px; color:#888; margin-left:6px;">($${(item.price * item.quantity).toFixed(2)})</span>
+            </span>
           </div>
         `}).join('') + `
           <div style="font-size:12px; color:#888; margin-top:8px; text-align:right;">${totalItems} item(s) total</div>
         `;
-        document.getElementById('merchConfirmTotal').textContent = `$${merchCheckoutTotal.toFixed(2)}`;
+        document.getElementById('merchConfirmTotal').innerHTML = `~${totalXrp} XRP <span style="font-size:14px; color:#888;">($${merchCheckoutTotal.toFixed(2)})</span>`;
       } else if (merchCurrentProduct) {
         // Single item direct checkout
         const price = merchCurrentProduct.price_usd || 30;
@@ -27529,11 +27539,14 @@
         confirmItemsContainer.innerHTML = `
           <div class="merch-summary-row" style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.1);">
             <span style="color:#fff;">1x ${merchCurrentProduct.name} (${merchSelectedSize})</span>
-            <span style="color:#00ff88; font-weight:600;">$${price.toFixed(2)}</span>
+            <span style="text-align:right;">
+              <span style="color:#00ff88; font-weight:600;">~${singleXrp} XRP</span>
+              <span style="font-size:11px; color:#888; margin-left:6px;">($${price.toFixed(2)})</span>
+            </span>
           </div>
           <div style="font-size:12px; color:#888; margin-top:8px; text-align:right;">1 item(s) total</div>
         `;
-        document.getElementById('merchConfirmTotal').textContent = `$${price.toFixed(2)}`;
+        document.getElementById('merchConfirmTotal').innerHTML = `~${singleXrp} XRP <span style="font-size:14px; color:#888;">($${price.toFixed(2)})</span>`;
       } else {
         // Fallback - no items found (shouldn't happen)
         console.error('No checkout items or product found');
