@@ -22861,8 +22861,8 @@
               <h2 id="merchDetailName" class="merch-product-name"></h2>
               <div class="merch-product-badge">⭐ Limited Edition</div>
               <div class="merch-price-section">
-                <div class="merch-price-main"><span id="merchDetailPrice">$30.00</span> <span style="font-size:16px; opacity:0.8;">RLUSD</span></div>
-                <div class="merch-price-xrp">or ~<span id="merchXrpPrice">--</span> XRP (live rate)</div>
+                <div class="merch-price-main">~<span id="merchXrpPrice">--</span> <span style="font-size:16px; opacity:0.8;">XRP</span></div>
+                <div class="merch-price-xrp">or <span id="merchDetailPrice">$30.00</span> RLUSD (stablecoin)</div>
               </div>
               <div class="merch-size-section">
                 <label>SELECT SIZE <span style="color:#ef4444;">*</span></label>
@@ -26852,8 +26852,8 @@
         <div class="merch-cart-subtotal">
           <span class="merch-cart-subtotal-label">${itemCount} item${itemCount > 1 ? 's' : ''}</span>
           <div>
-            <div class="merch-cart-subtotal-value">$${subtotal.toFixed(2)} RLUSD</div>
-            <div style="font-size:13px; color:#00c3ff; text-align:right;">≈ ${xrpEquiv} XRP</div>
+            <div class="merch-cart-subtotal-value">~${xrpEquiv} XRP</div>
+            <div style="font-size:13px; color:#888; text-align:right;">$${subtotal.toFixed(2)} RLUSD</div>
           </div>
         </div>
         <button class="merch-cart-checkout-btn" onclick="startCartCheckout()">
@@ -27334,13 +27334,15 @@
           stockBadge = '<span class="merch-stock-badge in-stock">In Stock</span>';
         }
 
+        const xrpAmount = (product.price_usd / (merchXrpPrice || 2.10)).toFixed(2);
         html += `
           <div class="merch-product-card ${soldOutClass}" onclick="${totalStock > 0 ? `openMerchProduct('${product.id}')` : ''}">
             <img src="${product.images[0]}" alt="${product.name}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
             <div class="merch-img-placeholder" style="display:none; width:100%; aspect-ratio:1; background:linear-gradient(135deg, #680cd9, #00ff88); align-items:center; justify-content:center; font-size:48px;">👕</div>
             <div class="merch-product-info">
               <h3>${product.name}</h3>
-              <div class="merch-price">$${product.price_usd} RLUSD</div>
+              <div class="merch-price">~${xrpAmount} XRP</div>
+              <div class="merch-price-secondary" style="font-size:12px; color:#888; margin-top:2px;">$${product.price_usd} RLUSD</div>
               ${stockBadge}
             </div>
           </div>
@@ -27415,10 +27417,10 @@
       addToCartBtn.disabled = false;
       buyNowBtn.disabled = false;
 
-      // Show price on Add to Cart button
+      // Show price on Add to Cart button (XRP first)
       const price = merchCurrentProduct.price_usd || 30;
       const xrpAmount = (price / merchXrpPrice).toFixed(2);
-      addToCartBtn.innerHTML = '🛒 ADD TO CART - <span style="color:#00ff88;">$' + price + ' RLUSD</span>';
+      addToCartBtn.innerHTML = '🛒 ADD TO CART - <span style="color:#00ff88;">~' + xrpAmount + ' XRP</span>';
 
       // Update stock for selected size
       const stock = merchCurrentProduct.sizes[size] || 0;
@@ -27508,18 +27510,22 @@
       if (merchCheckoutItems && merchCheckoutItems.length > 0) {
         // Multi-item checkout from cart - format like "1x PRODUCT NAME (SIZE)"
         const totalItems = merchCheckoutItems.reduce((sum, item) => sum + item.quantity, 0);
-        confirmItemsContainer.innerHTML = merchCheckoutItems.map(item => `
+        const totalXrp = (merchCheckoutTotal / merchXrpPrice).toFixed(2);
+        confirmItemsContainer.innerHTML = merchCheckoutItems.map(item => {
+          const itemXrp = ((item.price * item.quantity) / merchXrpPrice).toFixed(2);
+          return `
           <div class="merch-summary-row" style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.1);">
             <span style="color:#fff;">${item.quantity}x ${item.name} (${item.size})</span>
             <span style="color:#00ff88; font-weight:600;">$${(item.price * item.quantity).toFixed(2)}</span>
           </div>
-        `).join('') + `
+        `}).join('') + `
           <div style="font-size:12px; color:#888; margin-top:8px; text-align:right;">${totalItems} item(s) total</div>
         `;
         document.getElementById('merchConfirmTotal').textContent = `$${merchCheckoutTotal.toFixed(2)}`;
       } else if (merchCurrentProduct) {
         // Single item direct checkout
         const price = merchCurrentProduct.price_usd || 30;
+        const singleXrp = (price / merchXrpPrice).toFixed(2);
         confirmItemsContainer.innerHTML = `
           <div class="merch-summary-row" style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.1);">
             <span style="color:#fff;">1x ${merchCurrentProduct.name} (${merchSelectedSize})</span>
@@ -27551,6 +27557,10 @@
         const data = await response.json();
         merchXrpPrice = data.ripple?.usd || 2.10;
         updateMerchXrpDisplay();
+        // Re-render product grid with updated XRP prices
+        if (MERCH_PRODUCTS.length > 0) {
+          loadMerchProducts();
+        }
       } catch (error) {
         console.error('Error fetching XRP price:', error);
         merchXrpPrice = 2.10;
