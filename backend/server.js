@@ -849,7 +849,7 @@ async function fetchTweetThumbnail(twitterUrl) {
 // Create New Raid
 app.post('/api/raids', verifyAdmin, validateTwitterURL, validateAmount, validateTextLengths, async (req, res) => {
   try {
-    const { description, twitter_url, reward, profile_name, profile_handle, profile_emoji, expires_at } = req.body;
+    const { description, twitter_url, reward, profile_name, profile_handle, profile_emoji, expires_at, image_url: manualImageUrl } = req.body;
 
     console.log('Received raid data:', req.body);
 
@@ -860,15 +860,31 @@ app.post('/api/raids', verifyAdmin, validateTwitterURL, validateAmount, validate
       });
     }
 
-    // Try to automatically fetch tweet thumbnail
+    // Helper to check if image URL is valid (not a Twitter emoji SVG)
+    const isValidImageUrl = (url) => {
+      if (!url) return false;
+      const badPatterns = ['twimg.com/emoji', 'abs-0.twimg.com', '/emoji/v2/', '/svg/'];
+      return !badPatterns.some(p => url.includes(p));
+    };
+
+    // Use manual image URL if provided, otherwise try auto-fetch
     let thumbnailUrl = null;
-    try {
-      thumbnailUrl = await fetchTweetThumbnail(twitter_url);
-      if (thumbnailUrl) {
-        console.log('✅ Auto-fetched tweet thumbnail:', thumbnailUrl);
+    if (manualImageUrl && isValidImageUrl(manualImageUrl)) {
+      thumbnailUrl = manualImageUrl;
+      console.log('✅ Using manual image URL:', thumbnailUrl);
+    } else {
+      // Try to automatically fetch tweet thumbnail
+      try {
+        const autoFetched = await fetchTweetThumbnail(twitter_url);
+        if (autoFetched && isValidImageUrl(autoFetched)) {
+          thumbnailUrl = autoFetched;
+          console.log('✅ Auto-fetched tweet thumbnail:', thumbnailUrl);
+        } else if (autoFetched) {
+          console.log('⚠️ Auto-fetched URL is invalid (Twitter emoji/icon):', autoFetched);
+        }
+      } catch (e) {
+        console.log('Could not fetch tweet thumbnail:', e.message);
       }
-    } catch (e) {
-      console.log('Could not fetch tweet thumbnail:', e.message);
     }
 
     const now = new Date();
@@ -885,7 +901,7 @@ app.post('/api/raids', verifyAdmin, validateTwitterURL, validateAmount, validate
       is_active: true
     };
 
-    // Add auto-fetched thumbnail if found
+    // Add thumbnail if found (either manual or auto-fetched)
     if (thumbnailUrl) {
       raidData.image_url = thumbnailUrl;
     }
