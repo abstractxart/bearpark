@@ -22133,8 +22133,8 @@
       const panel = document.getElementById('notificationPanel');
       panel.style.display = 'flex';
       setTimeout(() => panel.classList.add('visible'), 10);
-      // Mark all as read when opening panel
-      markAllNotificationsAsRead();
+      // Clear all notifications when panel is opened (they won't come back)
+      clearAllNotifications();
 
       // Add click-outside listener after a short delay to prevent immediate close
       setTimeout(() => {
@@ -22258,7 +22258,12 @@
         return;
       }
 
-      list.innerHTML = notifications.map(notif => {
+      // Sort by created_at - newest first (chronological order with most recent at top)
+      const sortedNotifications = [...notifications].sort((a, b) => {
+        return new Date(b.created_at) - new Date(a.created_at);
+      });
+
+      list.innerHTML = sortedNotifications.map(notif => {
         const unreadClass = notif.read ? '' : 'unread';
 
         // Helper function to render user avatar
@@ -22483,7 +22488,7 @@
       }
     };
 
-    // Mark all as read
+    // Mark all as read (legacy - keeping for compatibility)
     function markAllNotificationsAsRead() {
       let changed = false;
       notifications.forEach(notif => {
@@ -22501,6 +22506,19 @@
       recalculateUnreadCount();
       renderNotifications();
       updateBadge();
+    }
+
+    // Clear all notifications when panel is opened
+    // Once viewed, they should never come back
+    function clearAllNotifications() {
+      if (notifications.length > 0) {
+        console.log('🧹 Clearing all notifications - user viewed them');
+        notifications = [];
+        saveNotificationsToLocalStorage();
+        unreadCount = 0;
+        renderNotifications();
+        updateBadge();
+      }
     }
 
     // Recalculate unread count
