@@ -22941,10 +22941,7 @@
           </div>
           <div class="merch-order-summary">
             <div class="merch-summary-title">🛒 ORDER SUMMARY</div>
-            <div class="merch-summary-row">
-              <span id="merchSummaryItem">Product (Size)</span>
-              <span>$30.00</span>
-            </div>
+            <div id="merchConfirmItems"></div>
             <div class="merch-summary-row">
               <span>Shipping</span>
               <span style="color:#22c55e;">FREE</span>
@@ -22952,7 +22949,7 @@
             <div class="merch-summary-divider"></div>
             <div class="merch-summary-row merch-summary-total">
               <span>TOTAL</span>
-              <span>$30.00</span>
+              <span id="merchConfirmTotal">$30.00</span>
             </div>
           </div>
           <p style="color:#f59e0b; font-size:14px; margin:20px 0;">
@@ -22981,22 +22978,22 @@
 
           <p style="color:#ccc; margin-bottom:20px;">Choose your payment method:</p>
           <div class="merch-payment-options">
-            <label class="merch-payment-option" id="merchPayRLUSD">
-              <input type="radio" name="merchPayment" value="RLUSD" checked>
-              <div class="merch-payment-content">
-                <div class="merch-payment-title">💵 PAY WITH RLUSD</div>
-                <div class="merch-payment-amount"><span id="merchRlusdPayAmount">$30.00</span> RLUSD (Stablecoin)</div>
-                <div class="merch-payment-note">✓ Exact amount, no price fluctuation</div>
-              </div>
-            </label>
             <label class="merch-payment-option" id="merchPayXRP">
-              <input type="radio" name="merchPayment" value="XRP">
+              <input type="radio" name="merchPayment" value="XRP" checked>
               <div class="merch-payment-content">
                 <div class="merch-payment-title">⚡ PAY WITH XRP</div>
                 <div class="merch-payment-amount">~<span id="merchPaymentXrpAmount">--</span> XRP (<span id="merchXrpUsdEquiv">$30.00</span> USD)</div>
                 <div class="merch-payment-rate">📊 Live rate: 1 XRP = $<span id="merchXrpRate">--</span></div>
                 <div class="merch-payment-refresh">🔄 Rate refreshes in <span id="merchRateTimer">30</span>s</div>
                 <div class="merch-payment-note" style="color:#f59e0b;">⚠️ XRP auto-converts to RLUSD at purchase</div>
+              </div>
+            </label>
+            <label class="merch-payment-option" id="merchPayRLUSD">
+              <input type="radio" name="merchPayment" value="RLUSD">
+              <div class="merch-payment-content">
+                <div class="merch-payment-title">💵 PAY WITH RLUSD</div>
+                <div class="merch-payment-amount"><span id="merchRlusdPayAmount">$30.00</span> RLUSD (Stablecoin)</div>
+                <div class="merch-payment-note">✓ Exact amount, no price fluctuation</div>
               </div>
             </label>
           </div>
@@ -26400,6 +26397,8 @@
         if (data.success && data.products) {
           MERCH_PRODUCTS = data.products.map(p => ({
             ...p,
+            // Normalize price field (API returns 'price', cart uses 'price_usd')
+            price_usd: p.price_usd || p.price || 30,
             // Map 2XL from database to XXL for frontend display
             sizes: {
               S: p.sizes?.S || 0,
@@ -26795,10 +26794,12 @@
       }
 
       // Copy cart items for checkout
+      console.log('🛒 Starting cart checkout with cart:', merchCart);
       merchCheckoutItems = merchCart.map(item => ({
         ...item,
         product: MERCH_PRODUCTS.find(p => p.id === item.productId)
       }));
+      console.log('🛒 Checkout items prepared:', merchCheckoutItems);
 
       // Validate all products exist
       const missingProducts = merchCheckoutItems.filter(item => !item.product);
@@ -26814,6 +26815,10 @@
       if (merchCheckoutItems.length === 1) {
         merchCurrentProduct = merchCheckoutItems[0].product;
         merchSelectedSize = merchCheckoutItems[0].size;
+      } else {
+        // Multi-item checkout - clear legacy variables to avoid confusion
+        merchCurrentProduct = null;
+        merchSelectedSize = null;
       }
 
       // Close cart modal and proceed to checkout
@@ -27411,7 +27416,42 @@
       `;
 
       document.getElementById('merchConfirmAddress').innerHTML = addressHtml;
-      document.getElementById('merchSummaryItem').textContent = `${merchCurrentProduct.name} (${merchSelectedSize})`;
+
+      // Populate order summary with all cart items
+      const confirmItemsContainer = document.getElementById('merchConfirmItems');
+      console.log('📦 Checkout items:', merchCheckoutItems);
+      console.log('📦 Checkout total:', merchCheckoutTotal);
+
+      if (merchCheckoutItems && merchCheckoutItems.length > 0) {
+        // Multi-item checkout from cart - format like "1x PRODUCT NAME (SIZE)"
+        const totalItems = merchCheckoutItems.reduce((sum, item) => sum + item.quantity, 0);
+        confirmItemsContainer.innerHTML = merchCheckoutItems.map(item => `
+          <div class="merch-summary-row" style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.1);">
+            <span style="color:#fff;">${item.quantity}x ${item.name} (${item.size})</span>
+            <span style="color:#00ff88; font-weight:600;">$${(item.price * item.quantity).toFixed(2)}</span>
+          </div>
+        `).join('') + `
+          <div style="font-size:12px; color:#888; margin-top:8px; text-align:right;">${totalItems} item(s) total</div>
+        `;
+        document.getElementById('merchConfirmTotal').textContent = `$${merchCheckoutTotal.toFixed(2)}`;
+      } else if (merchCurrentProduct) {
+        // Single item direct checkout
+        const price = merchCurrentProduct.price_usd || 30;
+        confirmItemsContainer.innerHTML = `
+          <div class="merch-summary-row" style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.1);">
+            <span style="color:#fff;">1x ${merchCurrentProduct.name} (${merchSelectedSize})</span>
+            <span style="color:#00ff88; font-weight:600;">$${price.toFixed(2)}</span>
+          </div>
+          <div style="font-size:12px; color:#888; margin-top:8px; text-align:right;">1 item(s) total</div>
+        `;
+        document.getElementById('merchConfirmTotal').textContent = `$${price.toFixed(2)}`;
+      } else {
+        // Fallback - no items found (shouldn't happen)
+        console.error('No checkout items or product found');
+        alert('Error: No items in checkout. Please try again.');
+        merchShowScreen('gallery');
+        return;
+      }
 
       merchShowScreen('confirm');
     }
