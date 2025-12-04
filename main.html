@@ -22592,12 +22592,70 @@
 
         const data = await response.json();
         if (data.notifications && Array.isArray(data.notifications)) {
-          // Merge with existing notifications (avoid duplicates)
+          // Create a signature for deduplication based on type + key data
+          const getNotificationSignature = (n) => {
+            const type = n.type;
+            const d = n.data || {};
+            // Create unique signature based on notification type and core data
+            switch(type) {
+              case 'follower':
+                return `follower:${d.wallet}`;
+              case 'like':
+                return `like:${d.postId}:${d.wallet}`;
+              case 'comment':
+                return `comment:${d.postId}:${d.wallet}:${d.commentId || ''}`;
+              case 'reply':
+                return `reply:${d.postId}:${d.wallet}:${d.commentId || ''}`;
+              case 'reaction':
+                return `reaction:${d.commentId}:${d.wallet}:${d.reactionType || ''}`;
+              case 'mention':
+                return `mention:${d.postId}:${d.wallet}:${d.commentId || ''}`;
+              default:
+                return `${type}:${JSON.stringify(d)}`;
+            }
+          };
+
+          // Build signature map of existing local notifications
+          const existingSignatures = new Map();
+          notifications.forEach(n => {
+            existingSignatures.set(getNotificationSignature(n), n);
+          });
+
+          // Also track existing IDs for exact ID matches
           const existingIds = new Set(notifications.map(n => n.id));
-          const newNotifications = data.notifications.filter(n => !existingIds.has(n.id));
+
+          let changed = false;
+          const newNotifications = [];
+
+          for (const backendNotif of data.notifications) {
+            const signature = getNotificationSignature(backendNotif);
+            const existingBySignature = existingSignatures.get(signature);
+
+            if (existingIds.has(backendNotif.id)) {
+              // Exact ID match - skip, already have it
+              continue;
+            } else if (existingBySignature) {
+              // Same notification exists locally with different ID (real-time vs backend)
+              // Keep the local read status but update the ID to match backend
+              if (existingBySignature.read) {
+                // Mark the backend version as read too
+                backendNotif.read = true;
+              }
+              // Update local notification to use backend ID (for consistency)
+              existingBySignature.id = backendNotif.id;
+              changed = true;
+            } else {
+              // Truly new notification from backend
+              newNotifications.push(backendNotif);
+              changed = true;
+            }
+          }
 
           if (newNotifications.length > 0) {
             notifications = [...newNotifications, ...notifications];
+          }
+
+          if (changed) {
             saveNotificationsToLocalStorage();
             recalculateUnreadCount();
             renderNotifications();
