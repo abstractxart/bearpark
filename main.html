@@ -22133,8 +22133,8 @@
       const panel = document.getElementById('notificationPanel');
       panel.style.display = 'flex';
       setTimeout(() => panel.classList.add('visible'), 10);
-      // Clear all notifications when panel is opened (they won't come back)
-      clearAllNotifications();
+      // Mark all as read (stops badge) but keep them visible in the panel
+      markAllNotificationsAsRead();
 
       // Add click-outside listener after a short delay to prevent immediate close
       setTimeout(() => {
