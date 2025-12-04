@@ -3,20 +3,15 @@
 <head>
   <meta charset="utf-8" />
   <script>
-  // NUCLEAR: Unregister ALL service workers immediately
+  // 🐻❄️ COCAINE BEAR: Register service worker for caching (PERFORMANCE!)
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.getRegistrations().then(function(registrations) {
-      for (var i = 0; i < registrations.length; i++) {
-        registrations[i].unregister();
-      }
-    });
-    if ('caches' in window) {
-      caches.keys().then(function(names) {
-        for (var i = 0; i < names.length; i++) {
-          caches.delete(names[i]);
-        }
+    window.addEventListener('load', function() {
+      navigator.serviceWorker.register('/sw.js').then(function(reg) {
+        console.log('SW registered for scope:', reg.scope);
+      }).catch(function(err) {
+        console.log('SW registration failed:', err);
       });
-    }
+    });
   }
   </script>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />

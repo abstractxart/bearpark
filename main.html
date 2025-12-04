@@ -3,21 +3,15 @@
 <head>
   <meta charset="utf-8" />
   <script>
-  // NUCLEAR: Unregister ALL service workers immediately
+  // 🐻❄️ COCAINE BEAR: Register service worker for caching (PERFORMANCE!)
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.getRegistrations().then(function(registrations) {
-      for (var i = 0; i < registrations.length; i++) {
-        registrations[i].unregister();
-      }
-    });
-    // Also clear all caches
-    if ('caches' in window) {
-      caches.keys().then(function(names) {
-        for (var i = 0; i < names.length; i++) {
-          caches.delete(names[i]);
-        }
+    window.addEventListener('load', function() {
+      navigator.serviceWorker.register('/sw.js').then(function(reg) {
+        console.log('SW registered for scope:', reg.scope);
+      }).catch(function(err) {
+        console.log('SW registration failed:', err);
       });
-    }
+    });
   }
   </script>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover" />
@@ -73,12 +67,8 @@
   }
   </script>
 
-  <!-- 🐻 BROWSER COMPATIBILITY: Polyfills for old/weird browsers (Opera, Brave, Edge, old Android/iOS) -->
-  <script>
-  // Polyfill for Promise (IE11, old Android)
-  if(typeof Promise==='undefined'){document.write('<script src="https://cdn.jsdelivr.net/npm/promise-polyfill@8/dist/polyfill.min.js"><\/script>')}
-  </script>
-  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6,es7,fetch,AbortController,IntersectionObserver,ResizeObserver,Object.assign,Object.entries,Object.values,Object.fromEntries,Array.from,Array.prototype.includes,Array.prototype.find,Array.prototype.findIndex,Array.prototype.flat,Array.prototype.flatMap,String.prototype.includes,String.prototype.startsWith,String.prototype.endsWith,String.prototype.padStart,String.prototype.padEnd,Number.isNaN,Number.isFinite,Number.isInteger,Symbol,Symbol.iterator,Map,Set,WeakMap,WeakSet,URL,URLSearchParams,Element.prototype.closest,Element.prototype.matches,NodeList.prototype.forEach,requestAnimationFrame,CustomEvent,console.log"></script>
+  <!-- 🐻❄️ COCAINE BEAR: Removed polyfill.io (blocking) - inline fallbacks below handle everything -->
+  <!-- PERFORMANCE WIN: No external polyfill request for 99% of users with modern browsers -->
 
   <!-- 🐻 Fallbacks for browsers that block polyfill.io -->
   <script>
@@ -277,6 +267,9 @@
   *,*::before,*::after{-webkit-box-sizing:border-box;-moz-box-sizing:border-box;box-sizing:border-box}
   html{-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;text-size-adjust:100%;scroll-behavior:auto!important}
   img,video,iframe{content-visibility:auto;contain-intrinsic-size:300px 200px}
+  /* 🐻❄️ COCAINE BEAR: Skip rendering offscreen sections */
+  section{content-visibility:auto;contain-intrinsic-size:auto 500px}
+  .card,.modal,.drawer{contain:layout style paint}
   img[loading="lazy"]{opacity:0;-webkit-transition:opacity .3s;-moz-transition:opacity .3s;-o-transition:opacity .3s;transition:opacity .3s}
   img[loading="lazy"].loaded,img:not([loading="lazy"]){opacity:1}
   @media(prefers-reduced-motion:reduce){*{-webkit-animation:none!important;-moz-animation:none!important;-o-animation:none!important;animation:none!important;-webkit-transition:none!important;-moz-transition:none!important;-o-transition:none!important;transition:none!important;scroll-behavior:auto!important}}
@@ -301,10 +294,11 @@
     --tri-gradient: linear-gradient(to right, var(--stripe-purple) 0%, var(--stripe-purple) 33.33%, var(--stripe-yellow) 33.33%, var(--stripe-yellow) 66.66%, var(--stripe-green) 66.66%, var(--stripe-green) 100%);
 
     /* 🔥🐻 GODMODE GLASSMORPHISM + MATERIAL 3 SYSTEM 🐻🔥 */
-    /* Apple-style Glass Blur Effects */
-    --glass-blur: blur(40px) saturate(180%);
-    --glass-blur-heavy: blur(80px) saturate(200%);
-    --glass-blur-light: blur(20px) saturate(160%);
+    /* 🐻❄️ COCAINE BEAR OPTIMIZATION: Removed heavy blur - backgrounds are opaque anyway! */
+    /* Original values were blur(40-80px) which KILLED GPU on older devices */
+    --glass-blur: none;
+    --glass-blur-heavy: none;
+    --glass-blur-light: none;
 
     /* Transparent Glass Backgrounds */
     --glass-bg: rgba(30, 34, 38, 0.95);
@@ -317,43 +311,18 @@
     --glass-border-hover: rgba(255, 174, 0, 0.4);
 
     /* Material 3 Elevation with Glass */
-    --elevation-1-glass:
-      0 1px 2px rgba(0, 0, 0, 0.3),
-      0 1px 3px 1px rgba(0, 0, 0, 0.15),
-      inset 0 1px 0 rgba(255, 255, 255, 0.05);
-    --elevation-2-glass:
-      0 1px 2px rgba(0, 0, 0, 0.3),
-      0 2px 6px 2px rgba(0, 0, 0, 0.15),
-      0 0 20px rgba(255, 174, 0, 0.1),
-      inset 0 1px 0 rgba(255, 255, 255, 0.08);
-    --elevation-3-glass:
-      0 4px 8px 3px rgba(0, 0, 0, 0.15),
-      0 1px 3px rgba(0, 0, 0, 0.3),
-      0 0 30px rgba(255, 174, 0, 0.15),
-      inset 0 1px 0 rgba(255, 255, 255, 0.1);
-    --elevation-4-glass:
-      0 6px 10px 4px rgba(0, 0, 0, 0.15),
-      0 2px 3px rgba(0, 0, 0, 0.3),
-      0 0 40px rgba(255, 174, 0, 0.2),
-      inset 0 2px 0 rgba(255, 255, 255, 0.12);
-    --elevation-5-glass:
-      0 8px 12px 6px rgba(0, 0, 0, 0.15),
-      0 4px 4px rgba(0, 0, 0, 0.3),
-      0 0 60px rgba(255, 174, 0, 0.3),
-      inset 0 2px 0 rgba(255, 255, 255, 0.15);
+    /* 🐻❄️ COCAINE BEAR: Simplified shadows - 1-2 layers max for performance */
+    --elevation-1-glass: 0 2px 4px rgba(0, 0, 0, 0.25);
+    --elevation-2-glass: 0 4px 12px rgba(0, 0, 0, 0.3);
+    --elevation-3-glass: 0 6px 16px rgba(0, 0, 0, 0.35);
+    --elevation-4-glass: 0 8px 24px rgba(0, 0, 0, 0.4);
+    --elevation-5-glass: 0 12px 32px rgba(0, 0, 0, 0.45);
 
     /* Godmode Glow Effects */
-    --glow-gold:
-      0 0 20px rgba(255, 174, 0, 0.4),
-      0 0 40px rgba(255, 174, 0, 0.2),
-      0 0 60px rgba(255, 174, 0, 0.1);
-    --glow-honey:
-      0 0 15px rgba(255, 239, 179, 0.4),
-      0 0 30px rgba(255, 239, 179, 0.2);
-    --glow-tri:
-      0 0 20px rgba(104, 12, 217, 0.3),
-      0 0 40px rgba(255, 174, 0, 0.3),
-      0 0 60px rgba(7, 174, 8, 0.3);
+    /* 🐻❄️ COCAINE BEAR: Simplified glows - less layers = faster paint */
+    --glow-gold: 0 0 15px rgba(255, 174, 0, 0.3);
+    --glow-honey: 0 0 12px rgba(255, 239, 179, 0.3);
+    --glow-tri: 0 0 15px rgba(255, 174, 0, 0.25);
 
     /* 420FPS Smooth Spring Physics */
     --spring-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
@@ -363,8 +332,10 @@
     --spring-butter: cubic-bezier(0.16, 1, 0.3, 1);
 
     /* Performance Optimization */
+    /* 🐻❄️ COCAINE BEAR: Removed will-change variable - creates too many composite layers! */
+    /* Only apply will-change on ACTIVE animations, not as a variable */
     --transform-gpu: translateZ(0);
-    --will-change-transform: transform, opacity, box-shadow;
+    --will-change-transform: auto;
   }
 
   /* ==== BASE ============================================================ */
@@ -688,7 +659,7 @@
   .community-btn:hover{transform:translateY(-4px) scale(1.05);box-shadow:0 12px 32px rgba(237,183,35,0.5)}
   .btn-icon{font-size:22px;filter:drop-shadow(2px 2px 0 rgba(0,0,0,0.3))}
   .btn-text{position:relative;z-index:1}
-  .community-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;padding:20px;background:rgba(0,0,0,0.4);border-radius:16px;border:2px solid rgba(237,183,35,0.2);backdrop-filter:blur(10px);max-width:700px}
+  .community-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;padding:20px;background:rgba(0,0,0,0.85);border-radius:16px;border:2px solid rgba(237,183,35,0.2);max-width:700px}
   .stat-item{display:flex;flex-direction:column;align-items:center;gap:8px;min-width:100px}
   .stat-emoji{font-size:32px;animation:stat-pulse 2s ease-in-out infinite}
   .stat-text{font-size:13px;color:rgba(255,255,255,0.85);font-weight:700;text-align:center;text-shadow:1px 1px 2px #000}
@@ -725,7 +696,7 @@
   .slides img{width:100%;height:auto;flex:0 0 100%;object-fit:contain; user-select:none;-webkit-user-drag:none;pointer-events:none;background:#0b0d0e; transform-origin:center center;display:block;max-height:600px}
 
   /* Carousel Navigation Arrows */
-  .carousel-arrow{position:absolute;top:50%;transform:translateY(-50%);z-index:10;width:56px;height:56px;border-radius:50%;border:3px solid transparent;background:linear-gradient(#0b0d0e, #0b0d0e) padding-box, var(--tri-gradient) border-box;color:var(--gold);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.3s var(--ease-spring);opacity:0.7;backdrop-filter:blur(10px)}
+  .carousel-arrow{position:absolute;top:50%;transform:translateY(-50%);z-index:10;width:56px;height:56px;border-radius:50%;border:3px solid transparent;background:linear-gradient(#0b0d0e, #0b0d0e) padding-box, var(--tri-gradient) border-box;color:var(--gold);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.3s var(--ease-spring);opacity:0.9}
   .carousel-arrow:hover{opacity:1;transform:translateY(-50%) scale(1.1);box-shadow:0 8px 24px rgba(0,0,0,0.5), 0 0 20px rgba(237,183,35,0.3)}
   .carousel-arrow:active{transform:translateY(-50%) scale(0.95)}
   .carousel-arrow-left{left:-28px}
@@ -824,7 +795,7 @@
     display:flex; flex-direction:column;
   }
   .drawer.open{ transform:translateX(0) }
-  .drawer-scrim{ position:fixed; inset:0; background:rgba(0,0,0,.55); backdrop-filter:blur(2px); z-index:65 }
+  .drawer-scrim{ position:fixed; inset:0; background:rgba(0,0,0,.75); z-index:65 }
   .drawer-head{ flex-shrink:0; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 18px; padding-top:calc(88px + env(safe-area-inset-top)); border-bottom:4px solid; border-image: linear-gradient(to right, var(--stripe-purple) 0%, var(--stripe-purple) 33.33%, var(--stripe-yellow) 33.33%, var(--stripe-yellow) 66.66%, var(--stripe-green) 66.66%, var(--stripe-green) 100%) 1; background:linear-gradient(180deg, rgba(237,183,35,0.12) 0%, #1a1d22 100%); z-index:71 }
   .drawer-body{ flex:1; padding:20px; padding-bottom:calc(220px + env(safe-area-inset-bottom)); overflow:auto; display:flex; flex-direction:column; gap:20px }
 
@@ -865,8 +836,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(0,0,0,.75);
-    backdrop-filter: blur(8px);
+    background: rgba(0,0,0,.9);
     opacity: 0;
     pointer-events: none;
     transition: opacity .3s var(--ease-spring);
@@ -954,7 +924,7 @@
     align-items: center;
     justify-content: center;
     background: rgba(0,0,0,.8);
-    backdrop-filter: blur(10px);
+    /* backdrop-filter removed for performance */
     opacity: 0;
     pointer-events: none;
     transition: opacity .4s ease;
@@ -2037,7 +2007,7 @@
     position: absolute;
     inset: 0;
     background: rgba(0,0,0,0.85);
-    backdrop-filter: blur(8px);
+    /* backdrop-filter removed for performance */
   }
 
   .profile-modal-content {
@@ -2974,7 +2944,7 @@
     align-items: center;
     justify-content: center;
     z-index: 10000;
-    backdrop-filter: blur(10px);
+    /* backdrop-filter removed for performance */
   }
 
   .follow-list-modal {
@@ -6549,7 +6519,7 @@
     position: fixed;
     inset: 0;
     background: rgba(0,0,0,0.9);
-    backdrop-filter: blur(10px);
+    /* backdrop-filter removed for performance */
     z-index: 10000;
     display: flex;
     align-items: center;
@@ -6830,7 +6800,7 @@
     width: 100%;
     height: 100%;
     background: rgba(0, 0, 0, 0.92);
-    backdrop-filter: blur(15px);
+    /* backdrop-filter removed for performance */
     z-index: 10001;
     justify-content: center;
     align-items: center;
@@ -6848,7 +6818,7 @@
     }
     to {
       opacity: 1;
-      backdrop-filter: blur(15px);
+      /* backdrop-filter removed for performance */
     }
   }
 
@@ -10267,7 +10237,7 @@
     position: absolute;
     inset: 0;
     background: rgba(11,13,14,0.92);
-    backdrop-filter: blur(12px);
+    /* backdrop-filter removed for performance */
     animation: fadeIn 0.3s;
   }
 
@@ -12033,7 +12003,7 @@
         align-items: center;
         text-align: center;
         padding: 32px;
-        backdrop-filter: blur(8px);
+        /* backdrop-filter removed for performance */
       }
 
       .m7-overlay.hidden {
@@ -12420,7 +12390,7 @@
                 <span class="mins">0m</span>
                 <span class="secs">0s</span>
               </div>
-              <div class="timer-utc">Next Monday 00:00 UTC</div>
+              <div class="timer-utc">Next Wednesday 8:00 PM MT</div>
             </div>
           </div>
         </div>
@@ -13817,7 +13787,7 @@
       color: #fff;
       padding: 16px 32px;
       background: rgba(10, 10, 15, 0.85);
-      backdrop-filter: blur(10px);
+      /* backdrop-filter removed for performance */
       border-radius: 50px;
       cursor: pointer;
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -13887,7 +13857,7 @@
       width: 100%;
       height: 100%;
       background: rgba(0, 0, 0, 0.85);
-      backdrop-filter: blur(12px);
+      /* backdrop-filter removed for performance */
     }
 
     .nav-modal-content {
@@ -18499,17 +18469,17 @@
                      alt="XRP.cafe"
                      style="width:20px; height:20px; border-radius:50%; object-fit:cover;">
               </a>
-              <div class="loading-overlay" data-nft-id="${nft.NFTokenID}" style="position:absolute; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; color:var(--gold); font-size:14px; font-weight:900; backdrop-filter:blur(4px);">
+              <div class="loading-overlay" data-nft-id="${nft.NFTokenID}" style="position:absolute; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.85); display:flex; align-items:center; justify-content:center; color:var(--gold); font-size:14px; font-weight:900;">
                 Loading...
               </div>
             </div>
-            <div class="nft-info" data-nft-id="${nft.NFTokenID}" style="padding:12px; background:rgba(0,0,0,0.6); backdrop-filter:blur(10px); display:none;">
+            <div class="nft-info" data-nft-id="${nft.NFTokenID}" style="padding:12px; background:rgba(0,0,0,0.85); display:none;">
               <div style="text-align:center; margin-bottom:8px;">
                 <div style="color:var(--gold); font-weight:900; font-size:14px; margin-bottom:4px;">Loading...</div>
                 <div style="color:rgba(255,255,255,0.7); font-size:11px;">Please wait...</div>
               </div>
             </div>
-            <div style="padding:8px; background:rgba(0,0,0,0.8); backdrop-filter:blur(10px);">
+            <div style="padding:8px; background:rgba(0,0,0,0.9);">
               <button class="nft-select-btn" data-nft-id="${nft.NFTokenID}"
                       style="font-size:12px; padding:10px; background:#5D3FD3; color:#fff; border:3px solid transparent; border-radius:20px; font-weight:900; cursor:pointer; width:100%; transition:all 0.2s; text-transform:uppercase; letter-spacing:1px; box-shadow:0 4px 0 #000,0 4px 12px rgba(0,0,0,0.8); background-image:linear-gradient(#5D3FD3, #5D3FD3), var(--tri-gradient); background-origin:padding-box, border-box; background-clip:padding-box, border-box;"
                       onmouseover="this.style.backgroundImage='linear-gradient(#6D4FE3, #6D4FE3), var(--tri-gradient)'; this.style.transform='translateY(-2px)';"
