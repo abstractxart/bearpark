@@ -1788,12 +1788,12 @@
       { id: 3, name: 'Yellow Ring', description: 'A solid yellow ring around your profile picture', cost: 150, rarity: 'common', ringType: 'yellow' },
       { id: 4, name: 'Tri-Color Ring', description: 'A gradient ring with all BEARpark colors', cost: 400, rarity: 'rare', ringType: 'tricolor' },
       { id: 5, name: 'Animated Tri-Color Ring', description: 'An epic spinning gradient ring - the ultimate flex!', cost: 800, rarity: 'legendary', ringType: 'animated' },
-      { id: 7, name: 'Waves Ring', description: 'Flowing waves of energy surrounding your avatar. Legendary serenity.', cost: 800, rarity: 'legendary', ringType: 'waves-static', imageUrl: 'https://files.catbox.moe/6q69or.png' },
-      { id: 8, name: 'Spinning Ouroboros Ring', description: 'The eternal serpent spinning with infinite power. Green energy radiates from the ancient symbol.', cost: 1500, rarity: 'bearableguy123', ringType: 'ouroboros', imageUrl: 'https://files.catbox.moe/jedwz8.png' },
-      { id: 9, name: 'Spinning Waves Ring', description: 'Hypnotic waves spinning with pure white energy. Feel the power flow through you.', cost: 1500, rarity: 'bearableguy123', ringType: 'waves', imageUrl: 'https://files.catbox.moe/6q69or.png' },
+      { id: 7, name: 'Waves Ring', description: 'Flowing waves of energy surrounding your avatar. Legendary serenity.', cost: 800, rarity: 'legendary', ringType: 'waves-static', imageUrl: 'https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/6q69or.png' },
+      { id: 8, name: 'Spinning Ouroboros Ring', description: 'The eternal serpent spinning with infinite power. Green energy radiates from the ancient symbol.', cost: 1500, rarity: 'bearableguy123', ringType: 'ouroboros', imageUrl: 'https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/jedwz8.png' },
+      { id: 9, name: 'Spinning Waves Ring', description: 'Hypnotic waves spinning with pure white energy. Feel the power flow through you.', cost: 1500, rarity: 'bearableguy123', ringType: 'waves', imageUrl: 'https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/6q69or.png' },
       { id: 10, name: 'BEARABLEGUY123 Eclipse Ring', description: 'Bearableguy123 red mask energy! Pulsing blood moon animation. Only for the legends.', cost: 2000, rarity: 'bearableguy123', ringType: 'bearableguy123' },
-      { id: 11, name: 'Castle Walls Ring', description: 'Ancient fortress walls protecting your profile. Legendary strength and defense.', cost: 800, rarity: 'legendary', ringType: 'castle-static', imageUrl: 'https://files.catbox.moe/8vd6jp.png' },
-      { id: 12, name: 'Spinning Castle Walls Ring', description: 'The fortress spins with radiant white power. Ultimate protection and prestige.', cost: 1500, rarity: 'bearableguy123', ringType: 'castle', imageUrl: 'https://files.catbox.moe/8vd6jp.png' }
+      { id: 11, name: 'Castle Walls Ring', description: 'Ancient fortress walls protecting your profile. Legendary strength and defense.', cost: 800, rarity: 'legendary', ringType: 'castle-static', imageUrl: 'https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/8vd6jp.png' },
+      { id: 12, name: 'Spinning Castle Walls Ring', description: 'The fortress spins with radiant white power. Ultimate protection and prestige.', cost: 1500, rarity: 'bearableguy123', ringType: 'castle', imageUrl: 'https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/8vd6jp.png' }
     ];
 
     const banners = [
@@ -1886,7 +1886,7 @@
 
               previewHTML = `
                 <div class="ring-demo">
-                  <img src="https://files.catbox.moe/2f0v9c.webp" alt="Avatar" style="position: relative; z-index: 1;">
+                  <img src="https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/2f0v9c.webp" alt="Avatar" style="position: relative; z-index: 1;">
                   ${glowWrapper}
                   <img src="${item.imageUrl}" alt="${item.name}" class="image-ring-${item.ringType}" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%)${ouroborosRotation}; object-fit: contain; z-index: 2; pointer-events: none; ${spinAnimation}">
                 </div>
@@ -1896,7 +1896,7 @@
               previewHTML = `
                 <div class="ring-demo">
                   <div class="ring-border ${item.ringType}"></div>
-                  <img src="https://files.catbox.moe/2f0v9c.webp" alt="Avatar">
+                  <img src="https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/2f0v9c.webp" alt="Avatar">
                 </div>
               `;
             }
@@ -1905,7 +1905,7 @@
             previewHTML = `
               <div class="banner-demo" style="background: ${item.gradient};">
                 <div class="banner-profile-preview">
-                  <img src="https://files.catbox.moe/2f0v9c.webp" alt="Profile">
+                  <img src="https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/2f0v9c.webp" alt="Profile">
                 </div>
               </div>
             `;
