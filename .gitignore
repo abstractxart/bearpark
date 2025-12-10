@@ -19,5 +19,9 @@ Thumbs.db
 
 # Backup files
 *.bak
+*.backup
+
+# Windows reserved names
+nul
 
 .vercel
