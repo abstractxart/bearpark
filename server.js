@@ -1,7 +1,8 @@
 require('dotenv').config();
-// VERSION: 2.0.2 - Added activity_id field and version endpoint
+// VERSION: 3.0.0 - Added Redis caching + WebSocket + Re-enabled rate limiting
 const express = require('express');
-const SERVER_VERSION = '2.0.2';
+const http = require('http');
+const SERVER_VERSION = '3.0.0';
 const cors = require('cors');
 const path = require('path');
 const fetch = require('node-fetch');
@@ -10,10 +11,18 @@ const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const { body, param, validationResult } = require('express-validator');
 
+// Import scaling services
+const cache = require('./services/cache');
+const websocket = require('./services/websocket');
+
 const app = express();
+const server = http.createServer(app);
 const PORT = process.env.PORT || 3000;
 
-console.log('🚨 RATE LIMITING IS COMPLETELY DISABLED - ALL ROUTES UNRESTRICTED 🚨');
+// Initialize Redis cache
+cache.initCache();
+
+console.log('🚀 BEARpark v3.0.0 - Meme-Cycle Ready!');
 
 // XAMAN API Credentials from environment variables
 const XAMAN_API_KEY = process.env.XAMAN_API_KEY;
@@ -95,23 +104,36 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false // Allow iframes
 }));
 
-// 2. RATE LIMITING - Prevent API abuse
+// 2. RATE LIMITING - Tiered limits for different endpoints
+// Tier 1: General API (generous limits)
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 1000, // Limit each IP to 1000 requests per windowMs
+  max: 300, // 300 requests per 15 min (20/min average)
   message: { error: 'Too many requests, please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => req.path === '/health', // Don't limit health checks
+});
+
+// Tier 2: Authenticated/Profile endpoints (moderate limits)
+const profileLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 30, // 30 requests per minute
+  message: { error: 'Too many profile requests, please slow down.' },
   standardHeaders: true,
   legacyHeaders: false,
 });
 
+// Tier 3: Write operations (strict limits)
 const strictLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 200, // Limit each IP to 200 requests per windowMs
+  windowMs: 60 * 1000, // 1 minute
+  max: 20, // 20 requests per minute
   message: { error: 'Too many requests, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
 });
 
+// Tier 4: Score submissions (very strict)
 const scoreLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
   max: 10, // Max 10 score submissions per minute
@@ -120,9 +142,18 @@ const scoreLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// Apply general rate limiting to all routes
-// TEMPORARILY DISABLED - Fixing rate limiting issues
-// app.use(generalLimiter);
+// Tier 5: Raid completions (strictest - prevent farming)
+const raidLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 5, // Max 5 raid completions per minute
+  message: { error: 'Too many raid completions, please slow down.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Apply general rate limiting to all routes (RE-ENABLED!)
+app.use(generalLimiter);
+console.log('✅ Rate limiting ENABLED - Tiered limits active');
 
 // 3. ADMIN AUTHENTICATION MIDDLEWARE
 function requireAdmin(req, res, next) {
@@ -247,45 +278,52 @@ app.get('/api/xaman/payload/:uuid', async (req, res) => {
 // PROFILE API ENDPOINTS
 // ============================================
 
-// Get user profile
-app.get('/api/profile/:wallet_address', async (req, res) => {
+// Get user profile (CACHED)
+app.get('/api/profile/:wallet_address', profileLimiter, async (req, res) => {
   if (!supabase) {
     return res.status(503).json({ error: 'Database not configured' });
   }
 
   try {
     const { wallet_address } = req.params;
+    const cacheKey = cache.keys.profile(wallet_address);
 
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('wallet_address', wallet_address)
-      .single();
+    // Try cache first
+    const { data: cachedProfile, fromCache } = await cache.getOrFetch(
+      cacheKey,
+      cache.CACHE_TTL.PROFILE,
+      async () => {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('wallet_address', wallet_address)
+          .single();
 
-    if (error && error.code !== 'PGRST116') { // PGRST116 = not found
-      throw error;
-    }
+        if (error && error.code !== 'PGRST116') {
+          throw error;
+        }
 
-    if (!data) {
-      return res.json({ success: true, profile: null });
-    }
+        if (!data) {
+          return null;
+        }
 
-    // Also fetch honey points for this wallet
-    const { data: honeyData } = await supabase
-      .from('honey_points')
-      .select('total_points, raiding_points, games_points')
-      .eq('wallet_address', wallet_address)
-      .single();
+        // Also fetch honey points
+        const { data: honeyData } = await supabase
+          .from('honey_points')
+          .select('total_points, raiding_points, games_points')
+          .eq('wallet_address', wallet_address)
+          .single();
 
-    // Add honey balance to profile response
-    const profileWithHoney = {
-      ...data,
-      honey: honeyData?.total_points || 0,
-      honey_raiding: honeyData?.raiding_points || 0,
-      honey_games: honeyData?.games_points || 0
-    };
+        return {
+          ...data,
+          honey: honeyData?.total_points || 0,
+          honey_raiding: honeyData?.raiding_points || 0,
+          honey_games: honeyData?.games_points || 0
+        };
+      }
+    );
 
-    res.json({ success: true, profile: profileWithHoney });
+    res.json({ success: true, profile: cachedProfile, fromCache });
   } catch (error) {
     console.error('Error fetching profile:', error);
     res.status(500).json({ error: 'Failed to fetch profile', details: error.message });
@@ -293,7 +331,7 @@ app.get('/api/profile/:wallet_address', async (req, res) => {
 });
 
 // Create or update user profile
-app.post('/api/profile', async (req, res) => {
+app.post('/api/profile', strictLimiter, async (req, res) => {
   if (!supabase) {
     return res.status(503).json({ error: 'Database not configured' });
   }
@@ -321,6 +359,9 @@ app.post('/api/profile', async (req, res) => {
     if (error) {
       throw error;
     }
+
+    // Invalidate cache for this profile
+    await cache.invalidateProfile(wallet_address);
 
     res.json({ success: true, profile: data });
   } catch (error) {
@@ -715,7 +756,7 @@ app.post('/api/raids/complete', async (req, res) => {
   }
 });
 
-// Get honey points leaderboard
+// Get honey points leaderboard (CACHED)
 app.get('/api/leaderboard', async (req, res) => {
   if (!supabase) {
     return res.status(503).json({ error: 'Database not configured' });
@@ -724,18 +765,27 @@ app.get('/api/leaderboard', async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 15;
     const walletAddress = req.query.wallet;
+    const cacheKey = cache.keys.honeyLeaderboard(limit);
 
-    // Get leaderboard
-    const { data, error } = await supabase
-      .from('honey_points_leaderboard')
-      .select('*')
-      .limit(limit);
+    // Get leaderboard (cached)
+    const { data: leaderboard, fromCache } = await cache.getOrFetch(
+      cacheKey,
+      cache.CACHE_TTL.HONEY_LEADERBOARD,
+      async () => {
+        const { data, error } = await supabase
+          .from('honey_points_leaderboard')
+          .select('*')
+          .limit(limit);
 
-    if (error) {
-      throw error;
-    }
+        if (error) {
+          throw error;
+        }
 
-    // If wallet address provided, calculate their rank
+        return data || [];
+      }
+    );
+
+    // If wallet address provided, calculate their rank (not cached - personal)
     let userRank = null;
     if (walletAddress) {
       const { data: allData, error: rankError } = await supabase
@@ -751,7 +801,7 @@ app.get('/api/leaderboard', async (req, res) => {
       }
     }
 
-    res.json({ success: true, leaderboard: data || [], userRank });
+    res.json({ success: true, leaderboard, userRank, fromCache });
   } catch (error) {
     console.error('Error fetching honey points leaderboard:', error);
     res.status(500).json({ error: 'Failed to fetch leaderboard', details: error.message });
@@ -824,7 +874,7 @@ app.get('/api/beardrops/claim-status/:wallet', async (req, res) => {
 // GAME LEADERBOARD API ENDPOINTS
 // ============================================
 
-// Get leaderboard for a specific game
+// Get leaderboard for a specific game (CACHED)
 app.get('/api/leaderboard/:game_id', async (req, res) => {
   if (!supabase) {
     return res.status(503).json({ error: 'Database not configured' });
@@ -833,19 +883,28 @@ app.get('/api/leaderboard/:game_id', async (req, res) => {
   try {
     const { game_id } = req.params;
     const limit = parseInt(req.query.limit) || 100;
+    const cacheKey = cache.keys.gameLeaderboard(game_id, limit);
 
-    const { data, error } = await supabase
-      .from('game_leaderboard_with_profiles')
-      .select('*')
-      .eq('game_id', game_id)
-      .order('score', { ascending: false })
-      .limit(limit);
+    const { data: leaderboard, fromCache } = await cache.getOrFetch(
+      cacheKey,
+      cache.CACHE_TTL.GAME_LEADERBOARD,
+      async () => {
+        const { data, error } = await supabase
+          .from('game_leaderboard_with_profiles')
+          .select('*')
+          .eq('game_id', game_id)
+          .order('score', { ascending: false })
+          .limit(limit);
 
-    if (error) {
-      throw error;
-    }
+        if (error) {
+          throw error;
+        }
 
-    res.json({ success: true, leaderboard: data || [] });
+        return data || [];
+      }
+    );
+
+    res.json({ success: true, leaderboard, fromCache });
   } catch (error) {
     console.error('Error fetching leaderboard:', error);
     res.status(500).json({ error: 'Failed to fetch leaderboard', details: error.message });
@@ -854,7 +913,7 @@ app.get('/api/leaderboard/:game_id', async (req, res) => {
 
 // Submit or update score - WITH SECURITY VALIDATION
 app.post('/api/leaderboard',
-  // scoreLimiter, // Rate limit score submissions - TEMPORARILY DISABLED
+  scoreLimiter, // Rate limit score submissions - RE-ENABLED!
   validateWalletAddress, // Validate wallet format
   [
     body('wallet_address').isString().trim().notEmpty(),
@@ -951,6 +1010,10 @@ app.post('/api/leaderboard',
           throw error;
         }
 
+        // Invalidate leaderboard cache and notify via WebSocket
+        await cache.invalidateLeaderboards();
+        websocket.emitNewHighScore(game_id, data);
+
         console.log(`✅ Score submitted: ${wallet_address.substring(0, 8)}... scored ${finalScore} in ${game_id}`);
         res.json({ success: true, entry: data, is_high_score: true });
       } else {
@@ -993,25 +1056,35 @@ app.get('/api/leaderboard/:game_id/:wallet_address', async (req, res) => {
 // RAIDS API ENDPOINTS
 // ============================================
 
-// Get current active raids
+// Get current active raids (CACHED)
 app.get('/api/raids/current', async (req, res) => {
   if (!supabase) {
     return res.status(503).json({ error: 'Database not configured' });
   }
 
   try {
-    const { data, error } = await supabase
-      .from('raids')
-      .select('*')
-      .eq('is_active', true)
-      .gt('expires_at', new Date().toISOString())
-      .order('created_at', { ascending: false });
+    const cacheKey = cache.keys.raids();
 
-    if (error) {
-      throw error;
-    }
+    const { data: raids, fromCache } = await cache.getOrFetch(
+      cacheKey,
+      cache.CACHE_TTL.RAIDS,
+      async () => {
+        const { data, error } = await supabase
+          .from('raids')
+          .select('*')
+          .eq('is_active', true)
+          .gt('expires_at', new Date().toISOString())
+          .order('created_at', { ascending: false });
 
-    res.json({ success: true, raids: data || [] });
+        if (error) {
+          throw error;
+        }
+
+        return data || [];
+      }
+    );
+
+    res.json({ success: true, raids, fromCache });
   } catch (error) {
     console.error('Error fetching raids:', error);
     res.status(500).json({ error: 'Failed to fetch raids', details: error.message });
@@ -1021,7 +1094,7 @@ app.get('/api/raids/current', async (req, res) => {
 // Create new raid - ADMIN ONLY
 app.post('/api/raids',
   requireAdmin, // 🔒 Require admin authentication
-  // strictLimiter, // TEMPORARILY DISABLED
+  strictLimiter,
   [
     body('description').isString().trim().isLength({ min: 1, max: 500 }),
     body('twitter_url').isURL(),
@@ -1059,6 +1132,10 @@ app.post('/api/raids',
       if (error) {
         throw error;
       }
+
+      // Invalidate raids cache and notify via WebSocket
+      await cache.invalidateRaids();
+      websocket.emitNewRaid(data);
 
       console.log(`✅ [ADMIN] Created raid: ${description.substring(0, 50)}... by IP ${req.ip}`);
       res.json({ success: true, raid: data });
@@ -1165,11 +1242,18 @@ app.get('/api/version', (req, res) => {
 });
 
 // Health check
-app.get('/health', (req, res) => {
+app.get('/health', async (req, res) => {
+  const cacheStats = await cache.getStats();
+  const wsStats = websocket.getStats();
+
   res.json({
     status: 'ok',
     message: 'BEAR Park API server running',
     version: SERVER_VERSION,
+    scaling: {
+      cache: cacheStats,
+      websocket: wsStats,
+    },
     features: {
       xaman: !!XAMAN_API_KEY,
       database: !!supabase,
@@ -1597,13 +1681,32 @@ app.post('/api/cosmetics/unequip', async (req, res) => {
   return app._router.handle(Object.assign(req, { url: '/api/cosmetics/equip', method: 'POST' }), res, () => {});
 });
 
-app.listen(PORT, () => {
+// Initialize WebSocket server
+const corsOrigins = [
+  FRONTEND_URL,
+  'http://localhost:8080',
+  'http://127.0.0.1:8080',
+  'https://www.bearpark.xyz',
+  'https://bearpark.xyz',
+  'https://flappy-bear-five.vercel.app',
+  'https://bear-jumpventure1.vercel.app',
+  'https://bear-jumpventure.vercel.app'
+];
+websocket.initWebSocket(server, corsOrigins);
+
+server.listen(PORT, async () => {
+  const cacheStats = await cache.getStats();
+  const wsStats = websocket.getStats();
+
   console.log(`\n${'='.repeat(60)}`);
-  console.log(`🚀 BEAR Park API Server v2.0.0-SECURED`);
+  console.log(`🚀 BEAR Park API Server v${SERVER_VERSION} - MEME-CYCLE READY`);
   console.log(`${'='.repeat(60)}`);
   console.log(`\n🌐 Server: http://localhost:${PORT}`);
+  console.log(`\n⚡ SCALING INFRASTRUCTURE:`);
+  console.log(`   ${cacheStats.connected ? '✅' : '⚠️ '} Redis Cache: ${cacheStats.connected ? 'CONNECTED' : 'DISABLED (running without cache)'}`);
+  console.log(`   ${wsStats.enabled ? '✅' : '⚠️ '} WebSocket: ${wsStats.enabled ? 'ENABLED' : 'DISABLED'}`);
   console.log(`\n🔐 SECURITY FEATURES:`);
-  console.log(`   ✅ Rate Limiting (100 req/15min general, 10 req/min scores)`);
+  console.log(`   ✅ Rate Limiting (Tiered: 300/15min general, 30/min profile, 10/min scores)`);
   console.log(`   ✅ Helmet Security Headers`);
   console.log(`   ✅ Input Validation & Sanitization`);
   console.log(`   ✅ Admin Authentication (X-Admin-Key required)`);
@@ -1619,14 +1722,19 @@ app.listen(PORT, () => {
   console.log(`   - GET  /health - Server health & security status`);
   console.log(`   - POST /api/xaman/payload - Create XAMAN auth payload`);
   console.log(`   - GET  /api/xaman/payload/:uuid - Check XAMAN auth status`);
-  console.log(`   - GET  /api/profile/:wallet - Get user profile`);
+  console.log(`   - GET  /api/profile/:wallet - Get user profile (CACHED)`);
   console.log(`   - POST /api/profile - Update user profile`);
-  console.log(`   - GET  /api/points/:wallet - Get HONEY points`);
+  console.log(`   - GET  /api/points/:wallet - Get HONEY points (CACHED)`);
   console.log(`   - POST /api/points - Update HONEY points (validated)`);
-  console.log(`   - GET  /api/leaderboard/:game_id - Get game leaderboard`);
+  console.log(`   - GET  /api/leaderboard/:game_id - Get game leaderboard (CACHED)`);
   console.log(`   - POST /api/leaderboard - Submit score (validated, rate-limited)`);
-  console.log(`   - GET  /api/raids/current - Get active raids`);
+  console.log(`   - GET  /api/raids/current - Get active raids (CACHED)`);
   console.log(`   - POST /api/raids/complete - Complete raid (duplicate-protected)`);
+  console.log(`\n🔌 WEBSOCKET EVENTS:`);
+  console.log(`   - identify(wallet) - Authenticate WebSocket connection`);
+  console.log(`   - subscribe:leaderboard(gameId) - Subscribe to game updates`);
+  console.log(`   - subscribe:raids - Subscribe to raid updates`);
+  console.log(`   - subscribe:honey - Subscribe to honey leaderboard updates`);
   console.log(`\n🔒 ADMIN-ONLY ENDPOINTS (Require X-Admin-Key header):`);
   console.log(`   - POST /api/raids - Create new raid`);
   console.log(`   - DELETE /api/raids/:id - Delete raid`);
