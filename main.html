@@ -26437,7 +26437,7 @@
     // Fetch products from database API
     async function fetchMerchProducts() {
       try {
-        const response = await fetch('https://bearpark-production.up.railway.app/api/merch/products');
+        const response = await fetch('https://bearpark-api-production.up.railway.app/api/merch/products');
         const data = await response.json();
         if (data.success && data.products) {
           MERCH_PRODUCTS = data.products.map(p => ({
@@ -28113,7 +28113,7 @@
 
       try {
         // Fetch user's orders from backend
-        const response = await fetch(`https://bearpark-production.up.railway.app/api/merch/orders/my-orders?wallet=${walletAddress}`);
+        const response = await fetch(`https://bearpark-api-production.up.railway.app/api/merch/orders/my-orders?wallet=${walletAddress}`);
         const data = await response.json();
 
         if (data.success && data.orders) {
