@@ -165,10 +165,10 @@ function renderCarousel() {
         <div class="meme-info">
           <div class="meme-author">
             <div class="meme-avatar-container" style="position: relative; width: 60px; height: 60px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; overflow: visible;">
-              <img src="${avatarUrl}" alt="${meme.username || 'Anonymous'}" class="meme-avatar" onerror="this.src='https://files.catbox.moe/1z14d9.jpg';">
-              ${equippedRing ? `<img src="${equippedRing.image_url}" class="meme-cosmetic-ring ${equippedRing.ring_type}" alt="${equippedRing.name}" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 100%; height: 100%; pointer-events: none; z-index: 1; ${equippedRing.rarity === 'bearableguy123' ? 'animation: spinRingImage 3s linear infinite !important;' : ''}">` : ''}
+              <img src="${avatarUrl}" alt="${escapeHtml(meme.username || 'Anonymous')}" class="meme-avatar" onerror="this.src='https://files.catbox.moe/1z14d9.jpg';">
+              ${equippedRing ? `<img src="${equippedRing.image_url}" class="meme-cosmetic-ring ${equippedRing.ring_type}" alt="${escapeHtml(equippedRing.name || '')}" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 100%; height: 100%; pointer-events: none; z-index: 1; ${equippedRing.rarity === 'bearableguy123' ? 'animation: spinRingImage 3s linear infinite !important;' : ''}">` : ''}
             </div>
-            <span class="meme-username">${meme.username || 'Anonymous'}</span>
+            <span class="meme-username">${escapeHtml(meme.username || 'Anonymous')}</span>
           </div>
           ${meme.caption ? `<p class="meme-caption">${escapeHtml(meme.caption)}</p>` : ''}
           <div class="meme-actions">
@@ -381,10 +381,10 @@ async function loadLeaderboard() {
           <div class="leaderboard-info">
             <div class="leaderboard-user">
               <div class="leaderboard-avatar-container" style="position: relative; width: 48px; height: 48px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; overflow: visible;">
-                <img src="${avatarUrl}" alt="${meme.username || 'Anonymous'}" class="leaderboard-avatar" onerror="this.src='https://files.catbox.moe/1z14d9.jpg';">
-                ${equippedRing ? `<img src="${equippedRing.image_url}" class="leaderboard-cosmetic-ring ${equippedRing.ring_type}" alt="${equippedRing.name}" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 100%; height: 100%; pointer-events: none; z-index: 1; ${equippedRing.rarity === 'bearableguy123' ? 'animation: spinRingImage 3s linear infinite !important;' : ''}">` : ''}
+                <img src="${avatarUrl}" alt="${escapeHtml(meme.username || 'Anonymous')}" class="leaderboard-avatar" onerror="this.src='https://files.catbox.moe/1z14d9.jpg';">
+                ${equippedRing ? `<img src="${equippedRing.image_url}" class="leaderboard-cosmetic-ring ${equippedRing.ring_type}" alt="${escapeHtml(equippedRing.name || '')}" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 100%; height: 100%; pointer-events: none; z-index: 1; ${equippedRing.rarity === 'bearableguy123' ? 'animation: spinRingImage 3s linear infinite !important;' : ''}">` : ''}
               </div>
-              <span class="leaderboard-username">${meme.username || 'Anonymous'}</span>
+              <span class="leaderboard-username">${escapeHtml(meme.username || 'Anonymous')}</span>
             </div>
             <div class="leaderboard-stats">
               <span class="leaderboard-votes">⬆️ ${meme.vote_count || 0}</span>
