@@ -12789,9 +12789,6 @@
     <button id="installAppBtn" style="display:none;width:100%;padding:14px 20px;margin-bottom:10px;background:linear-gradient(135deg,#8b5cf6,#ec4899);color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:900;cursor:pointer;box-shadow:0 4px 12px rgba(139,92,246,0.5);text-shadow:0 1px 2px rgba(0,0,0,0.3);transition:all 0.2s;">
       📱 Install BEAR Park App
     </button>
-    <button id="enableNotificationsBtn" style="width:100%;padding:14px 20px;background:linear-gradient(135deg,#680cd9,#feb501);color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:900;cursor:pointer;box-shadow:0 4px 12px rgba(104,12,217,0.5);text-shadow:0 1px 2px rgba(0,0,0,0.3);transition:all 0.2s;">
-      🔔 Enable Raid Alerts
-    </button>
   </div>
 
   <style>
@@ -22086,62 +22083,6 @@
     document.getElementById('installAppBtn').style.display = 'none';
   });
 
-  document.getElementById('enableNotificationsBtn')?.addEventListener('click', async () => {
-    const btn = document.getElementById('enableNotificationsBtn');
-    btn.disabled = true;
-    btn.textContent = '⏳ Requesting permission...';
-
-    // Mark that we asked the user
-    localStorage.setItem('bearpark_push_asked', 'true');
-
-    const granted = await window.bearPushNotifications.requestPermission();
-
-    if (granted) {
-      btn.textContent = '✅ Notifications Enabled!';
-      setTimeout(() => {
-        btn.style.display = 'none';
-        document.getElementById('pwaControls').style.display = 'none';
-      }, 2000);
-    } else {
-      btn.textContent = '🔔 Enable Raid Alerts';
-      btn.disabled = false;
-      // Still hide the popup after user made a choice
-      setTimeout(() => {
-        document.getElementById('pwaControls').style.display = 'none';
-      }, 3000);
-    }
-  });
-
-  window.addEventListener('load', async () => {
-    // Check if user already accepted push notifications
-    const pushEnabled = localStorage.getItem('bearpark_push_enabled') === 'true';
-    const subscribed = await window.bearPushNotifications.isSubscribed();
-
-    // Check if user was already asked and denied/dismissed
-    const wasAsked = localStorage.getItem('bearpark_push_asked') === 'true';
-    const notificationPermission = Notification.permission;
-
-    console.log('🔔 [Push] Status check:', {
-      pushEnabled,
-      subscribed,
-      wasAsked,
-      notificationPermission
-    });
-
-    // Hide the popup if:
-    // 1. User is subscribed/enabled, OR
-    // 2. User explicitly denied permission, OR
-    // 3. User was already asked before
-    if (subscribed || pushEnabled || notificationPermission === 'denied' || wasAsked) {
-      const btn = document.getElementById('enableNotificationsBtn');
-      if (btn) btn.style.display = 'none';
-      console.log('🔔 [Push] Hiding notification prompt');
-    } else {
-      // Only show if user has never been asked
-      document.getElementById('pwaControls').style.display = 'block';
-      console.log('🔔 [Push] Showing notification prompt');
-    }
-  });
 
   // ===== NOTIFICATION SYSTEM =====
   (function initNotificationSystem() {
