@@ -13,12 +13,32 @@ class BearPushNotifications {
 
   /**
    * Initialize push notifications
-   * DISABLED: Service worker was causing iOS Chrome crash on fast scroll
+   * Re-enabled with iOS Chrome exclusion (iOS Chrome crashes on fast scroll with SW)
    */
   async init() {
-    // NUCLEAR FIX: Don't register service worker - it causes iOS Chrome to crash
-    // Push notifications temporarily disabled until we find a proper solution
-    return false;
+    if (!this.isSupported) {
+      console.log('🐻 Service Worker not supported');
+      return false;
+    }
+
+    // Detect iOS Chrome (CriOS) - skip service worker for it (causes crash on fast scroll)
+    const isIOSChrome = /CriOS/.test(navigator.userAgent);
+    if (isIOSChrome) {
+      console.log('🐻 Service Worker disabled for iOS Chrome (crash prevention)');
+      return false;
+    }
+
+    try {
+      this.registration = await navigator.serviceWorker.register('/sw.js', {
+        scope: '/',
+        updateViaCache: 'none' // iOS Safari needs this
+      });
+      console.log('🐻 Service Worker registered successfully');
+      return true;
+    } catch (error) {
+      console.error('🐻 Service Worker registration failed:', error);
+      return false;
+    }
   }
 
   /**
