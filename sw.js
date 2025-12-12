@@ -99,7 +99,8 @@ self.addEventListener('fetch', (event) => {
   }
 
   // Stale-while-revalidate for HTML
-  if (request.headers.get('accept')?.includes('text/html')) {
+  const acceptHeader = request.headers.get('accept');
+  if (acceptHeader && acceptHeader.includes('text/html')) {
     event.respondWith(
       caches.match(request).then(cached => {
         const fetchPromise = fetch(request).then(response => {
