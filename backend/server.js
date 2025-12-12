@@ -4782,8 +4782,8 @@ app.get('/api/admin/roles', verifyAdmin, async (req, res) => {
   }
 });
 
-// Check specific wallet's role and permissions - SECURITY: Added auth middleware
-app.get('/api/admin/check-role/:wallet', verifyAdmin, async (req, res) => {
+// Check specific wallet's role and permissions - PUBLIC endpoint (users check their own role)
+app.get('/api/admin/check-role/:wallet', async (req, res) => {
   try {
     const { wallet } = req.params;
 
