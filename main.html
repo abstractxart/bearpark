@@ -231,6 +231,25 @@
   @-o-keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
+  /* 🐻 MOBILE PERFORMANCE OPTIMIZATION =========================================== */
+  /* Disable expensive backdrop-filter effects on mobile devices to improve scrolling */
+  @media (max-width: 768px), (prefers-reduced-motion: reduce) {
+    .glass-effect,
+    .blur-bg,
+    [style*="backdrop-filter"] {
+      -webkit-backdrop-filter: none !important;
+      backdrop-filter: none !important;
+    }
+    /* Provide solid background fallback */
+    .glass-effect, .blur-bg {
+      background: rgba(0,0,0,0.85) !important;
+    }
+    /* Reduce box-shadow complexity on mobile */
+    .card, .honey-card, .stat-box, .tri-border-rounded {
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+    }
+  }
+
   /* Backdrop filter fallback (not supported in old browsers) */
   @supports not ((-webkit-backdrop-filter: blur(10px)) or (backdrop-filter: blur(10px))) {
     .glass-effect {
@@ -12258,7 +12277,7 @@
         <div class="game-card">
           <a href="https://www.bearpark.xyz/flappybear" rel="noopener noreferrer" style="text-decoration:none;">
             <div style="border:4px solid transparent; border-radius:16px; overflow:hidden; box-shadow:0 8px 24px rgba(0,0,0,0.4); background-image: linear-gradient(#1a1a1a, #1a1a1a), linear-gradient(135deg, #680cd9, #feb501, #00ff88); background-origin: border-box; background-clip: padding-box, border-box; transition: transform 0.3s ease, box-shadow 0.3s ease;">
-              <img src="https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/8k133u.png" alt="Flappy Bear" style="width:100%; height:auto; display:block;">
+              <img src="https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/8k133u.png" alt="Flappy Bear" loading="lazy" style="width:100%; height:auto; display:block;">
               <div style="padding:20px; background:#1a1a1a;">
                 <h3 style="color:var(--gold); font-size:24px; font-weight:900; margin:0 0 12px 0; text-align:center;">FLAPPY BEAR</h3>
                 <p style="color:rgba(255,255,255,0.85); font-size:15px; line-height:1.5; margin:0; text-align:center;">Tap to flap and dodge obstacles! Test your reflexes in this addictive arcade classic.</p>
@@ -12271,7 +12290,7 @@
         <div class="game-card">
           <a href="https://www.bearpark.xyz/bear-ninja" rel="noopener noreferrer" style="text-decoration:none;">
             <div style="border:4px solid transparent; border-radius:16px; overflow:hidden; box-shadow:0 8px 24px rgba(0,0,0,0.4); background-image: linear-gradient(#1a1a1a, #1a1a1a), linear-gradient(135deg, #680cd9, #feb501, #00ff88); background-origin: border-box; background-clip: padding-box, border-box; transition: transform 0.3s ease, box-shadow 0.3s ease;">
-              <img src="https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/478y6f.png" alt="Bear Ninja" style="width:100%; height:auto; display:block;">
+              <img src="https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/478y6f.png" alt="Bear Ninja" loading="lazy" style="width:100%; height:auto; display:block;">
               <div style="padding:20px; background:#1a1a1a;">
                 <h3 style="color:var(--gold); font-size:24px; font-weight:900; margin:0 0 12px 0; text-align:center;">BEAR NINJA</h3>
                 <p style="color:rgba(255,255,255,0.85); font-size:15px; line-height:1.5; margin:0; text-align:center;">Slice and dice your way through waves! Master the art of the ninja blade.</p>
@@ -12284,7 +12303,7 @@
         <div class="game-card">
           <a href="https://www.bearpark.xyz/bear-jumpventure" rel="noopener noreferrer" style="text-decoration:none;">
             <div style="border:4px solid transparent; border-radius:16px; overflow:hidden; box-shadow:0 8px 24px rgba(0,0,0,0.4); background-image: linear-gradient(#1a1a1a, #1a1a1a), linear-gradient(135deg, #680cd9, #feb501, #00ff88); background-origin: border-box; background-clip: padding-box, border-box; transition: transform 0.3s ease, box-shadow 0.3s ease;">
-              <img src="https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/njsz8n.png" alt="Bear Jumpventure" style="width:100%; height:auto; display:block;">
+              <img src="https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/njsz8n.png" alt="Bear Jumpventure" loading="lazy" style="width:100%; height:auto; display:block;">
               <div style="padding:20px; background:#1a1a1a;">
                 <h3 style="color:var(--gold); font-size:24px; font-weight:900; margin:0 0 12px 0; text-align:center;">BEAR JUMPVENTURE</h3>
                 <p style="color:rgba(255,255,255,0.85); font-size:15px; line-height:1.5; margin:0; text-align:center;">Jump across platforms and collect coins! Explore challenging levels in this platformer.</p>
@@ -12297,7 +12316,7 @@
         <div class="game-card">
           <a href="https://www.bearpark.xyz/bearpong" rel="noopener noreferrer" style="text-decoration:none;">
             <div style="border:4px solid transparent; border-radius:16px; overflow:hidden; box-shadow:0 8px 24px rgba(0,0,0,0.4); background-image: linear-gradient(#1a1a1a, #1a1a1a), linear-gradient(135deg, #680cd9, #feb501, #00ff88); background-origin: border-box; background-clip: padding-box, border-box; transition: transform 0.3s ease, box-shadow 0.3s ease;">
-              <img src="https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/bs753i.png" alt="Bear Pong" style="width:100%; height:auto; display:block;">
+              <img src="https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/bs753i.png" alt="Bear Pong" loading="lazy" style="width:100%; height:auto; display:block;">
               <div style="padding:20px; background:#1a1a1a;">
                 <h3 style="color:var(--gold); font-size:24px; font-weight:900; margin:0 0 12px 0; text-align:center;">BEAR PONG</h3>
                 <p style="color:rgba(255,255,255,0.85); font-size:15px; line-height:1.5; margin:0; text-align:center;">Battle it out in classic pong action! Compete head-to-head in this timeless arcade showdown.</p>
@@ -12365,11 +12384,11 @@
   <section class="alt" id="meme-of-the-week" style="padding: 0; position: relative; overflow: hidden;">
     <!-- Floating Bear Troll Faces -->
     <div class="bear-troll-container">
-      <img class="bear-troll-face" src="https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/zqn2i1.png" alt="" data-index="0">
-      <img class="bear-troll-face" src="https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/zqn2i1.png" alt="" data-index="1">
-      <img class="bear-troll-face" src="https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/zqn2i1.png" alt="" data-index="2">
-      <img class="bear-troll-face" src="https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/zqn2i1.png" alt="" data-index="3">
-      <img class="bear-troll-face" src="https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/zqn2i1.png" alt="" data-index="4">
+      <img class="bear-troll-face" src="https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/zqn2i1.png" alt="" loading="lazy" data-index="0">
+      <img class="bear-troll-face" src="https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/zqn2i1.png" alt="" loading="lazy" data-index="1">
+      <img class="bear-troll-face" src="https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/zqn2i1.png" alt="" loading="lazy" data-index="2">
+      <img class="bear-troll-face" src="https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/zqn2i1.png" alt="" loading="lazy" data-index="3">
+      <img class="bear-troll-face" src="https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/zqn2i1.png" alt="" loading="lazy" data-index="4">
     </div>
     <div class="wrap reveal">
       <div class="meme-section tri-border-rounded">
@@ -12650,7 +12669,7 @@
         <div class="overlay">
           <div class="community-content">
             <div class="community-badge">
-              <img src="https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/98rugn.png" alt="BEAR Community" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">
+              <img src="https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/98rugn.png" alt="BEAR Community" loading="lazy" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">
             </div>
             <h3 style="font-family:'Luckiest Guy',cursive; font-size:clamp(24px, 5vw, 36px); color:var(--gold); text-shadow:3px 3px 0 #000, 0 0 20px rgba(237,183,35,0.4); margin:16px 0 8px; text-align:center;">OFFICIAL COMMUNITIES!</h3>
             <p class="on-dark" style="text-align:center; font-size:clamp(15px, 3vw, 18px); margin:0 0 24px; max-width:500px; line-height:1.4;">Come meet the $BEAR fam and join the most vibrant community in crypto!</p>
@@ -14125,6 +14144,38 @@
   const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? 'http://localhost:3000'
     : '';
+
+  // === SAFE STORAGE WRAPPER (Safari Private Mode Fix) ===
+  // Safari Private Mode throws QuotaExceededError on localStorage.setItem()
+  function safeStorage(action, key, value) {
+    try {
+      if (action === 'get') return localStorage.getItem(key);
+      if (action === 'set') { localStorage.setItem(key, value); return true; }
+      if (action === 'remove') { localStorage.removeItem(key); return true; }
+    } catch (e) {
+      console.warn('Storage unavailable (Private Mode?):', e.message);
+      return action === 'get' ? null : false;
+    }
+  }
+
+  // === FETCH WITH TIMEOUT (Safari/iOS Fix) ===
+  // Safari aggressively times out slow requests - add explicit timeout handling
+  async function fetchWithTimeout(url, options = {}, timeout = 15000) {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+    try {
+      const response = await fetch(url, { ...options, signal: controller.signal });
+      clearTimeout(id);
+      return response;
+    } catch (error) {
+      clearTimeout(id);
+      if (error.name === 'AbortError') {
+        console.warn('Request timeout:', url);
+        throw new Error('Request timeout - please try again');
+      }
+      throw error;
+    }
+  }
 
   // === INTERVAL MANAGER - Prevent memory leaks ===
   const IntervalManager = {
