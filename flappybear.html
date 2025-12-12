@@ -9,9 +9,13 @@
   <link rel="icon" href="/favicon.ico">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 
-  <!-- BROWSER COMPATIBILITY: Polyfills for old browsers (Opera, Brave, Edge, old Android/iOS) -->
-  <script>if(typeof Promise==='undefined'){document.write('<script src="https://cdn.jsdelivr.net/npm/promise-polyfill@8/dist/polyfill.min.js"><\/script>')}</script>
-  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6,fetch,URLSearchParams,Array.from,Object.assign,Element.prototype.classList"></script>
+  <!-- BROWSER COMPATIBILITY: Inline polyfills (polyfill.io blocked by some browsers) -->
+  <script>
+  if(typeof Promise==='undefined'){document.write('<script src="https://cdn.jsdelivr.net/npm/promise-polyfill@8/dist/polyfill.min.js"><\/script>')}
+  if(!window.fetch){document.write('<script src="https://cdn.jsdelivr.net/npm/whatwg-fetch@3.6.2/dist/fetch.umd.js"><\/script>')}
+  if(!Array.from){Array.from=function(a){return[].slice.call(a)};}
+  if(!Object.assign){Object.assign=function(t){for(var i=1;i<arguments.length;i++){var s=arguments[i];for(var k in s){if(Object.prototype.hasOwnProperty.call(s,k)){t[k]=s[k];}}}return t;};}
+  </script>
   <script>
   (function(){
     if(!window.URLSearchParams){var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/url-search-params-polyfill@8.2.0/index.js';document.head.appendChild(s);}
@@ -32,6 +36,11 @@
       height: 100%;
       overflow: hidden;
       background: #000;
+      /* Mobile touch optimization - prevents 300ms tap delay */
+      touch-action: manipulation;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
     }
 
     #game-frame {
@@ -39,6 +48,7 @@
       height: 100%;
       border: none;
       display: block;
+      touch-action: manipulation;
     }
 
     #loading {

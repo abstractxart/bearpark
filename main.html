@@ -9,6 +9,25 @@
       navigator.serviceWorker.register('/sw.js').catch(function(){});
     });
   }
+  // 🐻 CDN FALLBACK DETECTION: Gracefully handle blocked CDNs (Brave shields, etc)
+  window.addEventListener('load', function() {
+    // Check if Chart.js loaded (may be blocked by Brave shields)
+    if (typeof Chart === 'undefined') {
+      console.warn('⚠️ Chart.js blocked by browser - charts will be disabled');
+      document.querySelectorAll('.chart-container, #plChart').forEach(function(el) {
+        el.innerHTML = '<p style="color:#888;text-align:center;padding:20px;">Charts unavailable in this browser</p>';
+      });
+    }
+    // Check if QRCode loaded
+    if (typeof QRCode === 'undefined') {
+      console.warn('⚠️ QRCode library blocked - QR codes will show as text');
+      window.QRCodeFallback = true;
+    }
+    // Check if xrpl loaded
+    if (typeof xrpl === 'undefined') {
+      console.warn('⚠️ XRPL library blocked - some wallet features may be limited');
+    }
+  });
   </script>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover" />
   <!-- 🐻❄️ COCAINE BEAR: Enable caching for SPEED -->
@@ -165,15 +184,30 @@
   <script defer src="https://unpkg.com/xrpl@3.0.0/build/xrpl-latest-min.js"></script>
 
   <!-- 🦘 JOEY WALLET: WalletConnect SDK for Joey integration -->
+  <!-- Fallback script for browsers that don't support dynamic import -->
+  <script defer src="https://unpkg.com/@walletconnect/sign-client@2.11.0/dist/index.umd.js"
+          onerror="console.warn('WalletConnect UMD fallback blocked')"
+          onload="window.WalletConnectSignClient = window.WalletConnectSignClient || window.SignClient"></script>
   <script>
     (async function loadWalletConnect() {
+      // Skip if already loaded via fallback script
+      if (window.WalletConnectSignClient) {
+        console.log('✅ WalletConnect already loaded');
+        return;
+      }
       try {
-        console.log('🦘 Loading WalletConnect...');
+        console.log('🦘 Loading WalletConnect via dynamic import...');
         const module = await import('https://esm.sh/@walletconnect/sign-client@2.11.0');
         window.WalletConnectSignClient = module.default;
         console.log('✅ WalletConnect SignClient loaded successfully');
       } catch (err) {
-        console.error('❌ WalletConnect load failed:', err);
+        // Dynamic import failed - check if UMD fallback loaded
+        if (window.SignClient) {
+          window.WalletConnectSignClient = window.SignClient;
+          console.log('✅ WalletConnect loaded via UMD fallback');
+        } else {
+          console.warn('⚠️ WalletConnect unavailable - Joey Wallet disabled:', err.message);
+        }
       }
     })();
   </script>
