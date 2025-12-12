@@ -11241,8 +11241,8 @@
   <!-- Twitter Widgets Script for Embedded Tweets -->
   <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
 
-  <!-- PWA Push Notifications -->
-  <script src="/frontend/push-notifications.js"></script>
+  <!-- PWA Push Notifications - PERFORMANCE: Added defer -->
+  <script defer src="/frontend/push-notifications.js"></script>
 </head>
 <body>
   <!-- Fixed Top Navigation -->
@@ -29547,11 +29547,8 @@ if (typeof window.addEventListener !== 'undefined') {
       document.querySelectorAll('img[loading="lazy"]').forEach(img => imgObserver.observe(img));
     }
 
-    // 🐻❄️ COCAINE BEAR: Passive event listeners for scroll performance
-    document.addEventListener('scroll', function(){}, { passive: true });
-    document.addEventListener('touchstart', function(){}, { passive: true });
-    document.addEventListener('touchmove', function(){}, { passive: true });
-    document.addEventListener('wheel', function(){}, { passive: true });
+    // PERFORMANCE: Removed empty passive listeners (they did nothing)
+    // Browsers auto-detect passive for scroll/touch since Chrome 56
 
     // 🐻❄️ COCAINE BEAR: Reduce motion for low-end devices
     if (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) {
