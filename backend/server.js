@@ -102,10 +102,7 @@ try {
     // Don't throw or exit - let the server start and handle errors in routes
   } else {
     console.log('Initializing XAMAN SDK...');
-    console.log('API Key length:', XAMAN_API_KEY?.length);
-    console.log('API Secret length:', XAMAN_API_SECRET?.length);
-    console.log('API Key (first 10 chars):', XAMAN_API_KEY?.substring(0, 10));
-    console.log('API Secret (first 10 chars):', XAMAN_API_SECRET?.substring(0, 10));
+    // SECURITY: Don't log API credentials - removed for audit compliance
     xumm = new XummSdk(XAMAN_API_KEY, XAMAN_API_SECRET);
     console.log('✅ XAMAN SDK initialized successfully');
   }
@@ -118,8 +115,7 @@ try {
 app.use(compression());
 
 // Rate limiting to prevent API abuse and brute force attacks
-// TEMPORARILY DISABLED for general API - but CLAIM endpoint has strict limiter
-/*
+// SECURITY: Enabled for audit compliance
 const apiLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute window
   max: 300, // 300 requests per minute per IP (5 per second - allows normal use, blocks spam)
@@ -128,8 +124,7 @@ const apiLimiter = rateLimit({
   legacyHeaders: false
 });
 app.use('/api/', apiLimiter);
-*/
-console.log('⚠️ General rate limiting disabled - CLAIM endpoint has strict limiter');
+console.log('✅ Rate limiting enabled: 300 requests/minute per IP');
 
 // ========== CRITICAL: STRICT RATE LIMITER FOR CLAIM ENDPOINT ==========
 // Prevents rapid-fire claim attempts (race condition exploit protection)
@@ -155,6 +150,15 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
+
+// ===== SECURITY: SAFE ERROR HANDLER =====
+// AUDIT COMPLIANCE: Never expose internal error details to clients
+function safeErrorResponse(res, error, statusCode = 500, publicMessage = 'Internal server error') {
+  // Log full error for debugging (server-side only)
+  console.error('[ERROR]', error);
+  // Return generic message to client (no stack traces or DB details)
+  return res.status(statusCode).json({ success: false, error: publicMessage });
+}
 
 // ===== SECURITY HEADERS =====
 // Add security headers to ALL responses
@@ -435,7 +439,7 @@ app.get('/api/xaman/payload/:uuid', async (req, res) => {
     res.json(payload);
   } catch (error) {
     console.error('Error getting payload status:', error);
-    res.status(500).json({ error: 'Internal server error', message: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -456,7 +460,7 @@ app.get('/api/leaderboard', async (req, res) => {
 
     if (error) {
       console.error('Error fetching leaderboard:', error);
-      return res.status(500).json({ success: false, error: error.message });
+      return safeErrorResponse(res, error);
     }
 
     const response = {
@@ -482,7 +486,7 @@ app.get('/api/leaderboard', async (req, res) => {
     res.json(response);
   } catch (error) {
     console.error('Error in leaderboard endpoint:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -502,7 +506,7 @@ app.get('/api/leaderboard/:gameId', async (req, res) => {
 
     if (error) {
       console.error(`Error fetching ${gameId} leaderboard:`, error);
-      return res.status(500).json({ success: false, error: error.message });
+      return safeErrorResponse(res, error);
     }
 
     let leaderboard = data || [];
@@ -548,7 +552,7 @@ app.get('/api/leaderboard/:gameId', async (req, res) => {
     });
   } catch (error) {
     console.error(`Error in ${req.params.gameId} leaderboard endpoint:`, error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -567,7 +571,7 @@ app.get('/api/leaderboard/:gameId/:walletAddress', async (req, res) => {
 
     if (error && error.code !== 'PGRST116') {
       console.error(`Error fetching stats for ${walletAddress} in ${gameId}:`, error);
-      return res.status(500).json({ success: false, error: error.message });
+      return safeErrorResponse(res, error);
     }
 
     if (!data) {
@@ -598,7 +602,7 @@ app.get('/api/leaderboard/:gameId/:walletAddress', async (req, res) => {
     });
   } catch (error) {
     console.error(`Error in /api/leaderboard/:gameId/:walletAddress:`, error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -738,7 +742,7 @@ app.post('/api/leaderboard', validateWallet, validateAmount, async (req, res) =>
 
   } catch (error) {
     console.error('Error in POST /api/leaderboard:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -755,7 +759,7 @@ app.get('/api/points/:wallet', async (req, res) => {
 
     if (error && error.code !== 'PGRST116') { // PGRST116 = not found
       console.error('Error fetching points:', error);
-      return res.status(500).json({ success: false, error: error.message });
+      return safeErrorResponse(res, error);
     }
 
     res.json({
@@ -766,7 +770,7 @@ app.get('/api/points/:wallet', async (req, res) => {
     });
   } catch (error) {
     console.error('Error in points endpoint:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -787,12 +791,12 @@ app.get('/api/honey-points/24h', async (req, res) => {
       .eq('wallet_address', wallet)
       .gte('created_at', midnightUTC.toISOString());
     if (error) {
-      return res.status(500).json({ success: false, error: error.message });
+      return safeErrorResponse(res, error);
     }
     const points = data?.reduce((sum, row) => sum + parseFloat(row.points || 0), 0) || 0;
     res.json({ success: true, wallet, points });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -914,14 +918,14 @@ app.post('/api/raids', verifyAdmin, validateTwitterURL, validateAmount, validate
 
     if (error) {
       console.error('Error creating raid:', error);
-      return res.status(500).json({ success: false, error: error.message });
+      return safeErrorResponse(res, error);
     }
 
     console.log('✅ Raid created successfully:', data);
     res.json({ success: true, raid: data });
   } catch (error) {
     console.error('Error in create raid endpoint:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -937,13 +941,13 @@ app.get('/api/raids/current', async (req, res) => {
 
     if (error) {
       console.error('Error fetching raids:', error);
-      return res.status(500).json({ success: false, error: error.message });
+      return safeErrorResponse(res, error);
     }
 
     res.json({ success: true, raids: data || [] });
   } catch (error) {
     console.error('Error in get raids endpoint:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -957,13 +961,13 @@ app.get('/api/raids/all', async (req, res) => {
 
     if (error) {
       console.error('Error fetching all raids:', error);
-      return res.status(500).json({ success: false, error: error.message });
+      return safeErrorResponse(res, error);
     }
 
     res.json({ success: true, raids: data || [] });
   } catch (error) {
     console.error('Error in get all raids endpoint:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -979,14 +983,14 @@ app.delete('/api/raids/:id', verifyAdmin, async (req, res) => {
 
     if (error) {
       console.error('Error deleting raid:', error);
-      return res.status(500).json({ success: false, error: error.message });
+      return safeErrorResponse(res, error);
     }
 
     console.log(`✅ Raid ${id} deleted successfully`);
     res.json({ success: true });
   } catch (error) {
     console.error('Error in delete raid endpoint:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -1225,7 +1229,7 @@ app.post('/api/raids/complete', validateWallet, validateAmount, async (req, res)
 
   } catch (error) {
     console.error('Error recording raid completion:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -1326,7 +1330,7 @@ app.post('/api/games/complete', validateWallet, async (req, res) => {
 
   } catch (error) {
     console.error('Error awarding game points:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -1346,7 +1350,7 @@ app.get('/api/games/daily-status/:wallet/:game_id', async (req, res) => {
 
       if (error) {
         console.error('Error fetching all games status:', error);
-        return res.status(500).json({ success: false, error: error.message });
+        return safeErrorResponse(res, error);
       }
 
       const MAX_DAILY_MINUTES = 123;
@@ -1386,7 +1390,7 @@ app.get('/api/games/daily-status/:wallet/:game_id', async (req, res) => {
 
   } catch (error) {
     console.error('Error fetching daily game status:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -1405,7 +1409,7 @@ app.post('/api/games/reset-daily/:wallet', async (req, res) => {
 
     if (error) {
       console.error('Error resetting daily games:', error);
-      return res.status(500).json({ success: false, error: error.message });
+      return safeErrorResponse(res, error);
     }
 
     console.log(`✅ Reset daily games for wallet: ${wallet}`);
@@ -1419,7 +1423,7 @@ app.post('/api/games/reset-daily/:wallet', async (req, res) => {
 
   } catch (error) {
     console.error('Error in reset-daily endpoint:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -1528,7 +1532,7 @@ app.post('/api/pong/betting', validateWallet, async (req, res) => {
 
   } catch (error) {
     console.error('❌ [PONG BETTING] Error:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -1575,7 +1579,7 @@ app.get('/api/users', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching users:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -1591,7 +1595,7 @@ app.get('/api/profile/:wallet', async (req, res) => {
 
     if (error && error.code !== 'PGRST116') { // PGRST116 = not found
       console.error('Error fetching profile:', error);
-      return res.status(500).json({ success: false, error: error.message });
+      return safeErrorResponse(res, error);
     }
 
     // If no profile found, return null
@@ -1620,7 +1624,7 @@ app.get('/api/profile/:wallet', async (req, res) => {
     });
   } catch (error) {
     console.error('Error in profile endpoint:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -1677,7 +1681,7 @@ app.post('/api/profile', validateWallet, validateTextLengths, async (req, res) =
 
   } catch (error) {
     console.error('Error saving profile:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -1717,7 +1721,7 @@ app.post('/api/profile/bio', validateWallet, validateTextLengths, async (req, re
     res.json({ success: true, message: 'Bio updated successfully' });
   } catch (error) {
     console.error('Error updating bio:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -1781,7 +1785,7 @@ app.get('/api/comments/:wallet', async (req, res) => {
     res.json({ success: true, comments: comments });
   } catch (error) {
     console.error('Error fetching comments:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -1872,7 +1876,7 @@ app.post('/api/comments', validateWallet, validateTextLengths, async (req, res) 
     res.json({ success: true, comment: data });
   } catch (error) {
     console.error('Error posting comment:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -1976,7 +1980,7 @@ app.delete('/api/comments/:id', async (req, res) => {
     res.json({ success: true, message: 'Comment deleted successfully' });
   } catch (error) {
     console.error('Error deleting comment:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -2217,7 +2221,7 @@ app.post('/api/comments/:id/react', async (req, res) => {
     }
   } catch (error) {
     console.error('Error toggling reaction:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -2259,7 +2263,7 @@ app.get('/api/comments/:id/reactions', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching reactions:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -2403,7 +2407,7 @@ app.post('/api/follow', validateWallet, async (req, res) => {
     res.json({ success: true, action });
   } catch (error) {
     console.error('Error toggling follow:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -2454,7 +2458,7 @@ app.get('/api/follow/status', async (req, res) => {
     });
   } catch (error) {
     console.error('Error checking follow status:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -2516,7 +2520,7 @@ app.get('/api/follow/counts/:wallet', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching follow counts:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -2576,7 +2580,7 @@ app.get('/api/follow/followers/:wallet', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching followers:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -2636,7 +2640,7 @@ app.get('/api/follow/following/:wallet', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching following:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -3478,20 +3482,18 @@ setInterval(checkMerchPayments, 30000);
 // Also run once on startup after 5 seconds
 setTimeout(checkMerchPayments, 5000);
 
-// Debug endpoint - check XUMM SDK status
-app.get('/api/merch/admin/debug', (req, res) => {
+// Debug endpoint - check XUMM SDK status - SECURITY: Added auth + reduced info exposure
+app.get('/api/merch/admin/debug', verifyAdminSession, (req, res) => {
   res.json({
     xumm_initialized: !!xumm,
     xumm_payload_exists: !!(xumm && xumm.payload),
-    xumm_payload_create_exists: !!(xumm && xumm.payload && typeof xumm.payload.create === 'function'),
-    xaman_api_key_exists: !!process.env.XAMAN_API_KEY,
-    xaman_api_secret_exists: !!process.env.XAMAN_API_SECRET,
-    admin_wallets: MERCH_ADMIN_WALLETS.length
+    // SECURITY: Don't expose environment variable status
+    admin_wallets_configured: MERCH_ADMIN_WALLETS.length > 0
   });
 });
 
-// Manual payment check endpoint
-app.get('/api/merch/check-payments', async (req, res) => {
+// Manual payment check endpoint - SECURITY: Added auth middleware
+app.get('/api/merch/check-payments', verifyAdminSession, async (req, res) => {
   try {
     // Get pending orders
     const { data: pendingOrders, error: ordersError } = await supabaseAdmin
@@ -3556,8 +3558,8 @@ app.get('/api/merch/check-payments', async (req, res) => {
   }
 });
 
-// Debug endpoint - show ALL recent orders
-app.get('/api/merch/debug-orders', async (req, res) => {
+// Debug endpoint - show ALL recent orders - SECURITY: Added auth middleware
+app.get('/api/merch/debug-orders', verifyAdminSession, async (req, res) => {
   try {
     const { data: allOrders, error } = await supabaseAdmin
       .from('merch_orders')
@@ -3596,8 +3598,8 @@ app.get('/api/merch/debug-orders', async (req, res) => {
   }
 });
 
-// TEST endpoint - try WITH and WITHOUT txjson wrapper
-app.get('/api/merch/test-payment', async (req, res) => {
+// TEST endpoint - try WITH and WITHOUT txjson wrapper - SECURITY: Added auth middleware
+app.get('/api/merch/test-payment', verifyAdminSession, async (req, res) => {
   try {
     const apiKey = process.env.XAMAN_API_KEY;
     const apiSecret = process.env.XAMAN_API_SECRET;
@@ -3649,8 +3651,8 @@ app.get('/api/merch/test-payment', async (req, res) => {
   }
 });
 
-// TEST endpoint - try Payment via SDK (not direct fetch)
-app.get('/api/merch/test-sdk-payment', async (req, res) => {
+// TEST endpoint - try Payment via SDK (not direct fetch) - SECURITY: Added auth middleware
+app.get('/api/merch/test-sdk-payment', verifyAdminSession, async (req, res) => {
   try {
     if (!xumm) {
       return res.json({ error: 'XUMM SDK not initialized' });
@@ -4283,14 +4285,14 @@ app.patch('/api/users/:wallet', async (req, res) => {
 
     if (error) {
       console.error('Error updating user name:', error);
-      return res.status(500).json({ success: false, error: error.message });
+      return safeErrorResponse(res, error);
     }
 
     console.log(`✅ Updated display name for ${wallet} to: ${display_name}`);
     res.json({ success: true });
   } catch (error) {
     console.error('Error in update user endpoint:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -4396,7 +4398,7 @@ app.post('/api/admin/adjust-points', verifyAdmin, validateWallet, validateTextLe
     res.json({ success: true, new_amount: pointsAmount });
   } catch (error) {
     console.error('Error adjusting points:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -4435,7 +4437,7 @@ app.post('/api/admin/ban-user', verifyAdmin, validateWallet, validateTextLengths
     res.json({ success: true });
   } catch (error) {
     console.error('Error banning user:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -4468,12 +4470,12 @@ app.post('/api/admin/unban-user', verifyAdmin, validateWallet, async (req, res) 
     res.json({ success: true });
   } catch (error) {
     console.error('Error unbanning user:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
-// 4. Get Banned Users
-app.get('/api/admin/banned-users', async (req, res) => {
+// 4. Get Banned Users - SECURITY: Added auth middleware
+app.get('/api/admin/banned-users', verifyAdmin, async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('banned_users')
@@ -4486,12 +4488,12 @@ app.get('/api/admin/banned-users', async (req, res) => {
     res.json({ success: true, banned_users: data || [] });
   } catch (error) {
     console.error('Error fetching banned users:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
-// 5. Get Analytics Dashboard Data
-app.get('/api/admin/analytics', async (req, res) => {
+// 5. Get Analytics Dashboard Data - SECURITY: Added auth middleware
+app.get('/api/admin/analytics', verifyAdmin, async (req, res) => {
   try {
     // Total users
     const { count: totalUsers } = await supabase
@@ -4560,12 +4562,12 @@ app.get('/api/admin/analytics', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching analytics:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
-// 6. Get Activity Logs
-app.get('/api/admin/activity-logs', async (req, res) => {
+// 6. Get Activity Logs - SECURITY: Added auth middleware
+app.get('/api/admin/activity-logs', verifyAdmin, async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 100;
 
@@ -4580,12 +4582,12 @@ app.get('/api/admin/activity-logs', async (req, res) => {
     res.json({ success: true, logs: data || [] });
   } catch (error) {
     console.error('Error fetching activity logs:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
-// 7. Get Game Settings
-app.get('/api/admin/game-settings', async (req, res) => {
+// 7. Get Game Settings - SECURITY: Added auth middleware
+app.get('/api/admin/game-settings', verifyAdmin, async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('game_settings')
@@ -4602,7 +4604,7 @@ app.get('/api/admin/game-settings', async (req, res) => {
     res.json({ success: true, settings });
   } catch (error) {
     console.error('Error fetching game settings:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -4637,12 +4639,12 @@ app.post('/api/admin/game-settings', verifyAdmin, validateWallet, async (req, re
     res.json({ success: true });
   } catch (error) {
     console.error('Error updating game settings:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
-// 9. Get Raid Analytics
-app.get('/api/admin/raid-analytics', async (req, res) => {
+// 9. Get Raid Analytics - SECURITY: Added auth middleware
+app.get('/api/admin/raid-analytics', verifyAdmin, async (req, res) => {
   try {
     // Get all raids
     const { data: raids } = await supabase
@@ -4653,12 +4655,12 @@ app.get('/api/admin/raid-analytics', async (req, res) => {
     res.json({ success: true, raid_analytics: raids || [] });
   } catch (error) {
     console.error('Error fetching raid analytics:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
-// 10. Get Point Transaction History
-app.get('/api/admin/point-transactions', async (req, res) => {
+// 10. Get Point Transaction History - SECURITY: Added auth middleware
+app.get('/api/admin/point-transactions', verifyAdmin, async (req, res) => {
   try {
     const wallet = req.query.wallet;
     const limit = parseInt(req.query.limit) || 100;
@@ -4680,7 +4682,7 @@ app.get('/api/admin/point-transactions', async (req, res) => {
     res.json({ success: true, transactions: data || [] });
   } catch (error) {
     console.error('Error fetching point transactions:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -4754,7 +4756,7 @@ app.post('/api/admin/bulk-points', verifyAdmin, validateAmount, validateTextLeng
     res.json({ success: true, results });
   } catch (error) {
     console.error('Error in bulk point operation:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -4762,8 +4764,8 @@ app.post('/api/admin/bulk-points', verifyAdmin, validateAmount, validateTextLeng
 // ROLE MANAGEMENT ENDPOINTS
 // =====================================================
 
-// Get all assigned roles
-app.get('/api/admin/roles', async (req, res) => {
+// Get all assigned roles - SECURITY: Added auth middleware
+app.get('/api/admin/roles', verifyAdmin, async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('admin_roles')
@@ -4776,12 +4778,12 @@ app.get('/api/admin/roles', async (req, res) => {
     res.json({ success: true, roles: data || [] });
   } catch (error) {
     console.error('Error fetching roles:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
-// Check specific wallet's role and permissions
-app.get('/api/admin/check-role/:wallet', async (req, res) => {
+// Check specific wallet's role and permissions - SECURITY: Added auth middleware
+app.get('/api/admin/check-role/:wallet', verifyAdmin, async (req, res) => {
   try {
     const { wallet } = req.params;
 
@@ -4804,7 +4806,7 @@ app.get('/api/admin/check-role/:wallet', async (req, res) => {
     });
   } catch (error) {
     console.error('Error checking role:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -4893,7 +4895,7 @@ app.post('/api/admin/roles/assign', verifyAdmin, validateWallet, validateTextLen
     res.json({ success: true });
   } catch (error) {
     console.error('Error assigning role:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -4958,7 +4960,7 @@ app.delete('/api/admin/roles/:wallet', verifyAdmin, async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     console.error('Error removing role:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -5061,7 +5063,7 @@ app.post('/api/admin/reset-economy', verifyAdmin, async (req, res) => {
     });
   } catch (error) {
     console.error('Error in economy reset:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -5135,7 +5137,7 @@ app.post('/api/admin/set-user-points', verifyAdmin, async (req, res) => {
     });
   } catch (error) {
     console.error('Error setting user points:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -5171,7 +5173,7 @@ app.post('/api/push/subscribe', async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     console.error('Error saving subscription:', error);
-    res.status(500).json({ error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -5189,7 +5191,7 @@ app.post('/api/push/unsubscribe', async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     console.error('Error unsubscribing:', error);
-    res.status(500).json({ error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -5267,7 +5269,7 @@ app.post('/api/push/test', async (req, res) => {
     res.json({ success: true, message: 'Test notification sent!' });
   } catch (error) {
     console.error('Error sending test notification:', error);
-    res.status(500).json({ error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -5305,7 +5307,7 @@ app.get('/api/notifications/:wallet', async (req, res) => {
     res.json({ success: true, notifications: transformedNotifications });
   } catch (error) {
     console.error('Error fetching notifications:', error);
-    res.status(500).json({ error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -5324,7 +5326,7 @@ app.post('/api/notifications/:notificationId/read', async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     console.error('Error marking notification as read:', error);
-    res.status(500).json({ error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -5370,7 +5372,7 @@ app.get('/api/cosmetics/catalog', async (req, res) => {
     res.json({ success: true, items: data });
   } catch (error) {
     console.error('Error fetching cosmetics catalog:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -5392,7 +5394,7 @@ app.get('/api/cosmetics/inventory/:wallet', async (req, res) => {
     res.json({ success: true, items: data });
   } catch (error) {
     console.error('Error fetching user inventory:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -5423,7 +5425,7 @@ app.get('/api/cosmetics/equipped/:wallet', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching equipped cosmetics:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -5519,7 +5521,7 @@ app.post('/api/cosmetics/purchase', async (req, res) => {
     });
   } catch (error) {
     console.error('Error purchasing cosmetic:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -5579,7 +5581,7 @@ app.post('/api/cosmetics/equip', async (req, res) => {
     });
   } catch (error) {
     console.error('Error equipping cosmetic:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -5610,7 +5612,7 @@ app.post('/api/cosmetics/unequip', async (req, res) => {
     });
   } catch (error) {
     console.error('Error unequipping cosmetic:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -5657,7 +5659,7 @@ app.get('/api/cosmetics/history', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching cosmetics history:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -5699,7 +5701,7 @@ app.get('/api/bulletin/posts', async (req, res) => {
     res.json(postsWithReactions);
   } catch (error) {
     console.error('❌ Error fetching bulletin posts:', error);
-    res.status(500).json({ error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -5738,7 +5740,7 @@ app.post('/api/bulletin/posts', async (req, res) => {
     res.json(newPost);
   } catch (error) {
     console.error('❌ Error creating bulletin post:', error);
-    res.status(500).json({ error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -5776,7 +5778,7 @@ app.delete('/api/bulletin/posts/:postId', async (req, res) => {
     res.json({ success: true, message: 'Post deleted successfully' });
   } catch (error) {
     console.error('❌ Error deleting bulletin post:', error);
-    res.status(500).json({ error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -5797,7 +5799,7 @@ app.get('/api/bulletin/posts/:postId/comments', async (req, res) => {
     res.json(comments || []);
   } catch (error) {
     console.error('❌ Error fetching bulletin comments:', error);
-    res.status(500).json({ error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -5882,7 +5884,7 @@ app.post('/api/bulletin/comments', async (req, res) => {
     res.json(newComment);
   } catch (error) {
     console.error('❌ Error creating bulletin comment:', error);
-    res.status(500).json({ error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -5944,7 +5946,7 @@ app.delete('/api/bulletin/comments/:commentId', async (req, res) => {
     res.json({ success: true, message: 'Comment deleted successfully' });
   } catch (error) {
     console.error('❌ Error deleting bulletin comment:', error);
-    res.status(500).json({ error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -5997,7 +5999,7 @@ app.get('/api/bulletin/comments/:commentId/reactions', async (req, res) => {
     res.json({ counts, userReactions });
   } catch (error) {
     console.error('❌ Error fetching bulletin reactions:', error);
-    res.status(500).json({ error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -6128,7 +6130,7 @@ app.post('/api/bulletin/comments/:commentId/react', async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Error toggling bulletin reaction:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -6185,7 +6187,7 @@ app.get('/api/bulletin/posts/:postId/reactions', async (req, res) => {
     res.json({ counts, userReactions });
   } catch (error) {
     console.error('❌ Error fetching bulletin post reactions:', error);
-    res.status(500).json({ error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -6314,7 +6316,7 @@ app.post('/api/bulletin/posts/:postId/react', async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Error toggling bulletin post reaction:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -6446,7 +6448,7 @@ app.get('/api/memes/timer', async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Timer error:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -6505,7 +6507,7 @@ app.get('/api/memes/current-week', async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Load memes error:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -6563,7 +6565,7 @@ app.get('/api/memes/leaderboard', async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Leaderboard error:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -6597,7 +6599,7 @@ app.get('/api/memes/user-votes/:wallet', async (req, res) => {
     });
   } catch (error) {
     console.error('❌ User votes error:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -6715,7 +6717,7 @@ app.post('/api/memes/submit', upload.single('file'), async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Submit meme error:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -6845,7 +6847,7 @@ app.post('/api/memes/:id/vote', async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Vote error:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -6917,7 +6919,7 @@ app.delete('/api/memes/:id/vote', async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Unvote error:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -6969,7 +6971,7 @@ app.delete('/api/memes/:id', async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Delete meme error:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -7226,7 +7228,7 @@ app.post('/api/memes/reset-week', async (req, res) => {
 
   } catch (error) {
     console.error('❌ Week reset error:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -7264,7 +7266,7 @@ app.get('/api/beardrops/config', async (req, res) => {
     res.json({ success: true, config });
   } catch (error) {
     console.error('❌ Error fetching airdrop config:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -7320,7 +7322,7 @@ app.get('/api/beardrops/eligibility/:wallet', async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Error checking eligibility:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -7349,7 +7351,7 @@ app.get('/api/beardrops/snapshot/:wallet', async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Error fetching snapshot:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -7378,7 +7380,7 @@ app.get('/api/beardrops/history/:wallet', async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Error fetching airdrop history:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -7405,7 +7407,7 @@ app.post('/api/beardrops/activity', async (req, res) => {
     res.json({ success: true, message: 'Activity recorded' });
   } catch (error) {
     console.error('❌ Error recording activity:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -7422,7 +7424,7 @@ app.get('/api/beardrops/admin/pending', verifyApex, async (req, res) => {
     res.json({ success: true, summary: data || [] });
   } catch (error) {
     console.error('❌ Error fetching pending claims:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -7442,7 +7444,7 @@ app.get('/api/beardrops/admin/snapshots/:date', verifyApex, async (req, res) => 
     res.json({ success: true, snapshots: data || [] });
   } catch (error) {
     console.error('❌ Error fetching snapshots:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -7475,7 +7477,7 @@ app.post('/api/beardrops/admin/blacklist', verifyApex, async (req, res) => {
     res.json({ success: true, blacklist_entry: data });
   } catch (error) {
     console.error('❌ Error adding to blacklist:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -7500,7 +7502,7 @@ app.post('/api/beardrops/admin/unblacklist', verifyApex, async (req, res) => {
     res.json({ success: true, message: `Wallet ${target_wallet} removed from blacklist` });
   } catch (error) {
     console.error('❌ Error removing from blacklist:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -7518,7 +7520,7 @@ app.get('/api/beardrops/admin/blacklist', verifyApex, async (req, res) => {
     res.json({ success: true, blacklist: data || [] });
   } catch (error) {
     console.error('❌ Error fetching blacklist:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -7543,7 +7545,7 @@ app.post('/api/beardrops/admin/config', verifyApex, async (req, res) => {
     res.json({ success: true, message: `Config ${key} updated to ${value}` });
   } catch (error) {
     console.error('❌ Error updating config:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -7830,12 +7832,12 @@ app.post('/api/beardrops/claim', claimRateLimiter, validateWallet, async (req, r
 
   } catch (error) {
     console.error('❌ Error processing claim:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
-// DEBUG: Get ALL snapshots for a wallet (for debugging)
-app.get('/api/beardrops/debug-snapshots/:wallet', async (req, res) => {
+// DEBUG: Get ALL snapshots for a wallet - SECURITY: Added auth middleware
+app.get('/api/beardrops/debug-snapshots/:wallet', verifyAdmin, async (req, res) => {
   try {
     const { wallet } = req.params;
     const { data: allSnapshots } = await supabase
@@ -7854,8 +7856,8 @@ app.get('/api/beardrops/debug-snapshots/:wallet', async (req, res) => {
   }
 });
 
-// Get claim status for a wallet
-app.get('/api/beardrops/claim-status/:wallet', async (req, res) => {
+// Get claim status for a wallet - SECURITY: Added rate limiting
+app.get('/api/beardrops/claim-status/:wallet', claimRateLimiter, async (req, res) => {
   try {
     const { wallet } = req.params;
 
@@ -7973,7 +7975,7 @@ app.get('/api/beardrops/claim-status/:wallet', async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Error fetching claim status:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -7989,7 +7991,7 @@ app.post('/api/beardrops/admin/trigger-snapshot', verifyApex, async (req, res) =
     });
   } catch (error) {
     console.error('❌ Error triggering snapshot:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -8037,7 +8039,7 @@ app.post('/api/beardrops/admin/batch-payout', verifyApex, async (req, res) => {
 
   } catch (error) {
     console.error('❌ Error processing batch payout:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -8260,7 +8262,7 @@ app.get('/api/store/check-trustline/:wallet/:tokenType', async (req, res) => {
     }
 
     console.error('Error checking trustline:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -8647,7 +8649,7 @@ app.get('/api/store/nfts', async (req, res) => {
   } catch (error) {
     try { await client.disconnect(); } catch (e) {}
     console.error('Error fetching store NFTs:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -8866,7 +8868,7 @@ app.post('/api/store/request-nft', async (req, res) => {
     });
   } catch (error) {
     console.error('Error creating NFT request:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
@@ -8886,12 +8888,12 @@ app.get('/api/store/nft-requests/:wallet', async (req, res) => {
     res.json({ success: true, requests: requests || [] });
   } catch (error) {
     console.error('Error fetching NFT requests:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
-// Admin: Get all token purchases
-app.get('/api/admin/token-purchases', async (req, res) => {
+// Admin: Get all token purchases - SECURITY: Added auth middleware
+app.get('/api/admin/token-purchases', verifyAdmin, async (req, res) => {
   try {
     const { data: purchases, error } = await supabase
       .from('store_token_transactions')
@@ -8903,12 +8905,12 @@ app.get('/api/admin/token-purchases', async (req, res) => {
     res.json({ success: true, purchases: purchases || [] });
   } catch (error) {
     console.error('Error fetching token purchases:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
-// Admin: Get all pending NFT requests
-app.get('/api/admin/nft-requests', async (req, res) => {
+// Admin: Get all pending NFT requests - SECURITY: Added auth middleware
+app.get('/api/admin/nft-requests', verifyAdmin, async (req, res) => {
   try {
     const { data: requests, error } = await supabase
       .from('nft_purchase_requests')
@@ -8920,12 +8922,12 @@ app.get('/api/admin/nft-requests', async (req, res) => {
     res.json({ success: true, requests: requests || [] });
   } catch (error) {
     console.error('Error fetching admin NFT requests:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
-// Admin: Mark NFT request as fulfilled
-app.post('/api/admin/fulfill-nft-request', async (req, res) => {
+// Admin: Mark NFT request as fulfilled - SECURITY: Added auth middleware
+app.post('/api/admin/fulfill-nft-request', verifyAdmin, async (req, res) => {
   const { request_id, tx_hash } = req.body;
 
   if (!request_id) {
@@ -8951,7 +8953,7 @@ app.post('/api/admin/fulfill-nft-request', async (req, res) => {
     res.json({ success: true, request: data });
   } catch (error) {
     console.error('Error fulfilling NFT request:', error);
-    res.status(500).json({ success: false, error: error.message });
+    safeErrorResponse(res, error);
   }
 });
 
