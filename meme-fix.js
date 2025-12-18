@@ -75,6 +75,9 @@ async function loadTimer() {
 }
 
 // 🕐 Update Timer Display
+let weekEndedRefreshCount = 0;
+const MAX_WEEK_END_REFRESHES = 3; // Limit refresh attempts when week ends
+
 function updateTimer() {
   const timerEl = document.getElementById('meme-timer');
   if (!timerEl || !weekEndTime) return;
@@ -83,15 +86,30 @@ function updateTimer() {
   const diff = weekEndTime - now;
 
   if (diff <= 0) {
-    timerEl.innerHTML = '<span class="days">0d</span><span class="hours">0h</span><span class="mins">0m</span><span class="secs">0s</span>';
-    // Week ended - reload memes for new week
-    setTimeout(() => {
-      loadMemes();
-      loadLeaderboard();
-      loadTimer();
-    }, 2000);
+    // Week ended - check if we should refresh or show waiting message
+    if (weekEndedRefreshCount < MAX_WEEK_END_REFRESHES) {
+      weekEndedRefreshCount++;
+      timerEl.innerHTML = '<span class="days">0d</span><span class="hours">0h</span><span class="mins">0m</span><span class="secs">0s</span>';
+      // Try to reload for new week
+      setTimeout(async () => {
+        await loadTimer();
+        await loadMemes();
+        await loadLeaderboard();
+      }, 3000);
+    } else {
+      // Stop refreshing, show waiting message
+      timerEl.innerHTML = '<span class="days" style="color: var(--gold);">Resetting...</span>';
+      // Check again in 30 seconds
+      setTimeout(() => {
+        weekEndedRefreshCount = 0; // Reset counter to try again
+        loadTimer();
+      }, 30000);
+    }
     return;
   }
+
+  // Week is active - reset the refresh counter
+  weekEndedRefreshCount = 0;
 
   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
   const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));

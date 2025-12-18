@@ -7124,77 +7124,30 @@ app.post('/api/memes/reset-week', async (req, res) => {
 
     console.log('🆕 Creating new week...');
 
-    // Create new week (Wednesday 8pm Denver to next Wednesday 8pm Denver)
+    // Create new week (Sunday 00:00 UTC to next Sunday 00:00 UTC)
     const newWeekStart = new Date(weekEnd.getTime() + 1000); // 1 second after old week ends
 
-    // Calculate next Wednesday at 8pm Denver time (America/Denver)
-    // Denver is UTC-7 (MST standard) or UTC-6 (MDT daylight)
-    // 8pm Denver = 02:00 or 03:00 UTC next day (depending on DST)
-    const getNextWednesday8pmDenver = (fromDate) => {
-      // Get current time in Denver to determine day of week there
-      const denverTimeStr = fromDate.toLocaleString('en-US', {
-        timeZone: 'America/Denver',
-        weekday: 'short',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
-      });
+    // Calculate next Sunday at 00:00 UTC
+    const getNextSundayMidnightUTC = (fromDate) => {
+      const currentDow = fromDate.getUTCDay(); // 0 = Sunday
 
-      // Parse Denver day of week (0=Sun, 3=Wed)
-      const denverParts = fromDate.toLocaleDateString('en-US', {
-        timeZone: 'America/Denver',
-        weekday: 'long'
-      });
-      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-      const denverDow = dayNames.indexOf(denverParts);
-
-      // Get Denver hour
-      const denverHour = parseInt(fromDate.toLocaleString('en-US', {
-        timeZone: 'America/Denver',
-        hour: '2-digit',
-        hour12: false
-      }));
-
-      // Find days until next Wednesday (3 = Wednesday)
-      let daysUntilWed = (3 - denverDow + 7) % 7;
-      if (daysUntilWed === 0 && denverHour >= 20) {
-        daysUntilWed = 7; // Already past 8pm Wednesday, go to next week
-      }
-      if (daysUntilWed === 0) {
-        daysUntilWed = 7; // Always go to NEXT Wednesday for a full week
+      // Calculate days until next Sunday
+      let daysUntilSunday = (7 - currentDow) % 7;
+      if (daysUntilSunday === 0) {
+        daysUntilSunday = 7; // If it's Sunday, go to NEXT Sunday for a full week
       }
 
-      // Create target date: add days then set to 8pm Denver
+      // Create target date at 00:00 UTC on the next Sunday
       const targetDate = new Date(fromDate);
-      targetDate.setDate(targetDate.getDate() + daysUntilWed);
+      targetDate.setUTCDate(targetDate.getUTCDate() + daysUntilSunday);
+      targetDate.setUTCHours(0, 0, 0, 0);
 
-      // Get the UTC offset for Denver on the target date
-      // Create a date string for 8pm Denver and parse it to get UTC
-      const targetDateStr = targetDate.toLocaleDateString('en-US', { timeZone: 'America/Denver' });
-      const [month, day, year] = targetDateStr.split('/').map(Number);
+      console.log(`📅 Next Sunday 00:00 UTC: ${targetDate.toISOString()} (${daysUntilSunday} days from now)`);
 
-      // Create date at 8pm Denver by using the offset
-      // First, create date at midnight UTC on target day
-      const midnightUTC = new Date(Date.UTC(year, month - 1, day, 0, 0, 0));
-
-      // Get Denver offset on that day (in minutes, negative for west of UTC)
-      const denverMidnight = new Date(midnightUTC.toLocaleString('en-US', { timeZone: 'America/Denver' }));
-      const offsetMs = midnightUTC - denverMidnight;
-
-      // 8pm Denver = 20:00 local, convert to UTC
-      // If offset is -7 hours (MST): 20:00 + 7:00 = 03:00 UTC next day
-      // If offset is -6 hours (MDT): 20:00 + 6:00 = 02:00 UTC next day
-      const target8pmDenver = new Date(Date.UTC(year, month - 1, day, 20, 0, 0) - offsetMs);
-
-      console.log(`📅 Next Wednesday 8pm Denver: ${target8pmDenver.toISOString()} (${daysUntilWed} days from now)`);
-
-      return target8pmDenver;
+      return targetDate;
     };
 
-    const newWeekEnd = getNextWednesday8pmDenver(newWeekStart);
+    const newWeekEnd = getNextSundayMidnightUTC(newWeekStart);
 
     const { data: newWeek, error: createError } = await supabase
       .from('meme_weeks')

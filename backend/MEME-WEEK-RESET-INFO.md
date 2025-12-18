@@ -8,7 +8,7 @@ The meme week reset is now **100% automated** using Vercel Cron Jobs.
 
 ## 📅 When Does It Run?
 
-**Every Sunday at 12:00 AM UTC (Midnight)**
+**Every Sunday at 00:00 UTC (Midnight UTC)**
 
 - Cron Schedule: `0 0 * * 0`
 - Runs automatically via Vercel
@@ -35,7 +35,7 @@ The meme week reset is now **100% automated** using Vercel Cron Jobs.
 - Frees up storage space
 
 ### 4. **Create New Week** 🆕
-- New week automatically created (Monday-Sunday)
+- New week automatically created (Sunday-Saturday)
 - Fresh slate for new meme submissions
 - Users can submit new memes immediately
 
@@ -95,7 +95,7 @@ Examples:
 ## 🚨 Important Notes
 
 1. **Time Zone**: Cron runs in **UTC** time
-2. **Week Structure**: Weeks run Monday-Sunday
+2. **Week Structure**: Weeks run Sunday-Saturday (reset at Sunday 00:00 UTC)
 3. **Storage Cleanup**: Old files automatically deleted
 4. **No History**: Old memes are not archived
 5. **Winner Points**: Added before deletion occurs
