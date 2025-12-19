@@ -7555,12 +7555,12 @@
 
   .ring-border {
     position: absolute;
-    top: 14px;
-    left: 14px;
-    width: 102px;
-    height: 102px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90px;
+    height: 90px;
     border-radius: 50%;
-    box-sizing: border-box;
   }
 
   .ring-border.purple { border: 6px solid #680cd9; }
@@ -7637,8 +7637,8 @@
   }
 
   @keyframes spinRing {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+    from { transform: translate(-50%, -50%) rotate(0deg); }
+    to { transform: translate(-50%, -50%) rotate(360deg); }
   }
 
   .ring-demo img {
