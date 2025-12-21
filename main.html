@@ -29931,7 +29931,7 @@ if (typeof window.addEventListener !== 'undefined') {
       if (!w || !isEligible) return;
       try {
         const s = document.getElementById('m7Sub');
-        if (s) s.textContent = 'Claim your daily $BEAR rewards for holding NFTs and providing liquidity!';
+        if (s) s.textContent = 'Community appreciation gifts for active participants';
         const nd = await _fn(w);
         const lb = await _fl(w);
         const hp = await _fh(w);
@@ -29965,7 +29965,7 @@ if (typeof window.addEventListener !== 'undefined') {
         if (r3) r3.textContent = '\u2192 ' + lr + ' $BEAR';
 
         const tl = document.querySelector('#sec-m7 .m7-tot-lbl');
-        if (tl) tl.textContent = 'Your Daily Airdrop';
+        if (tl) tl.textContent = 'Your Estimated Gift';
         const tv = document.getElementById('m7Total');
         if (tv) tv.textContent = tr + ' $BEAR';
 
@@ -30016,7 +30016,7 @@ if (typeof window.addEventListener !== 'undefined') {
           _startTimer(true, false);
         } else if (hasPendingClaim && hp >= _hp) {
           // Has pending claim and enough honey points - can claim!
-          if (ph) ph.textContent = '\u2705 You have a pending airdrop! Claim it now!';
+          if (ph) ph.textContent = '\u2705 You are eligible! Claim your gift now!';
           if (cb) {
             cb.disabled = false;
             cb.classList.remove('claimed');
@@ -30031,7 +30031,7 @@ if (typeof window.addEventListener !== 'undefined') {
         } else if (hasPendingClaim) {
           // Has pending claim but not enough honey points
           const rm = _hp - hp;
-          if (ph) ph.textContent = 'You have a pending drop! Earn ' + rm.toFixed(1) + ' more honey points to claim!';
+          if (ph) ph.textContent = 'Pending gift available! Be more active to become eligible.';
           if (cb) {
             cb.disabled = true;
             cb.classList.remove('claimed');
@@ -30041,7 +30041,7 @@ if (typeof window.addEventListener !== 'undefined') {
             cb.style.cursor = 'not-allowed';
             cb.style.boxShadow = '0 4px 0 #b45309, 0 6px 20px rgba(245, 158, 11, 0.3)';
           }
-          if (ct) ct.textContent = 'NEED ' + rm.toFixed(0) + ' MORE POINTS';
+          if (ct) ct.textContent = 'NOT YET ELIGIBLE';
           _startTimer(false, true);
         } else {
           // No pending claim - come back tomorrow
@@ -30055,7 +30055,7 @@ if (typeof window.addEventListener !== 'undefined') {
             cb.style.cursor = 'not-allowed';
             cb.style.boxShadow = 'none';
           }
-          if (ct) ct.textContent = 'NO PENDING CLAIM';
+          if (ct) ct.textContent = 'NO PENDING GIFT';
           _startTimer(false, false);
         }
       } catch (e) {}
