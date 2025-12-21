@@ -29434,7 +29434,7 @@ if (typeof window.addEventListener !== 'undefined') {
     const container = section.querySelector('.bear-heads-container');
     if (!container) return;
 
-    const MAX_BEARS = 25;
+    const MAX_BEARS = 6;
     const activeBears = [];
     let nextId = 0;
 
@@ -29448,7 +29448,7 @@ if (typeof window.addEventListener !== 'undefined') {
         vx: (Math.random() - 0.5) * 5,
         vy: (Math.random() - 0.5) * 5,
         rotation: Math.random() * 360,
-        rotationSpeed: (Math.random() - 0.5) * 4,
+        rotationSpeed: (Math.random() - 0.5) * 0.3,
         scale: 0.7 + Math.random() * 0.6,
         isDragging: false,
         lifeTime: 15000 + Math.random() * 15000
@@ -29661,9 +29661,9 @@ if (typeof window.addEventListener !== 'undefined') {
             otherBear.vx += ax;
             otherBear.vy += ay;
 
-            // Add some spin
-            bear.rotationSpeed += (Math.random() - 0.5) * 3;
-            otherBear.rotationSpeed += (Math.random() - 0.5) * 3;
+            // Add some spin (gentle)
+            bear.rotationSpeed += (Math.random() - 0.5) * 0.3;
+            otherBear.rotationSpeed += (Math.random() - 0.5) * 0.3;
           }
         });
 
