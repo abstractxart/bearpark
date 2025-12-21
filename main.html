@@ -28500,6 +28500,39 @@ let userVotes = new Set();
 let weekEndTime = null;
 let timerInterval = null;
 
+// 🛡️ API Call Rate Limiter - Prevent 429 errors
+const memeApiCache = {
+  timer: { data: null, lastFetch: 0 },
+  currentWeek: { data: null, lastFetch: 0 },
+  leaderboard: { data: null, lastFetch: 0 }
+};
+const MEME_API_COOLDOWN = 10000; // 10 seconds between API calls
+
+async function cachedFetch(endpoint, cacheKey) {
+  const cache = memeApiCache[cacheKey];
+  const now = Date.now();
+
+  // Return cached data if still fresh
+  if (cache.data && (now - cache.lastFetch) < MEME_API_COOLDOWN) {
+    return cache.data;
+  }
+
+  try {
+    const response = await fetch(endpoint);
+    if (response.status === 429) {
+      console.log(`⏳ Rate limited on ${endpoint}, using cache`);
+      return cache.data || { success: false, error: 'Rate limited' };
+    }
+    const data = await response.json();
+    cache.data = data;
+    cache.lastFetch = now;
+    return data;
+  } catch (error) {
+    console.error(`❌ Failed to fetch ${endpoint}:`, error);
+    return cache.data || { success: false, error: error.message };
+  }
+}
+
 // 🚀 Initialize Meme of the Week
 async function initMemeOfTheWeek() {
   try {
@@ -28557,8 +28590,7 @@ async function initMemeOfTheWeek() {
 // ⏰ Load Timer Info
 async function loadTimer() {
   try {
-    const response = await fetch('/api/memes/timer');
-    const data = await response.json();
+    const data = await cachedFetch('/api/memes/timer', 'timer');
 
     if (data.success) {
       weekEndTime = new Date(data.next_week_start);
@@ -28617,8 +28649,7 @@ function updateTimer() {
 // 📥 Load Memes from API
 async function loadMemes() {
   try {
-    const response = await fetch('/api/memes/current-week');
-    const data = await response.json();
+    const data = await cachedFetch('/api/memes/current-week', 'currentWeek');
 
     if (data.success) {
       currentMemes = data.memes || [];
@@ -28854,13 +28885,12 @@ async function unvoteMeme(memeId) {
 // 📊 Load Leaderboard
 async function loadLeaderboard() {
   try {
-    const response = await fetch('/api/memes/leaderboard');
-    const data = await response.json();
+    const data = await cachedFetch('/api/memes/leaderboard', 'leaderboard');
 
     const container = document.getElementById('meme-leaderboard-list');
     if (!container) return;
 
-    if (!data.success || data.leaderboard.length === 0) {
+    if (!data.success || !data.leaderboard || data.leaderboard.length === 0) {
       container.innerHTML = `
         <div class="leaderboard-empty">No memes yet!</div>
       `;
