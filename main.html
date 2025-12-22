@@ -16784,14 +16784,14 @@
       }
     }
 
-    // Refresh leaderboard and raids every 30 seconds (skip if tab hidden)
+    // Refresh leaderboard every 30 seconds (skip if tab hidden)
+    // NOTE: Raids are NOT auto-refreshed to prevent visual twitching
+    // Raids update when: user completes one, navigates, or manually refreshes
     setInterval(() => {
       if (document.hidden) return; // Skip polling when tab not visible
       const walletAddress = localStorage.getItem('bearpark_wallet');
       loadHoneyLeaderboard(walletAddress);
-      if (!showingPreviousRaids) {
-        loadRaids(); // Only refresh if showing current raids
-      }
+      // REMOVED: loadRaids() - was causing visual twitching by rebuilding DOM every 30s
     }, 30000);
 
     function getTimeAgo(date) {
