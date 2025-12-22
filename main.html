@@ -16728,86 +16728,7 @@
       }
     }
 
-    // Initialize honey points section
-    loadHoneyPoints();
-    loadDailyGameProgress();
-    const walletAddress = localStorage.getItem('bearpark_wallet');
-    loadHoneyLeaderboard(walletAddress);
-    // Load persisted raid timers before loading raids
-    loadProcessingRaids();
-    loadRaids();
-    loadTopRaiders();
-    startGameResetCountdown();
-
-    // Listen for game points being awarded to refresh progress widget
-    window.addEventListener('gamePointsAwarded', () => {
-      loadDailyGameProgress();
-      loadHoneyPoints(); // Also refresh total points
-    });
-
-    // Debounce mechanism to prevent constant refreshing
-    let lastRefreshTime = 0;
-    const REFRESH_COOLDOWN = 5000; // 5 seconds minimum between refreshes
-
-    function refreshPointsIfNeeded(reason) {
-      const now = Date.now();
-      if (now - lastRefreshTime < REFRESH_COOLDOWN) {
-        console.log(`⏭️ Skipping refresh (${reason}) - cooldown active`);
-        return;
-      }
-      console.log(`🔄 Refreshing honey points data (${reason})`);
-      lastRefreshTime = now;
-      loadDailyGameProgress();
-      loadHoneyPoints();
-      const wallet = localStorage.getItem('bearpark_wallet');
-      if (wallet) loadHoneyLeaderboard(wallet);
-    }
-
-    // Refresh data when page becomes visible (e.g., returning from game page)
-    document.addEventListener('visibilitychange', () => {
-      if (!document.hidden) {
-        refreshPointsIfNeeded('page visible');
-      }
-    });
-
-    // Also refresh when window gains focus
-    window.addEventListener('focus', () => {
-      refreshPointsIfNeeded('window focus');
-    });
-
-    // Show admin button if user is admin
-    const ADMIN_WALLET = 'rKkkYMCvC63HEgxjQHmayKADaxYqnsMUkT';
-    if (walletAddress === ADMIN_WALLET) {
-      const adminBtn = document.getElementById('adminRaidBtn');
-      if (adminBtn) {
-        adminBtn.style.display = 'block';
-      }
-    }
-
-    // Refresh leaderboard and raids every 30 seconds (skip if tab hidden)
-    setInterval(() => {
-      if (document.hidden) return; // Skip polling when tab not visible
-      const walletAddress = localStorage.getItem('bearpark_wallet');
-      loadHoneyLeaderboard(walletAddress);
-      if (!showingPreviousRaids) {
-        loadRaids(); // Only refresh if showing current raids
-      }
-    }, 30000);
-
-    function getTimeAgo(date) {
-      const seconds = Math.floor((new Date() - date) / 1000);
-      if (seconds < 60) return 'just now';
-      const minutes = Math.floor(seconds / 60);
-      if (minutes < 60) return `${minutes}m ago`;
-      const hours = Math.floor(minutes / 60);
-      if (hours < 24) return `${hours}h ago`;
-      const days = Math.floor(hours / 24);
-      return `${days}d ago`;
-    }
-
-    // Twitter integration removed - points now earned through games and raids only
-
-    /* ===== Raids System ===== */
+    /* ===== Raids System Variables (must be declared before initialization) ===== */
     let raidTimerIntervals = [];
     let showingPreviousRaids = false;
     let currentRaidsData = {}; // Store raid data by ID for easy access
@@ -16924,6 +16845,87 @@
         window.history.replaceState({}, document.title, window.location.pathname);
       }, 600); // Wait for DOM to render
     }
+
+    // Initialize honey points section
+    loadHoneyPoints();
+    loadDailyGameProgress();
+    const walletAddress = localStorage.getItem('bearpark_wallet');
+    loadHoneyLeaderboard(walletAddress);
+    // Load persisted raid timers before loading raids
+    loadProcessingRaids();
+    loadRaids();
+    loadTopRaiders();
+    startGameResetCountdown();
+
+    // Listen for game points being awarded to refresh progress widget
+    window.addEventListener('gamePointsAwarded', () => {
+      loadDailyGameProgress();
+      loadHoneyPoints(); // Also refresh total points
+    });
+
+    // Debounce mechanism to prevent constant refreshing
+    let lastRefreshTime = 0;
+    const REFRESH_COOLDOWN = 5000; // 5 seconds minimum between refreshes
+
+    function refreshPointsIfNeeded(reason) {
+      const now = Date.now();
+      if (now - lastRefreshTime < REFRESH_COOLDOWN) {
+        console.log(`⏭️ Skipping refresh (${reason}) - cooldown active`);
+        return;
+      }
+      console.log(`🔄 Refreshing honey points data (${reason})`);
+      lastRefreshTime = now;
+      loadDailyGameProgress();
+      loadHoneyPoints();
+      const wallet = localStorage.getItem('bearpark_wallet');
+      if (wallet) loadHoneyLeaderboard(wallet);
+    }
+
+    // Refresh data when page becomes visible (e.g., returning from game page)
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        refreshPointsIfNeeded('page visible');
+      }
+    });
+
+    // Also refresh when window gains focus
+    window.addEventListener('focus', () => {
+      refreshPointsIfNeeded('window focus');
+    });
+
+    // Show admin button if user is admin
+    const ADMIN_WALLET = 'rKkkYMCvC63HEgxjQHmayKADaxYqnsMUkT';
+    if (walletAddress === ADMIN_WALLET) {
+      const adminBtn = document.getElementById('adminRaidBtn');
+      if (adminBtn) {
+        adminBtn.style.display = 'block';
+      }
+    }
+
+    // Refresh leaderboard and raids every 30 seconds (skip if tab hidden)
+    setInterval(() => {
+      if (document.hidden) return; // Skip polling when tab not visible
+      const walletAddress = localStorage.getItem('bearpark_wallet');
+      loadHoneyLeaderboard(walletAddress);
+      if (!showingPreviousRaids) {
+        loadRaids(); // Only refresh if showing current raids
+      }
+    }, 30000);
+
+    function getTimeAgo(date) {
+      const seconds = Math.floor((new Date() - date) / 1000);
+      if (seconds < 60) return 'just now';
+      const minutes = Math.floor(seconds / 60);
+      if (minutes < 60) return `${minutes}m ago`;
+      const hours = Math.floor(minutes / 60);
+      if (hours < 24) return `${hours}h ago`;
+      const days = Math.floor(hours / 24);
+      return `${days}d ago`;
+    }
+
+    // Twitter integration removed - points now earned through games and raids only
+
+    /* ===== Raids System (continued) ===== */
 
     // Persist processing raids to localStorage
     function saveProcessingRaids() {
