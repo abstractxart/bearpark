@@ -458,6 +458,123 @@
       font-style: italic;
       margin-top: 4px;
     }
+
+    /* Share Link Modal */
+    .share-modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 10000;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .share-modal {
+      background: var(--card);
+      border-radius: 20px;
+      padding: 32px;
+      max-width: 500px;
+      width: 90%;
+      border: 4px solid var(--stripe-yellow);
+      box-shadow: 0 0 40px rgba(254, 181, 1, 0.4);
+    }
+
+    .share-modal h2 {
+      color: var(--stripe-yellow);
+      margin-bottom: 16px;
+      text-align: center;
+    }
+
+    .share-modal p {
+      color: rgba(255,255,255,0.8);
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .share-link-box {
+      background: rgba(0, 0, 0, 0.4);
+      border: 2px solid var(--stripe-purple);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 20px;
+      word-break: break-all;
+      font-family: monospace;
+      font-size: 14px;
+      color: var(--stripe-yellow);
+    }
+
+    .share-btn {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, var(--stripe-green), var(--stripe-yellow));
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 900;
+      cursor: pointer;
+      margin-bottom: 10px;
+      transition: all 0.3s ease;
+    }
+
+    .share-btn:hover {
+      transform: translateY(-2px);
+      filter: brightness(1.15);
+    }
+
+    .share-btn.copied {
+      background: linear-gradient(135deg, var(--stripe-green), var(--stripe-green));
+    }
+
+    .close-modal-btn {
+      width: 100%;
+      padding: 12px;
+      background: rgba(255,255,255,0.1);
+      color: rgba(255,255,255,0.7);
+      border: 2px solid rgba(255,255,255,0.2);
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .close-modal-btn:hover {
+      background: rgba(255,255,255,0.2);
+      color: white;
+    }
+
+    .copy-link-btn {
+      padding: 6px 12px;
+      background: linear-gradient(135deg, var(--stripe-purple), var(--stripe-yellow));
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-left: 8px;
+      transition: all 0.3s ease;
+    }
+
+    .copy-link-btn:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.15);
+    }
+
+    .copy-link-btn.copied {
+      background: linear-gradient(135deg, var(--stripe-green), var(--stripe-green));
+    }
   </style>
 </head>
 <body>
@@ -597,9 +714,91 @@
   <script src="https://unpkg.com/xrpl@2.7.0/build/xrpl-latest-min.js"></script>
   <script>
     const ADMIN_WALLET = 'rKkkYMCvC63HEgxjQHmayKADaxYqnsMUkT';
+    const SITE_URL = 'https://bearpark.xyz'; // Base URL for share links
     let currentWallet = null;
     let userRole = null; // Stores the user's role data (master, admin, moderator)
     let userPermissions = {}; // Stores the user's permission flags
+
+    // Show share modal with Discord-ready link
+    function showShareModal(raidId) {
+      const shareUrl = `${SITE_URL}?raid=${raidId}`;
+
+      const overlay = document.createElement('div');
+      overlay.className = 'share-modal-overlay';
+      overlay.onclick = (e) => {
+        if (e.target === overlay) overlay.remove();
+      };
+
+      overlay.innerHTML = `
+        <div class="share-modal">
+          <h2>Raid Created Successfully!</h2>
+          <p>Share this link in Discord to let users auto-join the raid:</p>
+          <div class="share-link-box" id="shareLink">${shareUrl}</div>
+          <button class="share-btn" id="copyShareBtn" onclick="copyShareLink('${shareUrl}')">
+            Copy Discord Link
+          </button>
+          <button class="close-modal-btn" onclick="this.closest('.share-modal-overlay').remove()">
+            Close
+          </button>
+        </div>
+      `;
+
+      document.body.appendChild(overlay);
+    }
+
+    // Copy share link to clipboard
+    async function copyShareLink(url) {
+      try {
+        await navigator.clipboard.writeText(url);
+        const btn = document.getElementById('copyShareBtn');
+        if (btn) {
+          btn.textContent = 'Copied!';
+          btn.classList.add('copied');
+          setTimeout(() => {
+            btn.textContent = 'Copy Discord Link';
+            btn.classList.remove('copied');
+          }, 2000);
+        }
+      } catch (err) {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = url;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+
+        const btn = document.getElementById('copyShareBtn');
+        if (btn) {
+          btn.textContent = 'Copied!';
+          btn.classList.add('copied');
+        }
+      }
+    }
+
+    // Copy individual raid link (for raids list)
+    async function copyRaidLink(raidId, buttonEl) {
+      const url = `${SITE_URL}?raid=${raidId}`;
+      try {
+        await navigator.clipboard.writeText(url);
+        buttonEl.textContent = 'Copied!';
+        buttonEl.classList.add('copied');
+        setTimeout(() => {
+          buttonEl.textContent = 'Share Link';
+          buttonEl.classList.remove('copied');
+        }, 2000);
+      } catch (err) {
+        // Fallback
+        const textArea = document.createElement('textarea');
+        textArea.value = url;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        buttonEl.textContent = 'Copied!';
+        buttonEl.classList.add('copied');
+      }
+    }
 
     // Helper function for authenticated admin API calls
     async function adminFetch(url, options = {}) {
@@ -736,6 +935,9 @@
             <p><strong>Handle:</strong> ${raid.profile_handle}</p>
             <p><strong>Expires:</strong> ${new Date(raid.expires_at).toLocaleString()}</p>
             <p><strong>Active:</strong> ${raid.is_active ? '✅ Yes' : '❌ No'}</p>
+            <p><strong>Discord Link:</strong> <code style="background: rgba(0,0,0,0.3); padding: 4px 8px; border-radius: 4px; font-size: 12px;">${SITE_URL}?raid=${raid.id}</code>
+              <button class="copy-link-btn" onclick="copyRaidLink(${raid.id}, this)">Share Link</button>
+            </p>
             <button class="delete-btn" onclick="deleteRaid(${raid.id})">🗑️ Delete</button>
           </div>
         `).join('');
@@ -879,6 +1081,10 @@
           document.getElementById('raidForm').reset();
           // Reload raids list
           await loadCurrentRaids();
+          // Show share modal with the new raid ID
+          if (result.raid && result.raid.id) {
+            showShareModal(result.raid.id);
+          }
           setTimeout(() => {
             document.getElementById('status').style.display = 'none';
           }, 3000);
