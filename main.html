@@ -17190,19 +17190,6 @@
         </div>
 
         <div class="raid-tweet-preview-compact" data-raid-id="${raid.id}">
-          ${(() => {
-            // Check if image_url is valid (not a Twitter emoji SVG or other bad URL)
-            const badImagePatterns = ['twimg.com/emoji', 'abs-0.twimg.com', '/emoji/v2/'];
-            const isValidImage = raid.image_url && !badImagePatterns.some(p => raid.image_url.includes(p));
-            const defaultImage = 'https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/llg3eb.png'; // BEAR raid default
-            const imgSrc = isValidImage ? raid.image_url : defaultImage;
-            return `
-            <img src="${imgSrc}"
-                 alt="Tweet preview"
-                 class="raid-tweet-thumbnail"
-                 onerror="this.src='${defaultImage}'">
-          `;
-          })()}
           <div class="raid-tweet-author">${tweetAuthor}</div>
           <div class="raid-tweet-text">${tweetText}</div>
           <a href="${raid.twitter_url}" target="_blank" class="raid-twitter-link" data-raid-id="${raid.id}"
