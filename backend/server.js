@@ -4284,7 +4284,9 @@ app.get('/debug-env', (req, res) => {
     AIRDROP_WALLET_SECRET_exists: !!process.env.AIRDROP_WALLET_SECRET,
     AIRDROP_WALLET_SECRET_length: process.env.AIRDROP_WALLET_SECRET?.length || 0,
     AIRDROP_WALLET_SECRET_type: typeof process.env.AIRDROP_WALLET_SECRET,
-    AIRDROP_WALLET_SECRET_first3: process.env.AIRDROP_WALLET_SECRET?.substring(0, 3) || 'N/A'
+    AIRDROP_WALLET_SECRET_first3: process.env.AIRDROP_WALLET_SECRET?.substring(0, 3) || 'N/A',
+    ALL_ENV_KEYS: Object.keys(process.env).filter(k => k.includes('AIRDROP') || k.includes('SUPABASE') || k.includes('DATABASE')),
+    NODE_ENV: process.env.NODE_ENV
   });
 });
 
