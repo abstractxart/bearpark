@@ -14316,7 +14316,7 @@
   // === API CONFIGURATION ===
   const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? 'http://localhost:3000'
-    : '';
+    : 'https://bearpark-api-production.up.railway.app';
 
   // === SAFE STORAGE WRAPPER (Safari Private Mode Fix) ===
   // Safari Private Mode throws QuotaExceededError on localStorage.setItem()
@@ -28909,7 +28909,7 @@ async function voteMeme(memeId) {
   console.log('📤 Sending vote request to backend...');
 
   try {
-    const response = await fetch(`/api/memes/${memeId}/vote`, {
+    const response = await fetch(`${API_BASE_URL}/api/memes/${memeId}/vote`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -28975,7 +28975,7 @@ async function unvoteMeme(memeId) {
 
   try {
     // Use query parameter for DELETE request
-    const response = await fetch(`/api/memes/${memeId}/vote?wallet_address=${encodeURIComponent(walletAddress)}`, {
+    const response = await fetch(`${API_BASE_URL}/api/memes/${memeId}/vote?wallet_address=${encodeURIComponent(walletAddress)}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
@@ -29099,7 +29099,7 @@ async function loadUserVotes() {
 
   try {
     console.log('📥 Loading user votes for:', walletAddress);
-    const response = await fetch(`/api/memes/user-votes/${walletAddress}`);
+    const response = await fetch(`${API_BASE_URL}/api/memes/user-votes/${walletAddress}`);
     const data = await response.json();
 
     console.log('📦 User votes response:', data);
@@ -29165,7 +29165,7 @@ async function deleteMeme(memeId) {
   }
 
   try {
-    const response = await fetch(`/api/memes/${memeId}`, {
+    const response = await fetch(`${API_BASE_URL}/api/memes/${memeId}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
@@ -29282,7 +29282,7 @@ async function submitMeme() {
     formData.append('file_name', fileName);
 
     // Submit to backend
-    const response = await fetch('/api/memes/submit', {
+    const response = await fetch(`${API_BASE_URL}/api/memes/submit`, {
       method: 'POST',
       body: formData
     });
