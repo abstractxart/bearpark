@@ -6397,6 +6397,44 @@
     margin-bottom: 8px;
   }
 
+  /* Raid Content - Material UI 3 Style */
+  .raid-content {
+    padding: 16px 0;
+    margin: 8px 0;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .raid-target {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(29, 155, 240, 0.15);
+    color: #1d9bf0;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    transition: all 0.2s ease;
+  }
+  .raid-target:hover {
+    background: rgba(29, 155, 240, 0.25);
+  }
+  .raid-target-icon {
+    font-size: 16px;
+    font-weight: 900;
+  }
+  .raid-content .raid-description {
+    font-size: 15px;
+    line-height: 1.5;
+    color: rgba(255,255,255,0.9);
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
   /* Card Footer */
   .raid-card-footer {
     display: flex;
@@ -17126,6 +17164,15 @@
         return `${minutes}m`;
       };
 
+      // Extract Twitter handle from URL
+      let twitterHandle = '';
+      if (raid.twitter_url) {
+        const urlMatch = raid.twitter_url.match(/(?:twitter\.com|x\.com)\/([^\/]+)/);
+        if (urlMatch) {
+          twitterHandle = '@' + urlMatch[1];
+        }
+      }
+
       // Calculate time progress for bar
       const totalTime = new Date(raid.expires_at) - new Date(raid.created_at);
       const elapsed = now - new Date(raid.created_at);
@@ -17175,6 +17222,11 @@
 
         <div class="raid-progress-bar">
           <div class="raid-progress-fill" style="width: ${progressPercent}%"></div>
+        </div>
+
+        <div class="raid-content">
+          ${twitterHandle ? `<div class="raid-target"><span class="raid-target-icon">𝕏</span> ${twitterHandle}</div>` : ''}
+          <div class="raid-description">${raid.description || 'Support the community!'}</div>
         </div>
 
         <div class="raid-card-footer">
