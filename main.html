@@ -17973,8 +17973,15 @@
       Array.from(currentList.querySelectorAll('.raid-item')).forEach(card => {
         const raidId = parseInt(card.getAttribute('data-raid-id'));
         const preview = card.querySelector('.raid-tweet-preview');
-        // Only save cards that have loaded tweet previews
-        if (preview && (preview.querySelector('.twitter-tweet') || preview.querySelector('.raid-tweet-click-overlay'))) {
+        // Only save cards that have loaded tweet previews (check for Twitter iframe, original blockquote, overlay, or error state)
+        const hasTwitterContent = preview && (
+          preview.querySelector('.twitter-tweet') ||           // Original blockquote before Twitter processes
+          preview.querySelector('.raid-tweet-click-overlay') || // Our click overlay
+          preview.querySelector('iframe') ||                   // Twitter iframe after processing
+          preview.querySelector('.twitter-tweet-rendered') ||  // Twitter processed state
+          preview.querySelector('.raid-preview-error')         // Error state (don't keep reloading)
+        );
+        if (hasTwitterContent) {
           card.remove(); // Remove from DOM temporarily
           existingCards[raidId] = card;
         }
@@ -18119,11 +18126,21 @@
       const previewEl = document.getElementById(`tweet-preview-${raidId}`);
       if (!previewEl) return;
 
-      // Check if preview is already loaded (not just the loading message)
-      if (previewEl.querySelector('.twitter-tweet') || previewEl.querySelector('.raid-tweet-click-overlay')) {
-        console.log(`Tweet preview already loaded for raid ${raidId}, skipping reload`);
+      // Check if preview was already attempted (prevents repeated API calls)
+      if (previewEl.hasAttribute('data-loaded')) {
+        console.log(`Tweet preview already attempted for raid ${raidId}, skipping`);
         return;
       }
+
+      // Check if preview is already loaded (not just the loading message)
+      if (previewEl.querySelector('.twitter-tweet') || previewEl.querySelector('.raid-tweet-click-overlay') || previewEl.querySelector('iframe')) {
+        console.log(`Tweet preview already loaded for raid ${raidId}, skipping reload`);
+        previewEl.setAttribute('data-loaded', 'true');
+        return;
+      }
+
+      // Mark as loading attempted
+      previewEl.setAttribute('data-loaded', 'true');
 
       try {
         const response = await fetch(`${API_BASE_URL}/api/twitter/oembed?url=${encodeURIComponent(twitterUrl)}`);
