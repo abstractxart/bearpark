@@ -17126,18 +17126,6 @@
         return `${minutes}m`;
       };
 
-      // Extract tweet info from URL or description
-      let tweetText = raid.description || 'Join this raid!';
-      let tweetAuthor = raid.profile_handle || '@BearXRPL';
-
-      // Try to extract username from Twitter URL
-      if (raid.twitter_url) {
-        const urlMatch = raid.twitter_url.match(/(?:twitter\.com|x\.com)\/([^\/]+)/);
-        if (urlMatch) {
-          tweetAuthor = '@' + urlMatch[1];
-        }
-      }
-
       // Calculate time progress for bar
       const totalTime = new Date(raid.expires_at) - new Date(raid.created_at);
       const elapsed = now - new Date(raid.created_at);
@@ -17187,15 +17175,6 @@
 
         <div class="raid-progress-bar">
           <div class="raid-progress-fill" style="width: ${progressPercent}%"></div>
-        </div>
-
-        <div class="raid-tweet-preview-compact" data-raid-id="${raid.id}">
-          <div class="raid-tweet-author">${tweetAuthor}</div>
-          <div class="raid-tweet-text">${tweetText}</div>
-          <a href="${raid.twitter_url}" target="_blank" class="raid-twitter-link" data-raid-id="${raid.id}"
-             style="display:inline-block; margin-top:12px; font-size:14px; color:var(--gold); text-decoration:none; opacity:0.9; font-weight:600;">
-            🔗 View on Twitter/X →
-          </a>
         </div>
 
         <div class="raid-card-footer">
