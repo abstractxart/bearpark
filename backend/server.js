@@ -35,6 +35,8 @@ console.log('  XAMAN_API_KEY exists:', !!XAMAN_API_KEY);
 console.log('  XAMAN_API_SECRET exists:', !!XAMAN_API_SECRET);
 console.log('  SUPABASE_URL exists:', !!process.env.SUPABASE_URL);
 console.log('  DATABASE_URL exists:', !!process.env.DATABASE_URL);
+console.log('  AIRDROP_WALLET_SECRET exists:', !!process.env.AIRDROP_WALLET_SECRET);
+console.log('  AIRDROP_WALLET_SECRET length:', process.env.AIRDROP_WALLET_SECRET?.length || 0);
 
 // Initialize Supabase (public client - respects RLS)
 const supabase = createClient(
