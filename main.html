@@ -16813,6 +16813,113 @@
     let currentRaidsData = {}; // Store raid data by ID for easy access
     let processingRaids = new Set(); // Track which raids are currently being processed
     let processingRaidTimers = {}; // Track active processing raids with their start times
+    let pendingDeepLinkRaidId = null; // Track if we're handling a deep link
+
+    /* ===== Deep Link Handling for Discord Raid Links ===== */
+    function checkRaidDeepLink() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const raidId = urlParams.get('raid');
+      if (raidId) {
+        return parseInt(raidId, 10);
+      }
+      return null;
+    }
+
+    function showRaidToast(message, type = 'info') {
+      // Remove existing toast if any
+      const existingToast = document.querySelector('.raid-toast');
+      if (existingToast) existingToast.remove();
+
+      const toast = document.createElement('div');
+      toast.className = `raid-toast raid-toast-${type}`;
+      toast.innerHTML = message;
+      toast.style.cssText = `
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 16px 24px;
+        border-radius: 12px;
+        font-weight: 700;
+        font-size: 16px;
+        z-index: 10000;
+        animation: slideDown 0.3s ease;
+        max-width: 90%;
+        text-align: center;
+        ${type === 'error' ? 'background: linear-gradient(135deg, #ff4444, #cc0000); color: white; border: 2px solid #ff6666;' : ''}
+        ${type === 'success' ? 'background: linear-gradient(135deg, #07ae08, #05850f); color: white; border: 2px solid #0bd00b;' : ''}
+        ${type === 'info' ? 'background: linear-gradient(135deg, #680cd9, #feb501); color: white; border: 2px solid #feb501;' : ''}
+      `;
+      document.body.appendChild(toast);
+
+      // Auto-remove after 4 seconds
+      setTimeout(() => {
+        toast.style.animation = 'slideUp 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+      }, 4000);
+    }
+
+    function handleRaidDeepLink(raidId) {
+      const walletAddress = localStorage.getItem('bearpark_wallet');
+
+      // Wait for raids to be rendered
+      setTimeout(() => {
+        const raidCard = document.querySelector(`.raid-item[data-raid-id="${raidId}"]`);
+
+        if (!raidCard) {
+          // Raid not found - might be expired or invalid
+          showRaidToast('Raid not found or has expired', 'error');
+          // Clean URL
+          window.history.replaceState({}, document.title, window.location.pathname);
+          return;
+        }
+
+        // Check if already completed
+        const completedRaids = JSON.parse(localStorage.getItem(`completed_raids_${walletAddress}`) || '[]');
+        if (completedRaids.includes(raidId)) {
+          showRaidToast('You already completed this raid!', 'info');
+          window.history.replaceState({}, document.title, window.location.pathname);
+          return;
+        }
+
+        // Check if wallet connected
+        if (!walletAddress) {
+          showRaidToast('Connect your wallet first to earn honey points!', 'error');
+          // Still scroll to section
+          document.getElementById('honey-points').scrollIntoView({
+            behavior: 'smooth',
+            block: 'start'
+          });
+          // Highlight the raid card
+          raidCard.style.boxShadow = '0 0 30px var(--stripe-yellow)';
+          setTimeout(() => raidCard.style.boxShadow = '', 3000);
+          window.history.replaceState({}, document.title, window.location.pathname);
+          return;
+        }
+
+        // Scroll to honey-points section
+        document.getElementById('honey-points').scrollIntoView({
+          behavior: 'smooth',
+          block: 'start'
+        });
+
+        // Wait for scroll to complete, then trigger the raid
+        setTimeout(() => {
+          const raidBtn = raidCard.querySelector('.raid-btn');
+          if (raidBtn && !raidBtn.disabled && raidBtn.style.pointerEvents !== 'none') {
+            // Highlight briefly then click
+            raidCard.style.boxShadow = '0 0 30px var(--stripe-yellow)';
+            setTimeout(() => {
+              raidBtn.click();
+              raidCard.style.boxShadow = '';
+            }, 500);
+          }
+        }, 800);
+
+        // Clean URL to prevent re-trigger on refresh
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }, 600); // Wait for DOM to render
+    }
 
     // Persist processing raids to localStorage
     function saveProcessingRaids() {
@@ -17731,6 +17838,11 @@
     async function loadRaids() {
       const walletAddress = localStorage.getItem('bearpark_wallet');
 
+      // Check for deep link on first load
+      if (pendingDeepLinkRaidId === null) {
+        pendingDeepLinkRaidId = checkRaidDeepLink();
+      }
+
       try {
         // Fetch current raids and user's completed raids in parallel
         const [raidsResponse, completedResponse] = await Promise.all([
@@ -17771,10 +17883,21 @@
           console.log('🔵 [Raids] Total raids:', raidsData.raids.length, 'Active:', activeRaids.length, 'Completed:', allCompletedRaids.length);
 
           displayCurrentRaids(activeRaids, walletAddress);
+
+          // Handle deep link after raids are displayed
+          if (pendingDeepLinkRaidId) {
+            handleRaidDeepLink(pendingDeepLinkRaidId);
+            pendingDeepLinkRaidId = false; // Mark as handled
+          }
         }
       } catch (err) {
         console.error('Error loading raids:', err);
         displayMockRaids(); // Show mock data on error
+        // Handle deep link even with mock data
+        if (pendingDeepLinkRaidId) {
+          handleRaidDeepLink(pendingDeepLinkRaidId);
+          pendingDeepLinkRaidId = false; // Mark as handled
+        }
       }
     }
 
