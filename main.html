@@ -17968,23 +17968,12 @@
         }
       });
 
-      // OPTIMIZATION: Save existing raid cards with loaded tweets to prevent reload
+      // OPTIMIZATION: Save ALL existing raid cards to prevent re-rendering
       const existingCards = {};
       Array.from(currentList.querySelectorAll('.raid-item')).forEach(card => {
         const raidId = parseInt(card.getAttribute('data-raid-id'));
-        const preview = card.querySelector('.raid-tweet-preview');
-        // Only save cards that have loaded tweet previews (check for Twitter iframe, original blockquote, overlay, or error state)
-        const hasTwitterContent = preview && (
-          preview.querySelector('.twitter-tweet') ||           // Original blockquote before Twitter processes
-          preview.querySelector('.raid-tweet-click-overlay') || // Our click overlay
-          preview.querySelector('iframe') ||                   // Twitter iframe after processing
-          preview.querySelector('.twitter-tweet-rendered') ||  // Twitter processed state
-          preview.querySelector('.raid-preview-error')         // Error state (don't keep reloading)
-        );
-        if (hasTwitterContent) {
-          card.remove(); // Remove from DOM temporarily
-          existingCards[raidId] = card;
-        }
+        card.remove(); // Remove from DOM temporarily
+        existingCards[raidId] = card;
       });
 
       currentList.innerHTML = raids.map(raid => {
@@ -18022,9 +18011,6 @@
               </span>
             </div>
             <div class="raid-description">${raid.description}</div>
-            <div class="raid-tweet-preview" id="tweet-preview-${raid.id}">
-              <div class="raid-preview-loading">Loading tweet preview...</div>
-            </div>
             <div class="raid-footer">
               <span class="raid-reward"><img src="https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/wyfjtc.png" alt="honey" style="height:1em; width:auto; vertical-align:middle; display:inline-block;"> HONEY EARNED FROM RAID: ${raid.reward}</span>
               <a href="javascript:void(0)"
@@ -18059,10 +18045,6 @@
 
         if (new Date(raid.expires_at) > new Date()) {
           startRaidTimer(raid.id, raid.expires_at);
-        }
-        // Load tweet preview only for new raids
-        if (!completedRaids.includes(raid.id) && !processingRaids.has(raid.id)) {
-          loadTweetPreview(raid.id, raid.twitter_url);
         }
       });
 
