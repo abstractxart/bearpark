@@ -6,31 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>FLAPPY BEAR</title>
 
-    <!-- BROWSER COMPATIBILITY: Polyfills for old browsers (Opera, Brave, Edge, old Android/iOS) -->
-    <script>if(typeof Promise==='undefined'){document.write('<script src="https://cdn.jsdelivr.net/npm/promise-polyfill@8/dist/polyfill.min.js"><\/script>')}</script>
-    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6,fetch,URLSearchParams,Array.from,Object.assign,Element.prototype.classList,requestAnimationFrame,PointerEvent"></script>
-    <script>
-    (function(){
-      // URLSearchParams polyfill fallback
-      if(!window.URLSearchParams){var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/url-search-params-polyfill@8.2.0/index.js';document.head.appendChild(s);}
-      // PointerEvent polyfill for older browsers
-      if(!window.PointerEvent){
-        window.PointerEvent=function(type,params){
-          params=params||{bubbles:false,cancelable:false};
-          var evt=document.createEvent('MouseEvent');
-          evt.initMouseEvent(type,params.bubbles,params.cancelable,params.view||window,params.detail||0,
-            params.screenX||0,params.screenY||0,params.clientX||0,params.clientY||0,
-            params.ctrlKey||false,params.altKey||false,params.shiftKey||false,params.metaKey||false,
-            params.button||0,params.relatedTarget||null);
-          return evt;
-        };
-      }
-      // requestAnimationFrame polyfill
-      if(!window.requestAnimationFrame){window.requestAnimationFrame=window.webkitRequestAnimationFrame||window.mozRequestAnimationFrame||function(cb){return setTimeout(cb,16)};}
-      if(!window.cancelAnimationFrame){window.cancelAnimationFrame=window.webkitCancelAnimationFrame||window.mozCancelAnimationFrame||clearTimeout;}
-    })();
-    </script>
-
     <!-- BEAR Park Font -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -75,7 +50,7 @@
 
     <!-- Honey Points Helper -->
     <script src="./game-points-helper.js"></script>
-
+
 
     <!-- Make entire viewport clickable for flapping (including black bars) -->
     <script>
@@ -143,7 +118,7 @@
         setupClickForwarding();
       }
     </script>
-    <script type="module" crossorigin src="./assets/index-Cq3Eyeth.js"></script>
+    <script type="module" crossorigin src="./assets/index-hl3oPRsV.js"></script>
     <link rel="stylesheet" crossorigin href="./assets/index-B82uLamp.css">
   </head>
   <body>

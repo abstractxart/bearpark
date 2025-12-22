@@ -11,7 +11,7 @@ const GAME_POINTS_CONFIG = {
   // Auto-detect: localhost uses local API, production uses Railway API
   API_BASE_URL: (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
     ? 'http://localhost:3000'
-    : 'https://bearpark-api-production.up.railway.app'
+    : 'https://bearpark-production.up.railway.app'
 };
 
 /**
@@ -60,10 +60,6 @@ async function awardGamePoints(gameId, minutesPlayed) {
 
       // Trigger event to refresh daily progress widget on main page
       window.dispatchEvent(new CustomEvent('gamePointsAwarded', { detail: data }));
-      // Also dispatch to parent window (for iframed games) to update BEARdrops
-      if (window.parent && window.parent !== window) {
-        window.parent.dispatchEvent(new CustomEvent('honeyPointsUpdated', { detail: data }));
-      }
 
       return data;
     } else {
