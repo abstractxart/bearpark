@@ -16819,6 +16819,7 @@
     function checkRaidDeepLink() {
       const urlParams = new URLSearchParams(window.location.search);
       const raidId = urlParams.get('raid');
+      console.log('🔗 [DeepLink] Checking URL params:', window.location.search, 'raidId:', raidId);
       if (raidId) {
         return parseInt(raidId, 10);
       }
@@ -16860,11 +16861,14 @@
     }
 
     function handleRaidDeepLink(raidId) {
+      console.log('🔗 [DeepLink] handleRaidDeepLink called with raidId:', raidId);
       const walletAddress = localStorage.getItem('bearpark_wallet');
+      console.log('🔗 [DeepLink] walletAddress:', walletAddress);
 
       // Wait for raids to be rendered
       setTimeout(() => {
         const raidCard = document.querySelector(`.raid-item[data-raid-id="${raidId}"]`);
+        console.log('🔗 [DeepLink] Found raid card:', raidCard);
 
         if (!raidCard) {
           // Raid not found - might be expired or invalid
@@ -17841,6 +17845,7 @@
       // Check for deep link on first load
       if (pendingDeepLinkRaidId === null) {
         pendingDeepLinkRaidId = checkRaidDeepLink();
+        console.log('🔗 [DeepLink] First load check, pendingDeepLinkRaidId:', pendingDeepLinkRaidId);
       }
 
       try {
@@ -17885,7 +17890,9 @@
           displayCurrentRaids(activeRaids, walletAddress);
 
           // Handle deep link after raids are displayed
+          console.log('🔗 [DeepLink] After displayCurrentRaids, pendingDeepLinkRaidId:', pendingDeepLinkRaidId);
           if (pendingDeepLinkRaidId) {
+            console.log('🔗 [DeepLink] Calling handleRaidDeepLink now!');
             handleRaidDeepLink(pendingDeepLinkRaidId);
             pendingDeepLinkRaidId = false; // Mark as handled
           }
