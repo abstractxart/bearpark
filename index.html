@@ -373,10 +373,27 @@
       await new Promise(resolve => setTimeout(resolve, 100));
     }
 
+    // Preserve raid deep link parameter through authentication
+    const urlParams = new URLSearchParams(window.location.search);
+    const raidParam = urlParams.get('raid');
+    if (raidParam) {
+      sessionStorage.setItem('pending_raid_id', raidParam);
+    }
+
+    // Build redirect URL with raid parameter if present
+    function getMainRedirectUrl() {
+      const pendingRaid = sessionStorage.getItem('pending_raid_id');
+      if (pendingRaid) {
+        sessionStorage.removeItem('pending_raid_id');
+        return 'main.html?raid=' + pendingRaid;
+      }
+      return 'main.html';
+    }
+
     // Check if already authenticated
     const isAuthenticated = localStorage.getItem('bearpark_auth');
     if(isAuthenticated === 'true'){
-      window.location.href = 'main.html';
+      window.location.href = getMainRedirectUrl();
       return;
     }
 
@@ -632,7 +649,7 @@
           }
 
           setTimeout(() => {
-            window.location.href = 'main.html';
+            window.location.href = getMainRedirectUrl();
           }, 2000);
           return true;
         } else {
