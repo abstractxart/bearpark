@@ -28610,6 +28610,7 @@ let currentSlide = 0;
 let userVotes = new Set();
 let weekEndTime = null;
 let timerInterval = null;
+let isRefreshingMemes = false; // Prevent multiple simultaneous refreshes
 
 // 🛡️ API Call Rate Limiter - Prevent 429 errors
 const memeApiCache = {
@@ -28617,7 +28618,7 @@ const memeApiCache = {
   currentWeek: { data: null, lastFetch: 0 },
   leaderboard: { data: null, lastFetch: 0 }
 };
-const MEME_API_COOLDOWN = 10000; // 10 seconds between API calls
+const MEME_API_COOLDOWN = 30000; // 30 seconds between API calls (increased from 10)
 
 async function cachedFetch(endpoint, cacheKey) {
   const cache = memeApiCache[cacheKey];
@@ -28629,9 +28630,13 @@ async function cachedFetch(endpoint, cacheKey) {
   }
 
   try {
-    const response = await fetch(endpoint);
+    // Use API_BASE_URL for proper backend routing
+    const fullUrl = API_BASE_URL + endpoint;
+    const response = await fetch(fullUrl);
     if (response.status === 429) {
       console.log(`⏳ Rate limited on ${endpoint}, using cache`);
+      // Extend cache time on rate limit to back off
+      cache.lastFetch = now;
       return cache.data || { success: false, error: 'Rate limited' };
     }
     const data = await response.json();
@@ -28640,6 +28645,8 @@ async function cachedFetch(endpoint, cacheKey) {
     return data;
   } catch (error) {
     console.error(`❌ Failed to fetch ${endpoint}:`, error);
+    // Extend cache time on error to prevent hammering
+    cache.lastFetch = now;
     return cache.data || { success: false, error: error.message };
   }
 }
@@ -28714,7 +28721,8 @@ async function loadTimer() {
 
 // 🕐 Update Timer Display
 let weekEndedRefreshCount = 0;
-const MAX_WEEK_END_REFRESHES = 3; // Limit refresh attempts when week ends
+const MAX_WEEK_END_REFRESHES = 2; // Limit refresh attempts when week ends
+let lastWeekEndRefresh = 0; // Track when we last tried to refresh
 
 function updateTimer() {
   const timerEl = document.getElementById('meme-timer');
@@ -28724,29 +28732,31 @@ function updateTimer() {
   const diff = weekEndTime - now;
 
   if (diff <= 0) {
-    // Week ended - check if we should refresh or show waiting message
-    if (weekEndedRefreshCount < MAX_WEEK_END_REFRESHES) {
+    // Week ended - show waiting message
+    timerEl.innerHTML = '<span class="days" style="color: var(--gold);">Week Ended</span>';
+
+    // Only try to refresh if we haven't recently AND not already refreshing
+    const timeSinceLastRefresh = Date.now() - lastWeekEndRefresh;
+    if (timeSinceLastRefresh > 60000 && !isRefreshingMemes && weekEndedRefreshCount < MAX_WEEK_END_REFRESHES) {
       weekEndedRefreshCount++;
-      timerEl.innerHTML = '<span class="days">0d</span><span class="hours">0h</span><span class="mins">0m</span><span class="secs">0s</span>';
-      // Try to reload for new week
+      lastWeekEndRefresh = Date.now();
+      isRefreshingMemes = true;
+
+      // Try to reload for new week - but only once per minute max
       setTimeout(async () => {
-        await loadTimer();
-        await loadMemes();
-        await loadLeaderboard();
-      }, 3000);
-    } else {
-      // Stop refreshing, show waiting message
-      timerEl.innerHTML = '<span class="days" style="color: var(--gold);">Resetting...</span>';
-      // Check again in 30 seconds
-      setTimeout(() => {
-        weekEndedRefreshCount = 0; // Reset counter to try again
-        loadTimer();
-      }, 30000);
+        try {
+          await loadTimer();
+          await loadMemes();
+          await loadLeaderboard();
+        } finally {
+          isRefreshingMemes = false;
+        }
+      }, 5000);
     }
     return;
   }
 
-  // Week is active - reset the refresh counter
+  // Week is still active - reset counters
   weekEndedRefreshCount = 0;
 
   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
