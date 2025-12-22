@@ -35,8 +35,6 @@ console.log('  XAMAN_API_KEY exists:', !!XAMAN_API_KEY);
 console.log('  XAMAN_API_SECRET exists:', !!XAMAN_API_SECRET);
 console.log('  SUPABASE_URL exists:', !!process.env.SUPABASE_URL);
 console.log('  DATABASE_URL exists:', !!process.env.DATABASE_URL);
-console.log('  AIRDROP_WALLET_SECRET exists:', !!process.env.AIRDROP_WALLET_SECRET);
-console.log('  AIRDROP_WALLET_SECRET length:', process.env.AIRDROP_WALLET_SECRET?.length || 0);
 
 // Initialize Supabase (public client - respects RLS)
 const supabase = createClient(
@@ -4275,18 +4273,6 @@ app.get('/health', (req, res) => {
     status: 'ok',
     message: 'BEAR Park API Server running',
     version: SERVER_VERSION
-  });
-});
-
-// TEMPORARY DEBUG - REMOVE AFTER FIXING
-app.get('/debug-env', (req, res) => {
-  res.json({
-    AIRDROP_WALLET_SECRET_exists: !!process.env.AIRDROP_WALLET_SECRET,
-    AIRDROP_WALLET_SECRET_length: process.env.AIRDROP_WALLET_SECRET?.length || 0,
-    AIRDROP_WALLET_SECRET_type: typeof process.env.AIRDROP_WALLET_SECRET,
-    AIRDROP_WALLET_SECRET_first3: process.env.AIRDROP_WALLET_SECRET?.substring(0, 3) || 'N/A',
-    ALL_ENV_KEYS: Object.keys(process.env).filter(k => k.includes('AIRDROP') || k.includes('SUPABASE') || k.includes('DATABASE')),
-    NODE_ENV: process.env.NODE_ENV
   });
 });
 
