@@ -14316,7 +14316,7 @@
   // === API CONFIGURATION ===
   const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? 'http://localhost:3000'
-    : 'https://bearpark-api-production.up.railway.app';
+    : '';
 
   // === SAFE STORAGE WRAPPER (Safari Private Mode Fix) ===
   // Safari Private Mode throws QuotaExceededError on localStorage.setItem()
@@ -16728,7 +16728,86 @@
       }
     }
 
-    /* ===== Raids System Variables (must be declared before initialization) ===== */
+    // Initialize honey points section
+    loadHoneyPoints();
+    loadDailyGameProgress();
+    const walletAddress = localStorage.getItem('bearpark_wallet');
+    loadHoneyLeaderboard(walletAddress);
+    // Load persisted raid timers before loading raids
+    loadProcessingRaids();
+    loadRaids();
+    loadTopRaiders();
+    startGameResetCountdown();
+
+    // Listen for game points being awarded to refresh progress widget
+    window.addEventListener('gamePointsAwarded', () => {
+      loadDailyGameProgress();
+      loadHoneyPoints(); // Also refresh total points
+    });
+
+    // Debounce mechanism to prevent constant refreshing
+    let lastRefreshTime = 0;
+    const REFRESH_COOLDOWN = 5000; // 5 seconds minimum between refreshes
+
+    function refreshPointsIfNeeded(reason) {
+      const now = Date.now();
+      if (now - lastRefreshTime < REFRESH_COOLDOWN) {
+        console.log(`⏭️ Skipping refresh (${reason}) - cooldown active`);
+        return;
+      }
+      console.log(`🔄 Refreshing honey points data (${reason})`);
+      lastRefreshTime = now;
+      loadDailyGameProgress();
+      loadHoneyPoints();
+      const wallet = localStorage.getItem('bearpark_wallet');
+      if (wallet) loadHoneyLeaderboard(wallet);
+    }
+
+    // Refresh data when page becomes visible (e.g., returning from game page)
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        refreshPointsIfNeeded('page visible');
+      }
+    });
+
+    // Also refresh when window gains focus
+    window.addEventListener('focus', () => {
+      refreshPointsIfNeeded('window focus');
+    });
+
+    // Show admin button if user is admin
+    const ADMIN_WALLET = 'rKkkYMCvC63HEgxjQHmayKADaxYqnsMUkT';
+    if (walletAddress === ADMIN_WALLET) {
+      const adminBtn = document.getElementById('adminRaidBtn');
+      if (adminBtn) {
+        adminBtn.style.display = 'block';
+      }
+    }
+
+    // Refresh leaderboard and raids every 30 seconds (skip if tab hidden)
+    setInterval(() => {
+      if (document.hidden) return; // Skip polling when tab not visible
+      const walletAddress = localStorage.getItem('bearpark_wallet');
+      loadHoneyLeaderboard(walletAddress);
+      if (!showingPreviousRaids) {
+        loadRaids(); // Only refresh if showing current raids
+      }
+    }, 30000);
+
+    function getTimeAgo(date) {
+      const seconds = Math.floor((new Date() - date) / 1000);
+      if (seconds < 60) return 'just now';
+      const minutes = Math.floor(seconds / 60);
+      if (minutes < 60) return `${minutes}m ago`;
+      const hours = Math.floor(minutes / 60);
+      if (hours < 24) return `${hours}h ago`;
+      const days = Math.floor(hours / 24);
+      return `${days}d ago`;
+    }
+
+    // Twitter integration removed - points now earned through games and raids only
+
+    /* ===== Raids System ===== */
     let raidTimerIntervals = [];
     let showingPreviousRaids = false;
     let currentRaidsData = {}; // Store raid data by ID for easy access
@@ -16845,87 +16924,6 @@
         window.history.replaceState({}, document.title, window.location.pathname);
       }, 600); // Wait for DOM to render
     }
-
-    // Initialize honey points section
-    loadHoneyPoints();
-    loadDailyGameProgress();
-    const walletAddress = localStorage.getItem('bearpark_wallet');
-    loadHoneyLeaderboard(walletAddress);
-    // Load persisted raid timers before loading raids
-    loadProcessingRaids();
-    loadRaids();
-    loadTopRaiders();
-    startGameResetCountdown();
-
-    // Listen for game points being awarded to refresh progress widget
-    window.addEventListener('gamePointsAwarded', () => {
-      loadDailyGameProgress();
-      loadHoneyPoints(); // Also refresh total points
-    });
-
-    // Debounce mechanism to prevent constant refreshing
-    let lastRefreshTime = 0;
-    const REFRESH_COOLDOWN = 5000; // 5 seconds minimum between refreshes
-
-    function refreshPointsIfNeeded(reason) {
-      const now = Date.now();
-      if (now - lastRefreshTime < REFRESH_COOLDOWN) {
-        console.log(`⏭️ Skipping refresh (${reason}) - cooldown active`);
-        return;
-      }
-      console.log(`🔄 Refreshing honey points data (${reason})`);
-      lastRefreshTime = now;
-      loadDailyGameProgress();
-      loadHoneyPoints();
-      const wallet = localStorage.getItem('bearpark_wallet');
-      if (wallet) loadHoneyLeaderboard(wallet);
-    }
-
-    // Refresh data when page becomes visible (e.g., returning from game page)
-    document.addEventListener('visibilitychange', () => {
-      if (!document.hidden) {
-        refreshPointsIfNeeded('page visible');
-      }
-    });
-
-    // Also refresh when window gains focus
-    window.addEventListener('focus', () => {
-      refreshPointsIfNeeded('window focus');
-    });
-
-    // Show admin button if user is admin
-    const ADMIN_WALLET = 'rKkkYMCvC63HEgxjQHmayKADaxYqnsMUkT';
-    if (walletAddress === ADMIN_WALLET) {
-      const adminBtn = document.getElementById('adminRaidBtn');
-      if (adminBtn) {
-        adminBtn.style.display = 'block';
-      }
-    }
-
-    // Refresh leaderboard and raids every 30 seconds (skip if tab hidden)
-    setInterval(() => {
-      if (document.hidden) return; // Skip polling when tab not visible
-      const walletAddress = localStorage.getItem('bearpark_wallet');
-      loadHoneyLeaderboard(walletAddress);
-      if (!showingPreviousRaids) {
-        loadRaids(); // Only refresh if showing current raids
-      }
-    }, 30000);
-
-    function getTimeAgo(date) {
-      const seconds = Math.floor((new Date() - date) / 1000);
-      if (seconds < 60) return 'just now';
-      const minutes = Math.floor(seconds / 60);
-      if (minutes < 60) return `${minutes}m ago`;
-      const hours = Math.floor(minutes / 60);
-      if (hours < 24) return `${hours}h ago`;
-      const days = Math.floor(hours / 24);
-      return `${days}d ago`;
-    }
-
-    // Twitter integration removed - points now earned through games and raids only
-
-    /* ===== Raids System (continued) ===== */
 
     // Persist processing raids to localStorage
     function saveProcessingRaids() {
@@ -28610,7 +28608,6 @@ let currentSlide = 0;
 let userVotes = new Set();
 let weekEndTime = null;
 let timerInterval = null;
-let isRefreshingMemes = false; // Prevent multiple simultaneous refreshes
 
 // 🛡️ API Call Rate Limiter - Prevent 429 errors
 const memeApiCache = {
@@ -28618,7 +28615,7 @@ const memeApiCache = {
   currentWeek: { data: null, lastFetch: 0 },
   leaderboard: { data: null, lastFetch: 0 }
 };
-const MEME_API_COOLDOWN = 30000; // 30 seconds between API calls (increased from 10)
+const MEME_API_COOLDOWN = 10000; // 10 seconds between API calls
 
 async function cachedFetch(endpoint, cacheKey) {
   const cache = memeApiCache[cacheKey];
@@ -28630,13 +28627,9 @@ async function cachedFetch(endpoint, cacheKey) {
   }
 
   try {
-    // Use API_BASE_URL for proper backend routing
-    const fullUrl = API_BASE_URL + endpoint;
-    const response = await fetch(fullUrl);
+    const response = await fetch(endpoint);
     if (response.status === 429) {
       console.log(`⏳ Rate limited on ${endpoint}, using cache`);
-      // Extend cache time on rate limit to back off
-      cache.lastFetch = now;
       return cache.data || { success: false, error: 'Rate limited' };
     }
     const data = await response.json();
@@ -28645,8 +28638,6 @@ async function cachedFetch(endpoint, cacheKey) {
     return data;
   } catch (error) {
     console.error(`❌ Failed to fetch ${endpoint}:`, error);
-    // Extend cache time on error to prevent hammering
-    cache.lastFetch = now;
     return cache.data || { success: false, error: error.message };
   }
 }
@@ -28721,8 +28712,7 @@ async function loadTimer() {
 
 // 🕐 Update Timer Display
 let weekEndedRefreshCount = 0;
-const MAX_WEEK_END_REFRESHES = 2; // Limit refresh attempts when week ends
-let lastWeekEndRefresh = 0; // Track when we last tried to refresh
+const MAX_WEEK_END_REFRESHES = 3; // Limit refresh attempts when week ends
 
 function updateTimer() {
   const timerEl = document.getElementById('meme-timer');
@@ -28732,31 +28722,29 @@ function updateTimer() {
   const diff = weekEndTime - now;
 
   if (diff <= 0) {
-    // Week ended - show waiting message
-    timerEl.innerHTML = '<span class="days" style="color: var(--gold);">Week Ended</span>';
-
-    // Only try to refresh if we haven't recently AND not already refreshing
-    const timeSinceLastRefresh = Date.now() - lastWeekEndRefresh;
-    if (timeSinceLastRefresh > 60000 && !isRefreshingMemes && weekEndedRefreshCount < MAX_WEEK_END_REFRESHES) {
+    // Week ended - check if we should refresh or show waiting message
+    if (weekEndedRefreshCount < MAX_WEEK_END_REFRESHES) {
       weekEndedRefreshCount++;
-      lastWeekEndRefresh = Date.now();
-      isRefreshingMemes = true;
-
-      // Try to reload for new week - but only once per minute max
+      timerEl.innerHTML = '<span class="days">0d</span><span class="hours">0h</span><span class="mins">0m</span><span class="secs">0s</span>';
+      // Try to reload for new week
       setTimeout(async () => {
-        try {
-          await loadTimer();
-          await loadMemes();
-          await loadLeaderboard();
-        } finally {
-          isRefreshingMemes = false;
-        }
-      }, 5000);
+        await loadTimer();
+        await loadMemes();
+        await loadLeaderboard();
+      }, 3000);
+    } else {
+      // Stop refreshing, show waiting message
+      timerEl.innerHTML = '<span class="days" style="color: var(--gold);">Resetting...</span>';
+      // Check again in 30 seconds
+      setTimeout(() => {
+        weekEndedRefreshCount = 0; // Reset counter to try again
+        loadTimer();
+      }, 30000);
     }
     return;
   }
 
-  // Week is still active - reset counters
+  // Week is active - reset the refresh counter
   weekEndedRefreshCount = 0;
 
   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
@@ -28909,7 +28897,7 @@ async function voteMeme(memeId) {
   console.log('📤 Sending vote request to backend...');
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/memes/${memeId}/vote`, {
+    const response = await fetch(`/api/memes/${memeId}/vote`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -28975,7 +28963,7 @@ async function unvoteMeme(memeId) {
 
   try {
     // Use query parameter for DELETE request
-    const response = await fetch(`${API_BASE_URL}/api/memes/${memeId}/vote?wallet_address=${encodeURIComponent(walletAddress)}`, {
+    const response = await fetch(`/api/memes/${memeId}/vote?wallet_address=${encodeURIComponent(walletAddress)}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
@@ -29099,7 +29087,7 @@ async function loadUserVotes() {
 
   try {
     console.log('📥 Loading user votes for:', walletAddress);
-    const response = await fetch(`${API_BASE_URL}/api/memes/user-votes/${walletAddress}`);
+    const response = await fetch(`/api/memes/user-votes/${walletAddress}`);
     const data = await response.json();
 
     console.log('📦 User votes response:', data);
@@ -29165,7 +29153,7 @@ async function deleteMeme(memeId) {
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/memes/${memeId}`, {
+    const response = await fetch(`/api/memes/${memeId}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
@@ -29282,7 +29270,7 @@ async function submitMeme() {
     formData.append('file_name', fileName);
 
     // Submit to backend
-    const response = await fetch(`${API_BASE_URL}/api/memes/submit`, {
+    const response = await fetch('/api/memes/submit', {
       method: 'POST',
       body: formData
     });
