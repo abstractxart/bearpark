@@ -130,6 +130,10 @@ const apiLimiter = rateLimit({
   // Use X-Forwarded-For header to get real client IP
   keyGenerator: (req) => {
     return req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || 'unknown';
+  },
+  // Skip rate limiting for admin endpoints - admins need unrestricted access
+  skip: (req) => {
+    return req.path.startsWith('/api/admin/');
   }
 });
 app.use('/api/', apiLimiter);
