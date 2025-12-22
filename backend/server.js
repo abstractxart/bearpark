@@ -4278,6 +4278,16 @@ app.get('/health', (req, res) => {
   });
 });
 
+// TEMPORARY DEBUG - REMOVE AFTER FIXING
+app.get('/debug-env', (req, res) => {
+  res.json({
+    AIRDROP_WALLET_SECRET_exists: !!process.env.AIRDROP_WALLET_SECRET,
+    AIRDROP_WALLET_SECRET_length: process.env.AIRDROP_WALLET_SECRET?.length || 0,
+    AIRDROP_WALLET_SECRET_type: typeof process.env.AIRDROP_WALLET_SECRET,
+    AIRDROP_WALLET_SECRET_first3: process.env.AIRDROP_WALLET_SECRET?.substring(0, 3) || 'N/A'
+  });
+});
+
 // SECURITY: Debug endpoint removed - exposed sensitive data
 // DO NOT re-add this in production
 
