@@ -111,6 +111,11 @@ try {
 }
 
 // Middleware
+// IMPORTANT: Trust proxy headers from Vercel/Railway for correct client IP detection
+// This ensures rate limiting works per-user, not per-proxy-server
+app.set('trust proxy', true);
+console.log('✅ Trust proxy enabled for correct IP detection behind Vercel/Railway');
+
 // Enable gzip compression for all responses (80% file size reduction)
 app.use(compression());
 
@@ -121,10 +126,14 @@ const apiLimiter = rateLimit({
   max: 300, // 300 requests per minute per IP (5 per second - allows normal use, blocks spam)
   message: { success: false, error: 'Too many requests, please try again later' },
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
+  // Use X-Forwarded-For header to get real client IP
+  keyGenerator: (req) => {
+    return req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || 'unknown';
+  }
 });
 app.use('/api/', apiLimiter);
-console.log('✅ Rate limiting enabled: 300 requests/minute per IP');
+console.log('✅ Rate limiting enabled: 300 requests/minute per real client IP');
 
 // ========== CRITICAL: STRICT RATE LIMITER FOR CLAIM ENDPOINT ==========
 // Prevents rapid-fire claim attempts (race condition exploit protection)
