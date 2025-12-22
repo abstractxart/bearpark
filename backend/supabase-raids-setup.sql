@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS raids (
   id BIGSERIAL PRIMARY KEY,
   description TEXT NOT NULL,
   twitter_url TEXT NOT NULL,
+  tweet_text TEXT, -- Preview of the actual tweet content
   reward INTEGER DEFAULT 20,
   profile_name VARCHAR(255) DEFAULT 'BearXRPL',
   profile_handle VARCHAR(255) DEFAULT '@BearXRPL',
@@ -17,6 +18,9 @@ CREATE TABLE IF NOT EXISTS raids (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Add tweet_text column if table already exists (migration)
+ALTER TABLE raids ADD COLUMN IF NOT EXISTS tweet_text TEXT;
 
 -- 2. Create index for faster queries
 CREATE INDEX IF NOT EXISTS idx_raids_active ON raids(is_active, expires_at DESC);

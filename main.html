@@ -6424,15 +6424,31 @@
     font-size: 16px;
     font-weight: 900;
   }
+  .raid-tweet-quote {
+    font-size: 14px;
+    line-height: 1.6;
+    color: rgba(255,255,255,0.85);
+    font-style: italic;
+    padding: 12px 16px;
+    margin: 12px 0;
+    background: rgba(255,255,255,0.05);
+    border-left: 3px solid var(--gold);
+    border-radius: 0 8px 8px 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
   .raid-content .raid-description {
     font-size: 15px;
     line-height: 1.5;
     color: rgba(255,255,255,0.9);
     margin: 0;
     display: -webkit-box;
-    -webkit-line-clamp: 3;
+    -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+    font-weight: 600;
   }
 
   /* Card Footer */
@@ -17226,6 +17242,7 @@
 
         <div class="raid-content">
           ${twitterHandle ? `<div class="raid-target"><span class="raid-target-icon">𝕏</span> ${twitterHandle}</div>` : ''}
+          ${raid.tweet_text ? `<div class="raid-tweet-quote">"${raid.tweet_text}"</div>` : ''}
           <div class="raid-description">${raid.description || 'Support the community!'}</div>
         </div>
 

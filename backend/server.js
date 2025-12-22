@@ -866,7 +866,7 @@ async function fetchTweetThumbnail(twitterUrl) {
 // Create New Raid
 app.post('/api/raids', verifyAdmin, validateTwitterURL, validateAmount, validateTextLengths, async (req, res) => {
   try {
-    const { description, twitter_url, reward, profile_name, profile_handle, profile_emoji, expires_at, image_url: manualImageUrl } = req.body;
+    const { description, twitter_url, tweet_text, reward, profile_name, profile_handle, profile_emoji, expires_at, image_url: manualImageUrl } = req.body;
 
     console.log('Received raid data:', req.body);
 
@@ -910,6 +910,7 @@ app.post('/api/raids', verifyAdmin, validateTwitterURL, validateAmount, validate
     const raidData = {
       description: description,
       twitter_url: twitter_url,
+      tweet_text: tweet_text || null,
       reward: reward,
       profile_name: profile_name || 'BearXRPL',
       profile_handle: profile_handle,
