@@ -910,7 +910,6 @@ app.post('/api/raids', verifyAdmin, validateTwitterURL, validateAmount, validate
     const raidData = {
       description: description,
       twitter_url: twitter_url,
-      tweet_text: tweet_text || null,
       reward: reward,
       profile_name: profile_name || 'BearXRPL',
       profile_handle: profile_handle,
@@ -918,6 +917,11 @@ app.post('/api/raids', verifyAdmin, validateTwitterURL, validateAmount, validate
       expires_at: expires_at,
       is_active: true
     };
+
+    // Only add tweet_text if provided (column may not exist in older databases)
+    if (tweet_text) {
+      raidData.tweet_text = tweet_text;
+    }
 
     // Add thumbnail if found (either manual or auto-fetched)
     if (thumbnailUrl) {
