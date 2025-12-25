@@ -11677,57 +11677,57 @@
 
   <section class="dark" id="sec-m7">
     <div class="wrap reveal">
-      <h2 class="h2" id="m7Title">?????</h2>
-      <p style="text-align:center;margin:-6px 0 32px;opacity:0.9;" id="m7Sub">?????</p>
+      <h2 class="h2" id="m7Title" style="display:flex;align-items:center;justify-content:center;gap:12px;"><img src="https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/khrawi.png" alt="BEAR" style="width:clamp(50px, 6vw, 70px); height:auto;"> $BEAR DROPS 🪂</h2>
+      <p style="text-align:center;margin:-6px 0 32px;opacity:0.9;" id="m7Sub">Community appreciation gifts for active participants</p>
 
       <div class="honey-card m7-card">
         <div class="m7-grid">
           <div class="m7-item">
-            <div class="m7-icon">?</div>
+            <div class="m7-icon">🐻</div>
             <div class="m7-info">
-              <div class="m7-label">?????</div>
-              <div class="m7-val" id="m7v1">?????</div>
-              <div class="m7-rew" id="m7r1">→ ?????</div>
+              <div class="m7-label">Pixel Bears</div>
+              <div class="m7-val" id="m7v1">--</div>
+              <div class="m7-rew" id="m7r1">→ -- $BEAR</div>
             </div>
           </div>
 
           <div class="m7-item">
-            <div class="m7-icon">?</div>
+            <div class="m7-icon">💎</div>
             <div class="m7-info">
-              <div class="m7-label">?????</div>
-              <div class="m7-val" id="m7v2">?????</div>
-              <div class="m7-rew" id="m7r2">→ ?????</div>
+              <div class="m7-label">Ultra Rares</div>
+              <div class="m7-val" id="m7v2">--</div>
+              <div class="m7-rew" id="m7r2">→ -- $BEAR</div>
             </div>
           </div>
 
           <div class="m7-item">
-            <div class="m7-icon">?</div>
+            <div class="m7-icon">💧</div>
             <div class="m7-info">
-              <div class="m7-label">?????</div>
-              <div class="m7-val" id="m7v3">?????</div>
-              <div class="m7-rew" id="m7r3">→ ?????</div>
+              <div class="m7-label">LP Tokens</div>
+              <div class="m7-val" id="m7v3">--</div>
+              <div class="m7-rew" id="m7r3">→ -- $BEAR</div>
             </div>
           </div>
         </div>
 
         <div class="m7-tot">
-          <div class="m7-tot-lbl">?????</div>
-          <div class="m7-tot-val" id="m7Total">?????</div>
+          <div class="m7-tot-lbl">Your Estimated Gift</div>
+          <div class="m7-tot-val" id="m7Total">-- $BEAR</div>
         </div>
 
         <div class="m7-prog">
           <div class="m7-prog-hdr">
-            <span class="m7-prog-lbl">?????</span>
-            <span class="m7-prog-cnt" id="m7ProgCnt">??/??</span>
+            <span class="m7-prog-lbl">🍯 Honey Points (24h)</span>
+            <span class="m7-prog-cnt" id="m7ProgCnt">--/30</span>
           </div>
           <div class="m7-prog-bar">
             <div class="m7-prog-fill" id="m7ProgFill" style="width: 0%"></div>
           </div>
-          <div class="m7-prog-hint" id="m7Hint">?????</div>
+          <div class="m7-prog-hint" id="m7Hint">Connect wallet to see your stats</div>
         </div>
 
         <button class="m7-btn" id="m7Btn" disabled>
-          <span id="m7BtnTxt">?????????</span>
+          <span id="m7BtnTxt">CONNECT WALLET</span>
         </button>
 
         <div class="m7-timer" id="m7Timer" style="display: none;">
@@ -11769,7 +11769,7 @@
           </div>
         </div>
 
-        <div class="m7-overlay" id="m7Overlay">
+        <div class="m7-overlay hidden" id="m7Overlay">
           <div class="m7-overlay-glow">?</div>
           <div class="m7-overlay-dots">?????</div>
         </div>
@@ -30056,13 +30056,10 @@ if (typeof window.addEventListener !== 'undefined') {
     const _l = 'rwE86ARLXfyKYCVmFpk511ddYfs5Fh6Vcp';
     const _r1 = 1, _r2 = 5, _r3 = 1, _hp = 30;
 
-    // UI eligibility check (claim is still verified server-side so this can't be gamed)
+    // UI eligibility check - ALL users can now see BEARDROPS section
     function _chk() {
-      // Get wallet from localStorage (or sessionStorage for backwards compatibility)
-      let w = localStorage.getItem('bearpark_wallet');
-      if (!w) w = sessionStorage.getItem('bearpark_wallet');
-      if (!w) return false;
-      return _wl.includes(w.toLowerCase());
+      // ALL users can see the BEARDROPS section - no wallet required
+      return true;
     }
 
     // SECURITY: Global flag to prevent double-claims
@@ -30070,8 +30067,7 @@ if (typeof window.addEventListener !== 'undefined') {
 
     async function _claim() {
       const w = localStorage.getItem('bearpark_wallet');
-      const isEligible = _chk();
-      if (!w || !isEligible) return;
+      if (!w) return;
 
       // SECURITY: Prevent double-click / rapid fire
       if (_claimInProgress) {
@@ -30209,31 +30205,18 @@ if (typeof window.addEventListener !== 'undefined') {
 
     function _init() {
       const o = document.getElementById('m7Overlay');
-      const isEligible = _chk();
-      if (isEligible) {
-        const t = document.getElementById('m7Title');
-        if (t) {
-          t.style.display = 'flex';
-          t.style.alignItems = 'center';
-          t.style.justifyContent = 'center';
-          t.style.gap = '12px';
-          t.innerHTML = '<img src="https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/khrawi.png" alt="BEAR" style="width:clamp(50px, 6vw, 70px); height:auto;"> $BEAR DROPS \u{1FA82}';
-        }
-        if (o) o.classList.add('hidden');
+      // Always show the BEARDROPS section to all users
+      if (o) o.classList.add('hidden');
+      // Load user data if wallet is connected
+      const w = localStorage.getItem('bearpark_wallet') || sessionStorage.getItem('bearpark_wallet');
+      if (w) {
         _load();
-      } else {
-        const t = document.getElementById('m7Title');
-        if (t) t.textContent = '?????';
-        const s = document.getElementById('m7Sub');
-        if (s) s.textContent = '?????';
-        if (o) o.classList.remove('hidden');
       }
     }
 
     async function _load() {
       const w = localStorage.getItem('bearpark_wallet');
-      const isEligible = _chk();
-      if (!w || !isEligible) return;
+      if (!w) return;
       try {
         const s = document.getElementById('m7Sub');
         if (s) s.textContent = 'Community appreciation gifts for active participants';
