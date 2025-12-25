@@ -2723,14 +2723,7 @@ app.get('/api/beardrops/eligible', async (req, res) => {
       return res.status(400).json({ eligible: false, error: 'Wallet address required' });
     }
 
-    // Server-side whitelist check - cannot be bypassed
-    const isWhitelisted = BEARDROPS_WHITELIST.includes(wallet.toLowerCase());
-
-    if (!isWhitelisted) {
-      return res.json({ eligible: false, reason: 'not_whitelisted' });
-    }
-
-    // Whitelist is sufficient - no additional checks needed
+    // ALL users are now eligible to see BEARDROPS section
     return res.json({ eligible: true, wallet: wallet });
   } catch (error) {
     console.error('Error checking BEARdrops eligibility:', error);
