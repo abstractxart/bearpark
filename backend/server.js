@@ -119,31 +119,27 @@ console.log('✅ Trust proxy enabled for correct IP detection behind Vercel/Rail
 // Enable gzip compression for all responses (80% file size reduction)
 app.use(compression());
 
-// Rate limiting to prevent API abuse and brute force attacks
-// SECURITY: Enabled for audit compliance
+// Rate limiting - set very high to effectively disable
 const apiLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute window
-  max: 300, // 300 requests per minute per IP (5 per second - allows normal use, blocks spam)
+  max: 100000, // Effectively unlimited
   message: { success: false, error: 'Too many requests, please try again later' },
   standardHeaders: true,
   legacyHeaders: false,
-  // Use X-Forwarded-For header to get real client IP
   keyGenerator: (req) => {
     return req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || 'unknown';
   },
-  // Skip rate limiting for admin endpoints - admins need unrestricted access
   skip: (req) => {
     return req.path.startsWith('/api/admin/');
   }
 });
 app.use('/api/', apiLimiter);
-console.log('✅ Rate limiting enabled: 300 requests/minute per real client IP');
+console.log('✅ Rate limiting: 100000 requests/minute (effectively unlimited)');
 
-// ========== CRITICAL: STRICT RATE LIMITER FOR CLAIM ENDPOINT ==========
-// Prevents rapid-fire claim attempts (race condition exploit protection)
+// Claim rate limiter - increased significantly
 const claimRateLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute window
-  max: 3, // Maximum 3 claim attempts per minute per IP
+  max: 1000, // 1000 claim attempts per minute (effectively unlimited)
   message: {
     success: false,
     error: 'Too many claim attempts. Please wait 1 minute before trying again.'
@@ -151,12 +147,11 @@ const claimRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => {
-    // Rate limit by BOTH IP and wallet address for extra protection
     const wallet = req.body?.wallet_address || 'unknown';
     return `${req.ip}-${wallet}`;
   }
 });
-console.log('✅ Strict rate limiter enabled for /api/beardrops/claim (3 req/min)');
+console.log('✅ Claim rate limiter: 1000 req/min (effectively unlimited)');
 
 app.use(cors({
   origin: [FRONTEND_URL, 'https://bearpark.xyz', 'https://www.bearpark.xyz', 'http://localhost:8080', 'http://127.0.0.1:8080'],
