@@ -194,6 +194,28 @@ app.use((req, res, next) => {
   next();
 });
 
+// ===== WALLET BLACKLIST =====
+// Banned wallets - these cannot use BEARpark
+const BLACKLISTED_WALLETS = [
+  'r9rhunL7g38mAcJ9QReSSXxsS6HFJdTkgY'.toLowerCase(),
+  'rNwrwyGR5vRfi3zf4DVK6ndAC5fEyGQC6a'.toLowerCase(),
+  'rELk8h69xTsg9Vy5P4HFcX5pkM3rPtnCeh'.toLowerCase()
+];
+
+// Middleware to block blacklisted wallets
+app.use((req, res, next) => {
+  // Check wallet_address in body, query, or params
+  const wallet = req.body?.wallet_address || req.query?.wallet || req.params?.wallet;
+
+  if (wallet && BLACKLISTED_WALLETS.includes(wallet.toLowerCase())) {
+    console.log(`🚫 Blocked blacklisted wallet: ${wallet}`);
+    return res.status(403).json({ success: false, error: 'WALLET NOT ALLOWED' });
+  }
+
+  next();
+});
+console.log(`🚫 Wallet blacklist active: ${BLACKLISTED_WALLETS.length} wallets banned`);
+
 // ===== SECURITY: INPUT VALIDATION =====
 // Validates XRPL wallet address format (prevents injection attacks)
 const isValidXRPLWallet = (wallet) => {
