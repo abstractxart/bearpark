@@ -202,13 +202,28 @@ const BLACKLISTED_WALLETS = [
   'rELk8h69xTsg9Vy5P4HFcX5pkM3rPtnCeh'.toLowerCase()
 ];
 
+// Helper function to check if wallet is blacklisted
+function isWalletBlacklisted(wallet) {
+  if (!wallet) return false;
+  return BLACKLISTED_WALLETS.includes(wallet.toLowerCase());
+}
+
 // Middleware to block blacklisted wallets
 app.use((req, res, next) => {
-  // Check wallet_address in body, query, or params
-  const wallet = req.body?.wallet_address || req.query?.wallet || req.params?.wallet;
+  // Check wallet_address in body, query, or params (multiple param names)
+  const wallet = req.body?.wallet_address ||
+                 req.body?.wallet ||
+                 req.query?.wallet ||
+                 req.query?.wallet_address ||
+                 req.params?.wallet ||
+                 req.params?.wallet_address;
 
-  if (wallet && BLACKLISTED_WALLETS.includes(wallet.toLowerCase())) {
-    console.log(`🚫 Blocked blacklisted wallet: ${wallet}`);
+  // Also check URL path for wallet addresses (matches r + base58 pattern)
+  const urlWalletMatch = req.path.match(/\/(r[1-9A-HJ-NP-Za-km-z]{24,34})/);
+  const urlWallet = urlWalletMatch ? urlWalletMatch[1] : null;
+
+  if (isWalletBlacklisted(wallet) || isWalletBlacklisted(urlWallet)) {
+    console.log(`🚫 Blocked blacklisted wallet: ${wallet || urlWallet}`);
     return res.status(403).json({ success: false, error: 'WALLET NOT ALLOWED' });
   }
 
@@ -8941,6 +8956,159 @@ app.post('/api/admin/fulfill-nft-request', verifyAdmin, async (req, res) => {
 });
 
 console.log('✅ NFT Request endpoints initialized');
+
+// ===== WALLET BLACKLIST ADMIN API =====
+
+// Get all blacklisted wallets (admin only)
+app.get('/api/admin/blacklist', async (req, res) => {
+  try {
+    // Return the current blacklist with reasons
+    const blacklistWithInfo = BLACKLISTED_WALLETS.map(wallet => ({
+      wallet_address: wallet,
+      reason: 'Manually blacklisted',
+      added_at: new Date().toISOString()
+    }));
+
+    // Also check database for additional blacklisted wallets
+    const { data: dbBlacklist } = await supabase
+      .from('wallet_blacklist')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    // Merge hardcoded and database blacklists
+    const allBlacklisted = [...blacklistWithInfo];
+    if (dbBlacklist) {
+      dbBlacklist.forEach(entry => {
+        if (!BLACKLISTED_WALLETS.includes(entry.wallet_address.toLowerCase())) {
+          allBlacklisted.push({
+            wallet_address: entry.wallet_address,
+            reason: entry.reason || 'No reason provided',
+            added_at: entry.created_at,
+            id: entry.id
+          });
+        }
+      });
+    }
+
+    res.json({ success: true, blacklist: allBlacklisted });
+  } catch (error) {
+    console.error('Error fetching blacklist:', error);
+    safeErrorResponse(res, error);
+  }
+});
+
+// Add wallet to blacklist (admin only)
+app.post('/api/admin/blacklist', async (req, res) => {
+  try {
+    const { wallet_address, reason } = req.body;
+
+    if (!wallet_address) {
+      return res.status(400).json({ success: false, error: 'wallet_address is required' });
+    }
+
+    // Validate wallet format
+    if (!isValidXRPLWallet(wallet_address)) {
+      return res.status(400).json({ success: false, error: 'Invalid XRPL wallet address format' });
+    }
+
+    // Check if already blacklisted (in memory)
+    if (BLACKLISTED_WALLETS.includes(wallet_address.toLowerCase())) {
+      return res.status(400).json({ success: false, error: 'Wallet is already blacklisted' });
+    }
+
+    // Add to database
+    const client = supabaseAdmin || supabase;
+    const { data, error } = await client
+      .from('wallet_blacklist')
+      .insert({
+        wallet_address: wallet_address.toLowerCase(),
+        reason: reason || 'No reason provided'
+      })
+      .select()
+      .single();
+
+    if (error) {
+      // If table doesn't exist or duplicate, handle gracefully
+      if (error.code === '42P01') {
+        // Table doesn't exist - add to memory only
+        BLACKLISTED_WALLETS.push(wallet_address.toLowerCase());
+        return res.json({
+          success: true,
+          message: 'Wallet blacklisted (memory only - database table not found)',
+          wallet: wallet_address
+        });
+      }
+      throw error;
+    }
+
+    // Also add to in-memory blacklist for immediate effect
+    BLACKLISTED_WALLETS.push(wallet_address.toLowerCase());
+
+    console.log(`🚫 Wallet blacklisted: ${wallet_address} - Reason: ${reason || 'No reason'}`);
+
+    res.json({
+      success: true,
+      message: 'Wallet blacklisted successfully',
+      entry: data
+    });
+  } catch (error) {
+    console.error('Error adding to blacklist:', error);
+    safeErrorResponse(res, error);
+  }
+});
+
+// Remove wallet from blacklist (admin only)
+app.delete('/api/admin/blacklist/:wallet', async (req, res) => {
+  try {
+    const { wallet } = req.params;
+
+    if (!wallet) {
+      return res.status(400).json({ success: false, error: 'wallet address is required' });
+    }
+
+    // Remove from database
+    const client = supabaseAdmin || supabase;
+    await client
+      .from('wallet_blacklist')
+      .delete()
+      .eq('wallet_address', wallet.toLowerCase());
+
+    // Remove from in-memory blacklist
+    const index = BLACKLISTED_WALLETS.indexOf(wallet.toLowerCase());
+    if (index > -1) {
+      BLACKLISTED_WALLETS.splice(index, 1);
+    }
+
+    console.log(`✅ Wallet removed from blacklist: ${wallet}`);
+
+    res.json({
+      success: true,
+      message: 'Wallet removed from blacklist'
+    });
+  } catch (error) {
+    console.error('Error removing from blacklist:', error);
+    safeErrorResponse(res, error);
+  }
+});
+
+// Check if a specific wallet is blacklisted
+app.get('/api/blacklist/check/:wallet', async (req, res) => {
+  try {
+    const { wallet } = req.params;
+    const isBlacklisted = isWalletBlacklisted(wallet);
+
+    res.json({
+      success: true,
+      wallet_address: wallet,
+      is_blacklisted: isBlacklisted
+    });
+  } catch (error) {
+    console.error('Error checking blacklist:', error);
+    safeErrorResponse(res, error);
+  }
+});
+
+console.log('✅ Wallet blacklist admin endpoints initialized');
 
 // Start server for local development
 if (require.main === module) {

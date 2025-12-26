@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BEAR Park - Wallet Blacklist Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --gold: #edb723;
+      --charcoal: #141619;
+      --card: #1e2226;
+      --danger: #ef4444;
+      --success: #22c55e;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: "Nunito", system-ui, -apple-system, sans-serif;
+      background: var(--charcoal);
+      background-image:
+        radial-gradient(100vmax 60vmax at 10% -10%, rgba(239,68,68,.08), transparent 60%),
+        radial-gradient(80vmax 60vmax at 100% 10%, rgba(239,68,68,.05), transparent 60%);
+      min-height: 100vh;
+      padding: 20px;
+      color: #fff;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+      flex-wrap: wrap;
+      gap: 15px;
+    }
+
+    .back-link {
+      color: rgba(255,255,255,0.7);
+      text-decoration: none;
+      font-weight: 600;
+      transition: color 0.2s;
+    }
+
+    .back-link:hover {
+      color: var(--gold);
+    }
+
+    .title {
+      color: var(--danger);
+      font-size: 28px;
+      font-weight: 900;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .add-form {
+      background: var(--card);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+      border: 2px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .form-title {
+      color: var(--danger);
+      font-size: 18px;
+      font-weight: 800;
+      margin-bottom: 16px;
+    }
+
+    .form-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .form-group {
+      flex: 1;
+      min-width: 200px;
+    }
+
+    .form-group label {
+      display: block;
+      color: rgba(255,255,255,0.7);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 12px 16px;
+      background: rgba(0,0,0,0.3);
+      border: 2px solid rgba(255,255,255,0.1);
+      border-radius: 10px;
+      color: #fff;
+      font-size: 14px;
+      font-family: monospace;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: var(--danger);
+    }
+
+    .btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 10px;
+      font-weight: 800;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-transform: uppercase;
+    }
+
+    .btn-danger {
+      background: var(--danger);
+      color: #fff;
+    }
+
+    .btn-danger:hover {
+      background: #dc2626;
+      transform: translateY(-2px);
+    }
+
+    .btn-danger:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-remove {
+      background: rgba(239, 68, 68, 0.2);
+      color: var(--danger);
+      padding: 8px 16px;
+      font-size: 12px;
+    }
+
+    .btn-remove:hover {
+      background: var(--danger);
+      color: #fff;
+    }
+
+    .blacklist-table {
+      background: var(--card);
+      border-radius: 16px;
+      overflow: hidden;
+      border: 2px solid rgba(255,255,255,0.1);
+    }
+
+    .table-header {
+      background: rgba(239, 68, 68, 0.15);
+      padding: 16px 20px;
+      display: grid;
+      grid-template-columns: 1fr 1fr 150px;
+      gap: 16px;
+      font-weight: 800;
+      font-size: 12px;
+      text-transform: uppercase;
+      color: var(--danger);
+    }
+
+    .table-row {
+      padding: 16px 20px;
+      display: grid;
+      grid-template-columns: 1fr 1fr 150px;
+      gap: 16px;
+      align-items: center;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      transition: background 0.2s;
+    }
+
+    .table-row:hover {
+      background: rgba(255,255,255,0.02);
+    }
+
+    .table-row:last-child {
+      border-bottom: none;
+    }
+
+    .wallet-address {
+      font-family: monospace;
+      font-size: 13px;
+      color: rgba(255,255,255,0.9);
+      word-break: break-all;
+    }
+
+    .reason {
+      color: rgba(255,255,255,0.6);
+      font-size: 13px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: rgba(255,255,255,0.5);
+    }
+
+    .empty-state .icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: rgba(255,255,255,0.5);
+    }
+
+    .status-message {
+      padding: 12px 16px;
+      border-radius: 10px;
+      margin-bottom: 16px;
+      font-weight: 600;
+      display: none;
+    }
+
+    .status-message.success {
+      display: block;
+      background: rgba(34, 197, 94, 0.15);
+      border: 2px solid rgba(34, 197, 94, 0.4);
+      color: #86efac;
+    }
+
+    .status-message.error {
+      display: block;
+      background: rgba(239, 68, 68, 0.15);
+      border: 2px solid rgba(239, 68, 68, 0.4);
+      color: #fca5a5;
+    }
+
+    .count-badge {
+      background: var(--danger);
+      color: #fff;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    @media (max-width: 600px) {
+      .table-header, .table-row {
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+      .table-header > div:not(:first-child) {
+        display: none;
+      }
+      .form-row {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <a href="admin.html" class="back-link">&larr; Back to Admin</a>
+      <h1 class="title">🚫 Wallet Blacklist</h1>
+      <span class="count-badge" id="countBadge">0 banned</span>
+    </div>
+
+    <div id="statusMessage" class="status-message"></div>
+
+    <div class="add-form">
+      <h2 class="form-title">Ban a Wallet</h2>
+      <div class="form-row">
+        <div class="form-group" style="flex: 2;">
+          <label>Wallet Address</label>
+          <input type="text" id="walletInput" placeholder="rXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" />
+        </div>
+        <div class="form-group" style="flex: 1;">
+          <label>Reason (optional)</label>
+          <input type="text" id="reasonInput" placeholder="e.g. Scammer, Bot, etc." />
+        </div>
+        <div style="display: flex; align-items: flex-end;">
+          <button class="btn btn-danger" id="addBtn" onclick="addToBlacklist()">🚫 Ban Wallet</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="blacklist-table">
+      <div class="table-header">
+        <div>Wallet Address</div>
+        <div>Reason</div>
+        <div>Actions</div>
+      </div>
+      <div id="blacklistBody">
+        <div class="loading">Loading blacklist...</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE_URL = window.location.hostname === 'localhost'
+      ? 'http://localhost:3000'
+      : 'https://bearpark-api.vercel.app';
+
+    let blacklist = [];
+
+    async function loadBlacklist() {
+      const body = document.getElementById('blacklistBody');
+      body.innerHTML = '<div class="loading">Loading blacklist...</div>';
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/admin/blacklist`);
+        const data = await response.json();
+
+        if (data.success) {
+          blacklist = data.blacklist || [];
+          renderBlacklist();
+          document.getElementById('countBadge').textContent = `${blacklist.length} banned`;
+        } else {
+          body.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><p>Failed to load blacklist</p></div>';
+        }
+      } catch (error) {
+        console.error('Error loading blacklist:', error);
+        body.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><p>Error loading blacklist</p></div>';
+      }
+    }
+
+    function renderBlacklist() {
+      const body = document.getElementById('blacklistBody');
+
+      if (blacklist.length === 0) {
+        body.innerHTML = '<div class="empty-state"><div class="icon">✅</div><p>No wallets are blacklisted</p></div>';
+        return;
+      }
+
+      body.innerHTML = blacklist.map(entry => `
+        <div class="table-row">
+          <div class="wallet-address">${entry.wallet_address}</div>
+          <div class="reason">${entry.reason || 'No reason provided'}</div>
+          <div>
+            <button class="btn btn-remove" onclick="removeFromBlacklist('${entry.wallet_address}')">Remove</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function addToBlacklist() {
+      const walletInput = document.getElementById('walletInput');
+      const reasonInput = document.getElementById('reasonInput');
+      const addBtn = document.getElementById('addBtn');
+      const statusMessage = document.getElementById('statusMessage');
+
+      const wallet = walletInput.value.trim();
+      const reason = reasonInput.value.trim();
+
+      if (!wallet) {
+        showStatus('Please enter a wallet address', 'error');
+        return;
+      }
+
+      // Basic XRPL wallet validation
+      if (!wallet.startsWith('r') || wallet.length < 25 || wallet.length > 35) {
+        showStatus('Invalid XRPL wallet address format', 'error');
+        return;
+      }
+
+      addBtn.disabled = true;
+      addBtn.textContent = 'Banning...';
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/admin/blacklist`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ wallet_address: wallet, reason: reason })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          showStatus(`Wallet ${wallet} has been banned!`, 'success');
+          walletInput.value = '';
+          reasonInput.value = '';
+          loadBlacklist();
+        } else {
+          showStatus(data.error || 'Failed to ban wallet', 'error');
+        }
+      } catch (error) {
+        console.error('Error adding to blacklist:', error);
+        showStatus('Error banning wallet', 'error');
+      } finally {
+        addBtn.disabled = false;
+        addBtn.textContent = '🚫 Ban Wallet';
+      }
+    }
+
+    async function removeFromBlacklist(wallet) {
+      if (!confirm(`Are you sure you want to unban ${wallet}?`)) {
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/admin/blacklist/${wallet}`, {
+          method: 'DELETE'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          showStatus(`Wallet ${wallet} has been unbanned`, 'success');
+          loadBlacklist();
+        } else {
+          showStatus(data.error || 'Failed to unban wallet', 'error');
+        }
+      } catch (error) {
+        console.error('Error removing from blacklist:', error);
+        showStatus('Error unbanning wallet', 'error');
+      }
+    }
+
+    function showStatus(message, type) {
+      const statusMessage = document.getElementById('statusMessage');
+      statusMessage.textContent = message;
+      statusMessage.className = `status-message ${type}`;
+
+      setTimeout(() => {
+        statusMessage.className = 'status-message';
+      }, 5000);
+    }
+
+    // Load blacklist on page load
+    loadBlacklist();
+  </script>
+</body>
+</html>
