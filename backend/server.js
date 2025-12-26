@@ -2026,8 +2026,9 @@ app.post('/api/comments/:id/react', async (req, res) => {
 
     console.log(`🔵 Checking reaction: comment_id=${commentId}, wallet=${wallet_address}, type=${reaction_type}`);
 
-    // Use Supabase instead of pgPool (works better with Railway)
-    const { data: existing, error: checkError } = await supabase
+    // Use supabaseAdmin to bypass RLS
+    const client = supabaseAdmin || supabase;
+    const { data: existing, error: checkError } = await client
       .from('comment_reactions')
       .select('id')
       .eq('comment_id', commentId)
@@ -2062,8 +2063,8 @@ app.post('/api/comments/:id/react', async (req, res) => {
       } catch (pgError) {
         console.warn(`⚠️ pgPool failed (${pgError.message}), falling back to Supabase...`);
 
-        // Fallback to Supabase with .select() to verify deletion
-        const { data: deletedData, error: deleteError } = await supabase
+        // Fallback to Supabase with .select() to verify deletion (use admin client)
+        const { data: deletedData, error: deleteError } = await client
           .from('comment_reactions')
           .delete()
           .eq('id', existing.id)
@@ -2083,8 +2084,8 @@ app.post('/api/comments/:id/react', async (req, res) => {
       }
 
       console.log(`🔍 Fetching updated reactions for comment ${commentId}...`);
-      // Fetch updated reactions to return fresh counts
-      const { data: updatedReactions, error: fetchError } = await supabase
+      // Fetch updated reactions to return fresh counts (use admin client)
+      const { data: updatedReactions, error: fetchError } = await client
         .from('comment_reactions')
         .select('*')
         .eq('comment_id', commentId);
@@ -2122,9 +2123,9 @@ app.post('/api/comments/:id/react', async (req, res) => {
         userReactions: userReactions
       });
     } else {
-      // Add reaction
+      // Add reaction (use admin client to bypass RLS)
       console.log(`➕ Adding reaction for comment ${commentId}`);
-      const { error: insertError } = await supabase
+      const { error: insertError } = await client
         .from('comment_reactions')
         .insert({
           comment_id: commentId,
@@ -2193,8 +2194,8 @@ app.post('/api/comments/:id/react', async (req, res) => {
       }
 
       console.log(`🔍 Fetching updated reactions for comment ${commentId}...`);
-      // Fetch updated reactions to return fresh counts
-      const { data: updatedReactions, error: fetchError } = await supabase
+      // Fetch updated reactions to return fresh counts (use admin client)
+      const { data: updatedReactions, error: fetchError } = await client
         .from('comment_reactions')
         .select('*')
         .eq('comment_id', commentId);
@@ -2238,13 +2239,14 @@ app.post('/api/comments/:id/react', async (req, res) => {
   }
 });
 
-// Get Reactions for a Comment (using Supabase)
+// Get Reactions for a Comment (using supabaseAdmin to bypass RLS)
 app.get('/api/comments/:id/reactions', async (req, res) => {
   try {
     const { id } = req.params;
     const commentId = parseInt(id);
 
-    const { data, error } = await supabase
+    const client = supabaseAdmin || supabase;
+    const { data, error } = await client
       .from('comment_reactions')
       .select('*')
       .eq('comment_id', commentId);
