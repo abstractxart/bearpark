@@ -119,10 +119,10 @@ console.log('✅ Trust proxy enabled for correct IP detection behind Vercel/Rail
 // Enable gzip compression for all responses (80% file size reduction)
 app.use(compression());
 
-// Rate limiting - set very high to effectively disable
+// Rate limiting - SECURITY: Proper limits to prevent abuse
 const apiLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute window
-  max: 100000, // Effectively unlimited
+  max: 300, // 300 requests per minute per IP
   message: { success: false, error: 'Too many requests, please try again later' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -134,12 +134,12 @@ const apiLimiter = rateLimit({
   }
 });
 app.use('/api/', apiLimiter);
-console.log('✅ Rate limiting: 100000 requests/minute (effectively unlimited)');
+console.log('✅ Rate limiting: 300 requests/minute per IP');
 
-// Claim rate limiter - increased significantly
+// Claim rate limiter - SECURITY: Strict limits to prevent abuse
 const claimRateLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute window
-  max: 1000, // 1000 claim attempts per minute (effectively unlimited)
+  max: 5, // 5 claim attempts per minute per IP+wallet
   message: {
     success: false,
     error: 'Too many claim attempts. Please wait 1 minute before trying again.'
@@ -151,7 +151,7 @@ const claimRateLimiter = rateLimit({
     return `${req.ip}-${wallet}`;
   }
 });
-console.log('✅ Claim rate limiter: 1000 req/min (effectively unlimited)');
+console.log('✅ Claim rate limiter: 5 req/min per IP+wallet');
 
 app.use(cors({
   origin: [FRONTEND_URL, 'https://bearpark.xyz', 'https://www.bearpark.xyz', 'http://localhost:8080', 'http://127.0.0.1:8080'],
@@ -1487,7 +1487,8 @@ app.get('/api/games/daily-status/:wallet/:game_id', async (req, res) => {
 });
 
 // Reset Daily Games (for testing/midnight reset)
-app.post('/api/games/reset-daily/:wallet', async (req, res) => {
+// SECURITY: Requires admin authentication - was previously exploitable
+app.post('/api/games/reset-daily/:wallet', verifyAdmin, async (req, res) => {
   try {
     const { wallet } = req.params;
     const today = new Date().toISOString().split('T')[0];
@@ -1633,6 +1634,20 @@ app.post('/api/pong/betting', validateWallet, async (req, res) => {
     }
 
     console.log(`✅ [PONG BETTING] Transaction complete! New total: ${newTotalPoints} HONEY`);
+
+    // SECURITY: Log all betting activity for abuse detection
+    const activityClient = supabaseAdmin || supabase;
+    try {
+      await activityClient.from('honey_points_activity').insert({
+        wallet_address,
+        points: did_win ? bet_amount : -bet_amount,
+        activity_type: 'pong_bet',
+        activity_id: `bet_${did_win ? 'win' : 'loss'}_${bet_amount}`
+      });
+      console.log(`📊 [PONG BETTING] Activity logged: ${wallet_address} ${did_win ? 'won' : 'lost'} ${bet_amount}`);
+    } catch (logError) {
+      console.error('⚠️ [PONG BETTING] Failed to log activity:', logError.message);
+    }
 
     res.json({
       success: true,
