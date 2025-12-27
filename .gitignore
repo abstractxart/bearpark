@@ -25,3 +25,5 @@ Thumbs.db
 nul
 
 .vercel
+# Remove .env.production from git - NEVER commit secrets
+.env.production
