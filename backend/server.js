@@ -1164,15 +1164,44 @@ app.get('/api/raids/leaderboard', async (req, res) => {
   }
 });
 
-// SECURITY: Updated raid completion with duplicate protection
-app.post('/api/raids/complete', validateWallet, validateAmount, async (req, res) => {
+// SECURITY: Updated raid completion with SERVER-SIDE reward validation
+// CRITICAL FIX: Never trust client-submitted points_awarded - always look up from database
+app.post('/api/raids/complete', validateWallet, async (req, res) => {
   try {
-    const { wallet_address, raid_id, completed_at, points_awarded } = req.body;
+    const { wallet_address, raid_id, completed_at } = req.body;
+    // NOTE: We intentionally IGNORE points_awarded from client - security fix!
 
-    if (!wallet_address || !raid_id || !points_awarded) {
+    if (!wallet_address || !raid_id) {
       return res.status(400).json({
         success: false,
-        error: 'Missing required fields: wallet_address, raid_id, points_awarded'
+        error: 'Missing required fields: wallet_address, raid_id'
+      });
+    }
+
+    // SECURITY FIX: Look up the ACTUAL raid reward from database
+    const { data: raid, error: raidError } = await supabase
+      .from('raids')
+      .select('id, reward, expires_at')
+      .eq('id', raid_id)
+      .single();
+
+    if (raidError || !raid) {
+      console.log(`❌ EXPLOIT BLOCKED: Invalid raid_id ${raid_id} from ${wallet_address}`);
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid raid'
+      });
+    }
+
+    // Use SERVER-SIDE reward value, not client-submitted
+    const actualReward = parseInt(raid.reward) || 0;
+
+    // Validate the reward is reasonable (sanity check)
+    if (actualReward <= 0 || actualReward > 1000) {
+      console.log(`❌ SUSPICIOUS: Raid ${raid_id} has unusual reward value: ${actualReward}`);
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid raid configuration'
       });
     }
 
@@ -1193,13 +1222,13 @@ app.post('/api/raids/complete', validateWallet, validateAmount, async (req, res)
       });
     }
 
-    // Record completion in raid_completions table
+    // Record completion in raid_completions table (use actual reward, not client value)
     const { error: completionError } = await supabase
       .from('raid_completions')
       .insert({
         wallet_address,
         raid_id,
-        points_awarded,
+        points_awarded: actualReward,
         completed_at: completed_at || new Date().toISOString()
       });
 
@@ -1224,32 +1253,32 @@ app.post('/api/raids/complete', validateWallet, validateAmount, async (req, res)
       .single();
 
     if (existingPoints) {
-      // Update existing record
+      // Update existing record (use actualReward, not client value)
       const { error } = await supabase
         .from('honey_points')
         .update({
-          total_points: existingPoints.total_points + points_awarded,
-          raiding_points: existingPoints.raiding_points + points_awarded,
+          total_points: existingPoints.total_points + actualReward,
+          raiding_points: existingPoints.raiding_points + actualReward,
           updated_at: new Date().toISOString()
         })
         .eq('wallet_address', wallet_address);
 
       if (error) throw error;
     } else {
-      // Create new record
+      // Create new record (use actualReward, not client value)
       const { error } = await supabase
         .from('honey_points')
         .insert({
           wallet_address,
-          total_points: points_awarded,
-          raiding_points: points_awarded,
+          total_points: actualReward,
+          raiding_points: actualReward,
           games_points: 0
         });
 
       if (error) throw error;
     }
 
-    console.log(`✅ Raid completed: User ${wallet_address} earned ${points_awarded} points for raid ${raid_id}`);
+    console.log(`✅ Raid completed: User ${wallet_address} earned ${actualReward} points for raid ${raid_id} (server-validated)`);
 
     // Log to honey_points_activity for BEARDROPS 24h tracking
     // Use supabaseAdmin to bypass RLS policies
@@ -1257,14 +1286,14 @@ app.post('/api/raids/complete', validateWallet, validateAmount, async (req, res)
     try {
       const { data, error } = await activityClient.from('honey_points_activity').insert({
         wallet_address,
-        points: points_awarded,
+        points: actualReward,
         activity_type: 'raid',
         activity_id: raid_id
       }).select();
       if (error) {
         console.error('❌ RAID activity insert failed:', error.message, error.code, error.details);
       } else {
-        console.log('✅ RAID activity logged:', wallet_address, points_awarded, 'pts');
+        console.log('✅ RAID activity logged:', wallet_address, actualReward, 'pts (server-validated)');
       }
     } catch (e) {
       console.error('❌ RAID activity insert exception:', e.message);
@@ -1274,7 +1303,7 @@ app.post('/api/raids/complete', validateWallet, validateAmount, async (req, res)
       success: true,
       alreadyCompleted: false,
       message: 'Points awarded successfully',
-      points_awarded
+      points_awarded: actualReward
     });
 
   } catch (error) {
