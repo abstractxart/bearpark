@@ -211,6 +211,11 @@ function isWalletBlacklisted(wallet) {
 
 // Middleware to block blacklisted wallets
 app.use((req, res, next) => {
+  // SKIP blacklist check for admin endpoints - admins need to operate on blacklisted wallets
+  if (req.path.startsWith('/api/admin/')) {
+    return next();
+  }
+
   // Check wallet_address in body, query, or params (multiple param names)
   const wallet = req.body?.wallet_address ||
                  req.body?.wallet ||
