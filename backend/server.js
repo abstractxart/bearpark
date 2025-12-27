@@ -1333,10 +1333,11 @@ app.post('/api/games/complete', validateWallet, async (req, res) => {
 
     const MAX_DAILY_MINUTES = 123; // 123 minutes per day max
     const MIN_SESSION_SECONDS = 10; // Minimum 10 seconds to count
+    const MAX_SESSION_MINUTES = 30; // SECURITY: Max 30 minutes per session (prevents fake long sessions)
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
     // Convert to 1 decimal place (0.1 minute precision)
-    const minutesPlayedRounded = Math.round(minutes_played * 10) / 10;
+    let minutesPlayedRounded = Math.round(minutes_played * 10) / 10;
 
     // Reject sessions less than 10 seconds
     if (minutesPlayedRounded < (MIN_SESSION_SECONDS / 60)) {
@@ -1347,6 +1348,12 @@ app.post('/api/games/complete', validateWallet, async (req, res) => {
         max_minutes: MAX_DAILY_MINUTES,
         points_awarded: 0
       });
+    }
+
+    // SECURITY: Cap session at max to prevent fake long sessions
+    if (minutesPlayedRounded > MAX_SESSION_MINUTES) {
+      console.log(`⚠️ Session capped: ${minutesPlayedRounded} -> ${MAX_SESSION_MINUTES} mins for ${wallet_address}`);
+      minutesPlayedRounded = MAX_SESSION_MINUTES;
     }
 
     console.log(`🎮 Game session: ${game_id} for ${wallet_address} - ${minutesPlayedRounded} mins`);
