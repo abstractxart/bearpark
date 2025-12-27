@@ -472,10 +472,12 @@
       addBtn.textContent = 'Banning...';
 
       try {
+        // Include admin_wallet for server-side authorization
+        const adminWallet = localStorage.getItem('bearpark_wallet');
         const response = await fetch(`${API_BASE_URL}/api/admin/blacklist`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ wallet_address: wallet, reason: reason })
+          body: JSON.stringify({ wallet_address: wallet, reason: reason, admin_wallet: adminWallet })
         });
 
         const data = await response.json();
@@ -503,7 +505,9 @@
       }
 
       try {
-        const response = await fetch(`${API_BASE_URL}/api/admin/blacklist/${wallet}`, {
+        // Include admin_wallet for server-side authorization
+        const adminWallet = localStorage.getItem('bearpark_wallet');
+        const response = await fetch(`${API_BASE_URL}/api/admin/blacklist/${wallet}?admin_wallet=${adminWallet}`, {
           method: 'DELETE'
         });
 
