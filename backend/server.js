@@ -199,7 +199,8 @@ app.use((req, res, next) => {
 const BLACKLISTED_WALLETS = [
   'r9rhunL7g38mAcJ9QReSSXxsS6HFJdTkgY'.toLowerCase(),
   'rNwrwyGR5vRfi3zf4DVK6ndAC5fEyGQC6a'.toLowerCase(),
-  'rELk8h69xTsg9Vy5P4HFcX5pkM3rPtnCeh'.toLowerCase()
+  'rELk8h69xTsg9Vy5P4HFcX5pkM3rPtnCeh'.toLowerCase(),
+  'r3hcyGVhNo7YVRgnAjui9jVkDqtXF7UhG8'.toLowerCase()  // ATTACKER - exploited raid points
 ];
 
 // Helper function to check if wallet is blacklisted
@@ -1531,6 +1532,16 @@ app.post('/api/pong/betting', validateWallet, async (req, res) => {
       });
     }
 
+    // SECURITY: Limit max bet to prevent absurd claims
+    const MAX_BET = 10000;
+    if (bet_amount > MAX_BET) {
+      console.log(`❌ [PONG BETTING] Blocked suspicious bet: ${bet_amount} (max: ${MAX_BET})`);
+      return res.status(400).json({
+        success: false,
+        error: `Maximum bet is ${MAX_BET} HONEY`
+      });
+    }
+
     // If bet is 0, no transaction needed
     if (bet_amount === 0) {
       console.log(`💰 [PONG BETTING] Bet is 0 - no transaction needed`);
@@ -1559,6 +1570,17 @@ app.post('/api/pong/betting', validateWallet, async (req, res) => {
     const currentTotalPoints = currentPoints?.total_points || 0;
 
     console.log(`💰 [PONG BETTING] Current: Raiding=${currentRaidingPoints}, Games=${currentGamesPoints}, Total=${currentTotalPoints}`);
+
+    // SECURITY: Validate user has enough points to bet
+    // Users can only bet what they have in games_points (or total if games is 0)
+    const availablePoints = currentGamesPoints > 0 ? currentGamesPoints : currentTotalPoints;
+    if (bet_amount > availablePoints) {
+      console.log(`❌ [PONG BETTING] EXPLOIT BLOCKED: Tried to bet ${bet_amount} but only has ${availablePoints}`);
+      return res.status(400).json({
+        success: false,
+        error: `Insufficient HONEY. You have ${availablePoints} but tried to bet ${bet_amount}`
+      });
+    }
 
     // 🔒 STEP 2: Calculate new points SERVER-SIDE (NEVER trust client!)
     let newGamesPoints;
@@ -9026,10 +9048,18 @@ app.get('/api/admin/blacklist', async (req, res) => {
   }
 });
 
-// Add wallet to blacklist (admin only)
+// Add wallet to blacklist (MUKT wallet only)
+// SECURITY: Only the master MUKT wallet can ban other wallets
+const MUKT_WALLET = 'rKkkYMCvC63HEgxjQHmayKADaxYqnsMUkT';
 app.post('/api/admin/blacklist', async (req, res) => {
   try {
-    const { wallet_address, reason } = req.body;
+    const { wallet_address, reason, admin_wallet } = req.body;
+
+    // SECURITY: Verify MUKT wallet authorization
+    if (!admin_wallet || admin_wallet.toLowerCase() !== MUKT_WALLET.toLowerCase()) {
+      console.log(`❌ BLACKLIST ACCESS DENIED: ${admin_wallet || 'no wallet'} tried to ban ${wallet_address}`);
+      return res.status(403).json({ success: false, error: 'Unauthorized - MUKT wallet required' });
+    }
 
     if (!wallet_address) {
       return res.status(400).json({ success: false, error: 'wallet_address is required' });
@@ -9086,10 +9116,17 @@ app.post('/api/admin/blacklist', async (req, res) => {
   }
 });
 
-// Remove wallet from blacklist (admin only)
+// Remove wallet from blacklist (MUKT wallet only)
 app.delete('/api/admin/blacklist/:wallet', async (req, res) => {
   try {
     const { wallet } = req.params;
+    const admin_wallet = req.query.admin_wallet || req.headers['x-admin-wallet'];
+
+    // SECURITY: Verify MUKT wallet authorization
+    if (!admin_wallet || admin_wallet.toLowerCase() !== MUKT_WALLET.toLowerCase()) {
+      console.log(`❌ BLACKLIST REMOVAL DENIED: ${admin_wallet || 'no wallet'} tried to unban ${wallet}`);
+      return res.status(403).json({ success: false, error: 'Unauthorized - MUKT wallet required' });
+    }
 
     if (!wallet) {
       return res.status(400).json({ success: false, error: 'wallet address is required' });
