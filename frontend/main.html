@@ -5017,14 +5017,16 @@
       }
     }
 
-    // Refresh leaderboard and raids every 30 seconds
+    // Refresh leaderboard and raids every 2 minutes (reduced from 30s to save bandwidth)
+    // Only refresh when tab is visible to prevent unnecessary API calls
     setInterval(() => {
+      if (document.hidden) return; // Skip if tab is not visible
       const walletAddress = localStorage.getItem('bearpark_wallet');
       loadHoneyLeaderboard(walletAddress);
       if (!showingPreviousRaids) {
         loadRaids(); // Only refresh if showing current raids
       }
-    }, 30000);
+    }, 120000); // 2 minutes instead of 30 seconds
 
     function getTimeAgo(date) {
       const seconds = Math.floor((new Date() - date) / 1000);
@@ -6577,8 +6579,12 @@
     // Load leaderboards on page load
     loadLeaderboards();
 
-    // Refresh leaderboards every 30 seconds
-    setInterval(loadLeaderboards, 30000);
+    // Refresh leaderboards every 2 minutes (reduced from 30s to save bandwidth)
+    // Only refresh when tab is visible
+    setInterval(() => {
+      if (document.hidden) return;
+      loadLeaderboards();
+    }, 120000);
 
   })();
   </script>
