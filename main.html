@@ -30252,11 +30252,6 @@ if (typeof window.addEventListener !== 'undefined') {
         if (v3) v3.textContent = lb.toLocaleString();
         if (r3) r3.textContent = '\u2192 ' + lr + ' $BEAR';
 
-        const tl = document.querySelector('#sec-m7 .m7-tot-lbl');
-        if (tl) tl.textContent = 'Your Estimated Gift';
-        const tv = document.getElementById('m7Total');
-        if (tv) tv.textContent = tr + ' $BEAR';
-
         const pl = document.querySelector('#sec-m7 .m7-prog-lbl');
         if (pl) pl.textContent = '\u{1F36F} Honey Points (24h)';
         const pc = document.getElementById('m7ProgCnt');
@@ -30271,6 +30266,27 @@ if (typeof window.addEventListener !== 'undefined') {
         const claimStatus = await _checkClaimStatus(w);
         console.log('BEARDROPS DEBUG - claimStatus:', JSON.stringify(claimStatus));
         console.log('BEARDROPS DEBUG - total_pending:', claimStatus.total_pending, 'tr:', tr);
+
+        // FIX: Show actual pending amount from database, not live calculation
+        // The live calculation shows what they'd get IF snapshotted now,
+        // but they can only claim what was in yesterday's snapshot
+        const tl = document.querySelector('#sec-m7 .m7-tot-lbl');
+        const tv = document.getElementById('m7Total');
+        const actualPending = claimStatus.total_pending || 0;
+        if (actualPending > 0) {
+          // Has pending claim - show the ACTUAL claimable amount
+          if (tl) tl.textContent = 'Your Claimable Gift';
+          if (tv) tv.textContent = actualPending.toFixed(0) + ' $BEAR';
+        } else if (claimStatus.claimed_today) {
+          // Already claimed - show what they claimed
+          const claimedAmt = claimStatus.claimed_amount || claimStatus.amount || 0;
+          if (tl) tl.textContent = 'Claimed Today';
+          if (tv) tv.textContent = (claimedAmt > 0 ? claimedAmt.toFixed(0) : '0') + ' $BEAR';
+        } else {
+          // No pending claim - show estimate for next snapshot
+          if (tl) tl.textContent = 'Next Estimated Gift';
+          if (tv) tv.textContent = tr + ' $BEAR';
+        }
         // Check BOTH backend status AND localStorage flag (belt and suspenders)
         const todayStr = new Date().toISOString().split('T')[0];
         const localClaimedFlag = localStorage.getItem('beardrops_claimed_' + w + '_' + todayStr) === 'true';
