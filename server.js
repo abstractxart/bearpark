@@ -413,24 +413,10 @@ app.get('/api/points/:wallet_address', async (req, res) => {
   }
 });
 
-// DEBUG: Test honey_points_activity table
-app.get('/api/debug/activity-table', async (req, res) => {
-  if (!supabase) {
-    return res.status(503).json({ error: 'Database not configured' });
-  }
-  try {
-    const { data, error } = await supabase
-      .from('honey_points_activity')
-      .select('*')
-      .limit(5);
-    if (error) {
-      return res.json({ success: false, error: error.message, code: error.code, details: error });
-    }
-    return res.json({ success: true, count: data?.length || 0, data });
-  } catch (e) {
-    return res.json({ success: false, error: e.message });
-  }
-});
+
+// ❌ REMOVED - Debug endpoint exposed internal data
+// app.get('/api/debug/activity-table') - DISABLED FOR SECURITY
+
 
 // Get user's honey points earned in last 24 hours (for BEARdrops eligibility)
 app.get('/api/honey-points/24h', async (req, res) => {
@@ -474,104 +460,26 @@ app.get('/api/honey-points/24h', async (req, res) => {
   }
 });
 
-// Update/sync user's honey points - WITH SECURITY VALIDATION
+// ❌ DISABLED - CRITICAL SECURITY EXPLOIT!
+// This endpoint allowed ANY user to set ANY honey points value by sending:
+//   curl -X POST /api/points -d '{"wallet_address":"...","total_points":999999}'
+// NEVER TRUST CLIENT-SUBMITTED POINT VALUES!
+// Points are now ONLY awarded through:
+// - /api/raids/complete (for raiding points - server fetches reward from DB)
+// - /api/games/complete (for game points - server validates via atomic function)
+// - Admin endpoints with verifyAdmin middleware
 app.post('/api/points',
-  // strictLimiter, // Strict rate limit for points - TEMPORARILY DISABLED
-  validateWalletAddress,
-  [
-    body('wallet_address').isString().trim().notEmpty(),
-    body('total_points').optional().isInt({ min: 0 }),
-    body('raiding_points').optional().isInt({ min: 0 }),
-    body('games_points').optional().isInt({ min: 0 })
-  ],
   async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      logSuspiciousActivity(req.body.wallet_address, 'Invalid points submission', req.ip);
-      return res.status(400).json({ error: 'Validation failed', details: errors.array() });
-    }
-
-    if (!supabase) {
-      return res.status(503).json({ error: 'Database not configured' });
-    }
-
-    try {
-      const { wallet_address, total_points, raiding_points, games_points } = req.body;
-
-      // 🔒 SECURITY: Validate points don't exceed reasonable limits
-      const maxPoints = 10000000; // 10 million max
-      if ((total_points || 0) > maxPoints || (raiding_points || 0) > maxPoints || (games_points || 0) > maxPoints) {
-        logSuspiciousActivity(wallet_address, `Excessive points submitted: total=${total_points}, raiding=${raiding_points}, games=${games_points}`, req.ip);
-        return res.status(400).json({ error: 'Points exceed maximum allowed' });
-      }
-
-      // 🔒 SECURITY: Get current points to detect suspicious changes
-      const { data: currentData } = await supabase
-        .from('honey_points')
-        .select('*')
-        .eq('wallet_address', wallet_address)
-        .maybeSingle();
-
-      if (currentData) {
-        const currentTotal = currentData.total_points || 0;
-        const newTotal = total_points || 0;
-
-        // Detect massive point jumps (more than 100k in one update)
-        if (newTotal > currentTotal + 100000) {
-          logSuspiciousActivity(wallet_address, `Massive point increase: ${currentTotal} -> ${newTotal}`, req.ip);
-          console.log(`⚠️  WARNING: ${wallet_address} increased points by ${newTotal - currentTotal}`);
-        }
-      }
-
-      // Calculate points delta for activity logging
-      const oldTotal = currentData?.total_points || 0;
-      const newTotal = total_points || 0;
-      const pointsDelta = newTotal - oldTotal;
-
-      // Upsert points (insert or update if exists)
-      const { data, error } = await supabase
-        .from('honey_points')
-        .upsert({
-          wallet_address,
-          total_points: total_points || 0,
-          raiding_points: raiding_points || 0,
-          games_points: games_points || 0,
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'wallet_address'
-        })
-        .select()
-        .single();
-
-      if (error) {
-        throw error;
-      }
-
-      // Log activity if points increased (for BEARdrops 24h tracking)
-      if (pointsDelta > 0) {
-        console.log(`📝 [v${SERVER_VERSION}] Logging activity: ${wallet_address} earned ${pointsDelta} points from games`);
-        const { data: activityData, error: activityError } = await supabase
-          .from('honey_points_activity')
-          .insert({
-            wallet_address,
-            points: pointsDelta,
-            activity_type: 'game',
-            activity_id: 'games-sync',
-            created_at: new Date().toISOString()
-          })
-          .select();
-        if (activityError) {
-          console.error(`❌ [v${SERVER_VERSION}] Failed to log honey_points_activity:`, JSON.stringify(activityError));
-        } else {
-          console.log(`✅ [v${SERVER_VERSION}] Activity logged successfully for ${wallet_address}:`, JSON.stringify(activityData));
-        }
-      }
-
-      res.json({ success: true, points: data });
-    } catch (error) {
-      console.error('Error syncing points:', error);
-      res.status(500).json({ error: 'Failed to sync points', details: error.message });
-    }
+    // Log the exploit attempt
+    const ip = req.headers['x-forwarded-for'] || req.ip || 'unknown';
+    const wallet = req.body?.wallet_address || 'unknown';
+    console.warn(`🚨 EXPLOIT BLOCKED: POST /api/points attempt from IP: ${ip}, wallet: ${wallet}`);
+    console.warn(`   Body: ${JSON.stringify(req.body)}`);
+    
+    return res.status(403).json({
+      success: false,
+      error: 'This endpoint has been disabled for security. Points are awarded automatically through game/raid completion.'
+    });
   });
 
 // Complete a raid and award points
