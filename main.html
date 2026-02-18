@@ -3,6 +3,8 @@
 
 <head>
   <meta charset="utf-8" />
+  <!-- 🐻❄️ COCAINE BEAR: Kill console in production -->
+  <script>if (location.hostname !== 'localhost') console.log = console.info = console.debug = function () { };</script>
   <script>
     // 🐻❄️ COCAINE BEAR: Register service worker for caching (PERFORMANCE!)
     if ('serviceWorker' in navigator) {

@@ -67,12 +67,12 @@
       {
         "type": "image",
         "key": "bee_fly_frame1",
-        "url": "https://files.catbox.moe/ujd4fh.gif"
+        "url": "https://cdn-game-mcp.gambo.ai/bbb3dd8a-01d5-437b-b75f-074d72c0b30e/animations/enemy_bee_fly_anim/frame_1.png"
       },
       {
         "type": "image",
         "key": "bee_fly_frame2",
-        "url": "https://files.catbox.moe/ujd4fh.gif"
+        "url": "https://cdn-game-mcp.gambo.ai/a205b542-c058-42ca-a377-aed7ef853d84/animations/enemy_bee_fly_anim/frame_2.png"
       }
     ]
   },

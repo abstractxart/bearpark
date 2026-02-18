@@ -2,9 +2,20 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/x-icon" href="./favicon.ico" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <link rel="icon" type="image/x-icon" href="/flappy-bear/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>FLAPPY BEAR</title>
+
+    <!-- BROWSER COMPATIBILITY: Polyfills for old browsers (Opera, Brave, Edge, old Android/iOS) -->
+    <script>if(typeof Promise==='undefined'){document.write('<script src="https://cdn.jsdelivr.net/npm/promise-polyfill@8/dist/polyfill.min.js"><\/script>')}</script>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6,fetch,URLSearchParams,Array.from,Object.assign,Element.prototype.classList,requestAnimationFrame,PointerEvent"></script>
+    <script>
+    (function(){
+      if(!window.URLSearchParams){var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/url-search-params-polyfill@8.2.0/index.js';document.head.appendChild(s);}
+      if(!window.PointerEvent){window.PointerEvent=function(type,params){params=params||{bubbles:false,cancelable:false};var evt=document.createEvent('MouseEvent');evt.initMouseEvent(type,params.bubbles,params.cancelable,params.view||window,params.detail||0,params.screenX||0,params.screenY||0,params.clientX||0,params.clientY||0,params.ctrlKey||false,params.altKey||false,params.shiftKey||false,params.metaKey||false,params.button||0,params.relatedTarget||null);return evt;};}
+      if(!window.requestAnimationFrame){window.requestAnimationFrame=window.webkitRequestAnimationFrame||window.mozRequestAnimationFrame||function(cb){return setTimeout(cb,16)};}
+    })();
+    </script>
 
     <!-- BEAR Park Font -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -49,77 +60,17 @@
     </script>
 
     <!-- Honey Points Helper -->
-    <script src="./game-points-helper.js"></script>
-
+    <script src="/flappy-bear/game-points-helper.js"></script>
 
-    <!-- Make entire viewport clickable for flapping (including black bars) -->
-    <script>
-      console.log('🎮 Click forwarding script loaded');
-
-      // Try to set up click forwarding - keep trying until canvas is ready
-      let setupAttempts = 0;
-      const maxAttempts = 20;
-
-      function setupClickForwarding() {
-        setupAttempts++;
-        console.log(`🎮 Attempt ${setupAttempts} to find canvas...`);
-
-        const canvas = document.querySelector('canvas');
-        if (!canvas) {
-          if (setupAttempts < maxAttempts) {
-            setTimeout(setupClickForwarding, 200);
-          } else {
-            console.error('❌ Canvas not found after 20 attempts');
-          }
-          return;
-        }
-
-        console.log('✅ Canvas found! Setting up click forwarding');
-
-        // Handle input from anywhere on the page
-        const handleInput = (e) => {
-          // Don't forward if clicking on a button or interactive element
-          const target = e.target;
-          if (target.tagName === 'BUTTON' || target.tagName === 'INPUT' || target.closest('button')) {
-            return;
-          }
-
-          // If click was outside canvas, simulate a click on the canvas
-          if (e.target !== canvas) {
-            console.log('📍 Click outside canvas, forwarding...');
-            const rect = canvas.getBoundingClientRect();
-            const centerX = rect.left + rect.width / 2;
-            const centerY = rect.top + rect.height / 2;
-
-            // Dispatch pointer event
-            const pointerEvent = new PointerEvent('pointerdown', {
-              bubbles: true,
-              cancelable: true,
-              view: window,
-              clientX: centerX,
-              clientY: centerY,
-            });
-            canvas.dispatchEvent(pointerEvent);
-          }
-        };
-
-        // Add listeners
-        document.addEventListener('pointerdown', handleInput, {passive: false});
-        document.addEventListener('touchstart', handleInput, {passive: false});
-        document.addEventListener('mousedown', handleInput, {passive: false});
-
-        console.log('✅ Global click forwarding enabled');
+    <style>
+      body {
+        background: black;
+        margin: 0;
+        padding: 0;
       }
-
-      // Start trying to set up immediately
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', setupClickForwarding);
-      } else {
-        setupClickForwarding();
-      }
-    </script>
-    <script type="module" crossorigin src="./assets/index-hl3oPRsV.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-B82uLamp.css">
+    </style>
+    <script type="module" crossorigin src="/flappy-bear/assets/index-C1Kq3oJ4.js"></script>
+    <link rel="stylesheet" crossorigin href="/flappy-bear/assets/index-CREfEJvI.css">
   </head>
   <body>
     <div id="game-container"></div>
