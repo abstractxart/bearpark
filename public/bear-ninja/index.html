@@ -1,75 +1,82 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="screen-orientation" content="landscape" />
-    <meta name="orientation" content="landscape" />
-    <title>BEAR SLICE</title>
 
-    <style>
-      html, body {
-        background: black;
-        margin: 0;
-        padding: 0;
-        width: 100%;
-        height: 100%;
-        overflow: hidden;
-        overscroll-behavior: none;
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="screen-orientation" content="landscape" />
+  <meta name="orientation" content="landscape" />
+  <title>BEAR SLICE</title>
+
+  <style>
+    html,
+    body {
+      background: black;
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      overscroll-behavior: none;
+    }
+
+    #game-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      width: 100dvw;
+      /* Dynamic viewport width for mobile */
+      height: 100dvh;
+      /* Dynamic viewport height for mobile */
+    }
+
+    #game-container canvas {
+      display: block;
+      width: 100% !important;
+      height: 100% !important;
+    }
+  </style>
+  <script type="module" crossorigin src="/assets/index-CHgnC1N1.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-CKT1wiae.css">
+</head>
+
+<body>
+  <div id="game-container"></div>
+
+  <script>
+    // Try to lock to landscape, but allow portrait if it fails
+    if (screen.orientation && screen.orientation.lock) {
+      screen.orientation.lock('landscape').catch(err => {
+        // Screen orientation lock not supported - allowing both orientations
+      });
+    }
+
+    // Handle orientation changes to ensure game fills screen
+    window.addEventListener('resize', () => {
+      const canvas = document.querySelector('canvas');
+      if (canvas) {
+        canvas.style.width = '100%';
+        canvas.style.height = '100%';
       }
+    });
 
-      #game-container {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        width: 100dvw; /* Dynamic viewport width for mobile */
-        height: 100dvh; /* Dynamic viewport height for mobile */
-      }
-
-      #game-container canvas {
-        display: block;
-        width: 100% !important;
-        height: 100% !important;
-      }
-    </style>
-    <script type="module" crossorigin src="/assets/index-CHgnC1N1.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-CKT1wiae.css">
-  </head>
-  <body>
-    <div id="game-container"></div>
-
-    <script>
-      // Try to lock to landscape, but allow portrait if it fails
-      if (screen.orientation && screen.orientation.lock) {
-        screen.orientation.lock('landscape').catch(err => {
-          console.log('Screen orientation lock not supported - allowing both orientations');
-        });
-      }
-
-      // Handle orientation changes to ensure game fills screen
-      window.addEventListener('resize', () => {
+    window.addEventListener('orientationchange', () => {
+      setTimeout(() => {
         const canvas = document.querySelector('canvas');
         if (canvas) {
           canvas.style.width = '100%';
           canvas.style.height = '100%';
         }
-      });
+      }, 100);
+    });
+  </script>
+</body>
 
-      window.addEventListener('orientationchange', () => {
-        setTimeout(() => {
-          const canvas = document.querySelector('canvas');
-          if (canvas) {
-            canvas.style.width = '100%';
-            canvas.style.height = '100%';
-          }
-        }, 100);
-      });
-    </script>
-  </body>
 </html>

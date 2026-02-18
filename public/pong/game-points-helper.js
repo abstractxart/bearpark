@@ -25,8 +25,8 @@ async function awardGamePoints(gameId, minutesPlayed) {
     // Get wallet from parent window or localStorage
     // Support both bearpark_wallet (main site) and xaman_wallet_address (BEAR PONG)
     const walletAddress = window.parent?.localStorage?.getItem('bearpark_wallet') ||
-                          localStorage.getItem('bearpark_wallet') ||
-                          localStorage.getItem('xaman_wallet_address');
+      localStorage.getItem('bearpark_wallet') ||
+      localStorage.getItem('xaman_wallet_address');
 
     if (!walletAddress) {
       console.warn('No wallet connected, cannot award points');
@@ -36,7 +36,7 @@ async function awardGamePoints(gameId, minutesPlayed) {
       };
     }
 
-    console.log(`🎮 Awarding points for ${gameId} - ${minutesPlayed} minutes...`);
+
 
     const response = await fetch(`${GAME_POINTS_CONFIG.API_BASE_URL}/api/games/complete`, {
       method: 'POST',
@@ -53,7 +53,7 @@ async function awardGamePoints(gameId, minutesPlayed) {
     const data = await response.json();
 
     if (data.success) {
-      console.log(`✅ Awarded ${data.points_awarded} points! (${data.minutes_today}/${data.max_minutes} mins today)`);
+
 
       // Show game-over style notification
       showPointsNotification(data.points_awarded, data.remaining_minutes, data.minutes_today, data.max_minutes);
@@ -63,7 +63,7 @@ async function awardGamePoints(gameId, minutesPlayed) {
 
       return data;
     } else {
-      console.log(`⚠️ ${data.message}`);
+
 
       // Show limit reached notification
       if (data.minutes_today >= data.max_minutes) {
@@ -90,7 +90,7 @@ async function awardGamePoints(gameId, minutesPlayed) {
 async function getDailyGameStatus(gameId) {
   try {
     const walletAddress = window.parent?.localStorage?.getItem('bearpark_wallet') ||
-                          localStorage.getItem('bearpark_wallet');
+      localStorage.getItem('bearpark_wallet');
 
     if (!walletAddress) {
       return {
@@ -181,9 +181,9 @@ function showPointsNotification(points, remaining, minutesToday, maxMinutes) {
 
     <div style="font-size: 22px; margin-top: 20px; padding: 18px 28px; background: linear-gradient(135deg, rgba(80,250,123,0.2) 0%, rgba(241,250,140,0.2) 50%, rgba(189,147,249,0.2) 100%); border-radius: 15px; border: 2px solid; border-image: linear-gradient(135deg, #50fa7b 0%, #f1fa8c 50%, #bd93f9 100%) 1;">
       ${remaining > 0
-        ? `<span style="color: #50fa7b; font-weight: 900; text-shadow: 0 0 10px #50fa7b;">${remaining.toFixed(1)}</span> <span style="color: #f1fa8c;">mins left today! 🎮</span>`
-        : `<span style="color: #ff79c6; font-weight: 900; text-shadow: 0 0 10px #ff79c6;">DAILY LIMIT REACHED!</span><br><small style="opacity:0.7; font-size:18px; color: #bd93f9;">Come back tomorrow for more!</small>`
-      }
+      ? `<span style="color: #50fa7b; font-weight: 900; text-shadow: 0 0 10px #50fa7b;">${remaining.toFixed(1)}</span> <span style="color: #f1fa8c;">mins left today! 🎮</span>`
+      : `<span style="color: #ff79c6; font-weight: 900; text-shadow: 0 0 10px #ff79c6;">DAILY LIMIT REACHED!</span><br><small style="opacity:0.7; font-size:18px; color: #bd93f9;">Come back tomorrow for more!</small>`
+    }
     </div>
     <div style="font-size: 14px; opacity: 0.6; margin-top: 25px; text-transform: uppercase; letter-spacing: 2px; color: #bd93f9;">
       Click anywhere to continue
