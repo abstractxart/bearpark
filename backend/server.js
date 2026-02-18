@@ -1431,6 +1431,144 @@ app.post('/api/games/complete', validateWallet, async (req, res) => {
 });
 
 // Get Daily Game Status (Time-Based)
+// 🔒 SECURE Server-Side Betting Endpoint
+// Replaces the old client-side POST /api/points exploit
+// Server fetches current balance, validates, and updates atomically
+app.post('/api/games/bet', validateWallet, async (req, res) => {
+  try {
+    const { wallet_address, game_id, bet_amount, result } = req.body;
+
+    // Validate required fields
+    if (!wallet_address || !game_id || bet_amount === undefined || !result) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: wallet_address, game_id, bet_amount, result'
+      });
+    }
+
+    // Validate game_id
+    const ALLOWED_GAMES = ['bear-pong', 'pong'];
+    if (!ALLOWED_GAMES.includes(game_id)) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid game_id. Allowed: ${ALLOWED_GAMES.join(', ')}`
+      });
+    }
+
+    // Validate result
+    if (!['win', 'loss'].includes(result)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid result. Must be "win" or "loss"'
+      });
+    }
+
+    // Validate bet_amount
+    const amount = parseInt(bet_amount, 10);
+    if (isNaN(amount) || amount <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid bet_amount. Must be a positive integer'
+      });
+    }
+
+    const MAX_BET = 10000; // Max 10k HONEY per bet
+    if (amount > MAX_BET) {
+      console.warn(`🚨 Excessive bet blocked: ${wallet_address} tried to bet ${amount} on ${game_id}`);
+      return res.status(400).json({
+        success: false,
+        error: `Bet exceeds maximum of ${MAX_BET} HONEY`
+      });
+    }
+
+    // SERVER-SIDE: Fetch current balance from database (NEVER trust client values)
+    const { data: currentData, error: fetchError } = await supabase
+      .from('honey_points')
+      .select('*')
+      .eq('wallet_address', wallet_address)
+      .maybeSingle();
+
+    if (fetchError) {
+      console.error('❌ Bet fetch error:', fetchError.message);
+      return safeErrorResponse(res, fetchError);
+    }
+
+    const currentGames = currentData?.games_points || 0;
+    const currentRaiding = currentData?.raiding_points || 0;
+    const currentTotal = currentData?.total_points || 0;
+
+    // For losses: ensure player has enough games points
+    if (result === 'loss' && currentGames < amount) {
+      return res.status(400).json({
+        success: false,
+        error: 'Insufficient HONEY balance for this bet',
+        current_games: currentGames,
+        bet_amount: amount
+      });
+    }
+
+    // Calculate new values
+    let newGames;
+    if (result === 'win') {
+      newGames = currentGames + amount;
+    } else {
+      newGames = Math.max(0, currentGames - amount);
+    }
+    const newTotal = currentRaiding + newGames;
+
+    console.log(`🎰 Bet: ${wallet_address} ${result} ${amount}HP on ${game_id} | Games: ${currentGames} → ${newGames} | Total: ${currentTotal} → ${newTotal}`);
+
+    // Atomic update
+    const updateClient = supabaseAdmin || supabase;
+    const { error: updateError } = await updateClient
+      .from('honey_points')
+      .upsert({
+        wallet_address,
+        total_points: newTotal,
+        raiding_points: currentRaiding,
+        games_points: newGames,
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'wallet_address'
+      });
+
+    if (updateError) {
+      console.error('❌ Bet update error:', updateError.message);
+      return safeErrorResponse(res, updateError);
+    }
+
+    // Log activity for BEARdrops 24h tracking (only for wins)
+    if (result === 'win' && amount > 0) {
+      try {
+        const activityClient = supabaseAdmin || supabase;
+        await activityClient.from('honey_points_activity').insert({
+          wallet_address,
+          points: amount,
+          activity_type: 'game',
+          activity_id: `${game_id}-bet-win`
+        });
+      } catch (e) {
+        console.error('❌ Bet activity log error:', e.message);
+      }
+    }
+
+    res.json({
+      success: true,
+      result,
+      bet_amount: amount,
+      new_balance: {
+        total: newTotal,
+        raiding: currentRaiding,
+        games: newGames
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Betting error:', error);
+    safeErrorResponse(res, error);
+  }
+});
+
 app.get('/api/games/daily-status/:wallet/:game_id', async (req, res) => {
   try {
     const { wallet, game_id } = req.params;

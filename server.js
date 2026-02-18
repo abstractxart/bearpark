@@ -475,11 +475,98 @@ app.post('/api/points',
     const wallet = req.body?.wallet_address || 'unknown';
     console.warn(`🚨 EXPLOIT BLOCKED: POST /api/points attempt from IP: ${ip}, wallet: ${wallet}`);
     console.warn(`   Body: ${JSON.stringify(req.body)}`);
-    
+
     return res.status(403).json({
       success: false,
       error: 'This endpoint has been disabled for security. Points are awarded automatically through game/raid completion.'
     });
+  });
+
+// 🔒 SECURE Server-Side Betting Endpoint
+// Replaces the old client-side POST /api/points exploit
+app.post('/api/games/bet',
+  validateWalletAddress,
+  [
+    body('wallet_address').isString().trim().notEmpty(),
+    body('game_id').isString().trim().isIn(['bear-pong', 'pong']),
+    body('bet_amount').isInt({ min: 1, max: 10000 }),
+    body('result').isString().trim().isIn(['win', 'loss'])
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ error: 'Validation failed', details: errors.array() });
+    }
+
+    if (!supabase) {
+      return res.status(503).json({ error: 'Database not configured' });
+    }
+
+    try {
+      const { wallet_address, game_id, bet_amount, result } = req.body;
+      const amount = parseInt(bet_amount, 10);
+
+      // SERVER-SIDE: Fetch current balance (NEVER trust client values)
+      const { data: currentData, error: fetchError } = await supabase
+        .from('honey_points')
+        .select('*')
+        .eq('wallet_address', wallet_address)
+        .maybeSingle();
+
+      if (fetchError) throw fetchError;
+
+      const currentGames = currentData?.games_points || 0;
+      const currentRaiding = currentData?.raiding_points || 0;
+
+      // For losses: ensure player has enough
+      if (result === 'loss' && currentGames < amount) {
+        return res.status(400).json({
+          success: false,
+          error: 'Insufficient HONEY balance for this bet',
+          current_games: currentGames,
+          bet_amount: amount
+        });
+      }
+
+      // Calculate new values
+      const newGames = result === 'win' ? currentGames + amount : Math.max(0, currentGames - amount);
+      const newTotal = currentRaiding + newGames;
+
+      console.log(`🎰 Bet: ${wallet_address} ${result} ${amount}HP on ${game_id} | Games: ${currentGames} → ${newGames}`);
+
+      // Atomic update
+      const { error: updateError } = await supabase
+        .from('honey_points')
+        .upsert({
+          wallet_address,
+          total_points: newTotal,
+          raiding_points: currentRaiding,
+          games_points: newGames,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'wallet_address' });
+
+      if (updateError) throw updateError;
+
+      // Log activity for wins
+      if (result === 'win' && amount > 0) {
+        await supabase.from('honey_points_activity').insert({
+          wallet_address,
+          points: amount,
+          activity_type: 'game',
+          activity_id: `${game_id}-bet-win`
+        }).select();
+      }
+
+      res.json({
+        success: true,
+        result,
+        bet_amount: amount,
+        new_balance: { total: newTotal, raiding: currentRaiding, games: newGames }
+      });
+    } catch (error) {
+      console.error('❌ Betting error:', error);
+      res.status(500).json({ error: 'Failed to process bet', details: error.message });
+    }
   });
 
 // Complete a raid and award points
