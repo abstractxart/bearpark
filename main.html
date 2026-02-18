@@ -15828,7 +15828,7 @@
             } else {
               this.element.classList.remove('walking-left');
             }
-            console.log('🐻🏠 Bear avoided ' + blockedZone.name + '!');
+            // Silently turn around (removed console.log to prevent spam)
           } else {
             this.x = nextX;
           }

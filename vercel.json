@@ -36,9 +36,34 @@
     {
       "src": "public/**",
       "use": "@vercel/static"
+    },
+    {
+      "src": "site.webmanifest",
+      "use": "@vercel/static"
     }
   ],
   "routes": [
+    {
+      "src": "/site.webmanifest",
+      "dest": "/site.webmanifest",
+      "headers": {
+        "Content-Type": "application/manifest+json"
+      }
+    },
+    {
+      "src": "/BEARMemeWorld/(.*)",
+      "status": 308,
+      "headers": {
+        "Location": "https://bear-meme-world.vercel.app/$1"
+      }
+    },
+    {
+      "src": "/BEARMemeWorld",
+      "status": 308,
+      "headers": {
+        "Location": "https://bear-meme-world.vercel.app/"
+      }
+    },
     {
       "src": "/api/(.*)",
       "dest": "https://bearpark-production.up.railway.app/api/$1",
