@@ -19,6 +19,9 @@ const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 3000;
 
+// Force MIME type for manifest
+express.static.mime.define({ 'application/manifest+json': ['webmanifest'] });
+
 // Initialize Redis cache
 cache.initCache();
 
@@ -768,7 +771,7 @@ app.get('/api/leaderboard', async (req, res) => {
     const cacheKey = cache.keys.honeyLeaderboard(limit);
 
     // Get leaderboard (cached)
-    const { data: leaderboard, fromCache } = await cache.getOrFetch(
+    const { data: leaderboard, fromCache, error: fetchError } = await cache.getOrFetch(
       cacheKey,
       cache.CACHE_TTL.HONEY_LEADERBOARD,
       async () => {
@@ -778,12 +781,18 @@ app.get('/api/leaderboard', async (req, res) => {
           .limit(limit);
 
         if (error) {
+          console.error('❌ Leaderboard Query Error:', error.message, error.details);
           throw error;
         }
 
         return data || [];
       }
     );
+
+    if (fetchError) {
+      console.error('❌ Leaderboard Cache/Fetch Error:', fetchError);
+      return res.status(500).json({ error: 'Failed to fetch leaderboard data', details: fetchError.message });
+    }
 
     // If wallet address provided, calculate their rank (not cached - personal)
     let userRank = null;
@@ -1678,7 +1687,7 @@ app.post('/api/cosmetics/unequip', async (req, res) => {
 
   // Forward to equip endpoint with null cosmetic_id
   req.body.cosmetic_id = null;
-  return app._router.handle(Object.assign(req, { url: '/api/cosmetics/equip', method: 'POST' }), res, () => {});
+  return app._router.handle(Object.assign(req, { url: '/api/cosmetics/equip', method: 'POST' }), res, () => { });
 });
 
 // Initialize WebSocket server

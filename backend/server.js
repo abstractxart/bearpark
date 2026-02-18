@@ -20,6 +20,9 @@ const upload = multer({ storage: multer.memoryStorage() });
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Force MIME type for manifest
+express.static.mime.define({ 'application/manifest+json': ['webmanifest'] });
+
 // Trust proxy - Required for Railway/reverse proxies to properly identify user IPs
 app.set('trust proxy', true);
 
@@ -218,11 +221,11 @@ app.use((req, res, next) => {
 
   // Check wallet_address in body, query, or params (multiple param names)
   const wallet = req.body?.wallet_address ||
-                 req.body?.wallet ||
-                 req.query?.wallet ||
-                 req.query?.wallet_address ||
-                 req.params?.wallet ||
-                 req.params?.wallet_address;
+    req.body?.wallet ||
+    req.query?.wallet ||
+    req.query?.wallet_address ||
+    req.params?.wallet ||
+    req.params?.wallet_address;
 
   // Also check URL path for wallet addresses (matches r + base58 pattern)
   const urlWalletMatch = req.path.match(/\/(r[1-9A-HJ-NP-Za-km-z]{24,34})/);
@@ -510,8 +513,8 @@ app.get('/api/leaderboard', async (req, res) => {
       .limit(limit);
 
     if (error) {
-      console.error('Error fetching leaderboard:', error);
-      return safeErrorResponse(res, error);
+      console.error('❌ Leaderboard Fetch Error:', error.message, error.code, error.details);
+      return safeErrorResponse(res, error, 500, `Failed to fetch leaderboard: ${error.message}`);
     }
 
     const response = {
@@ -842,7 +845,8 @@ app.get('/api/honey-points/24h', async (req, res) => {
       .eq('wallet_address', wallet)
       .gte('created_at', midnightUTC.toISOString());
     if (error) {
-      return safeErrorResponse(res, error);
+      console.error('❌ 24h Points Fetch Error:', error.message, error.code, error.details);
+      return safeErrorResponse(res, error, 500, `Failed to fetch 24h points: ${error.message}`);
     }
     const points = data?.reduce((sum, row) => sum + parseFloat(row.points || 0), 0) || 0;
     res.json({ success: true, wallet, points });
@@ -1722,8 +1726,8 @@ app.get('/api/profile/:wallet', async (req, res) => {
       .single();
 
     if (error && error.code !== 'PGRST116') { // PGRST116 = not found
-      console.error('Error fetching profile:', error);
-      return safeErrorResponse(res, error);
+      console.error('❌ Profile Fetch Error:', error.message, error.code, error.details);
+      return safeErrorResponse(res, error, 500, `Failed to fetch profile: ${error.message}`);
     }
 
     // If no profile found, return null
@@ -2074,8 +2078,8 @@ app.delete('/api/comments/:id', async (req, res) => {
 
     // Check permissions: admin, profile owner, or comment author
     const canDelete = is_admin ||
-                     comment.profile_wallet === wallet_address ||
-                     comment.commenter_wallet === wallet_address;
+      comment.profile_wallet === wallet_address ||
+      comment.commenter_wallet === wallet_address;
 
     if (!canDelete) {
       return res.status(403).json({ success: false, error: 'Permission denied' });
@@ -3417,7 +3421,7 @@ async function convertXrpToRlusd(xrpAmount, orderNumber) {
       const bestOffer = orderBook.result.offers[0];
       const xrpPerRlusd = parseInt(bestOffer.TakerPays) / 1000000 / parseFloat(bestOffer.TakerGets.value);
       expectedRlusd = (xrpAmount / xrpPerRlusd) * 0.98; // 2% slippage buffer
-      console.log(`📊 Market rate: ~${(1/xrpPerRlusd).toFixed(4)} RLUSD per XRP, expecting ~${expectedRlusd.toFixed(2)} RLUSD`);
+      console.log(`📊 Market rate: ~${(1 / xrpPerRlusd).toFixed(4)} RLUSD per XRP, expecting ~${expectedRlusd.toFixed(2)} RLUSD`);
     } else {
       // Fallback: estimate based on typical rate
       expectedRlusd = xrpAmount * 0.40 * 0.98; // Rough estimate with buffer
@@ -3456,7 +3460,7 @@ async function convertXrpToRlusd(xrpAmount, orderNumber) {
         if (modified && modified.LedgerEntryType === 'RippleState') {
           const finalFields = modified.FinalFields || modified.NewFields;
           if (finalFields && finalFields.Balance &&
-              (finalFields.HighLimit?.issuer === RLUSD_ISSUER || finalFields.LowLimit?.issuer === RLUSD_ISSUER)) {
+            (finalFields.HighLimit?.issuer === RLUSD_ISSUER || finalFields.LowLimit?.issuer === RLUSD_ISSUER)) {
             // This is the RLUSD trust line
             const prevBalance = parseFloat(modified.PreviousFields?.Balance?.value || '0');
             const newBalance = parseFloat(finalFields.Balance.value || '0');
@@ -4293,8 +4297,8 @@ app.delete('/api/merch/admin/inventory/:productId', verifyAdminSession, async (r
       .eq('id', productId);
 
     if (error) {
-      console.error('Error deleting product:', error);
-      return res.status(500).json({ success: false, error: 'Failed to delete product' });
+      console.error('❌ Merch Product Delete Error:', error.message, error.code, error.details);
+      return res.status(500).json({ success: false, error: `Failed to delete product: ${error.message}` });
     }
 
     // Remove from in-memory
@@ -6648,7 +6652,7 @@ app.get('/api/memes/leaderboard', async (req, res) => {
     if (weekError) throw weekError;
 
     // Get top memes
-    const { data: memes, error: memesError} = await supabase
+    const { data: memes, error: memesError } = await supabase
       .from('memes')
       .select('id, image_url, vote_count, wallet_address')
       .eq('week_id', weekData.id)
@@ -7744,7 +7748,7 @@ app.post('/api/beardrops/claim', claimRateLimiter, validateWallet, async (req, r
     const LP_PER_BEAR = 250000;
 
     const nftReward = (snapshot.pixel_bears || 0) * BEAR_PER_PIXEL +
-                      (snapshot.ultra_rares || 0) * BEAR_PER_ULTRA;
+      (snapshot.ultra_rares || 0) * BEAR_PER_ULTRA;
     const lpReward = Math.floor(parseFloat(snapshot.lp_tokens || 0) / LP_PER_BEAR);
     const calculatedAmount = nftReward + lpReward;
 
@@ -8330,7 +8334,7 @@ app.get('/api/store/check-trustline/:wallet/:tokenType', async (req, res) => {
       issuer: token.issuer
     });
   } catch (error) {
-    try { await client.disconnect(); } catch (e) {}
+    try { await client.disconnect(); } catch (e) { }
 
     // If account not found, they definitely don't have trustline
     if (error.message?.includes('actNotFound')) {
@@ -8526,7 +8530,7 @@ app.post('/api/store/purchase-token', async (req, res) => {
       });
     }
   } catch (error) {
-    try { await client.disconnect(); } catch (e) {}
+    try { await client.disconnect(); } catch (e) { }
 
     // Log error transaction
     if (token) {
@@ -8540,7 +8544,7 @@ app.post('/api/store/purchase-token', async (req, res) => {
           tx_hash: null,
           tx_status: 'error',
           error_message: error.message?.substring(0, 255) || 'Unknown error'
-        }).catch(() => {}); // Ignore if insert fails
+        }).catch(() => { }); // Ignore if insert fails
     }
 
     // Handle account not found (no trustline)
@@ -8672,7 +8676,7 @@ app.get('/api/store/nfts', async (req, res) => {
 
               // Try common image field names
               let imgField = metadata.image || metadata.image_url || metadata.imageUrl ||
-                           metadata.animation_url || metadata.file || metadata.media;
+                metadata.animation_url || metadata.file || metadata.media;
 
               if (imgField) {
                 if (imgField.startsWith('ipfs://')) {
@@ -8723,7 +8727,7 @@ app.get('/api/store/nfts', async (req, res) => {
     });
 
   } catch (error) {
-    try { await client.disconnect(); } catch (e) {}
+    try { await client.disconnect(); } catch (e) { }
     console.error('Error fetching store NFTs:', error);
     safeErrorResponse(res, error);
   }
@@ -8781,7 +8785,7 @@ app.get('/api/nft/image/:hexUri', async (req, res) => {
 
         // Try to get image - check animation first for animated NFTs
         let imgField = metadata.animation || metadata.animation_url ||
-                       metadata.image || metadata.image_url || metadata.media;
+          metadata.image || metadata.image_url || metadata.media;
 
         if (imgField) {
           if (imgField.startsWith('ipfs://')) {
