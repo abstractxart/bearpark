@@ -1431,35 +1431,20 @@ app.post('/api/games/complete', validateWallet, async (req, res) => {
 });
 
 // Get Daily Game Status (Time-Based)
-// 🔒 SECURE Server-Side Betting Endpoint
+// 🔒 SECURE Server-Side Pong Betting Endpoint
 // Replaces the old client-side POST /api/points exploit
 // Server fetches current balance, validates, and updates atomically
-app.post('/api/games/bet', validateWallet, async (req, res) => {
+// Client sends: { wallet_address, did_win, bet_amount }
+// Client expects: { success, message, new_total, new_games_points, new_raiding_points, change }
+app.post('/api/pong/betting', validateWallet, async (req, res) => {
   try {
-    const { wallet_address, game_id, bet_amount, result } = req.body;
+    const { wallet_address, did_win, bet_amount } = req.body;
 
     // Validate required fields
-    if (!wallet_address || !game_id || bet_amount === undefined || !result) {
+    if (!wallet_address || did_win === undefined || bet_amount === undefined) {
       return res.status(400).json({
         success: false,
-        error: 'Missing required fields: wallet_address, game_id, bet_amount, result'
-      });
-    }
-
-    // Validate game_id
-    const ALLOWED_GAMES = ['bear-pong', 'pong'];
-    if (!ALLOWED_GAMES.includes(game_id)) {
-      return res.status(400).json({
-        success: false,
-        error: `Invalid game_id. Allowed: ${ALLOWED_GAMES.join(', ')}`
-      });
-    }
-
-    // Validate result
-    if (!['win', 'loss'].includes(result)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid result. Must be "win" or "loss"'
+        error: 'Missing required fields: wallet_address, did_win, bet_amount'
       });
     }
 
@@ -1474,12 +1459,14 @@ app.post('/api/games/bet', validateWallet, async (req, res) => {
 
     const MAX_BET = 10000; // Max 10k HONEY per bet
     if (amount > MAX_BET) {
-      console.warn(`🚨 Excessive bet blocked: ${wallet_address} tried to bet ${amount} on ${game_id}`);
+      console.warn(`🚨 Excessive bet blocked: ${wallet_address} tried to bet ${amount}`);
       return res.status(400).json({
         success: false,
         error: `Bet exceeds maximum of ${MAX_BET} HONEY`
       });
     }
+
+    const result = did_win ? 'win' : 'loss';
 
     // SERVER-SIDE: Fetch current balance from database (NEVER trust client values)
     const { data: currentData, error: fetchError } = await supabase
@@ -1509,6 +1496,7 @@ app.post('/api/games/bet', validateWallet, async (req, res) => {
 
     // Calculate new values
     let newGames;
+    const change = did_win ? amount : -amount;
     if (result === 'win') {
       newGames = currentGames + amount;
     } else {
@@ -1516,7 +1504,7 @@ app.post('/api/games/bet', validateWallet, async (req, res) => {
     }
     const newTotal = currentRaiding + newGames;
 
-    console.log(`🎰 Bet: ${wallet_address} ${result} ${amount}HP on ${game_id} | Games: ${currentGames} → ${newGames} | Total: ${currentTotal} → ${newTotal}`);
+    console.log(`🎰 Pong Bet: ${wallet_address} ${result} ${amount}HP | Games: ${currentGames} → ${newGames} | Total: ${currentTotal} → ${newTotal}`);
 
     // Atomic update
     const updateClient = supabaseAdmin || supabase;
@@ -1545,22 +1533,21 @@ app.post('/api/games/bet', validateWallet, async (req, res) => {
           wallet_address,
           points: amount,
           activity_type: 'game',
-          activity_id: `${game_id}-bet-win`
+          activity_id: 'bear-pong-bet-win'
         });
       } catch (e) {
         console.error('❌ Bet activity log error:', e.message);
       }
     }
 
+    // Response format matches what all 3 pong client bundles expect
     res.json({
       success: true,
-      result,
-      bet_amount: amount,
-      new_balance: {
-        total: newTotal,
-        raiding: currentRaiding,
-        games: newGames
-      }
+      message: `Bet ${result}: ${change > 0 ? '+' : ''}${change} HONEY`,
+      new_total: newTotal,
+      new_games_points: newGames,
+      new_raiding_points: currentRaiding,
+      change: change
     });
 
   } catch (error) {
