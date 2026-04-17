@@ -11705,6 +11705,42 @@
     /* ===== END GLASSMORPHISM OVERRIDES ===== */
 
     /* =====================================================
+       FIX: Restored bear-head / bear-heads-container CSS.
+       These rules were accidentally removed along with the
+       Meme of the Week CSS block (since the floating bear
+       heads in the BEAR FRIENDS section reuse the same
+       class names). Without them, <img class="bear-head">
+       rendered at its natural image size (1500+ px wide).
+       ===================================================== */
+    .bear-heads-container {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .bear-head {
+      position: absolute;
+      width: 100px;
+      height: 100px;
+      pointer-events: auto;
+      cursor: grab;
+      user-select: none;
+      will-change: transform;
+      filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.4));
+    }
+    .bear-head:active { cursor: grabbing; }
+    @keyframes bear-spawn {
+      0% { opacity: 0; }
+      100% { opacity: 1; }
+    }
+    @keyframes bear-despawn {
+      0% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+    .bear-head.spawning  { animation: bear-spawn 0.6s ease forwards; opacity: 0; }
+    .bear-head.despawning { animation: bear-despawn 0.5s ease forwards; }
+
+    /* =====================================================
        PERF/POLISH: Shared skeleton loaders, toasts, and
        feedback states. Used across leaderboards, NFTs,
        profile, raid completions, and error handling.
