@@ -190,9 +190,13 @@ console.log('✅ Trust proxy enabled for correct IP detection behind Vercel/Rail
 app.use(compression());
 
 // Rate limiting - SECURITY: Proper limits to prevent abuse
+// PERF: Bumped 300 -> 600/min because a single page load fires ~15-20 concurrent
+// API calls and a refresh within a minute doubles that. The old 300 limit was being
+// tripped by legitimate users on normal navigation, returning 429s and breaking
+// bulletin/leaderboard widgets. Static/cached read endpoints are also exempted below.
 const apiLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute window
-  max: 300, // 300 requests per minute per IP
+  max: 600, // 600 requests per minute per IP (was 300 — too tight for legit page loads)
   message: { success: false, error: 'Too many requests, please try again later' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -200,11 +204,21 @@ const apiLimiter = rateLimit({
     return req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || 'unknown';
   },
   skip: (req) => {
-    return req.path.startsWith('/api/admin/');
+    // Admin routes have their own auth; skip rate limit
+    if (req.path.startsWith('/api/admin/')) return true;
+    // Cached read-only endpoints don't hit the DB, so don't count them against the limit.
+    // These are hot paths served from in-memory/Redis cache — rate limiting them causes
+    // user-visible outages without real abuse protection.
+    if (req.method === 'GET' && (
+      req.path === '/api/xrpl/trading-stats' ||
+      req.path === '/api/memes/timer' ||
+      req.path === '/api/memes/current-week'
+    )) return true;
+    return false;
   }
 });
 app.use('/api/', apiLimiter);
-console.log('✅ Rate limiting: 300 requests/minute per IP');
+console.log('✅ Rate limiting: 600 requests/minute per IP (cached reads exempt)');
 
 // Claim rate limiter - SECURITY: Strict limits to prevent abuse
 const claimRateLimiter = rateLimit({
