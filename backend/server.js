@@ -1,4 +1,5 @@
 const path = require('path');
+const crypto = require('crypto');
 // BEARpark Backend Server - Raid Leaderboard & Streak System
 // VERSION: 2.2.0 - Server-side BEARdrops whitelist verification (SECURITY)
 const SERVER_VERSION = '2.2.0';
@@ -30,12 +31,19 @@ app.set('trust proxy', true);
 const XAMAN_API_KEY = process.env.XAMAN_API_KEY?.trim();
 const XAMAN_API_SECRET = process.env.XAMAN_API_SECRET?.trim();
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:8080';
+const TWITTER_CLIENT_ID = process.env.TWITTER_CLIENT_ID?.trim() || '';
+const TWITTER_CLIENT_SECRET = process.env.TWITTER_CLIENT_SECRET?.trim() || '';
+const TWITTER_BEARER_TOKEN = process.env.TWITTER_BEARER_TOKEN?.trim() || '';
+const TWITTER_REDIRECT_URI = process.env.TWITTER_REDIRECT_URI?.trim() || new URL('/twitter-callback.html', FRONTEND_URL).toString();
 
 // Debug: Log environment variable status
 console.log('🔍 Environment Debug:');
 console.log('  NODE_ENV:', process.env.NODE_ENV);
 console.log('  XAMAN_API_KEY exists:', !!XAMAN_API_KEY);
 console.log('  XAMAN_API_SECRET exists:', !!XAMAN_API_SECRET);
+console.log('  TWITTER_CLIENT_ID exists:', !!TWITTER_CLIENT_ID);
+console.log('  TWITTER_CLIENT_SECRET exists:', !!TWITTER_CLIENT_SECRET);
+console.log('  TWITTER_BEARER_TOKEN exists:', !!TWITTER_BEARER_TOKEN);
 console.log('  SUPABASE_URL exists:', !!process.env.SUPABASE_URL);
 console.log('  DATABASE_URL exists:', !!process.env.DATABASE_URL);
 
@@ -113,6 +121,65 @@ try {
   console.error('❌ Failed to initialize XAMAN SDK:', error.message);
 }
 
+// PERF: fetch() helper with timeout to prevent cascading hangs on slow/stuck external APIs
+// Default 8s timeout — can be overridden per call
+async function fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: options.signal || controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+// PERF: Shared XRPL client pool — avoids ~1-2s connect/disconnect overhead per request.
+// Previously 30+ call sites created a new Client, connected, and disconnected on every call.
+// Now: one persistent client, auto-reconnects on disconnect. Fall back to per-call client
+// ONLY if the shared connection is unavailable (graceful degradation).
+const XRPL_WS_ENDPOINTS = [
+  'wss://xrplcluster.com',
+  'wss://s1.ripple.com',
+  'wss://s2.ripple.com'
+];
+let _xrplClient = null;
+let _xrplConnectingPromise = null;
+async function getXrplClient() {
+  if (_xrplClient && _xrplClient.isConnected()) {
+    return _xrplClient;
+  }
+  if (_xrplConnectingPromise) {
+    return _xrplConnectingPromise;
+  }
+  _xrplConnectingPromise = (async () => {
+    const xrpl = require('xrpl');
+    for (const endpoint of XRPL_WS_ENDPOINTS) {
+      try {
+        const c = new xrpl.Client(endpoint, { connectionTimeout: 10000 });
+        await c.connect();
+        c.on('disconnected', () => {
+          console.warn(`[XRPL] Client disconnected from ${endpoint}, will reconnect on next request`);
+          if (_xrplClient === c) _xrplClient = null;
+        });
+        _xrplClient = c;
+        console.log(`✅ XRPL shared client connected to ${endpoint}`);
+        return c;
+      } catch (err) {
+        console.warn(`[XRPL] Failed to connect to ${endpoint}:`, err.message);
+      }
+    }
+    throw new Error('All XRPL endpoints unreachable');
+  })();
+  try {
+    return await _xrplConnectingPromise;
+  } finally {
+    _xrplConnectingPromise = null;
+  }
+}
+
+// Warm up the shared XRPL client at boot so the first real request doesn't pay the connect cost
+getXrplClient().catch(err => console.warn('[XRPL] Warm-up failed (will retry on first request):', err.message));
+
 // Middleware
 // IMPORTANT: Trust proxy headers from Vercel/Railway for correct client IP detection
 // This ensures rate limiting works per-user, not per-proxy-server
@@ -160,7 +227,8 @@ app.use(cors({
   origin: [FRONTEND_URL, 'https://bearpark.xyz', 'https://www.bearpark.xyz', 'http://localhost:8080', 'http://127.0.0.1:8080'],
   credentials: true
 }));
-app.use(express.json());
+// SECURITY: Cap JSON body size to prevent DoS via huge payloads
+app.use(express.json({ limit: '1mb' }));
 
 // ===== SECURITY: SAFE ERROR HANDLER =====
 // AUDIT COMPLIANCE: Never expose internal error details to clients
@@ -279,6 +347,1661 @@ const validateWallet = (req, res, next) => {
 
   next();
 };
+
+// ===== SIGNED WALLET SESSION HELPERS =====
+const WALLET_AUTH_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const GAME_SESSION_TTL_MS = 4 * 60 * 60 * 1000;
+const RAID_SESSION_TTL_MS = 30 * 60 * 1000;
+const MIN_RAID_SESSION_SECONDS = 115;
+const GAME_MAX_DAILY_MINUTES = 123;
+const GAME_MIN_SESSION_MS = 10 * 1000;
+const GAME_MAX_SESSION_MS = 30 * 60 * 1000;
+const GAME_HEARTBEAT_INTERVAL_MS = 15 * 1000;
+const GAME_HEARTBEAT_CREDIT_CAP_MS = 20 * 1000;
+const GAME_HEARTBEAT_MAX_GAP_MS = 30 * 1000;
+const GAME_RECENT_ACTIVITY_WINDOW_MS = 25 * 1000;
+const TWITTER_LINK_TTL_MS = 10 * 60 * 1000;
+const VALID_GAME_IDS = new Set(['bear-ninja', 'flappy-bear', 'bear-jumpventure', 'bear-pong']);
+const VERIFIED_RAID_TYPES = new Set(['like', 'retweet', 'reply']);
+const ALL_RAID_VERIFICATION_TYPES = new Set(['unverified', ...VERIFIED_RAID_TYPES]);
+const usedGameSessions = new Map();
+const trackedGameSessions = new Map();
+const WALLET_AUTH_COOKIE_NAME = 'bearpark_auth';
+const CRON_SECRET = process.env.CRON_SECRET?.trim() || process.env.VERCEL_CRON_SECRET?.trim() || '';
+const GAME_REWARD_SESSION_TABLE = 'game_reward_sessions';
+const TWITTER_CONNECTIONS_TABLE = 'twitter_connections';
+let gameRewardSessionStoreReadyPromise = null;
+let twitterIntegrationStoreReadyPromise = null;
+const walletSessionSecretSource =
+  process.env.WALLET_AUTH_SECRET ||
+  XAMAN_API_SECRET ||
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  'bearpark-dev-wallet-auth-secret';
+const walletSessionSecret = crypto
+  .createHash('sha256')
+  .update(walletSessionSecretSource)
+  .digest();
+
+function encodeBase64Url(value) {
+  return Buffer.from(value, 'utf8')
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
+}
+
+function decodeBase64Url(value) {
+  const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
+  const padding = normalized.length % 4 === 0 ? '' : '='.repeat(4 - (normalized.length % 4));
+  return Buffer.from(normalized + padding, 'base64').toString('utf8');
+}
+
+function signSessionToken(payload) {
+  const encodedPayload = encodeBase64Url(JSON.stringify(payload));
+  const signature = crypto
+    .createHmac('sha256', walletSessionSecret)
+    .update(encodedPayload)
+    .digest('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
+
+  return `${encodedPayload}.${signature}`;
+}
+
+function verifySignedSessionToken(token, expectedType = null) {
+  if (!token || typeof token !== 'string' || !token.includes('.')) {
+    return null;
+  }
+
+  const [encodedPayload, providedSignature] = token.split('.');
+  if (!encodedPayload || !providedSignature) {
+    return null;
+  }
+
+  const expectedSignature = crypto
+    .createHmac('sha256', walletSessionSecret)
+    .update(encodedPayload)
+    .digest('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
+
+  const providedBuffer = Buffer.from(providedSignature, 'utf8');
+  const expectedBuffer = Buffer.from(expectedSignature, 'utf8');
+  if (providedBuffer.length !== expectedBuffer.length) {
+    return null;
+  }
+
+  if (!crypto.timingSafeEqual(providedBuffer, expectedBuffer)) {
+    return null;
+  }
+
+  try {
+    const payload = JSON.parse(decodeBase64Url(encodedPayload));
+    if (expectedType && payload.type !== expectedType) {
+      return null;
+    }
+    if (!payload.exp || Date.now() > payload.exp) {
+      return null;
+    }
+    return payload;
+  } catch (error) {
+    return null;
+  }
+}
+
+function issueWalletAuthToken(wallet) {
+  const now = Date.now();
+  return signSessionToken({
+    type: 'wallet_auth',
+    wallet: wallet.toLowerCase(),
+    iat: now,
+    exp: now + WALLET_AUTH_TTL_MS
+  });
+}
+
+function issueGameSessionToken(wallet, gameId) {
+  const now = Date.now();
+  return signSessionToken({
+    type: 'game_session',
+    sid: crypto.randomUUID(),
+    wallet: wallet.toLowerCase(),
+    game_id: gameId,
+    iat: now,
+    exp: now + GAME_SESSION_TTL_MS
+  });
+}
+
+function issueRaidSessionToken(wallet, raidId) {
+  const now = Date.now();
+  return signSessionToken({
+    type: 'raid_session',
+    sid: crypto.randomUUID(),
+    wallet: wallet.toLowerCase(),
+    raid_id: String(raidId),
+    iat: now,
+    exp: now + RAID_SESSION_TTL_MS
+  });
+}
+
+function base64UrlFromBuffer(buffer) {
+  return Buffer.from(buffer)
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
+}
+
+function generatePkcePair() {
+  const verifier = base64UrlFromBuffer(crypto.randomBytes(32));
+  const challenge = base64UrlFromBuffer(crypto.createHash('sha256').update(verifier).digest());
+  return { verifier, challenge };
+}
+
+function issueTwitterLinkStateToken(wallet, codeVerifier) {
+  const now = Date.now();
+  return signSessionToken({
+    type: 'twitter_link',
+    sid: crypto.randomUUID(),
+    wallet: wallet.toLowerCase(),
+    code_verifier: codeVerifier,
+    iat: now,
+    exp: now + TWITTER_LINK_TTL_MS
+  });
+}
+
+function normalizeTwitterUsername(value) {
+  return typeof value === 'string' ? value.trim().replace(/^@+/, '').toLowerCase() : '';
+}
+
+function extractTweetIdFromUrl(value) {
+  if (typeof value !== 'string') {
+    return '';
+  }
+
+  const match = value.match(/\/status\/(\d+)/i);
+  return match?.[1] || '';
+}
+
+function normalizeWalletAddress(wallet) {
+  return typeof wallet === 'string' ? wallet.trim().toLowerCase() : '';
+}
+
+function extractBearerToken(req) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || typeof authHeader !== 'string') {
+    return null;
+  }
+
+  const [scheme, ...rest] = authHeader.split(' ');
+  if (!scheme || scheme.toLowerCase() !== 'bearer' || rest.length === 0) {
+    return null;
+  }
+
+  return rest.join(' ').trim();
+}
+
+function parseCookies(req) {
+  const header = req.headers.cookie;
+  if (!header || typeof header !== 'string') {
+    return {};
+  }
+
+  return header.split(';').reduce((cookies, chunk) => {
+    const separatorIndex = chunk.indexOf('=');
+    if (separatorIndex === -1) {
+      return cookies;
+    }
+
+    const key = chunk.slice(0, separatorIndex).trim();
+    const value = chunk.slice(separatorIndex + 1).trim();
+    if (!key) {
+      return cookies;
+    }
+
+    try {
+      cookies[key] = decodeURIComponent(value);
+    } catch (error) {
+      cookies[key] = value;
+    }
+    return cookies;
+  }, {});
+}
+
+function secureCompareStrings(left, right) {
+  if (!left || !right || typeof left !== 'string' || typeof right !== 'string') {
+    return false;
+  }
+
+  const leftBuffer = Buffer.from(left, 'utf8');
+  const rightBuffer = Buffer.from(right, 'utf8');
+  if (leftBuffer.length !== rightBuffer.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(leftBuffer, rightBuffer);
+}
+
+function extractWalletAuthToken(req) {
+  const bearerToken = extractBearerToken(req);
+  if (bearerToken) {
+    return bearerToken;
+  }
+
+  const cookies = parseCookies(req);
+  return cookies[WALLET_AUTH_COOKIE_NAME] || null;
+}
+
+function setWalletAuthCookie(res, token) {
+  res.cookie(WALLET_AUTH_COOKIE_NAME, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: WALLET_AUTH_TTL_MS,
+    path: '/'
+  });
+}
+
+function clearWalletAuthCookie(res) {
+  res.clearCookie(WALLET_AUTH_COOKIE_NAME, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/'
+  });
+}
+
+function getVerifiedWalletSession(req, res) {
+  const token = extractWalletAuthToken(req);
+  if (!token) {
+    res.status(401).json({
+      success: false,
+      error: 'Wallet authentication required. Sign in with XAMAN again.'
+    });
+    return null;
+  }
+
+  const session = verifySignedSessionToken(token, 'wallet_auth');
+  if (!session?.wallet) {
+    res.status(401).json({
+      success: false,
+      error: 'Wallet session expired or invalid. Sign in with XAMAN again.'
+    });
+    return null;
+  }
+
+  return session;
+}
+
+function findRequestWallet(req, walletFields) {
+  for (const field of walletFields) {
+    const wallet = req.body?.[field] || req.params?.[field] || req.query?.[field];
+    if (wallet) {
+      return wallet;
+    }
+  }
+  return null;
+}
+
+const verifyWalletSession = (req, res, next) => {
+  const session = getVerifiedWalletSession(req, res);
+  if (!session) {
+    return;
+  }
+
+  req.authWallet = session.wallet;
+  req.walletSession = session;
+  next();
+};
+
+const requireWalletOwnership = (walletFields = ['wallet_address']) => (req, res, next) => {
+  const session = getVerifiedWalletSession(req, res);
+  if (!session) {
+    return;
+  }
+
+  const requestedWallet = findRequestWallet(req, walletFields);
+  if (!requestedWallet) {
+    return res.status(400).json({
+      success: false,
+      error: `Missing required wallet field: ${walletFields[0]}`
+    });
+  }
+
+  if (requestedWallet.toLowerCase() !== session.wallet) {
+    return res.status(403).json({
+      success: false,
+      error: 'Forbidden: wallet session does not match requested wallet'
+    });
+  }
+
+  req.authWallet = session.wallet;
+  req.walletSession = session;
+  next();
+};
+
+const requireExactWallet = (expectedWallet, errorMessage) => (req, res, next) => {
+  const session = getVerifiedWalletSession(req, res);
+  if (!session) {
+    return;
+  }
+
+  if (session.wallet !== expectedWallet.toLowerCase()) {
+    return res.status(403).json({
+      success: false,
+      error: errorMessage
+    });
+  }
+
+  req.authWallet = session.wallet;
+  req.walletSession = session;
+  next();
+};
+
+function parseHoneyNumber(value) {
+  const parsed = parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function roundHoneyAmount(value) {
+  return Math.round((parseHoneyNumber(value) + Number.EPSILON) * 100) / 100;
+}
+
+function createPublicError(statusCode, publicMessage) {
+  const error = new Error(publicMessage);
+  error.statusCode = statusCode;
+  error.publicMessage = publicMessage;
+  return error;
+}
+
+async function getHoneyBalance(wallet, dbClient = null, lockForUpdate = false) {
+  const normalizedWallet = normalizeWalletAddress(wallet);
+  if (!normalizedWallet) {
+    return {
+      wallet_address: '',
+      total_points: 0,
+      raiding_points: 0,
+      games_points: 0
+    };
+  }
+
+  if (dbClient) {
+    const result = await dbClient.query(
+      `SELECT total_points, raiding_points, games_points
+       FROM honey_points
+       WHERE wallet_address = $1
+       LIMIT 1${lockForUpdate ? ' FOR UPDATE' : ''}`,
+      [normalizedWallet]
+    );
+    const row = result.rows[0];
+    return {
+      wallet_address: normalizedWallet,
+      total_points: parseHoneyNumber(row?.total_points),
+      raiding_points: parseHoneyNumber(row?.raiding_points),
+      games_points: parseHoneyNumber(row?.games_points)
+    };
+  }
+
+  const readClient = supabaseAdmin || supabase;
+  const { data, error } = await readClient
+    .from('honey_points')
+    .select('total_points, raiding_points, games_points')
+    .eq('wallet_address', normalizedWallet)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return {
+    wallet_address: normalizedWallet,
+    total_points: parseHoneyNumber(data?.total_points),
+    raiding_points: parseHoneyNumber(data?.raiding_points),
+    games_points: parseHoneyNumber(data?.games_points)
+  };
+}
+
+async function insertPointTransactionRecordDb(client, {
+  wallet,
+  amount,
+  transactionType,
+  reason = null,
+  adminWallet = null
+}) {
+  if (!transactionType) {
+    return;
+  }
+
+  await client.query(
+    `INSERT INTO point_transactions (wallet_address, amount, transaction_type, reason, admin_wallet)
+     VALUES ($1, $2, $3, $4, $5)`,
+    [wallet, roundHoneyAmount(amount), transactionType, reason, adminWallet]
+  );
+}
+
+async function insertHoneyActivityRecordDb(client, {
+  wallet,
+  points,
+  activityType,
+  activityId = null
+}) {
+  if (!activityType || roundHoneyAmount(points) <= 0) {
+    return;
+  }
+
+  await client.query(
+    `INSERT INTO honey_points_activity (wallet_address, points, activity_type, activity_id)
+     VALUES ($1, $2, $3, $4)`,
+    [wallet, roundHoneyAmount(points), activityType, activityId]
+  );
+}
+
+async function applyHoneyDelta({
+  wallet,
+  totalDelta = 0,
+  raidingDelta = 0,
+  gamesDelta = 0,
+  transactionType = null,
+  reason = null,
+  adminWallet = null,
+  activityType = null,
+  activityId = null,
+  insufficientMessage = 'Insufficient Honey Points'
+}) {
+  const normalizedWallet = normalizeWalletAddress(wallet);
+  if (!normalizedWallet) {
+    throw createPublicError(400, 'Valid wallet address required');
+  }
+
+  const roundedTotalDelta = roundHoneyAmount(totalDelta);
+  const roundedRaidingDelta = roundHoneyAmount(raidingDelta);
+  const roundedGamesDelta = roundHoneyAmount(gamesDelta);
+
+  if (pgPool) {
+    const client = await pgPool.connect();
+    try {
+      await client.query('BEGIN');
+
+      const current = await getHoneyBalance(normalizedWallet, client, true);
+      const newBalance = {
+        wallet_address: normalizedWallet,
+        total_points: roundHoneyAmount(current.total_points + roundedTotalDelta),
+        raiding_points: roundHoneyAmount(current.raiding_points + roundedRaidingDelta),
+        games_points: roundHoneyAmount(current.games_points + roundedGamesDelta)
+      };
+
+      if (newBalance.total_points < 0 || newBalance.raiding_points < 0 || newBalance.games_points < 0) {
+        throw createPublicError(400, insufficientMessage);
+      }
+
+      await client.query(
+        `INSERT INTO honey_points (wallet_address, total_points, raiding_points, games_points, updated_at)
+         VALUES ($1, $2, $3, $4, NOW())
+         ON CONFLICT (wallet_address) DO UPDATE
+         SET total_points = EXCLUDED.total_points,
+             raiding_points = EXCLUDED.raiding_points,
+             games_points = EXCLUDED.games_points,
+             updated_at = EXCLUDED.updated_at`,
+        [
+          normalizedWallet,
+          newBalance.total_points,
+          newBalance.raiding_points,
+          newBalance.games_points
+        ]
+      );
+
+      await insertPointTransactionRecordDb(client, {
+        wallet: normalizedWallet,
+        amount: roundedTotalDelta,
+        transactionType,
+        reason,
+        adminWallet
+      });
+
+      await insertHoneyActivityRecordDb(client, {
+        wallet: normalizedWallet,
+        points: roundedTotalDelta,
+        activityType,
+        activityId
+      });
+
+      await client.query('COMMIT');
+      return { previousBalance: current, balance: newBalance };
+    } catch (error) {
+      try {
+        await client.query('ROLLBACK');
+      } catch (rollbackError) {
+      }
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  const writeClient = supabaseAdmin || supabase;
+  const current = await getHoneyBalance(normalizedWallet);
+  const newBalance = {
+    wallet_address: normalizedWallet,
+    total_points: roundHoneyAmount(current.total_points + roundedTotalDelta),
+    raiding_points: roundHoneyAmount(current.raiding_points + roundedRaidingDelta),
+    games_points: roundHoneyAmount(current.games_points + roundedGamesDelta)
+  };
+
+  if (newBalance.total_points < 0 || newBalance.raiding_points < 0 || newBalance.games_points < 0) {
+    throw createPublicError(400, insufficientMessage);
+  }
+
+  const { error: upsertError } = await writeClient
+    .from('honey_points')
+    .upsert({
+      wallet_address: normalizedWallet,
+      total_points: newBalance.total_points,
+      raiding_points: newBalance.raiding_points,
+      games_points: newBalance.games_points,
+      updated_at: new Date().toISOString()
+    }, {
+      onConflict: 'wallet_address'
+    });
+
+  if (upsertError) {
+    throw upsertError;
+  }
+
+  if (transactionType) {
+    const { error: transactionError } = await writeClient
+      .from('point_transactions')
+      .insert({
+        wallet_address: normalizedWallet,
+        amount: roundedTotalDelta,
+        transaction_type: transactionType,
+        reason,
+        admin_wallet: adminWallet
+      });
+
+    if (transactionError) {
+      throw transactionError;
+    }
+  }
+
+  if (activityType && roundedTotalDelta > 0) {
+    const { error: activityError } = await writeClient
+      .from('honey_points_activity')
+      .insert({
+        wallet_address: normalizedWallet,
+        points: roundedTotalDelta,
+        activity_type: activityType,
+        activity_id: activityId
+      });
+
+    if (activityError) {
+      throw activityError;
+    }
+  }
+
+  return { previousBalance: current, balance: newBalance };
+}
+
+async function spendHoney({
+  wallet,
+  amount,
+  transactionType,
+  reason,
+  adminWallet = null,
+  insufficientMessage
+}) {
+  const spendAmount = roundHoneyAmount(amount);
+  if (spendAmount <= 0) {
+    throw createPublicError(400, 'Invalid Honey Point amount');
+  }
+
+  return applyHoneyDelta({
+    wallet,
+    totalDelta: -spendAmount,
+    transactionType,
+    reason,
+    adminWallet,
+    insufficientMessage: insufficientMessage || 'Insufficient Honey Points'
+  });
+}
+
+async function setHoneyBalance({
+  wallet,
+  totalPoints,
+  raidingPoints = 0,
+  gamesPoints = 0,
+  transactionType = null,
+  reason = null,
+  adminWallet = null
+}) {
+  const normalizedWallet = normalizeWalletAddress(wallet);
+  if (!normalizedWallet) {
+    throw createPublicError(400, 'Valid wallet address required');
+  }
+
+  const newBalance = {
+    wallet_address: normalizedWallet,
+    total_points: roundHoneyAmount(totalPoints),
+    raiding_points: roundHoneyAmount(raidingPoints),
+    games_points: roundHoneyAmount(gamesPoints)
+  };
+
+  if (newBalance.total_points < 0 || newBalance.raiding_points < 0 || newBalance.games_points < 0) {
+    throw createPublicError(400, 'Honey balances cannot be negative');
+  }
+
+  if (pgPool) {
+    const client = await pgPool.connect();
+    try {
+      await client.query('BEGIN');
+      const current = await getHoneyBalance(normalizedWallet, client, true);
+
+      await client.query(
+        `INSERT INTO honey_points (wallet_address, total_points, raiding_points, games_points, updated_at)
+         VALUES ($1, $2, $3, $4, NOW())
+         ON CONFLICT (wallet_address) DO UPDATE
+         SET total_points = EXCLUDED.total_points,
+             raiding_points = EXCLUDED.raiding_points,
+             games_points = EXCLUDED.games_points,
+             updated_at = EXCLUDED.updated_at`,
+        [
+          normalizedWallet,
+          newBalance.total_points,
+          newBalance.raiding_points,
+          newBalance.games_points
+        ]
+      );
+
+      await insertPointTransactionRecordDb(client, {
+        wallet: normalizedWallet,
+        amount: roundHoneyAmount(newBalance.total_points - current.total_points),
+        transactionType,
+        reason,
+        adminWallet
+      });
+
+      await client.query('COMMIT');
+      return { previousBalance: current, balance: newBalance };
+    } catch (error) {
+      try {
+        await client.query('ROLLBACK');
+      } catch (rollbackError) {
+      }
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  const current = await getHoneyBalance(normalizedWallet);
+  const writeClient = supabaseAdmin || supabase;
+  const { error: updateError } = await writeClient
+    .from('honey_points')
+    .upsert({
+      wallet_address: normalizedWallet,
+      total_points: newBalance.total_points,
+      raiding_points: newBalance.raiding_points,
+      games_points: newBalance.games_points,
+      updated_at: new Date().toISOString()
+    }, {
+      onConflict: 'wallet_address'
+    });
+
+  if (updateError) {
+    throw updateError;
+  }
+
+  if (transactionType) {
+    const { error: transactionError } = await writeClient
+      .from('point_transactions')
+      .insert({
+        wallet_address: normalizedWallet,
+        amount: roundHoneyAmount(newBalance.total_points - current.total_points),
+        transaction_type: transactionType,
+        reason,
+        admin_wallet: adminWallet
+      });
+
+    if (transactionError) {
+      throw transactionError;
+    }
+  }
+
+  return { previousBalance: current, balance: newBalance };
+}
+
+function cleanupUsedGameSessions() {
+  const now = Date.now();
+  for (const [sessionId, expiresAt] of usedGameSessions.entries()) {
+    if (expiresAt <= now) {
+      usedGameSessions.delete(sessionId);
+    }
+  }
+
+  for (const [sessionId, session] of trackedGameSessions.entries()) {
+    const expiresAt = new Date(session.expiresAt || 0).getTime();
+    if (expiresAt && expiresAt <= now && session.status !== 'active') {
+      trackedGameSessions.delete(sessionId);
+    }
+  }
+}
+
+function parseHeartbeatFlag(value, fallback = false) {
+  if (value === undefined || value === null) {
+    return fallback;
+  }
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  if (typeof value === 'number') {
+    return value !== 0;
+  }
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (!normalized) {
+      return fallback;
+    }
+    return normalized === 'true' || normalized === '1' || normalized === 'yes';
+  }
+  return fallback;
+}
+
+function getSessionTimestampMs(value) {
+  if (!value) {
+    return 0;
+  }
+  if (typeof value === 'number') {
+    return value;
+  }
+
+  const parsed = new Date(value).getTime();
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function roundTrackedGameMinutesFromMs(activeMs) {
+  const safeMs = Math.max(0, Number(activeMs) || 0);
+  return Math.floor(safeMs / 6000) / 10;
+}
+
+function getResolvedGameSessionStatus(session, now = Date.now()) {
+  const currentStatus = session?.status || 'active';
+  if (currentStatus !== 'active') {
+    return currentStatus;
+  }
+
+  const expiresAtMs = getSessionTimestampMs(session?.expires_at || session?.expiresAt);
+  if (expiresAtMs && expiresAtMs <= now) {
+    return 'expired';
+  }
+
+  return 'active';
+}
+
+function getGameSessionFailure(status) {
+  switch (status) {
+    case 'consumed':
+      return {
+        statusCode: 409,
+        error: 'Game session already used. Restart the game before claiming points.'
+      };
+    case 'replaced':
+      return {
+        statusCode: 409,
+        error: 'This game session was replaced by a newer one. Restart the game to keep earning points.'
+      };
+    case 'expired':
+      return {
+        statusCode: 410,
+        error: 'Game session expired. Restart the game to keep earning points.'
+      };
+    default:
+      return {
+        statusCode: 409,
+        error: 'Game session is no longer active. Restart the game and try again.'
+      };
+  }
+}
+
+function applyHeartbeatToTrackedSession(session, heartbeat = {}, now = Date.now()) {
+  const startedAtMs = getSessionTimestampMs(session?.started_at || session?.startedAt) || now;
+  const lastHeartbeatAtMs = getSessionTimestampMs(session?.last_heartbeat_at || session?.lastHeartbeatAt);
+  const lastActivityAtMs = getSessionTimestampMs(session?.last_activity_at || session?.lastActivityAt);
+  const currentAccruedMs = Math.max(0, Number(session?.accrued_active_ms ?? session?.accruedActiveMs) || 0);
+  const currentHeartbeatCount = Math.max(0, Number(session?.heartbeat_count ?? session?.heartbeatCount) || 0);
+  const visible = parseHeartbeatFlag(heartbeat.visible, true);
+  const focused = parseHeartbeatFlag(heartbeat.focused, true);
+  const trustedActivity = parseHeartbeatFlag(
+    heartbeat.trusted_activity ?? heartbeat.trustedActivity,
+    false
+  );
+
+  const status = getResolvedGameSessionStatus(session, now);
+  const previousPulseMs = lastHeartbeatAtMs || startedAtMs;
+  const effectiveLastActivityAtMs = trustedActivity ? now : lastActivityAtMs;
+  let creditedMs = 0;
+
+  if (
+    status === 'active' &&
+    visible &&
+    focused &&
+    previousPulseMs > 0 &&
+    effectiveLastActivityAtMs > 0
+  ) {
+    const gapMs = now - previousPulseMs;
+    const hasRecentActivity = (now - effectiveLastActivityAtMs) <= GAME_RECENT_ACTIVITY_WINDOW_MS;
+
+    if (gapMs > 0 && gapMs <= GAME_HEARTBEAT_MAX_GAP_MS && hasRecentActivity) {
+      creditedMs = Math.min(gapMs, GAME_HEARTBEAT_CREDIT_CAP_MS);
+    }
+  }
+
+  const accruedActiveMs = Math.min(GAME_MAX_SESSION_MS, currentAccruedMs + creditedMs);
+
+  return {
+    status,
+    lastHeartbeatAt: now,
+    lastActivityAt: effectiveLastActivityAtMs || lastActivityAtMs || 0,
+    accruedActiveMs,
+    heartbeatCount: currentHeartbeatCount + 1,
+    creditedMs,
+    trackedMinutes: roundTrackedGameMinutesFromMs(accruedActiveMs)
+  };
+}
+
+async function ensureGameRewardSessionStoreReady() {
+  if (!pgPool) {
+    return false;
+  }
+
+  if (!gameRewardSessionStoreReadyPromise) {
+    gameRewardSessionStoreReadyPromise = (async () => {
+      const client = await pgPool.connect();
+      try {
+        await client.query(`
+          CREATE TABLE IF NOT EXISTS ${GAME_REWARD_SESSION_TABLE} (
+            session_id UUID PRIMARY KEY,
+            wallet_address TEXT NOT NULL,
+            game_id TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'active',
+            started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            last_heartbeat_at TIMESTAMPTZ,
+            last_activity_at TIMESTAMPTZ,
+            accrued_active_ms BIGINT NOT NULL DEFAULT 0,
+            heartbeat_count INTEGER NOT NULL DEFAULT 0,
+            expires_at TIMESTAMPTZ NOT NULL,
+            consumed_at TIMESTAMPTZ,
+            ended_at TIMESTAMPTZ,
+            user_agent TEXT,
+            client_ip TEXT,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+          )
+        `);
+        await client.query(`
+          CREATE INDEX IF NOT EXISTS idx_game_reward_sessions_wallet_status
+          ON ${GAME_REWARD_SESSION_TABLE} (wallet_address, status)
+        `);
+        await client.query(`
+          CREATE INDEX IF NOT EXISTS idx_game_reward_sessions_expires_at
+          ON ${GAME_REWARD_SESSION_TABLE} (expires_at)
+        `);
+        await client.query(`
+          CREATE UNIQUE INDEX IF NOT EXISTS idx_game_reward_sessions_wallet_active
+          ON ${GAME_REWARD_SESSION_TABLE} (wallet_address)
+          WHERE status = 'active'
+        `);
+        return true;
+      } finally {
+        client.release();
+      }
+    })().catch((error) => {
+      console.error('Error preparing game reward session store:', error);
+      gameRewardSessionStoreReadyPromise = null;
+      return false;
+    });
+  }
+
+  return gameRewardSessionStoreReadyPromise;
+}
+
+async function createTrackedGameSession({ sessionId, wallet, gameId, expiresAt, userAgent, clientIp }) {
+  cleanupUsedGameSessions();
+
+  const normalizedWallet = normalizeWalletAddress(wallet);
+  const expiresAtIso = new Date(expiresAt).toISOString();
+  const storeReady = await ensureGameRewardSessionStoreReady();
+
+  if (storeReady) {
+    const client = await pgPool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(
+        `
+          UPDATE ${GAME_REWARD_SESSION_TABLE}
+          SET
+            status = CASE WHEN expires_at <= NOW() THEN 'expired' ELSE 'replaced' END,
+            ended_at = COALESCE(ended_at, NOW()),
+            updated_at = NOW()
+          WHERE wallet_address = $1
+            AND status = 'active'
+        `,
+        [normalizedWallet]
+      );
+      await client.query(
+        `
+          INSERT INTO ${GAME_REWARD_SESSION_TABLE} (
+            session_id,
+            wallet_address,
+            game_id,
+            expires_at,
+            user_agent,
+            client_ip
+          )
+          VALUES ($1, $2, $3, $4, $5, $6)
+        `,
+        [sessionId, normalizedWallet, gameId, expiresAtIso, userAgent || null, clientIp || null]
+      );
+      await client.query('COMMIT');
+      return;
+    } catch (error) {
+      try {
+        await client.query('ROLLBACK');
+      } catch (rollbackError) {
+      }
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  for (const session of trackedGameSessions.values()) {
+    if (session.walletAddress === normalizedWallet && session.status === 'active') {
+      session.status = getResolvedGameSessionStatus(session);
+      if (session.status === 'active') {
+        session.status = 'replaced';
+        session.endedAt = Date.now();
+      }
+    }
+  }
+
+  trackedGameSessions.set(sessionId, {
+    sessionId,
+    walletAddress: normalizedWallet,
+    gameId,
+    status: 'active',
+    startedAt: Date.now(),
+    lastHeartbeatAt: 0,
+    lastActivityAt: 0,
+    accruedActiveMs: 0,
+    heartbeatCount: 0,
+    expiresAt: expiresAtIso,
+    consumedAt: 0,
+    endedAt: 0
+  });
+}
+
+async function recordTrackedGameHeartbeat({ sessionId, wallet, gameId, heartbeat = {} }) {
+  cleanupUsedGameSessions();
+
+  const normalizedWallet = normalizeWalletAddress(wallet);
+  const now = Date.now();
+  const storeReady = await ensureGameRewardSessionStoreReady();
+
+  if (storeReady) {
+    const client = await pgPool.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await client.query(
+        `
+          SELECT
+            session_id,
+            wallet_address,
+            game_id,
+            status,
+            started_at,
+            last_heartbeat_at,
+            last_activity_at,
+            accrued_active_ms,
+            heartbeat_count,
+            expires_at
+          FROM ${GAME_REWARD_SESSION_TABLE}
+          WHERE session_id = $1
+          FOR UPDATE
+        `,
+        [sessionId]
+      );
+
+      const session = result.rows[0];
+      if (!session) {
+        await client.query('ROLLBACK');
+        return {
+          success: false,
+          statusCode: 401,
+          error: 'Invalid or expired game session. Restart the game and try again.'
+        };
+      }
+
+      if (session.wallet_address !== normalizedWallet || session.game_id !== gameId) {
+        await client.query('ROLLBACK');
+        return {
+          success: false,
+          statusCode: 403,
+          error: 'Game session does not match this wallet or game'
+        };
+      }
+
+      const resolvedStatus = getResolvedGameSessionStatus(session, now);
+      if (resolvedStatus !== 'active') {
+        await client.query(
+          `
+            UPDATE ${GAME_REWARD_SESSION_TABLE}
+            SET
+              status = $2,
+              ended_at = COALESCE(ended_at, NOW()),
+              updated_at = NOW()
+            WHERE session_id = $1
+          `,
+          [sessionId, resolvedStatus]
+        );
+        await client.query('COMMIT');
+        return {
+          success: false,
+          ...getGameSessionFailure(resolvedStatus)
+        };
+      }
+
+      const heartbeatResult = applyHeartbeatToTrackedSession(session, heartbeat, now);
+      await client.query(
+        `
+          UPDATE ${GAME_REWARD_SESSION_TABLE}
+          SET
+            status = $2,
+            last_heartbeat_at = $3,
+            last_activity_at = $4,
+            accrued_active_ms = $5,
+            heartbeat_count = $6,
+            updated_at = NOW()
+          WHERE session_id = $1
+        `,
+        [
+          sessionId,
+          heartbeatResult.status,
+          new Date(heartbeatResult.lastHeartbeatAt).toISOString(),
+          heartbeatResult.lastActivityAt ? new Date(heartbeatResult.lastActivityAt).toISOString() : null,
+          heartbeatResult.accruedActiveMs,
+          heartbeatResult.heartbeatCount
+        ]
+      );
+      await client.query('COMMIT');
+
+      return {
+        success: true,
+        trackedMinutes: heartbeatResult.trackedMinutes,
+        creditedMs: heartbeatResult.creditedMs,
+        heartbeatCount: heartbeatResult.heartbeatCount
+      };
+    } catch (error) {
+      try {
+        await client.query('ROLLBACK');
+      } catch (rollbackError) {
+      }
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  const session = trackedGameSessions.get(sessionId);
+  if (!session) {
+    return {
+      success: false,
+      statusCode: 401,
+      error: 'Invalid or expired game session. Restart the game and try again.'
+    };
+  }
+
+  if (session.walletAddress !== normalizedWallet || session.gameId !== gameId) {
+    return {
+      success: false,
+      statusCode: 403,
+      error: 'Game session does not match this wallet or game'
+    };
+  }
+
+  const resolvedStatus = getResolvedGameSessionStatus(session, now);
+  if (resolvedStatus !== 'active') {
+    session.status = resolvedStatus;
+    if (!session.endedAt) {
+      session.endedAt = now;
+    }
+    return {
+      success: false,
+      ...getGameSessionFailure(resolvedStatus)
+    };
+  }
+
+  const heartbeatResult = applyHeartbeatToTrackedSession(session, heartbeat, now);
+  session.status = heartbeatResult.status;
+  session.lastHeartbeatAt = heartbeatResult.lastHeartbeatAt;
+  session.lastActivityAt = heartbeatResult.lastActivityAt;
+  session.accruedActiveMs = heartbeatResult.accruedActiveMs;
+  session.heartbeatCount = heartbeatResult.heartbeatCount;
+
+  return {
+    success: true,
+    trackedMinutes: heartbeatResult.trackedMinutes,
+    creditedMs: heartbeatResult.creditedMs,
+    heartbeatCount: heartbeatResult.heartbeatCount
+  };
+}
+
+async function completeTrackedGameSession({ sessionId, wallet, gameId, today }) {
+  cleanupUsedGameSessions();
+
+  const normalizedWallet = normalizeWalletAddress(wallet);
+  const now = Date.now();
+  const storeReady = await ensureGameRewardSessionStoreReady();
+
+  if (storeReady) {
+    const client = await pgPool.connect();
+    try {
+      await client.query('BEGIN');
+      const sessionResult = await client.query(
+        `
+          SELECT
+            session_id,
+            wallet_address,
+            game_id,
+            status,
+            started_at,
+            last_heartbeat_at,
+            last_activity_at,
+            accrued_active_ms,
+            heartbeat_count,
+            expires_at
+          FROM ${GAME_REWARD_SESSION_TABLE}
+          WHERE session_id = $1
+          FOR UPDATE
+        `,
+        [sessionId]
+      );
+
+      const session = sessionResult.rows[0];
+      if (!session) {
+        await client.query('ROLLBACK');
+        return {
+          success: false,
+          statusCode: 401,
+          error: 'Invalid or expired game session. Restart the game and try again.'
+        };
+      }
+
+      if (session.wallet_address !== normalizedWallet || session.game_id !== gameId) {
+        await client.query('ROLLBACK');
+        return {
+          success: false,
+          statusCode: 403,
+          error: 'Game session does not match this wallet or game'
+        };
+      }
+
+      const resolvedStatus = getResolvedGameSessionStatus(session, now);
+      if (resolvedStatus !== 'active') {
+        await client.query(
+          `
+            UPDATE ${GAME_REWARD_SESSION_TABLE}
+            SET
+              status = $2,
+              ended_at = COALESCE(ended_at, NOW()),
+              updated_at = NOW()
+            WHERE session_id = $1
+          `,
+          [sessionId, resolvedStatus]
+        );
+        await client.query('COMMIT');
+        return {
+          success: false,
+          ...getGameSessionFailure(resolvedStatus)
+        };
+      }
+
+      const activeMs = Math.min(GAME_MAX_SESSION_MS, Math.max(0, Number(session.accrued_active_ms) || 0));
+      const trackedMinutes = roundTrackedGameMinutesFromMs(activeMs);
+      const consumeValues = [sessionId, 'consumed'];
+
+      if (activeMs < GAME_MIN_SESSION_MS || trackedMinutes <= 0) {
+        await client.query(
+          `
+            UPDATE ${GAME_REWARD_SESSION_TABLE}
+            SET
+              status = $2,
+              consumed_at = NOW(),
+              ended_at = NOW(),
+              updated_at = NOW()
+            WHERE session_id = $1
+          `,
+          consumeValues
+        );
+        await client.query('COMMIT');
+        return {
+          success: true,
+          response: {
+            success: false,
+            message: 'Session too short (minimum 10 seconds of active play)',
+            minutes_today: 0,
+            max_minutes: GAME_MAX_DAILY_MINUTES,
+            remaining_minutes: GAME_MAX_DAILY_MINUTES,
+            points_awarded: 0,
+            minutes_played: trackedMinutes
+          }
+        };
+      }
+
+      const rpcResult = await client.query(
+        'SELECT atomic_time_play($1, $2, $3::date, $4, $5) AS result',
+        [normalizedWallet, gameId, today, GAME_MAX_DAILY_MINUTES, trackedMinutes]
+      );
+      const result = rpcResult.rows[0]?.result;
+
+      if (!result || typeof result !== 'object') {
+        throw new Error('atomic_time_play returned an invalid response');
+      }
+
+      await client.query(
+        `
+          UPDATE ${GAME_REWARD_SESSION_TABLE}
+          SET
+            status = $2,
+            consumed_at = NOW(),
+            ended_at = NOW(),
+            updated_at = NOW()
+          WHERE session_id = $1
+        `,
+        consumeValues
+      );
+      await client.query('COMMIT');
+
+      return {
+        success: true,
+        result,
+        trackedMinutes
+      };
+    } catch (error) {
+      try {
+        await client.query('ROLLBACK');
+      } catch (rollbackError) {
+      }
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  const session = trackedGameSessions.get(sessionId);
+  if (!session) {
+    return {
+      success: false,
+      statusCode: 401,
+      error: 'Invalid or expired game session. Restart the game and try again.'
+    };
+  }
+
+  if (session.walletAddress !== normalizedWallet || session.gameId !== gameId) {
+    return {
+      success: false,
+      statusCode: 403,
+      error: 'Game session does not match this wallet or game'
+    };
+  }
+
+  const resolvedStatus = getResolvedGameSessionStatus(session, now);
+  if (resolvedStatus !== 'active') {
+    session.status = resolvedStatus;
+    if (!session.endedAt) {
+      session.endedAt = now;
+    }
+    return {
+      success: false,
+      ...getGameSessionFailure(resolvedStatus)
+    };
+  }
+
+  const activeMs = Math.min(GAME_MAX_SESSION_MS, Math.max(0, Number(session.accruedActiveMs) || 0));
+  const trackedMinutes = roundTrackedGameMinutesFromMs(activeMs);
+  session.status = 'consumed';
+  session.consumedAt = now;
+  session.endedAt = now;
+  usedGameSessions.set(sessionId, Date.now() + GAME_SESSION_TTL_MS);
+
+  if (activeMs < GAME_MIN_SESSION_MS || trackedMinutes <= 0) {
+    return {
+      success: true,
+      response: {
+        success: false,
+        message: 'Session too short (minimum 10 seconds of active play)',
+        minutes_today: 0,
+        max_minutes: GAME_MAX_DAILY_MINUTES,
+        remaining_minutes: GAME_MAX_DAILY_MINUTES,
+        points_awarded: 0,
+        minutes_played: trackedMinutes
+      }
+    };
+  }
+
+  const { data, error } = await supabase.rpc('atomic_time_play', {
+    p_wallet: normalizedWallet,
+    p_game: gameId,
+    p_date: today,
+    p_max_minutes: GAME_MAX_DAILY_MINUTES,
+    p_minutes_played: trackedMinutes
+  });
+
+  if (error) {
+    session.status = 'active';
+    session.consumedAt = 0;
+    session.endedAt = 0;
+    usedGameSessions.delete(sessionId);
+    throw error;
+  }
+
+  return {
+    success: true,
+    result: data,
+    trackedMinutes
+  };
+}
+
+function createPublicError(message, statusCode = 400) {
+  const error = new Error(message);
+  error.statusCode = statusCode;
+  error.publicMessage = message;
+  return error;
+}
+
+async function ensureTwitterIntegrationStoreReady() {
+  if (!pgPool) {
+    return false;
+  }
+
+  if (!twitterIntegrationStoreReadyPromise) {
+    twitterIntegrationStoreReadyPromise = (async () => {
+      const client = await pgPool.connect();
+      try {
+        await client.query(`
+          CREATE TABLE IF NOT EXISTS ${TWITTER_CONNECTIONS_TABLE} (
+            wallet_address TEXT PRIMARY KEY,
+            twitter_user_id TEXT NOT NULL UNIQUE,
+            twitter_username TEXT NOT NULL,
+            connected_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+          )
+        `);
+        await client.query(`
+          CREATE INDEX IF NOT EXISTS idx_twitter_connections_username
+          ON ${TWITTER_CONNECTIONS_TABLE} (twitter_username)
+        `);
+        await client.query(`
+          ALTER TABLE raids
+          ADD COLUMN IF NOT EXISTS verification_type TEXT NOT NULL DEFAULT 'unverified'
+        `);
+        return true;
+      } finally {
+        client.release();
+      }
+    })().catch((error) => {
+      console.error('Error preparing Twitter integration store:', error);
+      twitterIntegrationStoreReadyPromise = null;
+      return false;
+    });
+  }
+
+  return twitterIntegrationStoreReadyPromise;
+}
+
+async function getTwitterConnection(wallet) {
+  const normalizedWallet = normalizeWalletAddress(wallet);
+  if (!normalizedWallet) {
+    return null;
+  }
+
+  const storeReady = await ensureTwitterIntegrationStoreReady();
+  if (!storeReady) {
+    return null;
+  }
+
+  const result = await pgPool.query(
+    `
+      SELECT wallet_address, twitter_user_id, twitter_username, connected_at, updated_at
+      FROM ${TWITTER_CONNECTIONS_TABLE}
+      WHERE wallet_address = $1
+      LIMIT 1
+    `,
+    [normalizedWallet]
+  );
+
+  return result.rows[0] || null;
+}
+
+async function upsertTwitterConnection({ wallet, twitterUserId, twitterUsername }) {
+  const normalizedWallet = normalizeWalletAddress(wallet);
+  const normalizedUsername = normalizeTwitterUsername(twitterUsername);
+  if (!normalizedWallet || !twitterUserId || !normalizedUsername) {
+    throw createPublicError('Missing Twitter connection details', 400);
+  }
+
+  const storeReady = await ensureTwitterIntegrationStoreReady();
+  if (!storeReady) {
+    throw createPublicError('Twitter linking is unavailable on this deployment.', 503);
+  }
+
+  const client = await pgPool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const existingByUser = await client.query(
+      `
+        SELECT wallet_address
+        FROM ${TWITTER_CONNECTIONS_TABLE}
+        WHERE twitter_user_id = $1
+        FOR UPDATE
+      `,
+      [String(twitterUserId)]
+    );
+
+    const linkedWallet = existingByUser.rows[0]?.wallet_address;
+    if (linkedWallet && linkedWallet !== normalizedWallet) {
+      throw createPublicError('This X account is already linked to another wallet.', 409);
+    }
+
+    await client.query(
+      `
+        INSERT INTO ${TWITTER_CONNECTIONS_TABLE} (
+          wallet_address,
+          twitter_user_id,
+          twitter_username,
+          connected_at,
+          updated_at
+        )
+        VALUES ($1, $2, $3, NOW(), NOW())
+        ON CONFLICT (wallet_address)
+        DO UPDATE SET
+          twitter_user_id = EXCLUDED.twitter_user_id,
+          twitter_username = EXCLUDED.twitter_username,
+          updated_at = NOW()
+      `,
+      [normalizedWallet, String(twitterUserId), normalizedUsername]
+    );
+
+    await client.query('COMMIT');
+    return {
+      wallet_address: normalizedWallet,
+      twitter_user_id: String(twitterUserId),
+      twitter_username: normalizedUsername
+    };
+  } catch (error) {
+    try {
+      await client.query('ROLLBACK');
+    } catch (rollbackError) {
+    }
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+async function removeTwitterConnection(wallet) {
+  const normalizedWallet = normalizeWalletAddress(wallet);
+  if (!normalizedWallet) {
+    return;
+  }
+
+  const storeReady = await ensureTwitterIntegrationStoreReady();
+  if (!storeReady) {
+    return;
+  }
+
+  await pgPool.query(
+    `DELETE FROM ${TWITTER_CONNECTIONS_TABLE} WHERE wallet_address = $1`,
+    [normalizedWallet]
+  );
+}
+
+function getRaidVerificationType(raid) {
+  const normalized = String(raid?.verification_type || 'unverified').trim().toLowerCase();
+  return ALL_RAID_VERIFICATION_TYPES.has(normalized) ? normalized : 'unverified';
+}
+
+function buildTwitterOAuthUrl(wallet) {
+  if (!TWITTER_CLIENT_ID || !TWITTER_CLIENT_SECRET) {
+    throw createPublicError('X linking is not configured on this deployment.', 503);
+  }
+
+  const { verifier, challenge } = generatePkcePair();
+  const stateToken = issueTwitterLinkStateToken(wallet, verifier);
+  const authUrl = new URL('https://twitter.com/i/oauth2/authorize');
+  authUrl.searchParams.set('response_type', 'code');
+  authUrl.searchParams.set('client_id', TWITTER_CLIENT_ID);
+  authUrl.searchParams.set('redirect_uri', TWITTER_REDIRECT_URI);
+  authUrl.searchParams.set('scope', 'users.read tweet.read like.read follows.read offline.access');
+  authUrl.searchParams.set('state', stateToken);
+  authUrl.searchParams.set('code_challenge', challenge);
+  authUrl.searchParams.set('code_challenge_method', 'S256');
+
+  return authUrl.toString();
+}
+
+async function fetchTwitterJson(url, accessToken = '') {
+  const bearerToken = accessToken || TWITTER_BEARER_TOKEN;
+  if (!bearerToken) {
+    throw createPublicError('X verification is not configured on this deployment.', 503);
+  }
+
+  const response = await fetchWithTimeout(url, {
+    headers: {
+      'Authorization': `Bearer ${bearerToken}`
+    }
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    console.error('Twitter API request failed:', response.status, payload);
+    throw createPublicError('Failed to verify the X action. Please try again in a moment.', 502);
+  }
+
+  return payload;
+}
+
+async function hasTwitterUserInActionCollection(url, twitterUserId) {
+  let nextToken = '';
+
+  for (let page = 0; page < 10; page += 1) {
+    const pageUrl = new URL(url);
+    if (nextToken) {
+      pageUrl.searchParams.set('pagination_token', nextToken);
+    }
+
+    const payload = await fetchTwitterJson(pageUrl.toString());
+    if ((payload.data || []).some((entry) => String(entry.id) === String(twitterUserId))) {
+      return true;
+    }
+
+    nextToken = payload.meta?.next_token || '';
+    if (!nextToken) {
+      break;
+    }
+  }
+
+  return false;
+}
+
+async function verifyRaidParticipation(raid, twitterConnection) {
+  const verificationType = getRaidVerificationType(raid);
+  if (!VERIFIED_RAID_TYPES.has(verificationType)) {
+    return {
+      verified: false,
+      error: 'This raid is not server-verified and cannot award Honey Points.'
+    };
+  }
+
+  if (!twitterConnection?.twitter_user_id) {
+    return {
+      verified: false,
+      error: 'Link your X account before completing verified raids.'
+    };
+  }
+
+  const tweetId = extractTweetIdFromUrl(raid.twitter_url);
+  if (!tweetId) {
+    return {
+      verified: false,
+      error: 'Raid is missing a valid X post URL for verification.'
+    };
+  }
+
+  if (verificationType === 'like') {
+    const likeUrl = new URL(`https://api.twitter.com/2/tweets/${tweetId}/liking_users`);
+    likeUrl.searchParams.set('max_results', '100');
+    likeUrl.searchParams.set('user.fields', 'id,username');
+    const verified = await hasTwitterUserInActionCollection(likeUrl.toString(), twitterConnection.twitter_user_id);
+    return verified
+      ? { verified: true }
+      : { verified: false, error: 'X has not confirmed a like from your linked account yet.' };
+  }
+
+  if (verificationType === 'retweet') {
+    const retweetUrl = new URL(`https://api.twitter.com/2/tweets/${tweetId}/retweeted_by`);
+    retweetUrl.searchParams.set('max_results', '100');
+    retweetUrl.searchParams.set('user.fields', 'id,username');
+    const verified = await hasTwitterUserInActionCollection(retweetUrl.toString(), twitterConnection.twitter_user_id);
+    return verified
+      ? { verified: true }
+      : { verified: false, error: 'X has not confirmed a repost from your linked account yet.' };
+  }
+
+  if (verificationType === 'reply') {
+    const username = normalizeTwitterUsername(twitterConnection.twitter_username);
+    if (!username) {
+      return {
+        verified: false,
+        error: 'Your linked X account is missing a username.'
+      };
+    }
+
+    const searchUrl = new URL('https://api.twitter.com/2/tweets/search/recent');
+    searchUrl.searchParams.set('query', `conversation_id:${tweetId} from:${username}`);
+    searchUrl.searchParams.set('max_results', '10');
+    searchUrl.searchParams.set('tweet.fields', 'conversation_id,author_id');
+    const payload = await fetchTwitterJson(searchUrl.toString());
+    return Array.isArray(payload.data) && payload.data.length > 0
+      ? { verified: true }
+      : { verified: false, error: 'X has not confirmed a reply from your linked account yet.' };
+  }
+
+  return {
+    verified: false,
+    error: 'This raid verification type is not supported.'
+  };
+}
 
 // ===== SECURITY: AMOUNT VALIDATION =====
 // Validates numeric amounts to prevent overflow, negative values, and economic exploits
@@ -412,14 +2135,12 @@ const validateTwitterURL = (req, res, next) => {
 // NEVER trust client-provided admin_wallet or is_admin flags
 const verifyAdmin = async (req, res, next) => {
   try {
-    const admin_wallet = req.body.admin_wallet || req.query.admin_wallet || req.headers['x-admin-wallet'];
-
-    if (!admin_wallet) {
-      return res.status(401).json({
-        success: false,
-        error: 'Unauthorized: Admin wallet required'
-      });
+    const session = getVerifiedWalletSession(req, res);
+    if (!session) {
+      return;
     }
+
+    const admin_wallet = session.wallet;
 
     // Check database for actual admin role (use service role to bypass RLS)
     const adminClient = supabaseAdmin || supabase;
@@ -461,6 +2182,25 @@ const verifyAdmin = async (req, res, next) => {
   }
 };
 
+function hasValidCronSecret(req) {
+  if (!CRON_SECRET) {
+    return false;
+  }
+
+  const bearerToken = extractBearerToken(req);
+  const headerSecret = req.headers['x-bearpark-cron-secret'] || req.headers['x-cron-secret'];
+  return secureCompareStrings(bearerToken, CRON_SECRET) || secureCompareStrings(headerSecret, CRON_SECRET);
+}
+
+const verifyAdminOrCron = (req, res, next) => {
+  if (hasValidCronSecret(req)) {
+    req.isCronRequest = true;
+    return next();
+  }
+
+  return verifyAdmin(req, res, next);
+};
+
 // Serve static files from parent directory
 app.use(express.static(path.join(__dirname, '..')));
 
@@ -490,10 +2230,152 @@ app.get('/api/xaman/payload/:uuid', async (req, res) => {
   try {
     const { uuid } = req.params;
     const payload = await xumm.payload.get(uuid);
-    res.json(payload);
+    const responsePayload = { ...payload };
+
+    if (payload?.meta?.signed && payload?.response?.account) {
+      const authToken = issueWalletAuthToken(payload.response.account);
+      setWalletAuthCookie(res, authToken);
+      responsePayload.auth_token = authToken;
+    }
+
+    res.json(responsePayload);
   } catch (error) {
     console.error('Error getting payload status:', error);
     safeErrorResponse(res, error);
+  }
+});
+
+app.post('/api/auth/logout', (req, res) => {
+  clearWalletAuthCookie(res);
+  res.json({ success: true });
+});
+
+app.post('/api/auth/twitter/start', validateWallet, requireWalletOwnership(['wallet_address']), async (req, res) => {
+  try {
+    const { wallet_address } = req.body;
+    const normalizedWallet = req.authWallet || normalizeWalletAddress(wallet_address);
+
+    if (!wallet_address) {
+      return res.status(400).json({
+        success: false,
+        error: 'wallet_address is required'
+      });
+    }
+
+    const authUrl = buildTwitterOAuthUrl(normalizedWallet);
+    res.json({
+      success: true,
+      auth_url: authUrl,
+      redirect_uri: TWITTER_REDIRECT_URI
+    });
+  } catch (error) {
+    console.error('Error starting Twitter OAuth:', error);
+    safeErrorResponse(res, error, error.statusCode || 500, error.publicMessage || 'Failed to start X linking');
+  }
+});
+
+app.post('/api/auth/twitter/complete', async (req, res) => {
+  try {
+    const { code, state } = req.body || {};
+
+    if (!code || !state) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: code, state'
+      });
+    }
+
+    if (!TWITTER_CLIENT_ID || !TWITTER_CLIENT_SECRET) {
+      return res.status(503).json({
+        success: false,
+        error: 'X linking is not configured on this deployment.'
+      });
+    }
+
+    const linkState = verifySignedSessionToken(state, 'twitter_link');
+    if (!linkState?.wallet || !linkState?.code_verifier) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid or expired X linking state. Start linking again.'
+      });
+    }
+
+    const tokenResponse = await fetchWithTimeout('https://api.twitter.com/2/oauth2/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': 'Basic ' + Buffer.from(
+          `${TWITTER_CLIENT_ID}:${TWITTER_CLIENT_SECRET}`
+        ).toString('base64')
+      },
+      body: new URLSearchParams({
+        code,
+        grant_type: 'authorization_code',
+        redirect_uri: TWITTER_REDIRECT_URI,
+        code_verifier: linkState.code_verifier,
+        client_id: TWITTER_CLIENT_ID
+      })
+    });
+
+    const tokenPayload = await tokenResponse.json().catch(() => ({}));
+    if (!tokenResponse.ok || !tokenPayload?.access_token) {
+      console.error('Twitter OAuth token exchange failed:', tokenResponse.status, tokenPayload);
+      return res.status(502).json({
+        success: false,
+        error: 'Failed to complete X OAuth. Start linking again.'
+      });
+    }
+
+    const mePayload = await fetchTwitterJson(
+      'https://api.twitter.com/2/users/me?user.fields=id,username',
+      tokenPayload.access_token
+    );
+    const twitterUser = mePayload?.data;
+    if (!twitterUser?.id || !twitterUser?.username) {
+      return res.status(502).json({
+        success: false,
+        error: 'X did not return a usable account identity.'
+      });
+    }
+
+    const connection = await upsertTwitterConnection({
+      wallet: linkState.wallet,
+      twitterUserId: twitterUser.id,
+      twitterUsername: twitterUser.username
+    });
+
+    res.json({
+      success: true,
+      twitter_connected: true,
+      user: {
+        wallet_address: connection.wallet_address,
+        twitter_user_id: connection.twitter_user_id,
+        twitter_username: connection.twitter_username
+      }
+    });
+  } catch (error) {
+    console.error('Error completing Twitter OAuth:', error);
+    safeErrorResponse(res, error, error.statusCode || 500, error.publicMessage || 'Failed to connect X account');
+  }
+});
+
+app.delete('/api/auth/twitter', validateWallet, requireWalletOwnership(['wallet_address']), async (req, res) => {
+  try {
+    const { wallet_address } = req.body || {};
+    const normalizedWallet = req.authWallet || normalizeWalletAddress(wallet_address);
+
+    if (!wallet_address) {
+      return res.status(400).json({
+        success: false,
+        error: 'wallet_address is required'
+      });
+    }
+
+    await removeTwitterConnection(normalizedWallet);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error disconnecting Twitter:', error);
+    safeErrorResponse(res, error, error.statusCode || 500, error.publicMessage || 'Failed to disconnect X account');
   }
 });
 
@@ -523,16 +2405,24 @@ app.get('/api/leaderboard', async (req, res) => {
     };
 
     // If wallet is provided, calculate their rank
+    // PERF: Use SQL COUNT instead of fetching entire leaderboard into memory
     if (wallet) {
-      const { data: allData, error: rankError } = await supabase
+      // First get the user's own total_points
+      const { data: userData, error: userError } = await supabase
         .from('honey_points_leaderboard')
-        .select('wallet_address, total_points')
-        .order('total_points', { ascending: false });
+        .select('total_points')
+        .eq('wallet_address', wallet)
+        .maybeSingle();
 
-      if (!rankError && allData) {
-        const userIndex = allData.findIndex(entry => entry.wallet_address === wallet);
-        if (userIndex !== -1) {
-          response.userRank = userIndex + 1;
+      if (!userError && userData) {
+        // Count how many users have MORE points than this user → rank = count + 1
+        const { count, error: rankError } = await supabase
+          .from('honey_points_leaderboard')
+          .select('*', { count: 'exact', head: true })
+          .gt('total_points', userData.total_points);
+
+        if (!rankError && count !== null) {
+          response.userRank = count + 1;
         }
       }
     }
@@ -804,6 +2694,7 @@ app.post('/api/leaderboard', validateWallet, validateAmount, async (req, res) =>
 app.get('/api/points/:wallet', async (req, res) => {
   try {
     const { wallet } = req.params;
+    const twitterConnection = await getTwitterConnection(wallet);
 
     const { data, error } = await supabase
       .from('honey_points')
@@ -820,7 +2711,9 @@ app.get('/api/points/:wallet', async (req, res) => {
       success: true,
       total_points: data?.total_points || 0,
       raiding_points: data?.raiding_points || 0,
-      games_points: data?.games_points || 0
+      games_points: data?.games_points || 0,
+      twitter_connected: !!twitterConnection,
+      twitter_username: twitterConnection?.twitter_username || null
     });
   } catch (error) {
     console.error('Error in points endpoint:', error);
@@ -877,7 +2770,7 @@ async function fetchTweetThumbnail(twitterUrl) {
     const microlinkUrl = `https://api.microlink.io?url=${encodeURIComponent(twitterUrl)}`;
     console.log('Fetching thumbnail via Microlink for:', twitterUrl);
 
-    const response = await fetch(microlinkUrl, {
+    const response = await fetchWithTimeout(microlinkUrl, {
       headers: { 'User-Agent': 'BearPark/1.0' }
     });
 
@@ -908,7 +2801,18 @@ async function fetchTweetThumbnail(twitterUrl) {
 // Create New Raid
 app.post('/api/raids', verifyAdmin, validateTwitterURL, validateAmount, validateTextLengths, async (req, res) => {
   try {
-    const { description, twitter_url, tweet_text, reward, profile_name, profile_handle, profile_emoji, expires_at, image_url: manualImageUrl } = req.body;
+    const {
+      description,
+      twitter_url,
+      tweet_text,
+      reward,
+      profile_name,
+      profile_handle,
+      profile_emoji,
+      expires_at,
+      verification_type,
+      image_url: manualImageUrl
+    } = req.body;
 
     console.log('Received raid data:', req.body);
 
@@ -916,6 +2820,22 @@ app.post('/api/raids', verifyAdmin, validateTwitterURL, validateAmount, validate
       return res.status(400).json({
         success: false,
         error: 'Missing required fields: description, twitter_url, reward, profile_handle, expires_at'
+      });
+    }
+
+    const requestedVerificationType = String(verification_type || 'unverified').trim().toLowerCase();
+    if (!ALL_RAID_VERIFICATION_TYPES.has(requestedVerificationType)) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid verification_type. Expected one of: ${Array.from(ALL_RAID_VERIFICATION_TYPES).join(', ')}`
+      });
+    }
+
+    const twitterStoreReady = await ensureTwitterIntegrationStoreReady();
+    if (!twitterStoreReady) {
+      return res.status(503).json({
+        success: false,
+        error: 'Raid verification storage is unavailable on this deployment.'
       });
     }
 
@@ -957,6 +2877,7 @@ app.post('/api/raids', verifyAdmin, validateTwitterURL, validateAmount, validate
       profile_handle: profile_handle,
       profile_emoji: profile_emoji || '🐻',
       expires_at: expires_at,
+      verification_type: requestedVerificationType,
       is_active: true
     };
 
@@ -1086,6 +3007,66 @@ app.post('/api/raids/check-completion', validateWallet, async (req, res) => {
   }
 });
 
+app.post('/api/raids/session/start', validateWallet, requireWalletOwnership(['wallet_address']), async (req, res) => {
+  try {
+    const { wallet_address, raid_id } = req.body;
+    const normalizedWallet = req.authWallet || normalizeWalletAddress(wallet_address);
+
+    if (!wallet_address || !raid_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'wallet_address and raid_id are required'
+      });
+    }
+
+    const { data: raid, error: raidError } = await supabase
+      .from('raids')
+      .select('id, expires_at, verification_type')
+      .eq('id', raid_id)
+      .single();
+
+    if (raidError || !raid) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid raid'
+      });
+    }
+
+    if (raid.expires_at && new Date(raid.expires_at).getTime() <= Date.now()) {
+      return res.status(400).json({
+        success: false,
+        error: 'Raid has expired'
+      });
+    }
+
+    const verificationType = getRaidVerificationType(raid);
+    if (!VERIFIED_RAID_TYPES.has(verificationType)) {
+      return res.status(403).json({
+        success: false,
+        error: 'This raid is not server-verified and cannot award Honey Points.'
+      });
+    }
+
+    const twitterConnection = await getTwitterConnection(normalizedWallet);
+    if (!twitterConnection) {
+      return res.status(400).json({
+        success: false,
+        error: 'Link your X account before starting verified raids.'
+      });
+    }
+
+    res.json({
+      success: true,
+      session_token: issueRaidSessionToken(normalizedWallet, raid_id),
+      minimum_seconds: MIN_RAID_SESSION_SECONDS,
+      expires_in: Math.floor(RAID_SESSION_TTL_MS / 1000)
+    });
+  } catch (error) {
+    console.error('Error creating raid session:', error);
+    safeErrorResponse(res, error);
+  }
+});
+
 // SECURITY: Get all completed raids for a wallet
 app.get('/api/raids/completed/:wallet_address', async (req, res) => {
   try {
@@ -1176,22 +3157,46 @@ app.get('/api/raids/leaderboard', async (req, res) => {
 
 // SECURITY: Updated raid completion with SERVER-SIDE reward validation
 // CRITICAL FIX: Never trust client-submitted points_awarded - always look up from database
-app.post('/api/raids/complete', validateWallet, async (req, res) => {
+app.post('/api/raids/complete', validateWallet, requireWalletOwnership(['wallet_address']), async (req, res) => {
   try {
-    const { wallet_address, raid_id, completed_at } = req.body;
+    const { wallet_address, raid_id, session_token } = req.body;
+    const normalizedWallet = req.authWallet || normalizeWalletAddress(wallet_address);
     // NOTE: We intentionally IGNORE points_awarded from client - security fix!
 
-    if (!wallet_address || !raid_id) {
+    if (!wallet_address || !raid_id || !session_token) {
       return res.status(400).json({
         success: false,
-        error: 'Missing required fields: wallet_address, raid_id'
+        error: 'Missing required fields: wallet_address, raid_id, session_token'
+      });
+    }
+
+    const raidSession = verifySignedSessionToken(session_token, 'raid_session');
+    if (!raidSession?.wallet || !raidSession?.raid_id) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid or expired raid session. Start the raid again.'
+      });
+    }
+
+    if (raidSession.wallet !== normalizedWallet || String(raidSession.raid_id) !== String(raid_id)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Raid session does not match this wallet or raid'
+      });
+    }
+
+    const elapsedSeconds = Math.floor((Date.now() - raidSession.iat) / 1000);
+    if (elapsedSeconds < MIN_RAID_SESSION_SECONDS) {
+      return res.status(400).json({
+        success: false,
+        error: `Raid timer not finished. Wait ${MIN_RAID_SESSION_SECONDS - elapsedSeconds} more second(s).`
       });
     }
 
     // SECURITY FIX: Look up the ACTUAL raid reward from database
     const { data: raid, error: raidError } = await supabase
       .from('raids')
-      .select('id, reward, expires_at')
+      .select('id, reward, expires_at, twitter_url, profile_handle, verification_type')
       .eq('id', raid_id)
       .single();
 
@@ -1200,6 +3205,13 @@ app.post('/api/raids/complete', validateWallet, async (req, res) => {
       return res.status(400).json({
         success: false,
         error: 'Invalid raid'
+      });
+    }
+
+    if (raid.expires_at && new Date(raid.expires_at).getTime() <= Date.now()) {
+      return res.status(400).json({
+        success: false,
+        error: 'Raid has expired'
       });
     }
 
@@ -1219,7 +3231,7 @@ app.post('/api/raids/complete', validateWallet, async (req, res) => {
     const { data: existingCompletion } = await supabase
       .from('raid_completions')
       .select('*')
-      .eq('wallet_address', wallet_address)
+      .eq('wallet_address', normalizedWallet)
       .eq('raid_id', raid_id)
       .maybeSingle();
 
@@ -1232,14 +3244,23 @@ app.post('/api/raids/complete', validateWallet, async (req, res) => {
       });
     }
 
+    const twitterConnection = await getTwitterConnection(normalizedWallet);
+    const verificationResult = await verifyRaidParticipation(raid, twitterConnection);
+    if (!verificationResult.verified) {
+      return res.status(getRaidVerificationType(raid) === 'unverified' ? 403 : 400).json({
+        success: false,
+        error: verificationResult.error
+      });
+    }
+
     // Record completion in raid_completions table (use actual reward, not client value)
     const { error: completionError } = await supabase
       .from('raid_completions')
       .insert({
-        wallet_address,
+        wallet_address: normalizedWallet,
         raid_id,
         points_awarded: actualReward,
-        completed_at: completed_at || new Date().toISOString()
+        completed_at: new Date().toISOString()
       });
 
     if (completionError) {
@@ -1256,37 +3277,15 @@ app.post('/api/raids/complete', validateWallet, async (req, res) => {
     }
 
     // Check if points record exists for this wallet
-    const { data: existingPoints } = await supabase
-      .from('honey_points')
-      .select('*')
-      .eq('wallet_address', wallet_address)
-      .single();
-
-    if (existingPoints) {
-      // Update existing record (use actualReward, not client value)
-      const { error } = await supabase
-        .from('honey_points')
-        .update({
-          total_points: existingPoints.total_points + actualReward,
-          raiding_points: existingPoints.raiding_points + actualReward,
-          updated_at: new Date().toISOString()
-        })
-        .eq('wallet_address', wallet_address);
-
-      if (error) throw error;
-    } else {
-      // Create new record (use actualReward, not client value)
-      const { error } = await supabase
-        .from('honey_points')
-        .insert({
-          wallet_address,
-          total_points: actualReward,
-          raiding_points: actualReward,
-          games_points: 0
-        });
-
-      if (error) throw error;
-    }
+    const { balance } = await applyHoneyDelta({
+      wallet: normalizedWallet,
+      totalDelta: actualReward,
+      raidingDelta: actualReward,
+      transactionType: 'raid_reward',
+      reason: `Raid ${raid_id} completion`,
+      activityType: 'raid',
+      activityId: String(raid_id)
+    });
 
     console.log(`✅ Raid completed: User ${wallet_address} earned ${actualReward} points for raid ${raid_id} (server-validated)`);
 
@@ -1295,9 +3294,9 @@ app.post('/api/raids/complete', validateWallet, async (req, res) => {
     const activityClient = supabaseAdmin || supabase;
     try {
       const { data, error } = await activityClient.from('honey_points_activity').insert({
-        wallet_address,
-        points: actualReward,
-        activity_type: 'raid',
+        wallet_address: normalizedWallet,
+        points: 0,
+        activity_type: 'raid_legacy_disabled',
         activity_id: raid_id
       }).select();
       if (error) {
@@ -1313,7 +3312,8 @@ app.post('/api/raids/complete', validateWallet, async (req, res) => {
       success: true,
       alreadyCompleted: false,
       message: 'Points awarded successfully',
-      points_awarded: actualReward
+      points_awarded: actualReward,
+      total_points: balance.total_points
     });
 
   } catch (error) {
@@ -1324,81 +3324,190 @@ app.post('/api/raids/complete', validateWallet, async (req, res) => {
 
 // Award Game Points with Daily Limit (Time-Based System)
 // Uses atomic database function to prevent race condition exploits
-app.post('/api/games/complete', validateWallet, async (req, res) => {
+app.post('/api/games/session/start', validateWallet, requireWalletOwnership(['wallet_address']), async (req, res) => {
   try {
-    const { wallet_address, game_id, minutes_played } = req.body;
+    const { wallet_address, game_id } = req.body;
+    const normalizedWallet = req.authWallet || normalizeWalletAddress(wallet_address);
 
-    if (!wallet_address || !game_id || minutes_played === undefined) {
+    if (!wallet_address || !game_id) {
       return res.status(400).json({
         success: false,
-        error: 'Missing required fields: wallet_address, game_id, minutes_played'
+        error: 'wallet_address and game_id are required'
       });
     }
 
-    const MAX_DAILY_MINUTES = 123; // 123 minutes per day max
-    const MIN_SESSION_SECONDS = 10; // Minimum 10 seconds to count
-    const MAX_SESSION_MINUTES = 30; // SECURITY: Max 30 minutes per session (prevents fake long sessions)
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-
-    // Convert to 1 decimal place (0.1 minute precision)
-    let minutesPlayedRounded = Math.round(minutes_played * 10) / 10;
-
-    // Reject sessions less than 10 seconds
-    if (minutesPlayedRounded < (MIN_SESSION_SECONDS / 60)) {
-      return res.json({
+    if (!VALID_GAME_IDS.has(game_id)) {
+      return res.status(400).json({
         success: false,
-        message: 'Session too short (minimum 10 seconds)',
-        minutes_today: 0,
-        max_minutes: MAX_DAILY_MINUTES,
-        points_awarded: 0
+        error: 'Invalid game_id'
       });
     }
 
-    // SECURITY: Cap session at max to prevent fake long sessions
-    if (minutesPlayedRounded > MAX_SESSION_MINUTES) {
-      console.log(`⚠️ Session capped: ${minutesPlayedRounded} -> ${MAX_SESSION_MINUTES} mins for ${wallet_address}`);
-      minutesPlayedRounded = MAX_SESSION_MINUTES;
+    const sessionToken = issueGameSessionToken(normalizedWallet, game_id);
+    const gameSession = verifySignedSessionToken(sessionToken, 'game_session');
+    if (!gameSession?.sid || !gameSession?.exp) {
+      throw new Error('Failed to create signed game session');
     }
 
-    console.log(`🎮 Game session: ${game_id} for ${wallet_address} - ${minutesPlayedRounded} mins`);
-
-    // Call atomic PostgreSQL function to prevent race conditions
-    const { data, error } = await supabase.rpc('atomic_time_play', {
-      p_wallet: wallet_address,
-      p_game: game_id,
-      p_date: today,
-      p_max_minutes: MAX_DAILY_MINUTES,
-      p_minutes_played: minutesPlayedRounded
+    await createTrackedGameSession({
+      sessionId: gameSession.sid,
+      wallet: normalizedWallet,
+      gameId: game_id,
+      expiresAt: gameSession.exp,
+      userAgent: req.get('user-agent') || '',
+      clientIp: req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || ''
     });
 
-    if (error) {
-      console.error('Database function error:', error);
-      throw error;
+    res.json({
+      success: true,
+      session_token: sessionToken,
+      heartbeat_interval_seconds: Math.floor(GAME_HEARTBEAT_INTERVAL_MS / 1000),
+      expires_in: Math.floor(GAME_SESSION_TTL_MS / 1000)
+    });
+  } catch (error) {
+    console.error('Error creating game session:', error);
+    safeErrorResponse(res, error);
+  }
+});
+
+app.post('/api/games/session/heartbeat', validateWallet, requireWalletOwnership(['wallet_address']), async (req, res) => {
+  try {
+    const { wallet_address, game_id, session_token, visible, focused, trusted_activity } = req.body;
+    const normalizedWallet = req.authWallet || normalizeWalletAddress(wallet_address);
+
+    if (!wallet_address || !game_id || !session_token) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: wallet_address, game_id, session_token'
+      });
     }
 
-    const result = data;
+    if (!VALID_GAME_IDS.has(game_id)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid game_id'
+      });
+    }
+
+    const gameSession = verifySignedSessionToken(session_token, 'game_session');
+    if (!gameSession?.wallet || !gameSession?.game_id || !gameSession?.sid) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid or expired game session. Restart the game and try again.'
+      });
+    }
+
+    if (gameSession.wallet !== normalizedWallet || gameSession.game_id !== game_id) {
+      return res.status(403).json({
+        success: false,
+        error: 'Game session does not match this wallet or game'
+      });
+    }
+
+    const heartbeatResult = await recordTrackedGameHeartbeat({
+      sessionId: gameSession.sid,
+      wallet: normalizedWallet,
+      gameId: game_id,
+      heartbeat: {
+        visible,
+        focused,
+        trusted_activity
+      }
+    });
+
+    if (!heartbeatResult.success) {
+      return res.status(heartbeatResult.statusCode || 409).json({
+        success: false,
+        error: heartbeatResult.error || 'Failed to record game heartbeat'
+      });
+    }
+
+    res.json({
+      success: true,
+      tracked_minutes: heartbeatResult.trackedMinutes,
+      heartbeat_count: heartbeatResult.heartbeatCount
+    });
+  } catch (error) {
+    console.error('Error recording game heartbeat:', error);
+    safeErrorResponse(res, error);
+  }
+});
+
+app.post('/api/games/complete', validateWallet, requireWalletOwnership(['wallet_address']), async (req, res) => {
+  try {
+    const { wallet_address, game_id, session_token } = req.body;
+    const normalizedWallet = req.authWallet || normalizeWalletAddress(wallet_address);
+
+    if (!wallet_address || !game_id || !session_token) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: wallet_address, game_id, session_token'
+      });
+    }
+
+    if (!VALID_GAME_IDS.has(game_id)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid game_id'
+      });
+    }
+
+    const gameSession = verifySignedSessionToken(session_token, 'game_session');
+    if (!gameSession?.wallet || !gameSession?.game_id || !gameSession?.sid) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid or expired game session. Restart the game and try again.'
+      });
+    }
+
+    if (gameSession.wallet !== normalizedWallet || gameSession.game_id !== game_id) {
+      return res.status(403).json({
+        success: false,
+        error: 'Game session does not match this wallet or game'
+      });
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    const completionResult = await completeTrackedGameSession({
+      sessionId: gameSession.sid,
+      wallet: normalizedWallet,
+      gameId: game_id,
+      today
+    });
+
+    if (!completionResult.success) {
+      return res.status(completionResult.statusCode || 409).json({
+        success: false,
+        error: completionResult.error || 'Failed to complete game session'
+      });
+    }
+
+    if (completionResult.response) {
+      return res.json(completionResult.response);
+    }
+
+    const result = completionResult.result;
+    console.log(`Game session tracked: ${game_id} for ${wallet_address} - ${completionResult.trackedMinutes} mins`);
 
     if (result.success) {
-      console.log(`✅ Awarded ${result.points_awarded} pts to ${wallet_address} (${result.minutes_today}/${MAX_DAILY_MINUTES} mins today)`);
+      console.log(`Awarded ${result.points_awarded} pts to ${wallet_address} (${result.minutes_today}/${GAME_MAX_DAILY_MINUTES} mins today)`);
 
-      // Log to honey_points_activity for BEARDROPS 24h tracking
-      // Use supabaseAdmin to bypass RLS policies
       if (result.points_awarded > 0) {
         const activityClient = supabaseAdmin || supabase;
         try {
           const { data, error } = await activityClient.from('honey_points_activity').insert({
-            wallet_address,
+            wallet_address: normalizedWallet,
             points: result.points_awarded,
             activity_type: 'game',
             activity_id: game_id
           }).select();
           if (error) {
-            console.error('❌ GAME activity insert failed:', error.message, error.code, error.details);
+            console.error('GAME activity insert failed:', error.message, error.code, error.details);
           } else {
-            console.log('✅ GAME activity logged:', wallet_address, result.points_awarded, 'pts for', game_id);
+            console.log('GAME activity logged:', wallet_address, result.points_awarded, 'pts for', game_id);
           }
         } catch (e) {
-          console.error('❌ GAME activity insert exception:', e.message);
+          console.error('GAME activity insert exception:', e.message);
         }
       }
 
@@ -1410,17 +3519,20 @@ app.post('/api/games/complete', validateWallet, async (req, res) => {
         max_minutes: result.max_minutes,
         remaining_minutes: Math.max(0, result.max_minutes - result.minutes_today),
         total_points: result.new_total_points,
-        minutes_played: result.minutes_played
+        minutes_played: result.minutes_played,
+        tracked_minutes: completionResult.trackedMinutes
       });
     } else {
-      console.log(`⛔ Daily limit reached for ${wallet_address}`);
+      console.log(`Daily limit reached for ${wallet_address}`);
 
       res.json({
         success: false,
         message: result.message,
         minutes_today: result.minutes_today,
         max_minutes: result.max_minutes,
-        points_awarded: 0
+        points_awarded: 0,
+        minutes_played: result.minutes_played || completionResult.trackedMinutes,
+        tracked_minutes: completionResult.trackedMinutes
       });
     }
 
@@ -1437,6 +3549,13 @@ app.post('/api/games/complete', validateWallet, async (req, res) => {
 // Client sends: { wallet_address, did_win, bet_amount }
 // Client expects: { success, message, new_total, new_games_points, new_raiding_points, change }
 app.post('/api/pong/betting', validateWallet, async (req, res) => {
+  const wallet = req.body?.wallet_address || 'unknown-wallet';
+  console.log(`🛑 [PONG BETTING] Rejected disabled betting request for ${wallet}`);
+  return res.status(410).json({
+    success: false,
+    error: 'Pong honey-point betting has been removed.'
+  });
+
   try {
     const { wallet_address, did_win, bet_amount } = req.body;
 
@@ -1654,6 +3773,13 @@ app.post('/api/games/reset-daily/:wallet', verifyAdmin, async (req, res) => {
 // Client sends ONLY: win/loss result and bet amount
 // Server calculates and updates points - NEVER trusts client values
 app.post('/api/pong/betting', validateWallet, async (req, res) => {
+  const wallet = req.body?.wallet_address || 'unknown-wallet';
+  console.log(`🛑 [PONG BETTING] Rejected disabled betting request for ${wallet}`);
+  return res.status(410).json({
+    success: false,
+    error: 'Pong honey-point betting has been removed.'
+  });
+
   try {
     const { wallet_address, did_win, bet_amount } = req.body;
 
@@ -2932,7 +5058,7 @@ app.get('/api/twitter/oembed', async (req, res) => {
 
     // Fetch from Twitter's public oEmbed API
     const oembedUrl = `https://publish.twitter.com/oembed?url=${encodeURIComponent(url)}&omit_script=true&dnt=true`;
-    const response = await fetch(oembedUrl);
+    const response = await fetchWithTimeout(oembedUrl);
 
     if (!response.ok) {
       throw new Error('Failed to fetch Twitter embed');
@@ -2973,7 +5099,6 @@ app.get('/api/beardrops/eligible', async (req, res) => {
 });
 
 // ===== MERCH STORE API =====
-const crypto = require('crypto');
 
 // Encryption for sensitive shipping data
 const MERCH_ENCRYPTION_KEY = process.env.MERCH_ENCRYPTION_KEY || crypto.randomBytes(32).toString('hex');
@@ -3633,9 +5758,8 @@ async function checkMerchPayments() {
 
     console.log(`🔍 Checking payments for ${pendingOrders.length} pending merch orders...`);
 
-    // Query XRPL for recent transactions to merch wallet
-    const xrplClient = new (require('xrpl')).Client('wss://xrplcluster.com');
-    await xrplClient.connect();
+    // PERF: Use shared XRPL client pool instead of connecting per-call (saves ~1-2s every 30s)
+    const xrplClient = await getXrplClient();
 
     try {
       const response = await xrplClient.request({
@@ -3720,9 +5844,10 @@ async function checkMerchPayments() {
           }
         }
       }
-    } finally {
-      await xrplClient.disconnect();
+    } catch (innerErr) {
+      console.error('Error in merch payment check inner loop:', innerErr.message);
     }
+    // NOTE: Do NOT disconnect — shared pool client
 
   } catch (error) {
     console.error('Error checking merch payments:', error.message);
@@ -4571,6 +6696,7 @@ app.post('/api/admin/adjust-points', verifyAdmin, validateWallet, validateTextLe
   try {
     const { wallet_address, amount, reason } = req.body;
     const admin_wallet = req.adminWallet; // From verified middleware
+    const normalizedWallet = normalizeWalletAddress(wallet_address);
 
     if (!wallet_address || amount === undefined || amount === null) {
       return res.status(400).json({
@@ -4597,60 +6723,27 @@ app.post('/api/admin/adjust-points', verifyAdmin, validateWallet, validateTextLe
       });
     }
 
-    // Get current points
-    const { data: existingPoints } = await supabase
-      .from('honey_points')
-      .select('*')
-      .eq('wallet_address', wallet_address)
-      .single();
-
-    if (existingPoints) {
-      // Update existing record
-      const newTotal = existingPoints.total_points + pointsAmount;
-      const { error } = await supabase
-        .from('honey_points')
-        .update({
-          total_points: newTotal,
-          updated_at: new Date().toISOString()
-        })
-        .eq('wallet_address', wallet_address);
-
-      if (error) throw error;
-    } else {
-      // Create new record
-      const { error } = await supabase
-        .from('honey_points')
-        .insert({
-          wallet_address,
-          total_points: pointsAmount,
-          raiding_points: 0,
-          games_points: 0
-        });
-
-      if (error) throw error;
-    }
-
-    // Log transaction
-    await supabase.from('point_transactions').insert({
-      wallet_address,
-      amount: pointsAmount,
-      transaction_type: pointsAmount > 0 ? 'manual_add' : 'manual_subtract',
+    const { balance } = await applyHoneyDelta({
+      wallet: normalizedWallet,
+      totalDelta: pointsAmount,
+      transactionType: pointsAmount > 0 ? 'manual_add' : 'manual_subtract',
       reason: reason || 'Manual adjustment by admin',
-      admin_wallet
+      adminWallet: admin_wallet,
+      insufficientMessage: `Cannot subtract ${Math.abs(pointsAmount)} Honey Points from ${normalizedWallet}`
     });
 
     // Log admin activity
     await logAdminActivity(admin_wallet, 'adjust_points', {
-      wallet_address,
+      wallet_address: normalizedWallet,
       amount: pointsAmount,
       reason
-    }, wallet_address);
+    }, normalizedWallet);
 
     console.log(`✅ Adjusted points for ${wallet_address}: ${pointsAmount > 0 ? '+' : ''}${pointsAmount}`);
-    res.json({ success: true, new_amount: pointsAmount });
+    res.json({ success: true, new_amount: pointsAmount, total_points: balance.total_points });
   } catch (error) {
     console.error('Error adjusting points:', error);
-    safeErrorResponse(res, error);
+    safeErrorResponse(res, error, error.statusCode, error.publicMessage);
   }
 });
 
@@ -4863,12 +6956,13 @@ app.get('/api/admin/game-settings', verifyAdmin, async (req, res) => {
 // 8. Update Game Settings
 app.post('/api/admin/game-settings', verifyAdmin, validateWallet, async (req, res) => {
   try {
-    const { settings, admin_wallet } = req.body;
+    const { settings } = req.body;
+    const admin_wallet = req.adminWallet;
 
-    if (!settings || !admin_wallet) {
+    if (!settings) {
       return res.status(400).json({
         success: false,
-        error: 'Missing required fields: settings, admin_wallet'
+        error: 'Missing required field: settings'
       });
     }
 
@@ -4941,12 +7035,13 @@ app.get('/api/admin/point-transactions', verifyAdmin, async (req, res) => {
 // 11. Bulk Point Operations
 app.post('/api/admin/bulk-points', verifyAdmin, validateAmount, validateTextLengths, async (req, res) => {
   try {
-    const { wallets, amount, reason, admin_wallet } = req.body;
+    const { wallets, amount, reason } = req.body;
+    const admin_wallet = req.adminWallet;
 
-    if (!wallets || !Array.isArray(wallets) || !amount || !admin_wallet) {
+    if (!wallets || !Array.isArray(wallets) || !amount) {
       return res.status(400).json({
         success: false,
-        error: 'Missing required fields: wallets (array), amount, admin_wallet'
+        error: 'Missing required fields: wallets (array), amount'
       });
     }
 
@@ -4955,43 +7050,16 @@ app.post('/api/admin/bulk-points', verifyAdmin, validateAmount, validateTextLeng
 
     for (const wallet_address of wallets) {
       try {
-        // Get current points
-        const { data: existingPoints } = await supabase
-          .from('honey_points')
-          .select('*')
-          .eq('wallet_address', wallet_address)
-          .single();
-
-        if (existingPoints) {
-          const newTotal = existingPoints.total_points + pointsAmount;
-          await supabase
-            .from('honey_points')
-            .update({
-              total_points: newTotal,
-              updated_at: new Date().toISOString()
-            })
-            .eq('wallet_address', wallet_address);
-        } else {
-          await supabase
-            .from('honey_points')
-            .insert({
-              wallet_address,
-              total_points: pointsAmount,
-              raiding_points: 0,
-              games_points: 0
-            });
-        }
-
-        // Log transaction
-        await supabase.from('point_transactions').insert({
-          wallet_address,
-          amount: pointsAmount,
-          transaction_type: 'bulk_award',
+        const normalizedWallet = normalizeWalletAddress(wallet_address);
+        const { balance } = await applyHoneyDelta({
+          wallet: normalizedWallet,
+          totalDelta: pointsAmount,
+          transactionType: 'bulk_award',
           reason: reason || 'Bulk points award by admin',
-          admin_wallet
+          adminWallet: admin_wallet
         });
 
-        results.push({ wallet_address, success: true });
+        results.push({ wallet_address: normalizedWallet, success: true, total_points: balance.total_points });
       } catch (error) {
         results.push({ wallet_address, success: false, error: error.message });
       }
@@ -5219,24 +7287,10 @@ app.delete('/api/admin/roles/:wallet', verifyAdmin, async (req, res) => {
 // Reset all user points and inventories (master only)
 app.post('/api/admin/reset-economy', verifyAdmin, async (req, res) => {
   try {
-    const { admin_wallet, reset_amount } = req.body;
+    const { reset_amount } = req.body;
+    const admin_wallet = req.adminWallet;
 
-    if (!admin_wallet) {
-      return res.status(401).json({
-        success: false,
-        error: 'Admin wallet required'
-      });
-    }
-
-    // Verify the admin is master
-    const { data: adminRole } = await supabase
-      .from('admin_roles')
-      .select('role')
-      .eq('wallet_address', admin_wallet)
-      .eq('is_active', true)
-      .single();
-
-    if (!adminRole || adminRole.role !== 'master') {
+    if (req.adminRole !== 'master') {
       return res.status(403).json({
         success: false,
         error: 'Only MASTER accounts can reset the economy'
@@ -5322,24 +7376,18 @@ app.post('/api/admin/reset-economy', verifyAdmin, async (req, res) => {
 // Set a specific user's honey points (master only)
 app.post('/api/admin/set-user-points', verifyAdmin, async (req, res) => {
   try {
-    const { admin_wallet, target_wallet, points } = req.body;
+    const { target_wallet, points } = req.body;
+    const admin_wallet = req.adminWallet;
+    const normalizedWallet = normalizeWalletAddress(target_wallet);
 
-    if (!admin_wallet || !target_wallet || points === undefined) {
+    if (!target_wallet || points === undefined) {
       return res.status(400).json({
         success: false,
-        error: 'Admin wallet, target wallet, and points are required'
+        error: 'Target wallet and points are required'
       });
     }
 
-    // Verify the admin is master
-    const { data: adminRole } = await supabase
-      .from('admin_roles')
-      .select('role')
-      .eq('wallet_address', admin_wallet)
-      .eq('is_active', true)
-      .single();
-
-    if (!adminRole || adminRole.role !== 'master') {
+    if (req.adminRole !== 'master') {
       return res.status(403).json({
         success: false,
         error: 'Only MASTER accounts can set user points'
@@ -5358,24 +7406,19 @@ app.post('/api/admin/set-user-points', verifyAdmin, async (req, res) => {
     console.log(`   Target: ${target_wallet}`);
     console.log(`   New points: ${points}`);
 
-    // Update the user's honey points
-    const { error: updateError } = await supabaseAdmin
-      .from('honey_points')
-      .update({
-        total_points: points,
-        games_points: points, // Assume all points are from games
-        raiding_points: 0
-      })
-      .eq('wallet_address', target_wallet);
-
-    if (updateError) {
-      console.error('Error updating user points:', updateError);
-      throw updateError;
-    }
+    const { balance } = await setHoneyBalance({
+      wallet: normalizedWallet,
+      totalPoints: points,
+      gamesPoints: points,
+      raidingPoints: 0,
+      transactionType: 'set_user_points',
+      reason: `Set user points to ${points}`,
+      adminWallet: admin_wallet
+    });
 
     // Log admin activity
     await logAdminActivity(admin_wallet, 'set_user_points', {
-      target_wallet,
+      target_wallet: normalizedWallet,
       points,
       timestamp: new Date().toISOString()
     });
@@ -5385,11 +7428,12 @@ app.post('/api/admin/set-user-points', verifyAdmin, async (req, res) => {
 
     res.json({
       success: true,
-      message: `Successfully set ${target_wallet} to ${points} HP`
+      message: `Successfully set ${normalizedWallet} to ${points} HP`,
+      total_points: balance.total_points
     });
   } catch (error) {
     console.error('Error setting user points:', error);
-    safeErrorResponse(res, error);
+    safeErrorResponse(res, error, error.statusCode, error.publicMessage);
   }
 });
 
@@ -5682,9 +7726,10 @@ app.get('/api/cosmetics/equipped/:wallet', async (req, res) => {
 });
 
 // Purchase a cosmetic item
-app.post('/api/cosmetics/purchase', async (req, res) => {
+app.post('/api/cosmetics/purchase', validateWallet, requireWalletOwnership(['wallet_address']), async (req, res) => {
   try {
     const { wallet_address, cosmetic_id } = req.body;
+    const normalizedWallet = req.authWallet || normalizeWalletAddress(wallet_address);
 
     if (!wallet_address || !cosmetic_id) {
       return res.status(400).json({
@@ -5709,7 +7754,7 @@ app.post('/api/cosmetics/purchase', async (req, res) => {
     const { data: existing } = await supabase
       .from('user_cosmetics')
       .select('id')
-      .eq('wallet_address', wallet_address)
+      .eq('wallet_address', normalizedWallet)
       .eq('cosmetic_id', cosmetic_id)
       .single();
 
@@ -5720,46 +7765,45 @@ app.post('/api/cosmetics/purchase', async (req, res) => {
       });
     }
 
-    // Get user's current honey points
-    const { data: pointsData } = await supabase
-      .from('honey_points')
-      .select('total_points')
-      .eq('wallet_address', wallet_address)
-      .single();
-
-    const currentPoints = pointsData?.total_points || 0;
-
-    if (currentPoints < cosmetic.honey_cost) {
+    const balanceBeforePurchase = await getHoneyBalance(normalizedWallet);
+    if (balanceBeforePurchase.total_points < cosmetic.honey_cost) {
       return res.status(400).json({
         success: false,
-        error: `Not enough Honey Points. Need ${cosmetic.honey_cost}, have ${currentPoints}`
+        error: `Not enough Honey Points. Need ${cosmetic.honey_cost}, have ${balanceBeforePurchase.total_points}`
       });
     }
 
-    // Deduct honey points
-    const newPoints = currentPoints - cosmetic.honey_cost;
-    const { error: pointsError } = await supabase
-      .from('honey_points')
-      .update({ total_points: newPoints })
-      .eq('wallet_address', wallet_address);
-
-    if (pointsError) throw pointsError;
+    const { balance } = await spendHoney({
+      wallet: normalizedWallet,
+      amount: cosmetic.honey_cost,
+      transactionType: 'cosmetic_purchase',
+      reason: `Cosmetic purchase ${cosmetic_id}`,
+      insufficientMessage: `Not enough Honey Points. Need ${cosmetic.honey_cost}, have ${balanceBeforePurchase.total_points}`
+    });
 
     // Add item to user's inventory
     const { error: inventoryError } = await supabase
       .from('user_cosmetics')
       .insert({
-        wallet_address,
+        wallet_address: normalizedWallet,
         cosmetic_id
       });
 
-    if (inventoryError) throw inventoryError;
+    if (inventoryError) {
+      await applyHoneyDelta({
+        wallet: normalizedWallet,
+        totalDelta: cosmetic.honey_cost,
+        transactionType: 'cosmetic_purchase_refund',
+        reason: `Refund cosmetic purchase ${cosmetic_id}`
+      });
+      throw inventoryError;
+    }
 
     // Record transaction
     await supabase
       .from('cosmetics_transactions')
       .insert({
-        wallet_address,
+        wallet_address: normalizedWallet,
         cosmetic_id,
         honey_spent: cosmetic.honey_cost,
         transaction_type: 'purchase'
@@ -5768,19 +7812,20 @@ app.post('/api/cosmetics/purchase', async (req, res) => {
     res.json({
       success: true,
       message: 'Purchase successful',
-      new_balance: newPoints,
+      new_balance: balance.total_points,
       item: cosmetic
     });
   } catch (error) {
     console.error('Error purchasing cosmetic:', error);
-    safeErrorResponse(res, error);
+    safeErrorResponse(res, error, error.statusCode, error.publicMessage);
   }
 });
 
 // Equip a cosmetic item
-app.post('/api/cosmetics/equip', async (req, res) => {
+app.post('/api/cosmetics/equip', validateWallet, requireWalletOwnership(['wallet_address']), async (req, res) => {
   try {
     const { wallet_address, cosmetic_id, cosmetic_type } = req.body;
+    const normalizedWallet = req.authWallet || normalizeWalletAddress(wallet_address);
 
     if (!wallet_address || !cosmetic_id || !cosmetic_type) {
       return res.status(400).json({
@@ -5793,7 +7838,7 @@ app.post('/api/cosmetics/equip', async (req, res) => {
     const { data: owned } = await supabase
       .from('user_cosmetics')
       .select('id')
-      .eq('wallet_address', wallet_address)
+      .eq('wallet_address', normalizedWallet)
       .eq('cosmetic_id', cosmetic_id)
       .single();
 
@@ -5808,14 +7853,14 @@ app.post('/api/cosmetics/equip', async (req, res) => {
     const { data: profile } = await supabase
       .from('profiles')
       .select('wallet_address')
-      .eq('wallet_address', wallet_address)
+      .eq('wallet_address', normalizedWallet)
       .single();
 
     if (!profile) {
       // Create profile if it doesn't exist
       await supabase
         .from('profiles')
-        .insert({ wallet_address });
+        .insert({ wallet_address: normalizedWallet });
     }
 
     // Update equipped cosmetic
@@ -5823,7 +7868,7 @@ app.post('/api/cosmetics/equip', async (req, res) => {
     const { error: equipError } = await supabase
       .from('profiles')
       .update({ [updateField]: cosmetic_id })
-      .eq('wallet_address', wallet_address);
+      .eq('wallet_address', normalizedWallet);
 
     if (equipError) throw equipError;
 
@@ -5838,9 +7883,10 @@ app.post('/api/cosmetics/equip', async (req, res) => {
 });
 
 // Unequip a cosmetic item
-app.post('/api/cosmetics/unequip', async (req, res) => {
+app.post('/api/cosmetics/unequip', validateWallet, requireWalletOwnership(['wallet_address']), async (req, res) => {
   try {
     const { wallet_address, cosmetic_type } = req.body;
+    const normalizedWallet = req.authWallet || normalizeWalletAddress(wallet_address);
 
     if (!wallet_address || !cosmetic_type) {
       return res.status(400).json({
@@ -5854,7 +7900,7 @@ app.post('/api/cosmetics/unequip', async (req, res) => {
     const { error: unequipError } = await supabase
       .from('profiles')
       .update({ [updateField]: null })
-      .eq('wallet_address', wallet_address);
+      .eq('wallet_address', normalizedWallet);
 
     if (unequipError) throw unequipError;
 
@@ -5922,10 +7968,14 @@ app.get('/api/cosmetics/history', async (req, res) => {
 // Get all bulletin posts (sorted by newest first)
 app.get('/api/bulletin/posts', async (req, res) => {
   try {
+    // PERF: Paginate to avoid fetching unbounded post history
+    const limit = Math.min(parseInt(req.query.limit) || 50, 100);
+    const offset = parseInt(req.query.offset) || 0;
     const { data: posts, error } = await supabase
       .from('bulletin_posts')
       .select('*')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
 
     if (error) throw error;
 
@@ -6039,12 +8089,14 @@ app.get('/api/bulletin/posts/:postId/comments', async (req, res) => {
   try {
     const { postId } = req.params;
 
-    // Fetch all comments for this post from Supabase
+    // PERF: Cap comments per post to avoid unbounded fetches on viral posts
+    const limit = Math.min(parseInt(req.query.limit) || 200, 500);
     const { data: comments, error } = await supabase
       .from('bulletin_comments')
       .select('*')
       .eq('post_id', postId)
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: true })
+      .limit(limit);
 
     if (error) throw error;
 
@@ -6600,7 +8652,7 @@ app.get('/api/link-preview', async (req, res) => {
       // Fetch YouTube metadata using oEmbed API
       try {
         const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
-        const oembedResponse = await fetch(oembedUrl);
+        const oembedResponse = await fetchWithTimeout(oembedUrl);
 
         if (oembedResponse.ok) {
           const oembedData = await oembedResponse.json();
@@ -6631,7 +8683,7 @@ app.get('/api/link-preview', async (req, res) => {
 
     // For other URLs, use microlink.io API to fetch Open Graph metadata
     const microlinkUrl = `https://api.microlink.io/?url=${encodeURIComponent(url)}`;
-    const response = await fetch(microlinkUrl);
+    const response = await fetchWithTimeout(microlinkUrl);
 
     if (!response.ok) {
       throw new Error(`Microlink API returned ${response.status}`);
@@ -6787,19 +8839,24 @@ app.get('/api/memes/leaderboard', async (req, res) => {
 
     if (memesError) throw memesError;
 
-    // Fetch profile and cosmetics for each meme
-    const leaderboard = await Promise.all(memes.map(async (meme) => {
-      // Get user profile with equipped cosmetics
-      const { data: profile } = await supabase
+    // PERF: Single IN query for all profiles instead of N separate queries (N+1 fix)
+    const wallets = [...new Set(memes.map(m => m.wallet_address).filter(Boolean))];
+    const profileMap = new Map();
+    if (wallets.length > 0) {
+      const { data: profiles } = await supabase
         .from('profiles')
         .select(`
+          wallet_address,
           display_name,
           avatar_nft,
           equipped_ring:cosmetics_catalog!profiles_equipped_ring_id_fkey(*)
         `)
-        .eq('wallet_address', meme.wallet_address)
-        .maybeSingle();
+        .in('wallet_address', wallets);
+      (profiles || []).forEach(p => profileMap.set(p.wallet_address, p));
+    }
 
+    const leaderboard = memes.map(meme => {
+      const profile = profileMap.get(meme.wallet_address);
       return {
         id: meme.id,
         image_url: meme.image_url,
@@ -6809,7 +8866,7 @@ app.get('/api/memes/leaderboard', async (req, res) => {
         avatar_nft: profile?.avatar_nft || null,
         equipped_ring: profile?.equipped_ring || null
       };
-    }));
+    });
 
     res.json({
       success: true,
@@ -6856,9 +8913,10 @@ app.get('/api/memes/user-votes/:wallet', async (req, res) => {
 });
 
 // 📤 Submit a meme
-app.post('/api/memes/submit', upload.single('file'), async (req, res) => {
+app.post('/api/memes/submit', upload.single('file'), validateWallet, requireWalletOwnership(['wallet_address']), async (req, res) => {
   try {
     const { wallet_address, file_name } = req.body;
+    const normalizedWallet = req.authWallet || normalizeWalletAddress(wallet_address);
     const file = req.file;
 
     if (!wallet_address || !file) {
@@ -6888,7 +8946,7 @@ app.post('/api/memes/submit', upload.single('file'), async (req, res) => {
     const { data: existingMeme, error: checkError } = await supabase
       .from('memes')
       .select('id')
-      .eq('wallet_address', wallet_address)
+      .eq('wallet_address', normalizedWallet)
       .eq('week_id', weekData.id)
       .single();
 
@@ -6919,7 +8977,7 @@ app.post('/api/memes/submit', upload.single('file'), async (req, res) => {
       .from('memes')
       .insert({
         week_id: weekData.id,
-        wallet_address: wallet_address,
+        wallet_address: normalizedWallet,
         image_url: urlData.publicUrl,
         vote_count: 0
       })
@@ -6932,7 +8990,7 @@ app.post('/api/memes/submit', upload.single('file'), async (req, res) => {
     const { data: existingReward } = await supabase
       .from('meme_submission_rewards')
       .select('id')
-      .eq('wallet_address', wallet_address)
+      .eq('wallet_address', normalizedWallet)
       .eq('week_id', weekData.id)
       .single();
 
@@ -6940,12 +8998,19 @@ app.post('/api/memes/submit', upload.single('file'), async (req, res) => {
 
     if (!existingReward) {
       // Award 50 honey points for first submission this week
-      const { error: pointsError } = await supabase.rpc('add_honey_points', {
-        p_wallet_address: wallet_address,
-        p_amount: 50,
-        p_source: 'meme_submission',
-        p_game_id: null
-      });
+      let pointsError = null;
+      try {
+        await applyHoneyDelta({
+          wallet: normalizedWallet,
+          totalDelta: 50,
+          transactionType: 'meme_submission_reward',
+          reason: `Meme submission week ${weekData.id}`,
+          activityType: 'meme_submission',
+          activityId: String(weekData.id)
+        });
+      } catch (error) {
+        pointsError = error;
+      }
 
       if (pointsError) {
         console.warn('⚠️ Failed to award honey points:', pointsError);
@@ -6954,7 +9019,7 @@ app.post('/api/memes/submit', upload.single('file'), async (req, res) => {
         await supabase
           .from('meme_submission_rewards')
           .insert({
-            wallet_address: wallet_address,
+            wallet_address: normalizedWallet,
             week_id: weekData.id
           });
 
@@ -6974,10 +9039,11 @@ app.post('/api/memes/submit', upload.single('file'), async (req, res) => {
 });
 
 // 🗳️ Vote for a meme
-app.post('/api/memes/:id/vote', async (req, res) => {
+app.post('/api/memes/:id/vote', validateWallet, requireWalletOwnership(['wallet_address']), async (req, res) => {
   try {
     const { id } = req.params;
     const { wallet_address } = req.body;
+    const normalizedWallet = req.authWallet || normalizeWalletAddress(wallet_address);
 
     if (!wallet_address) {
       return res.status(400).json({ success: false, error: 'Wallet address required' });
@@ -6995,7 +9061,7 @@ app.post('/api/memes/:id/vote', async (req, res) => {
     }
 
     // Prevent voting for own meme
-    if (meme.wallet_address.toLowerCase() === wallet_address.toLowerCase()) {
+    if (meme.wallet_address.toLowerCase() === normalizedWallet) {
       return res.status(400).json({
         success: false,
         error: 'You cannot vote for your own meme!'
@@ -7008,7 +9074,7 @@ app.post('/api/memes/:id/vote', async (req, res) => {
     const { data: previousVote, error: prevCheckError } = await supabase
       .from('meme_votes')
       .select('id, meme_id')
-      .eq('wallet_address', wallet_address)
+      .eq('wallet_address', normalizedWallet)
       .eq('week_id', meme.week_id)
       .maybeSingle();
 
@@ -7069,7 +9135,7 @@ app.post('/api/memes/:id/vote', async (req, res) => {
       .from('meme_votes')
       .insert({
         meme_id: id,
-        wallet_address: wallet_address,
+        wallet_address: normalizedWallet,
         week_id: meme.week_id
       });
 
@@ -7104,10 +9170,11 @@ app.post('/api/memes/:id/vote', async (req, res) => {
 });
 
 // 🗳️ Unvote (remove vote from a meme)
-app.delete('/api/memes/:id/vote', async (req, res) => {
+app.delete('/api/memes/:id/vote', validateWallet, requireWalletOwnership(['wallet_address']), async (req, res) => {
   try {
     const { id } = req.params;
     const wallet_address = req.query.wallet_address || req.body.wallet_address;
+    const normalizedWallet = req.authWallet || normalizeWalletAddress(wallet_address);
 
     console.log('🗑️ Unvote request:', { meme_id: id, wallet_address });
 
@@ -7120,7 +9187,7 @@ app.delete('/api/memes/:id/vote', async (req, res) => {
       .from('meme_votes')
       .select('id, week_id')
       .eq('meme_id', id)
-      .eq('wallet_address', wallet_address)
+      .eq('wallet_address', normalizedWallet)
       .maybeSingle();
 
     console.log('🔍 Found existing vote:', existingVote);
@@ -7138,7 +9205,7 @@ app.delete('/api/memes/:id/vote', async (req, res) => {
       .from('meme_votes')
       .delete()
       .eq('meme_id', id)
-      .eq('wallet_address', wallet_address);
+      .eq('wallet_address', normalizedWallet);
 
     if (deleteError) {
       console.error('❌ Delete error:', deleteError);
@@ -7176,10 +9243,11 @@ app.delete('/api/memes/:id/vote', async (req, res) => {
 });
 
 // 🗑️ Delete a meme
-app.delete('/api/memes/:id', async (req, res) => {
+app.delete('/api/memes/:id', validateWallet, requireWalletOwnership(['wallet_address']), async (req, res) => {
   try {
     const { id } = req.params;
     const { wallet_address } = req.body;
+    const normalizedWallet = req.authWallet || normalizeWalletAddress(wallet_address);
 
     console.log('🗑️ Delete meme request:', { meme_id: id, wallet_address });
 
@@ -7199,7 +9267,7 @@ app.delete('/api/memes/:id', async (req, res) => {
     }
 
     // Verify ownership
-    if (meme.wallet_address.toLowerCase() !== wallet_address.toLowerCase()) {
+    if (meme.wallet_address.toLowerCase() !== normalizedWallet) {
       return res.status(403).json({ success: false, error: 'You can only delete your own memes' });
     }
 
@@ -7208,7 +9276,7 @@ app.delete('/api/memes/:id', async (req, res) => {
       .from('memes')
       .delete()
       .eq('id', id)
-      .eq('wallet_address', wallet_address);
+      .eq('wallet_address', normalizedWallet);
 
     if (deleteError) {
       console.error('❌ Delete error:', deleteError);
@@ -7228,7 +9296,7 @@ app.delete('/api/memes/:id', async (req, res) => {
 });
 
 // 🔄 WEEK RESET: Award winners and create new week
-app.post('/api/memes/reset-week', async (req, res) => {
+app.post('/api/memes/reset-week', verifyAdminOrCron, async (req, res) => {
   try {
     console.log('🔄 Week reset triggered...');
 
@@ -7295,12 +9363,19 @@ app.post('/api/memes/reset-week', async (req, res) => {
 
         console.log(`${medal} Awarding ${reward} honey to ${meme.wallet_address} (${meme.vote_count} votes, rank ${currentRank}, position ${position})`);
 
-        const { error: pointsError } = await supabase.rpc('add_honey_points', {
-          p_wallet_address: meme.wallet_address,
-          p_amount: reward,
-          p_source: 'meme_winner',
-          p_game_id: null
-        });
+        let pointsError = null;
+        try {
+          await applyHoneyDelta({
+            wallet: meme.wallet_address,
+            totalDelta: reward,
+            transactionType: 'meme_winner_reward',
+            reason: `Meme winner rank ${currentRank} week ${currentWeek.id}`,
+            activityType: 'meme_winner',
+            activityId: String(currentWeek.id)
+          });
+        } catch (error) {
+          pointsError = error;
+        }
 
         if (pointsError) {
           console.error(`❌ Failed to award points to ${meme.wallet_address}:`, pointsError);
@@ -7443,15 +9518,11 @@ app.post('/api/memes/reset-week', async (req, res) => {
 
 // APEX wallet - only this wallet can see full admin data
 const APEX_WALLET = 'rKkkYMCvC63HEgxjQHmayKADaxYqnsMUkT';
+const MUKT_WALLET = APEX_WALLET;
 
 // Middleware to verify APEX wallet
-const verifyApex = (req, res, next) => {
-  const wallet = req.body.wallet || req.query.wallet || req.headers['x-wallet'];
-  if (!wallet || wallet.toLowerCase() !== APEX_WALLET.toLowerCase()) {
-    return res.status(403).json({ success: false, error: 'Unauthorized: APEX wallet required' });
-  }
-  next();
-};
+const verifyApex = requireExactWallet(APEX_WALLET, 'Unauthorized: APEX wallet required');
+const verifyMuktWallet = requireExactWallet(MUKT_WALLET, 'Unauthorized - MUKT wallet required');
 
 // Get airdrop configuration
 app.get('/api/beardrops/config', async (req, res) => {
@@ -7591,6 +9662,11 @@ app.get('/api/beardrops/history/:wallet', async (req, res) => {
 
 // Record honey points activity (called from other endpoints when points are earned)
 app.post('/api/beardrops/activity', async (req, res) => {
+  return res.status(410).json({
+    success: false,
+    error: 'Direct BEARDROPS activity ingestion has been removed.'
+  });
+
   try {
     const { wallet, points, activity_type, activity_id } = req.body;
 
@@ -7761,7 +9837,7 @@ app.post('/api/beardrops/admin/config', verifyApex, async (req, res) => {
 // - Mutex check: Blocks if already processing
 // - Atomic lock: Only one request can acquire lock
 // - Row count verification: Ensures lock was actually acquired
-app.post('/api/beardrops/claim', claimRateLimiter, validateWallet, async (req, res) => {
+app.post('/api/beardrops/claim', claimRateLimiter, validateWallet, requireWalletOwnership(['wallet_address']), async (req, res) => {
   try {
     const { wallet_address } = req.body;
 
@@ -8472,9 +10548,10 @@ app.get('/api/store/check-trustline/:wallet/:tokenType', async (req, res) => {
 });
 
 // Purchase token from store
-app.post('/api/store/purchase-token', async (req, res) => {
+app.post('/api/store/purchase-token', validateWallet, requireWalletOwnership(['wallet_address']), async (req, res) => {
   const xrpl = require('xrpl');
   const { wallet_address, token_type } = req.body;
+  const normalizedWallet = normalizeWalletAddress(req.authWallet || wallet_address);
 
   if (!wallet_address || !token_type) {
     return res.status(400).json({
@@ -8493,19 +10570,11 @@ app.post('/api/store/purchase-token', async (req, res) => {
   try {
     console.log(`🛒 Token purchase attempt: ${token_type} for ${wallet_address}`);
 
-    // 1. Check user's honey points FIRST
-    const { data: pointsData } = await supabase
-      .from('honey_points')
-      .select('total_points')
-      .eq('wallet_address', wallet_address)
-      .single();
-
-    const currentPoints = pointsData?.total_points || 0;
-
-    if (currentPoints < token.honeyCost) {
+    const currentBalance = await getHoneyBalance(normalizedWallet);
+    if (currentBalance.total_points < token.honeyCost) {
       return res.status(400).json({
         success: false,
-        error: `Not enough Honey Points. Need ${token.honeyCost.toLocaleString()}, have ${Math.floor(currentPoints).toLocaleString()}`
+        error: `Not enough Honey Points. Need ${token.honeyCost.toLocaleString()}, have ${Math.floor(currentBalance.total_points).toLocaleString()}`
       });
     }
 
@@ -8516,7 +10585,7 @@ app.post('/api/store/purchase-token', async (req, res) => {
 
     const trustlineResponse = await client.request({
       command: 'account_lines',
-      account: wallet_address,
+      account: normalizedWallet,
       peer: token.issuer
     });
     console.log(`   Got trustline response, lines: ${trustlineResponse.result?.lines?.length || 0}`);
@@ -8537,7 +10606,7 @@ app.post('/api/store/purchase-token', async (req, res) => {
         await supabase
           .from('store_token_transactions')
           .insert({
-            wallet_address,
+            wallet_address: normalizedWallet,
             token_type: token_type.toUpperCase(),
             token_amount: token.amount,
             honey_spent: 0,
@@ -8563,25 +10632,21 @@ app.post('/api/store/purchase-token', async (req, res) => {
       });
     }
 
-    // 3. Deduct honey points
-    const newPoints = currentPoints - token.honeyCost;
-    const { error: pointsError } = await supabase
-      .from('honey_points')
-      .update({ total_points: newPoints })
-      .eq('wallet_address', wallet_address);
-
-    if (pointsError) {
-      await client.disconnect();
-      throw pointsError;
-    }
+    const { balance } = await spendHoney({
+      wallet: normalizedWallet,
+      amount: token.honeyCost,
+      transactionType: 'store_token_purchase',
+      reason: `Store token purchase ${token_type.toUpperCase()}`,
+      insufficientMessage: `Not enough Honey Points. Need ${token.honeyCost.toLocaleString()}, have ${Math.floor(currentBalance.total_points).toLocaleString()}`
+    });
 
     // 4. Send tokens via XRPL
     const airdropWallet = xrpl.Wallet.fromSecret(process.env.AIRDROP_WALLET_SECRET);
 
-    const payment = {
+      const payment = {
       TransactionType: 'Payment',
       Account: airdropWallet.address,
-      Destination: wallet_address,
+      Destination: normalizedWallet,
       Amount: {
         currency: token.currencyHex,
         issuer: token.issuer,
@@ -8603,7 +10668,7 @@ app.post('/api/store/purchase-token', async (req, res) => {
       const { error: insertError } = await supabase
         .from('store_token_transactions')
         .insert({
-          wallet_address,
+          wallet_address: normalizedWallet,
           token_type: token_type.toUpperCase(),
           token_amount: token.amount,
           honey_spent: token.honeyCost,
@@ -8623,22 +10688,24 @@ app.post('/api/store/purchase-token', async (req, res) => {
         message: `Successfully purchased ${Number(token.amount).toLocaleString()} ${token.currency}!`,
         amount: token.amount,
         currency: token.currency,
-        new_balance: newPoints,
+        new_balance: balance.total_points,
         tx_hash: txHash,
         explorer_url: `https://xrpscan.com/tx/${txHash}`
       });
     } else {
       // Transaction failed - REFUND honey points
-      await supabase
-        .from('honey_points')
-        .update({ total_points: currentPoints })
-        .eq('wallet_address', wallet_address);
+      await applyHoneyDelta({
+        wallet: normalizedWallet,
+        totalDelta: token.honeyCost,
+        transactionType: 'store_token_refund',
+        reason: `Refund failed store token purchase ${token_type.toUpperCase()}`
+      });
 
       // Log failed transaction
       await supabase
         .from('store_token_transactions')
         .insert({
-          wallet_address,
+          wallet_address: normalizedWallet,
           token_type: token_type.toUpperCase(),
           token_amount: token.amount,
           honey_spent: 0, // Refunded
@@ -8662,7 +10729,7 @@ app.post('/api/store/purchase-token', async (req, res) => {
       await supabase
         .from('store_token_transactions')
         .insert({
-          wallet_address,
+          wallet_address: normalizedWallet,
           token_type: token_type.toUpperCase(),
           token_amount: token.amount,
           honey_spent: 0,
@@ -8689,7 +10756,10 @@ app.post('/api/store/purchase-token', async (req, res) => {
 
     // Make sure we always send a response
     if (!res.headersSent) {
-      res.status(500).json({ success: false, error: error.message || 'Unknown error occurred' });
+      res.status(error.statusCode || 500).json({
+        success: false,
+        error: error.publicMessage || error.message || 'Unknown error occurred'
+      });
     }
   }
 });
@@ -8961,8 +11031,9 @@ app.get('/api/nft/image/:hexUri', async (req, res) => {
 });
 
 // Request specific NFT purchase (by NFTokenID)
-app.post('/api/store/request-nft', async (req, res) => {
+app.post('/api/store/request-nft', validateWallet, requireWalletOwnership(['wallet_address']), async (req, res) => {
   const { wallet_address, nft_token_id } = req.body;
+  const normalizedWallet = normalizeWalletAddress(req.authWallet || wallet_address);
 
   if (!wallet_address || !nft_token_id) {
     return res.status(400).json({
@@ -9012,35 +11083,27 @@ app.post('/api/store/request-nft', async (req, res) => {
     }
 
     // 3. Check user's honey points
-    const { data: pointsData } = await supabase
-      .from('honey_points')
-      .select('total_points')
-      .eq('wallet_address', wallet_address)
-      .single();
-
-    const currentPoints = pointsData?.total_points || 0;
-
-    if (currentPoints < NFT_HONEY_COST) {
+    const currentBalance = await getHoneyBalance(normalizedWallet);
+    if (currentBalance.total_points < NFT_HONEY_COST) {
       return res.status(400).json({
         success: false,
-        error: `Not enough Honey Points. Need ${NFT_HONEY_COST.toLocaleString()}, have ${Math.floor(currentPoints).toLocaleString()}`
+        error: `Not enough Honey Points. Need ${NFT_HONEY_COST.toLocaleString()}, have ${Math.floor(currentBalance.total_points).toLocaleString()}`
       });
     }
 
-    // 4. Deduct honey points
-    const newPoints = currentPoints - NFT_HONEY_COST;
-    const { error: pointsError } = await supabase
-      .from('honey_points')
-      .update({ total_points: newPoints })
-      .eq('wallet_address', wallet_address);
-
-    if (pointsError) throw pointsError;
+    const { balance } = await spendHoney({
+      wallet: normalizedWallet,
+      amount: NFT_HONEY_COST,
+      transactionType: 'nft_request_purchase',
+      reason: `NFT request ${nft_token_id}`,
+      insufficientMessage: `Not enough Honey Points. Need ${NFT_HONEY_COST.toLocaleString()}, have ${Math.floor(currentBalance.total_points).toLocaleString()}`
+    });
 
     // 5. Create NFT request record with specific token ID
     const { data: request, error: requestError } = await supabase
       .from('nft_purchase_requests')
       .insert({
-        wallet_address,
+        wallet_address: normalizedWallet,
         nft_token_id: nft_token_id,
         nft_type: 'PIXEL_BEAR',
         nft_name: 'Pixel BEAR NFT',
@@ -9052,11 +11115,12 @@ app.post('/api/store/request-nft', async (req, res) => {
       .single();
 
     if (requestError) {
-      // Refund points if request creation failed
-      await supabase
-        .from('honey_points')
-        .update({ total_points: currentPoints })
-        .eq('wallet_address', wallet_address);
+      await applyHoneyDelta({
+        wallet: normalizedWallet,
+        totalDelta: NFT_HONEY_COST,
+        transactionType: 'nft_request_refund',
+        reason: `Refund NFT request ${nft_token_id}`
+      });
       throw requestError;
     }
 
@@ -9068,12 +11132,12 @@ app.post('/api/store/request-nft', async (req, res) => {
       message: 'Your Pixel BEAR NFT request has been submitted! It will be sent to you shortly.',
       request_id: request.id,
       nft_token_id: nft_token_id,
-      new_balance: newPoints,
+      new_balance: balance.total_points,
       status: 'pending'
     });
   } catch (error) {
     console.error('Error creating NFT request:', error);
-    safeErrorResponse(res, error);
+    safeErrorResponse(res, error, error.statusCode, error.publicMessage);
   }
 });
 
@@ -9167,7 +11231,7 @@ console.log('✅ NFT Request endpoints initialized');
 // ===== WALLET BLACKLIST ADMIN API =====
 
 // Get all blacklisted wallets (admin only)
-app.get('/api/admin/blacklist', async (req, res) => {
+app.get('/api/admin/blacklist', verifyAdmin, async (req, res) => {
   try {
     // Return the current blacklist with reasons
     const blacklistWithInfo = BLACKLISTED_WALLETS.map(wallet => ({
@@ -9206,10 +11270,10 @@ app.get('/api/admin/blacklist', async (req, res) => {
 
 // Add wallet to blacklist (MUKT wallet only)
 // SECURITY: Only the master MUKT wallet can ban other wallets
-const MUKT_WALLET = 'rKkkYMCvC63HEgxjQHmayKADaxYqnsMUkT';
-app.post('/api/admin/blacklist', async (req, res) => {
+app.post('/api/admin/blacklist', validateWallet, verifyMuktWallet, async (req, res) => {
   try {
-    const { wallet_address, reason, admin_wallet } = req.body;
+    const { wallet_address, reason } = req.body;
+    const admin_wallet = req.authWallet;
 
     // SECURITY: Verify MUKT wallet authorization
     if (!admin_wallet || admin_wallet.toLowerCase() !== MUKT_WALLET.toLowerCase()) {
@@ -9273,10 +11337,10 @@ app.post('/api/admin/blacklist', async (req, res) => {
 });
 
 // Remove wallet from blacklist (MUKT wallet only)
-app.delete('/api/admin/blacklist/:wallet', async (req, res) => {
+app.delete('/api/admin/blacklist/:wallet', validateWallet, verifyMuktWallet, async (req, res) => {
   try {
     const { wallet } = req.params;
-    const admin_wallet = req.query.admin_wallet || req.headers['x-admin-wallet'];
+    const admin_wallet = req.authWallet;
 
     // SECURITY: Verify MUKT wallet authorization
     if (!admin_wallet || admin_wallet.toLowerCase() !== MUKT_WALLET.toLowerCase()) {
