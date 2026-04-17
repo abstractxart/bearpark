@@ -2922,6 +2922,7 @@ app.post('/api/raids', verifyAdmin, validateTwitterURL, validateAmount, validate
     }
 
     console.log('✅ Raid created successfully:', data);
+    invalidateRaidsCache();
     res.json({ success: true, raid: data });
   } catch (error) {
     console.error('Error in create raid endpoint:', error);
@@ -2930,26 +2931,52 @@ app.post('/api/raids', verifyAdmin, validateTwitterURL, validateAmount, validate
 });
 
 // Get Current Active Raids
+// PERF: 15s in-memory cache. This endpoint was taking 1.5s+ on every page load,
+// making it the single slowest API call on the homepage. Content only changes
+// when an admin creates/ends a raid — safe to cache for 15s. Also dedupes
+// concurrent requests: if two users hit this while the cache is stale, only
+// one query fires.
+let _raidsCurrentCache = { data: null, ts: 0, inflight: null };
+const RAIDS_CURRENT_TTL_MS = 15000;
 app.get('/api/raids/current', async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('raids')
-      .select('*')
-      .eq('is_active', true)
-      .gt('expires_at', new Date().toISOString())
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching raids:', error);
-      return safeErrorResponse(res, error);
+    const now = Date.now();
+    if (_raidsCurrentCache.data && (now - _raidsCurrentCache.ts) < RAIDS_CURRENT_TTL_MS) {
+      return res.json({ success: true, raids: _raidsCurrentCache.data, cached: true });
     }
-
-    res.json({ success: true, raids: data || [] });
+    if (_raidsCurrentCache.inflight) {
+      const raids = await _raidsCurrentCache.inflight;
+      return res.json({ success: true, raids, cached: 'inflight' });
+    }
+    _raidsCurrentCache.inflight = (async () => {
+      const { data, error } = await supabase
+        .from('raids')
+        .select('*')
+        .eq('is_active', true)
+        .gt('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    })();
+    try {
+      const raids = await _raidsCurrentCache.inflight;
+      _raidsCurrentCache.data = raids;
+      _raidsCurrentCache.ts = Date.now();
+      res.json({ success: true, raids });
+    } finally {
+      _raidsCurrentCache.inflight = null;
+    }
   } catch (error) {
     console.error('Error in get raids endpoint:', error);
     safeErrorResponse(res, error);
   }
 });
+
+// Helper: invalidate the raids cache after admin creates/ends/updates a raid
+function invalidateRaidsCache() {
+  _raidsCurrentCache.data = null;
+  _raidsCurrentCache.ts = 0;
+}
 
 // Get All Raids (for admin)
 app.get('/api/raids/all', async (req, res) => {
@@ -2987,6 +3014,7 @@ app.delete('/api/raids/:id', verifyAdmin, async (req, res) => {
     }
 
     console.log(`✅ Raid ${id} deleted successfully`);
+    invalidateRaidsCache();
     res.json({ success: true });
   } catch (error) {
     console.error('Error in delete raid endpoint:', error);
@@ -3694,10 +3722,28 @@ app.post('/api/pong/betting', validateWallet, async (req, res) => {
   }
 });
 
+// PERF: per-wallet cache for daily game status (20s TTL).
+// /api/games/daily-status/{wallet}/all-games was taking ~1s+ on every page load.
+// Content rarely changes mid-session (only when user finishes a game round),
+// and endpoints that mutate plays can invalidate the cache.
+const _dailyStatusCache = new Map(); // key: wallet|game_id|date -> {data, ts}
+const DAILY_STATUS_TTL_MS = 20000;
+function invalidateDailyStatusCache(wallet) {
+  // Clear all entries for this wallet (any game_id, any date)
+  for (const k of _dailyStatusCache.keys()) {
+    if (k.startsWith(wallet + '|')) _dailyStatusCache.delete(k);
+  }
+}
+
 app.get('/api/games/daily-status/:wallet/:game_id', async (req, res) => {
   try {
     const { wallet, game_id } = req.params;
     const today = new Date().toISOString().split('T')[0];
+    const cacheKey = `${wallet}|${game_id}|${today}`;
+    const cached = _dailyStatusCache.get(cacheKey);
+    if (cached && (Date.now() - cached.ts) < DAILY_STATUS_TTL_MS) {
+      return res.json({ ...cached.data, cached: true });
+    }
 
     // Special case: "all-games" sums up ALL games for this wallet today
     if (game_id === 'all-games') {
@@ -3716,14 +3762,16 @@ app.get('/api/games/daily-status/:wallet/:game_id', async (req, res) => {
       const totalMinutes = data?.reduce((sum, record) => sum + (record.minutes_played || 0), 0) || 0;
       const totalPoints = data?.reduce((sum, record) => sum + (record.points_earned || 0), 0) || 0;
 
-      return res.json({
+      const resp = {
         success: true,
         minutes_today: Math.round(totalMinutes * 10) / 10,
         max_minutes: MAX_DAILY_MINUTES,
         remaining_minutes: Math.max(0, MAX_DAILY_MINUTES - totalMinutes),
         can_earn_points: totalMinutes < MAX_DAILY_MINUTES,
         points_earned_today: Math.round(totalPoints * 10) / 10
-      });
+      };
+      _dailyStatusCache.set(cacheKey, { data: resp, ts: Date.now() });
+      return res.json(resp);
     }
 
     // Single game status
@@ -3738,14 +3786,16 @@ app.get('/api/games/daily-status/:wallet/:game_id', async (req, res) => {
     const MAX_DAILY_MINUTES = 123;
     const minutesToday = data?.minutes_played || 0;
 
-    res.json({
+    const resp = {
       success: true,
       minutes_today: Math.round(minutesToday * 10) / 10,
       max_minutes: MAX_DAILY_MINUTES,
       remaining_minutes: Math.max(0, MAX_DAILY_MINUTES - minutesToday),
       can_earn_points: minutesToday < MAX_DAILY_MINUTES,
       points_earned_today: Math.round((data?.points_earned || 0) * 10) / 10
-    });
+    };
+    _dailyStatusCache.set(cacheKey, { data: resp, ts: Date.now() });
+    res.json(resp);
 
   } catch (error) {
     console.error('Error fetching daily game status:', error);
@@ -5878,6 +5928,35 @@ setInterval(checkMerchPayments, 30000);
 // Also run once on startup after 5 seconds
 setTimeout(checkMerchPayments, 5000);
 
+// =====================================================
+// Supabase keep-alive ping
+// =====================================================
+// Supabase free tier auto-pauses projects after ~7 days of inactivity. Every
+// pause means bearpark.xyz goes down until a human manually unpauses it from
+// the Supabase dashboard. To prevent this, hit a trivial query every 6 hours
+// from the Node process itself — cheap, safe, and completely invisible to users.
+// The query just fetches a single row from a small table; no side effects.
+const KEEPALIVE_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 hours
+async function supabaseKeepAlivePing() {
+  try {
+    const { error } = await supabase
+      .from('raids')
+      .select('id', { head: true, count: 'exact' })
+      .limit(1);
+    if (error) {
+      console.warn('[Keepalive] Supabase ping error:', error.message);
+    } else {
+      console.log('[Keepalive] Supabase ping OK at', new Date().toISOString());
+    }
+  } catch (e) {
+    console.warn('[Keepalive] Supabase ping threw:', e.message);
+  }
+}
+// Fire once 2 minutes after boot, then every 6 hours
+setTimeout(supabaseKeepAlivePing, 2 * 60 * 1000);
+setInterval(supabaseKeepAlivePing, KEEPALIVE_INTERVAL_MS);
+console.log('✅ Supabase keep-alive scheduled every 6h');
+
 // Debug endpoint - check XUMM SDK status - SECURITY: Added auth + reduced info exposure
 app.get('/api/merch/admin/debug', verifyAdminSession, (req, res) => {
   res.json({
@@ -7740,6 +7819,54 @@ app.get('/api/cosmetics/equipped/:wallet', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching equipped cosmetics:', error);
+    safeErrorResponse(res, error);
+  }
+});
+
+// PERF: BATCH endpoint — the leaderboard UI was making ~48 separate calls to
+// /api/cosmetics/equipped/{wallet} on every page load (one per visible user).
+// This endpoint takes a comma-separated list of wallets and returns their
+// equipped cosmetics in a single .in() query. Capped at 100 wallets per
+// request to keep response sizes sane.
+app.get('/api/cosmetics/equipped-batch', async (req, res) => {
+  try {
+    const wallets = String(req.query.wallets || '')
+      .split(',')
+      .map(w => w.trim())
+      .filter(Boolean)
+      .slice(0, 100);
+
+    if (wallets.length === 0) {
+      return res.json({ success: true, equipped: {} });
+    }
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select(`
+        wallet_address,
+        equipped_ring:cosmetics_catalog!profiles_equipped_ring_id_fkey(*),
+        equipped_banner:cosmetics_catalog!profiles_equipped_banner_id_fkey(*)
+      `)
+      .in('wallet_address', wallets);
+
+    if (error) throw error;
+
+    // Shape: { [wallet]: { ring, banner } }
+    const equipped = {};
+    (data || []).forEach(row => {
+      equipped[row.wallet_address] = {
+        ring: row.equipped_ring || null,
+        banner: row.equipped_banner || null
+      };
+    });
+    // Ensure every requested wallet is in the response (even if profile missing)
+    wallets.forEach(w => {
+      if (!(w in equipped)) equipped[w] = { ring: null, banner: null };
+    });
+
+    res.json({ success: true, equipped });
+  } catch (error) {
+    console.error('Error fetching batched equipped cosmetics:', error);
     safeErrorResponse(res, error);
   }
 });

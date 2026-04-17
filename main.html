@@ -11703,6 +11703,141 @@
     }
 
     /* ===== END GLASSMORPHISM OVERRIDES ===== */
+
+    /* =====================================================
+       PERF/POLISH: Shared skeleton loaders, toasts, and
+       feedback states. Used across leaderboards, NFTs,
+       profile, raid completions, and error handling.
+       ===================================================== */
+
+    /* Skeleton shimmer (replaces plain "Loading..." text) */
+    @keyframes bp-shimmer {
+      0%   { background-position: -400px 0; }
+      100% { background-position: 400px 0; }
+    }
+    .bp-skeleton {
+      display: block;
+      background: linear-gradient(
+        90deg,
+        rgba(237,183,35,0.06) 0px,
+        rgba(237,183,35,0.18) 40px,
+        rgba(237,183,35,0.06) 80px
+      );
+      background-size: 400px 100%;
+      animation: bp-shimmer 1.4s linear infinite;
+      border-radius: 8px;
+      min-height: 16px;
+    }
+    .bp-skeleton-row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      background: rgba(255,255,255,0.03);
+      border-radius: 10px;
+    }
+    .bp-skeleton-avatar { width: 42px; height: 42px; border-radius: 50%; flex: 0 0 auto; }
+    .bp-skeleton-text   { flex: 1; height: 14px; }
+    .bp-skeleton-num    { width: 60px; height: 14px; }
+    .bp-skeleton-card {
+      aspect-ratio: 1 / 1;
+      width: 100%;
+      border-radius: 12px;
+    }
+
+    /* Toast notifications — replaces `alert()` for non-blocking feedback */
+    .bp-toast-container {
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      z-index: 99999;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      pointer-events: none;
+      max-width: calc(100vw - 48px);
+    }
+    .bp-toast {
+      pointer-events: auto;
+      padding: 14px 18px 14px 14px;
+      border-radius: 12px;
+      color: #fff;
+      font-weight: 600;
+      font-size: 15px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      min-width: 280px;
+      max-width: 420px;
+      transform: translateX(calc(100% + 32px));
+      opacity: 0;
+      transition: transform .32s cubic-bezier(.2,.8,.2,1), opacity .2s ease;
+      border: 2px solid rgba(255,255,255,0.15);
+    }
+    .bp-toast.show { transform: translateX(0); opacity: 1; }
+    .bp-toast.info    { background: linear-gradient(135deg, #2a2a2e, #3a3a42); }
+    .bp-toast.success { background: linear-gradient(135deg, #0d7a3f, #12a856); }
+    .bp-toast.error   { background: linear-gradient(135deg, #991b1b, #dc2626); }
+    .bp-toast.warn    { background: linear-gradient(135deg, #78532a, #d1932a); color: #1a1a1a; }
+    .bp-toast-icon { font-size: 22px; line-height: 1; flex: 0 0 auto; }
+    .bp-toast-msg  { flex: 1; line-height: 1.35; word-break: break-word; }
+    .bp-toast-close {
+      background: transparent;
+      border: 0;
+      color: inherit;
+      font-size: 20px;
+      cursor: pointer;
+      padding: 0 4px;
+      opacity: 0.7;
+    }
+    .bp-toast-close:hover { opacity: 1; }
+
+    /* Button spinner / "busy" state — for optimistic click feedback */
+    @keyframes bp-spin { to { transform: rotate(360deg); } }
+    .bp-spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid currentColor;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: bp-spin 0.7s linear infinite;
+      vertical-align: -2px;
+      margin-right: 6px;
+    }
+    .bp-busy {
+      opacity: 0.7;
+      pointer-events: none;
+      cursor: wait !important;
+    }
+
+    /* Raid item: optimistic "completed" appearance */
+    .raid-item.bp-completing {
+      opacity: 0.65;
+      transform: scale(0.98);
+      transition: opacity .25s ease, transform .25s ease;
+    }
+    .raid-item.bp-completing button {
+      pointer-events: none;
+    }
+
+    /* Mobile tap targets — ensure min 44px for everything interactive */
+    @media (pointer: coarse) {
+      .carousel-nav, .nft-logo-badge {
+        min-width: 44px;
+        min-height: 44px;
+      }
+    }
+
+    /* Reduced motion — honor user preference */
+    @media (prefers-reduced-motion: reduce) {
+      .bp-skeleton { animation: none; background: rgba(237,183,35,0.08); }
+      .bp-toast { transition: opacity .2s ease; transform: none; }
+      .bp-spinner { animation-duration: 1.4s; }
+    }
+    /* ===== END SHARED SKELETONS/TOASTS/FEEDBACK ===== */
   </style>
 
   <!-- Twitter Widgets Script for Embedded Tweets -->
@@ -13064,7 +13199,7 @@
             <span style="color:var(--gold);">FLAPPY</span> BEAR
           </h3>
           <div id="leaderboard-flappy" class="leaderboard-list">
-            <div class="loading">Loading scores...</div>
+            <div class="loading"><div class="bp-skeleton-row"><div class="bp-skeleton bp-skeleton-avatar"></div><div class="bp-skeleton bp-skeleton-text"></div><div class="bp-skeleton bp-skeleton-num"></div></div><div class="bp-skeleton-row"><div class="bp-skeleton bp-skeleton-avatar"></div><div class="bp-skeleton bp-skeleton-text"></div><div class="bp-skeleton bp-skeleton-num"></div></div><div class="bp-skeleton-row"><div class="bp-skeleton bp-skeleton-avatar"></div><div class="bp-skeleton bp-skeleton-text"></div><div class="bp-skeleton bp-skeleton-num"></div></div></div>
           </div>
         </div>
 
@@ -13074,7 +13209,7 @@
             BEAR <span style="color:var(--gold);">NINJA</span>
           </h3>
           <div id="leaderboard-slice" class="leaderboard-list">
-            <div class="loading">Loading scores...</div>
+            <div class="loading"><div class="bp-skeleton-row"><div class="bp-skeleton bp-skeleton-avatar"></div><div class="bp-skeleton bp-skeleton-text"></div><div class="bp-skeleton bp-skeleton-num"></div></div><div class="bp-skeleton-row"><div class="bp-skeleton bp-skeleton-avatar"></div><div class="bp-skeleton bp-skeleton-text"></div><div class="bp-skeleton bp-skeleton-num"></div></div><div class="bp-skeleton-row"><div class="bp-skeleton bp-skeleton-avatar"></div><div class="bp-skeleton bp-skeleton-text"></div><div class="bp-skeleton bp-skeleton-num"></div></div></div>
           </div>
         </div>
 
@@ -13084,7 +13219,7 @@
             BEAR <span style="color:var(--gold);">JUMP</span>
           </h3>
           <div id="leaderboard-jumpventure" class="leaderboard-list">
-            <div class="loading">Loading scores...</div>
+            <div class="loading"><div class="bp-skeleton-row"><div class="bp-skeleton bp-skeleton-avatar"></div><div class="bp-skeleton bp-skeleton-text"></div><div class="bp-skeleton bp-skeleton-num"></div></div><div class="bp-skeleton-row"><div class="bp-skeleton bp-skeleton-avatar"></div><div class="bp-skeleton bp-skeleton-text"></div><div class="bp-skeleton bp-skeleton-num"></div></div><div class="bp-skeleton-row"><div class="bp-skeleton bp-skeleton-avatar"></div><div class="bp-skeleton bp-skeleton-text"></div><div class="bp-skeleton bp-skeleton-num"></div></div></div>
           </div>
         </div>
 
@@ -13094,7 +13229,7 @@
             BEAR <span style="color:var(--gold);">PONG</span>
           </h3>
           <div id="leaderboard-pong" class="leaderboard-list">
-            <div class="loading">Loading scores...</div>
+            <div class="loading"><div class="bp-skeleton-row"><div class="bp-skeleton bp-skeleton-avatar"></div><div class="bp-skeleton bp-skeleton-text"></div><div class="bp-skeleton bp-skeleton-num"></div></div><div class="bp-skeleton-row"><div class="bp-skeleton bp-skeleton-avatar"></div><div class="bp-skeleton bp-skeleton-text"></div><div class="bp-skeleton bp-skeleton-num"></div></div><div class="bp-skeleton-row"><div class="bp-skeleton bp-skeleton-avatar"></div><div class="bp-skeleton bp-skeleton-text"></div><div class="bp-skeleton bp-skeleton-num"></div></div></div>
           </div>
         </div>
 
@@ -13234,8 +13369,9 @@
             667 NFTs.</p>
           <div class="spacer"></div>
           <a class="nft-media" href="https://xrp.cafe/collection/bearxrpl" target="_blank" rel="noopener">
+            <!-- PERF: width/height reserve layout space to prevent CLS when video loads -->
             <video src="https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/ULTRA%20RARE%20VIDEO.mp4" autoplay
-              loop muted playsinline style="width:100%;height:auto;border-radius:8px;"></video>
+              loop muted playsinline width="1200" height="1200" style="width:100%;height:auto;aspect-ratio:1/1;border-radius:8px;"></video>
           </a>
           <div class="center" style="margin-top:16px;">
             <a class="btn gold" href="https://xrp.cafe/collection/bearxrpl" target="_blank" rel="noopener">Ultra
@@ -13249,8 +13385,10 @@
             $BEAR maxi.</p>
           <div class="spacer"></div>
           <a class="nft-media" href="https://xrp.cafe/collection/bear-pixel-collection" target="_blank" rel="noopener">
+            <!-- PERF: width/height reserve layout space to prevent CLS when video loads -->
             <video src="https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/videos/babbn1.mp4" playsinline muted
-              autoplay loop poster="https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/babbn1.jpg"></video>
+              autoplay loop width="1200" height="1200" style="width:100%;height:auto;aspect-ratio:1/1;"
+              poster="https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/babbn1.jpg"></video>
           </a>
           <div class="center" style="margin-top:16px;">
             <a class="btn gold" href="https://xrp.cafe/collection/bear-pixel-collection" target="_blank"
@@ -14949,6 +15087,109 @@
         throw error;
       }
     }
+
+    // === POLISH: Toast notifications (replaces native alert()) ===
+    // Usage: bpToast('Saved!', 'success'); bpToast('Error loading NFTs', 'error');
+    // Types: 'info' | 'success' | 'error' | 'warn'. Auto-dismiss after 4.5s.
+    (function () {
+      if (window.bpToast) return;
+      let container = null;
+      function ensureContainer() {
+        if (container && document.body.contains(container)) return container;
+        container = document.createElement('div');
+        container.className = 'bp-toast-container';
+        container.setAttribute('role', 'status');
+        container.setAttribute('aria-live', 'polite');
+        document.body.appendChild(container);
+        return container;
+      }
+      window.bpToast = function (message, type = 'info', durationMs = 4500) {
+        try {
+          const c = ensureContainer();
+          const toast = document.createElement('div');
+          toast.className = 'bp-toast ' + type;
+          const icon = { info: 'ℹ️', success: '✅', error: '⚠️', warn: '🟡' }[type] || 'ℹ️';
+          toast.innerHTML = `
+            <span class="bp-toast-icon">${icon}</span>
+            <span class="bp-toast-msg"></span>
+            <button class="bp-toast-close" aria-label="Dismiss">✕</button>
+          `;
+          toast.querySelector('.bp-toast-msg').textContent = String(message ?? '');
+          const close = () => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 350);
+          };
+          toast.querySelector('.bp-toast-close').addEventListener('click', close);
+          c.appendChild(toast);
+          // Trigger slide-in on next frame
+          requestAnimationFrame(() => toast.classList.add('show'));
+          if (durationMs > 0) setTimeout(close, durationMs);
+          return close;
+        } catch (e) {
+          // Fallback if DOM isn't ready — shouldn't normally happen
+          console.warn('bpToast failed, falling back to console:', e);
+          console.log('[bpToast]', type, message);
+        }
+      };
+    })();
+
+    // === PERF: Batched equipped-cosmetics fetcher ===
+    // Previously every leaderboard row triggered its own /api/cosmetics/equipped/{wallet}
+    // request — a 50-row leaderboard = 50 concurrent requests. Now one batch call.
+    // Includes a tiny 30s in-memory cache so repeated renders (tab switches, polling
+    // refreshes) don't refetch the same wallets.
+    window.__equippedBatchCache = window.__equippedBatchCache || new Map();
+    window.fetchEquippedBatch = async function (wallets) {
+      const unique = [...new Set((wallets || []).filter(Boolean))];
+      if (!unique.length) return {};
+      const now = Date.now();
+      const result = {};
+      const missing = [];
+      for (const w of unique) {
+        const cached = window.__equippedBatchCache.get(w);
+        if (cached && (now - cached.ts) < 30000) {
+          result[w] = cached.data;
+        } else {
+          missing.push(w);
+        }
+      }
+      if (missing.length === 0) return result;
+      // Batch endpoint caps at 100 wallets per call
+      for (let i = 0; i < missing.length; i += 100) {
+        const chunk = missing.slice(i, i + 100);
+        try {
+          const r = await fetch(`${API_BASE_URL}/api/cosmetics/equipped-batch?wallets=${encodeURIComponent(chunk.join(','))}`);
+          if (!r.ok) continue;
+          const ct = r.headers.get('content-type') || '';
+          if (!ct.includes('json')) continue;
+          const data = await r.json();
+          if (data && data.success && data.equipped) {
+            for (const w of chunk) {
+              const eq = data.equipped[w] || { ring: null, banner: null };
+              result[w] = eq;
+              window.__equippedBatchCache.set(w, { data: eq, ts: now });
+            }
+          }
+        } catch (_) {}
+      }
+      return result;
+    };
+
+    // === POLISH: Skeleton helper — swap plain "Loading..." text for shimmer rows ===
+    window.bpSkeletonRows = function (count = 5) {
+      return Array.from({ length: count }).map(() => `
+        <div class="bp-skeleton-row">
+          <div class="bp-skeleton bp-skeleton-avatar"></div>
+          <div class="bp-skeleton bp-skeleton-text"></div>
+          <div class="bp-skeleton bp-skeleton-num"></div>
+        </div>
+      `).join('');
+    };
+    window.bpSkeletonCards = function (count = 8) {
+      return Array.from({ length: count }).map(() =>
+        `<div class="bp-skeleton bp-skeleton-card"></div>`
+      ).join('');
+    };
 
     // === INTERVAL MANAGER - Prevent memory leaks + pause when tab hidden ===
     // PERF: When a user has the tab in the background, we pause polling to cut API load ~50%.
@@ -17251,17 +17492,11 @@
             const walletAddresses = data.leaderboard.map(e => e.wallet_address);
             const equippedCosmetics = {};
 
-            await Promise.all(walletAddresses.map(async (wallet) => {
-              try {
-                const cosmeticRes = await fetch(`${API_BASE_URL}/api/cosmetics/equipped/${wallet}`);
-                const cosmeticData = await cosmeticRes.json();
-                if (cosmeticData.success && cosmeticData.equipped) {
-                  equippedCosmetics[wallet] = cosmeticData.equipped;
-                }
-              } catch (e) {
-                // Ignore errors for individual users
-              }
-            }));
+            // PERF: single batched request instead of N per-wallet requests
+            try {
+              const batchMap = await window.fetchEquippedBatch(walletAddresses);
+              Object.assign(equippedCosmetics, batchMap);
+            } catch (e) { /* non-fatal */ }
 
             leaderboardEl.innerHTML = data.leaderboard.map((entry, index) => {
               const rank = index + 1;
@@ -18245,17 +18480,11 @@
           const walletAddresses = leaderboard.map(r => r.wallet_address);
           const equippedCosmetics = {};
 
-          await Promise.all(walletAddresses.map(async (wallet) => {
-            try {
-              const cosmeticRes = await fetch(`${API_BASE_URL}/api/cosmetics/equipped/${wallet}`);
-              const cosmeticData = await cosmeticRes.json();
-              if (cosmeticData.success && cosmeticData.equipped) {
-                equippedCosmetics[wallet] = cosmeticData.equipped;
-              }
-            } catch (e) {
-              // Ignore errors for individual users
-            }
-          }));
+          // PERF: single batched request instead of N per-wallet requests
+          try {
+            const batchMap = await window.fetchEquippedBatch(walletAddresses);
+            Object.assign(equippedCosmetics, batchMap);
+          } catch (e) { /* non-fatal */ }
 
           let html = '';
 
@@ -18392,13 +18621,13 @@
           sessionToken = await createRaidSession(raidId);
         } catch (error) {
           console.error('Error starting raid session:', error);
-          alert(error.message || 'Failed to start secure raid session');
+          bpToast(error.message || 'Failed to start secure raid session', 'error');
           return;
         }
 
         const twitterWindow = window.open(twitterUrl, '_blank');
         if (!twitterWindow) {
-          alert('❌ Pop-up blocked! Please allow pop-ups for this site to join raids.');
+          bpToast('❌ Pop-up blocked! Please allow pop-ups for this site to join raids.', 'error');
           return;
         }
 
@@ -18452,7 +18681,7 @@
             button.disabled = false;
             button.classList.remove('completing');
             button.classList.add('join');
-            alert(error.message || 'Failed to start secure raid session');
+            bpToast(error.message || 'Failed to start secure raid session', 'error');
             return;
           }
         }
@@ -18503,12 +18732,24 @@
       async function completeRaid(raidId, storedReward = null, sessionToken = null) {
         const walletAddress = localStorage.getItem('bearpark_wallet');
         if (!walletAddress) {
-          alert('❌ Please connect your wallet to complete raids');
+          bpToast('Please connect your wallet to complete raids', 'warn');
           return;
         }
 
         const raid = allRaidsData.find(r => r.id == raidId);
         const reward = storedReward || raid?.reward || 20;
+
+        // POLISH: Optimistic click feedback — user sees instant response instead of
+        // waiting 1s+ for the API round trip. If the request fails we revert below.
+        const button = document.querySelector(`[data-raid-id="${raidId}"].raid-action-btn`);
+        const card = document.querySelector(`[data-raid-id="${raidId}"].raid-card-compact`);
+        const originalButtonHTML = button ? button.innerHTML : null;
+        if (button) {
+          button.disabled = true;
+          button.classList.add('bp-busy');
+          button.innerHTML = '<span class="bp-spinner"></span> COMPLETING...';
+        }
+        if (card) card.classList.add('bp-completing');
 
         console.log('✅ Completing raid:', raidId, 'with reward:', reward);
 
@@ -18557,20 +18798,28 @@
 
           } else {
             console.error('Failed to complete raid:', result.error);
-            alert(`❌ Failed to complete raid: ${result.error || 'Unknown error'}`);
+            bpToast(`Failed to complete raid: ${result.error || 'Unknown error'}`, 'error');
 
-            // Reset button
-            const button = document.querySelector(`[data-raid-id="${raidId}"].raid-action-btn`);
+            // Revert optimistic UI
             if (button) {
-              button.textContent = '🎯 JOIN RAID';
               button.disabled = false;
+              button.classList.remove('bp-busy');
               button.classList.remove('completing');
               button.classList.add('join');
+              button.innerHTML = originalButtonHTML || '🎯 JOIN RAID';
             }
+            if (card) card.classList.remove('bp-completing');
           }
         } catch (error) {
           console.error('Error completing raid:', error);
-          alert(`❌ Error completing raid: ${error.message}`);
+          bpToast(`Error completing raid: ${error.message}`, 'error');
+          // Revert optimistic UI on exception too
+          if (button) {
+            button.disabled = false;
+            button.classList.remove('bp-busy');
+            button.innerHTML = originalButtonHTML || '🎯 JOIN RAID';
+          }
+          if (card) card.classList.remove('bp-completing');
         }
       }
 
@@ -19893,7 +20142,7 @@
           link.click();
           document.body.removeChild(link);
         } else {
-          alert('Image not yet loaded. Please wait a moment and try again.');
+          bpToast('Image not yet loaded. Please wait a moment and try again.', 'warn');
         }
       }
 
@@ -20274,18 +20523,11 @@
               const walletAddresses = data.leaderboard.map(e => e.wallet_address);
               const equippedCosmetics = {};
 
-              // Batch fetch equipped items for all users
-              await Promise.all(walletAddresses.map(async (wallet) => {
-                try {
-                  const cosmeticRes = await fetch(`${API_BASE_URL}/api/cosmetics/equipped/${wallet}`);
-                  const cosmeticData = await cosmeticRes.json();
-                  if (cosmeticData.success && cosmeticData.equipped) {
-                    equippedCosmetics[wallet] = cosmeticData.equipped;
-                  }
-                } catch (e) {
-                  // Ignore errors for individual users
-                }
-              }));
+              // PERF: single batched request instead of N per-wallet requests
+              try {
+                const batchMap = await window.fetchEquippedBatch(walletAddresses);
+                Object.assign(equippedCosmetics, batchMap);
+              } catch (e) { /* non-fatal */ }
 
               container.innerHTML = data.leaderboard.map((entry, index) => {
                 const medal = index === 0 ? '🥇' : (index === 1 ? '🥈' : (index === 2 ? '🥉' : ''));
@@ -20616,7 +20858,7 @@
         const currentWallet = localStorage.getItem('bearpark_wallet');
         if (!currentWallet) {
           console.log('❌ [Community Follow] No wallet connected');
-          alert('Please connect your wallet first!');
+          bpToast('Please connect your wallet first!', 'warn');
           return;
         }
 
@@ -20748,11 +20990,11 @@
             console.log('✅ [Community Follow] Profile modal sync completed');
           } else {
             console.error('❌ [Community Follow] Response not OK:', response.status, response.statusText);
-            alert('Failed to update follow status. Please try again.');
+            bpToast('Failed to update follow status. Please try again.', 'error');
           }
         } catch (error) {
           console.error('❌ [Community Follow] Error toggling follow:', error);
-          alert('Failed to update follow status. Please try again.');
+          bpToast('Failed to update follow status. Please try again.', 'error');
         } finally {
           isTogglingCommunityFollow = false;
           console.log('🔵 [Community Follow] Operation complete, unlocked');
@@ -20882,7 +21124,7 @@
       window.openProfileModal = async function (walletAddress = null, addToHistory = true, options = {}) {
         currentUserWallet = localStorage.getItem('bearpark_wallet');
         if (!currentUserWallet) {
-          alert('Please connect your wallet first!');
+          bpToast('Please connect your wallet first!', 'warn');
           return;
         }
 
@@ -21845,13 +22087,13 @@
             localProfile.bio = bio;
             localStorage.setItem(profileKey, JSON.stringify(localProfile));
 
-            alert('Bio updated successfully! 🐻');
+            bpToast('Bio updated successfully! 🐻', 'success');
           } else {
-            alert('Failed to update bio. Please try again.');
+            bpToast('Failed to update bio. Please try again.', 'error');
           }
         } catch (error) {
           console.error('Error saving bio:', error);
-          alert('Error updating bio. Please try again.');
+          bpToast('Error updating bio. Please try again.', 'error');
         }
       });
 
@@ -22350,12 +22592,12 @@
       postCommentBtn.addEventListener('click', async () => {
         const commentText = commentTextarea.value.trim();
         if (!commentText) {
-          alert('Please enter a comment!');
+          bpToast('Please enter a comment!', 'warn');
           return;
         }
 
         if (!currentUserWallet) {
-          alert('Please connect your wallet first!');
+          bpToast('Please connect your wallet first!', 'warn');
           return;
         }
 
@@ -22379,11 +22621,11 @@
             commentTextarea.value = '';
             await loadComments();
           } else {
-            alert('Failed to post comment. Please try again.');
+            bpToast('Failed to post comment. Please try again.', 'error');
           }
         } catch (error) {
           console.error('Error posting comment:', error);
-          alert('Error posting comment. Please try again.');
+          bpToast('Error posting comment. Please try again.', 'error');
         }
       });
 
@@ -22396,7 +22638,7 @@
           console.log('🔵 [Delete] Current user wallet:', currentUserWallet);
 
           if (!currentUserWallet) {
-            alert('Please connect your wallet first!');
+            bpToast('Please connect your wallet first!', 'warn');
             return;
           }
 
@@ -22419,11 +22661,11 @@
           } else {
             const errorData = await response.json();
             console.error('❌ [Delete] Error response:', errorData);
-            alert(`Failed to delete comment: ${errorData.error || 'Unknown error'}`);
+            bpToast(`Failed to delete comment: ${errorData.error || 'Unknown error'}`, 'error');
           }
         } catch (error) {
           console.error('❌ [Delete] Error deleting comment:', error);
-          alert('Error deleting comment.');
+          bpToast('Error deleting comment.', 'error');
         }
       };
 
@@ -22484,7 +22726,7 @@
       // Submit Reply
       window.submitReply = async function (parentCommentId) {
         if (!currentUserWallet) {
-          alert('Please connect your wallet first!');
+          bpToast('Please connect your wallet first!', 'warn');
           return;
         }
 
@@ -22496,7 +22738,7 @@
         const replyText = textarea.value.trim();
 
         if (!replyText) {
-          alert('Please enter a reply!');
+          bpToast('Please enter a reply!', 'warn');
           return;
         }
 
@@ -22522,11 +22764,11 @@
             closeReplyBox(parentCommentId);
             await loadComments();
           } else {
-            alert('Failed to post reply.');
+            bpToast('Failed to post reply.', 'error');
           }
         } catch (error) {
           console.error('Error posting reply:', error);
-          alert('Error posting reply. Please try again.');
+          bpToast('Error posting reply. Please try again.', 'error');
         }
       };
 
@@ -22535,7 +22777,7 @@
 
       window.toggleReaction = async function (commentId, reactionType) {
         if (!currentUserWallet) {
-          alert('Please connect your wallet first!');
+          bpToast('Please connect your wallet first!', 'warn');
           return;
         }
 
@@ -22567,7 +22809,7 @@
           } catch (parseError) {
             console.error('❌ Failed to parse response JSON:', parseError);
             console.error('❌ Response status:', response.status, response.statusText);
-            alert('Server error - invalid response');
+            bpToast('Server error - invalid response', 'error');
             return;
           }
 
@@ -22587,12 +22829,12 @@
             console.error('❌ Failed request: commentId=' + commentId + ', reactionType=' + reactionType);
             // Don't show alert for duplicate errors (user probably double-clicked)
             if (!result.error?.includes('duplicate key')) {
-              alert('Failed to toggle reaction: ' + (result.error || 'Unknown error'));
+              bpToast('Failed to toggle reaction: ' + (result.error || 'Unknown error'), 'error');
             }
           }
         } catch (error) {
           console.error('Error toggling reaction:', error);
-          alert('Error adding reaction.');
+          bpToast('Error adding reaction.', 'error');
         } finally {
           // Always unlock after request completes
           reactionLocks.delete(lockKey);
@@ -22715,7 +22957,7 @@
 
       window.removeReaction = async function (commentId, reactionType, pillElement) {
         if (!currentUserWallet) {
-          alert('Please connect your wallet first!');
+          bpToast('Please connect your wallet first!', 'warn');
           return;
         }
 
@@ -22759,12 +23001,12 @@
           } else {
             console.error('❌ Backend error:', result);
             pillElement.classList.remove('removing');
-            alert('Failed to remove reaction: ' + (result.error || 'Unknown error'));
+            bpToast('Failed to remove reaction: ' + (result.error || 'Unknown error'), 'error');
           }
         } catch (error) {
           pillElement.classList.remove('removing');
           console.error('Error removing reaction:', error);
-          alert('Error removing reaction: ' + error.message);
+          bpToast('Error removing reaction: ' + error.message, 'error');
         }
       };
 
@@ -22922,8 +23164,10 @@
         const nftsToShow = nfts.slice(0, 20);
         console.log(`🔍 Processing ${nftsToShow.length} NFTs - fetching metadata...`);
 
-        // Show loading state
-        grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 20px; color: #edb723;">Loading NFT images...</div>';
+        // POLISH: skeleton grid while metadata fetches — feels instant vs blank text
+        grid.innerHTML = (typeof bpSkeletonCards === 'function')
+          ? bpSkeletonCards(Math.min(nftsToShow.length, 8))
+          : '<div style="grid-column: 1/-1; text-align: center; padding: 20px; color: #edb723;">Loading NFT images...</div>';
 
         // PERF: Parallelize NFT metadata fetches (was sequential for loop, 1-at-a-time → ~20x faster).
         // Also: gracefully handle HTML responses (Vercel edge timeouts on slow IPFS),
@@ -24589,17 +24833,11 @@
         const walletAddresses = [...new Set(bulletinPosts.map(p => p.wallet_address))];
         const equippedCosmetics = {};
 
-        await Promise.all(walletAddresses.map(async (wallet) => {
-          try {
-            const cosmeticRes = await fetch(`${API_BASE_URL}/api/cosmetics/equipped/${wallet}`);
-            const cosmeticData = await cosmeticRes.json();
-            if (cosmeticData.success && cosmeticData.equipped) {
-              equippedCosmetics[wallet] = cosmeticData.equipped;
-            }
-          } catch (e) {
-            // Ignore errors for individual users
-          }
-        }));
+        // PERF: single batched request instead of N per-wallet requests
+        try {
+          const batchMap = await window.fetchEquippedBatch(walletAddresses);
+          Object.assign(equippedCosmetics, batchMap);
+        } catch (e) { /* non-fatal */ }
 
         feed.innerHTML = bulletinPosts.map(post => createPostCard(post, equippedCosmetics)).join('');
       } catch (error) {
@@ -26314,7 +26552,7 @@
         }, 3000);
       } else if (type === 'warning' || type === 'error') {
         console.log(`[${type.toUpperCase()}] ${message}`);
-        alert(message);
+        bpToast(message, 'error');
       }
     }
 
@@ -26517,7 +26755,9 @@
       // Handle NFTs tab - fetch from API
       if (tab === 'nfts') {
         const grid = document.getElementById('storeNftsGrid');
-        grid.innerHTML = '<div style="text-align:center; padding:40px; color:#888;"><div style="font-size:32px; margin-bottom:16px;">⏳</div>Loading NFTs...</div>';
+        grid.innerHTML = (typeof bpSkeletonCards === 'function')
+          ? bpSkeletonCards(8)
+          : '<div style="text-align:center; padding:40px; color:#888;"><div style="font-size:32px; margin-bottom:16px;">⏳</div>Loading NFTs...</div>';
 
         loadNFTsFromAPI();
         return;
@@ -26662,12 +26902,12 @@
     async function purchaseItem(id, cost, rarity, name, event) {
       const walletAddress = localStorage.getItem('bearpark_wallet');
       if (!walletAddress) {
-        alert('Please connect your wallet first!');
+        bpToast('Please connect your wallet first!', 'warn');
         return;
       }
 
       if (currentBalance < cost) {
-        alert(`Not enough Honey Points! You need ${cost} HP but only have ${currentBalance.toFixed(1)} HP.`);
+        bpToast(`Not enough Honey Points! You need ${cost} HP but only have ${currentBalance.toFixed(1, 'error')} HP.`);
         return;
       }
 
@@ -26756,7 +26996,7 @@
 
       } catch (error) {
         console.error('❌ Purchase error:', error);
-        alert(`Purchase failed: ${error.message}`);
+        bpToast(`Purchase failed: ${error.message}`, 'error');
 
         // Re-enable button on error
         if (button) {
@@ -26770,18 +27010,18 @@
     async function purchaseToken(tokenType) {
       const walletAddress = localStorage.getItem('bearpark_wallet');
       if (!walletAddress) {
-        alert('Please connect your wallet first!');
+        bpToast('Please connect your wallet first!', 'warn');
         return;
       }
 
       const token = storeTokens.find(t => t.id === tokenType);
       if (!token) {
-        alert('Invalid token type');
+        bpToast('Invalid token type', 'error');
         return;
       }
 
       if (currentBalance < token.honeyCost) {
-        alert(`Not enough Honey Points! You need ${token.honeyCost.toLocaleString()} HP but only have ${Math.floor(currentBalance).toLocaleString()} HP.`);
+        bpToast(`Not enough Honey Points! You need ${token.honeyCost.toLocaleString()} HP but only have ${Math.floor(currentBalance).toLocaleString()} HP.`, 'error');
         return;
       }
 
@@ -26870,7 +27110,7 @@
 
       } catch (error) {
         console.error('❌ Token purchase error:', error);
-        alert(`Purchase failed: ${error.message}`);
+        bpToast(`Purchase failed: ${error.message}`, 'error');
 
         // Re-enable button on error
         if (button) {
@@ -26995,19 +27235,19 @@
     async function requestNFT(nftTokenId, buttonElement) {
       const walletAddress = localStorage.getItem('bearpark_wallet');
       if (!walletAddress) {
-        alert('Please connect your wallet first!');
+        bpToast('Please connect your wallet first!', 'warn');
         return;
       }
 
       const nft = storeNfts.find(n => n.nftTokenId === nftTokenId);
       if (!nft) {
-        alert('NFT not found. Please refresh the page.');
+        bpToast('NFT not found. Please refresh the page.', 'error');
         loadNFTsFromAPI();
         return;
       }
 
       if (currentBalance < nft.honeyCost) {
-        alert(`Not enough Honey Points! You need ${nft.honeyCost.toLocaleString()} HP but only have ${Math.floor(currentBalance).toLocaleString()} HP.`);
+        bpToast(`Not enough Honey Points! You need ${nft.honeyCost.toLocaleString()} HP but only have ${Math.floor(currentBalance).toLocaleString()} HP.`, 'error');
         return;
       }
 
@@ -27041,7 +27281,7 @@
         if (!response.ok || !data.success) {
           // Check for already purchased error
           if (data.alreadyPurchased) {
-            alert('NFT ALREADY PURCHASED!\n\nThis NFT has been claimed by another user. Refreshing available NFTs...');
+            bpToast('NFT ALREADY PURCHASED!\n\nThis NFT has been claimed by another user. Refreshing available NFTs...', 'error');
             loadNFTsFromAPI(); // Refresh the list
             return;
           }
@@ -27076,7 +27316,7 @@
 
       } catch (error) {
         console.error('❌ NFT request error:', error);
-        alert(`Request failed: ${error.message}`);
+        bpToast(`Request failed: ${error.message}`, 'error');
 
         // Re-enable button on error
         if (button) {
@@ -27282,7 +27522,7 @@
     async function openInventoryModal() {
       const walletAddress = localStorage.getItem('bearpark_wallet');
       if (!walletAddress) {
-        alert('Please connect your wallet first!');
+        bpToast('Please connect your wallet first!', 'warn');
         return;
       }
 
@@ -27468,7 +27708,7 @@
     async function equipItem(cosmeticId, type, itemName, event) {
       const walletAddress = localStorage.getItem('bearpark_wallet');
       if (!walletAddress) {
-        alert('Please connect your wallet first!');
+        bpToast('Please connect your wallet first!', 'warn');
         return;
       }
 
@@ -27534,7 +27774,7 @@
 
       } catch (error) {
         console.error('❌ Equip error:', error);
-        alert(`Failed to equip item: ${error.message}`);
+        bpToast(`Failed to equip item: ${error.message}`, 'error');
 
         // Reset button on error
         if (button) {
@@ -27548,7 +27788,7 @@
     async function unequipItem(cosmeticId, type, event) {
       const walletAddress = localStorage.getItem('bearpark_wallet');
       if (!walletAddress) {
-        alert('Please connect your wallet first!');
+        bpToast('Please connect your wallet first!', 'warn');
         return;
       }
 
@@ -27591,7 +27831,7 @@
 
       } catch (error) {
         console.error('❌ Unequip error:', error);
-        alert(`Failed to unequip item: ${error.message}`);
+        bpToast(`Failed to unequip item: ${error.message}`, 'error');
 
         // Reset button on error
         if (button) {
@@ -27693,7 +27933,7 @@ const response = await fetch('/api/merch/products');
     // Add item to cart (with stock validation)
     function addToMerchCart() {
       if (!merchCurrentProduct || !merchSelectedSize) {
-        alert('Please select a size first!');
+        bpToast('Please select a size first!', 'error');
         return;
       }
 
@@ -28013,7 +28253,7 @@ const response = await fetch('/api/merch/products');
     // Start checkout from cart (supports multiple items)
     function startCartCheckout() {
       if (merchCart.length === 0) {
-        alert('Your cart is empty!');
+        bpToast('Your cart is empty!', 'error');
         return;
       }
 
@@ -28028,7 +28268,7 @@ const response = await fetch('/api/merch/products');
       // Validate all products exist
       const missingProducts = merchCheckoutItems.filter(item => !item.product);
       if (missingProducts.length > 0) {
-        alert('Some products are no longer available. Please update your cart.');
+        bpToast('Some products are no longer available. Please update your cart.', 'error');
         return;
       }
 
@@ -28576,7 +28816,7 @@ const response = await fetch('/api/merch/products');
 
     function merchProceedToDisclaimer() {
       if (!merchSelectedSize) {
-        alert('Please select a size first!');
+        bpToast('Please select a size first!', 'error');
         return;
       }
       merchShowScreen('disclaimer');
@@ -28590,7 +28830,7 @@ const response = await fetch('/api/merch/products');
       // For now, only US is supported
       const country = document.getElementById('merchShipCountry').value;
       if (country !== 'US') {
-        alert('Sorry, we only ship to the US at this time. More countries coming soon!');
+        bpToast('Sorry, we only ship to the US at this time. More countries coming soon!', 'error');
         document.getElementById('merchShipCountry').value = 'US';
       }
     }
@@ -28605,23 +28845,23 @@ const response = await fetch('/api/merch/products');
       const country = document.getElementById('merchShipCountry').value;
 
       if (!name || name.length < 2) {
-        alert('Please enter a valid name');
+        bpToast('Please enter a valid name', 'warn');
         return;
       }
       if (!street) {
-        alert('Please enter your street address');
+        bpToast('Please enter your street address', 'warn');
         return;
       }
       if (!city) {
-        alert('Please enter your city');
+        bpToast('Please enter your city', 'warn');
         return;
       }
       if (!state) {
-        alert('Please select your state');
+        bpToast('Please select your state', 'error');
         return;
       }
       if (!zip || !/^\d{5}(-\d{4})?$/.test(zip)) {
-        alert('Please enter a valid ZIP code (e.g., 12345 or 12345-6789)');
+        bpToast('Please enter a valid ZIP code (e.g., 12345 or 12345-6789)', 'warn');
         return;
       }
 
@@ -28690,7 +28930,7 @@ const response = await fetch('/api/merch/products');
       } else {
         // Fallback - no items found (shouldn't happen)
         console.error('No checkout items or product found');
-        alert('Error: No items in checkout. Please try again.');
+        bpToast('Error: No items in checkout. Please try again.', 'error');
         merchShowScreen('gallery');
         return;
       }
@@ -28780,12 +29020,12 @@ const response = await fetch('/api/merch/products');
       const walletAddress = localStorage.getItem('bearpark_wallet');
 
       if (!walletAddress) {
-        alert('Please connect your wallet first!');
+        bpToast('Please connect your wallet first!', 'warn');
         return;
       }
 
       if (!merchSelectedWallet) {
-        alert('Please select a wallet (XAMAN or Joey) to continue!');
+        bpToast('Please select a wallet (XAMAN or Joey) to continue!', 'warn');
         return;
       }
 
@@ -29122,7 +29362,7 @@ const response = await fetch('/api/merch/products');
               // Payment successful!
               showMerchSuccess(orderData.order_id, orderData.order_number);
             } else if (statusData.status === 'failed') {
-              alert('Payment failed. Please try again.');
+              bpToast('Payment failed. Please try again.', 'error');
               merchShowScreen('payment');
             } else {
               // Keep polling
@@ -29130,7 +29370,7 @@ const response = await fetch('/api/merch/products');
               if (pollCount < maxPolls) {
                 setTimeout(pollPayment, 5000); // Check every 5 seconds
               } else {
-                alert('Payment timeout. Your order is saved - if you sent payment, it will be processed automatically.');
+                bpToast('Payment timeout. Your order is saved - if you sent payment, it will be processed automatically.', 'success');
                 closeMerchStoreModal();
               }
             }
@@ -29144,7 +29384,7 @@ const response = await fetch('/api/merch/products');
 
       } catch (error) {
         console.error('Merch purchase error:', error);
-        alert('Purchase failed: ' + error.message);
+        bpToast('Purchase failed: ' + error.message, 'error');
         merchShowScreen('payment');
       }
     }
@@ -29265,7 +29505,7 @@ const response = await fetch('/api/merch/products');
         receiptBox.style.transform = 'scale(1.02)';
 
         // Show alert with instructions
-        alert('📸 Take a screenshot now to save your receipt!\n\nYou can also view all your orders anytime by clicking "VIEW MY RECEIPTS"');
+        bpToast('📸 Take a screenshot now to save your receipt!\n\nYou can also view all your orders anytime by clicking "VIEW MY RECEIPTS"', 'error');
 
         setTimeout(() => {
           receiptBox.style.boxShadow = '';
@@ -29282,7 +29522,7 @@ const response = await fetch('/api/merch/products');
       // Check if user has wallet connected
       const walletAddress = localStorage.getItem('bearpark_wallet');
       if (!walletAddress) {
-        alert('Please connect your wallet to view your order history.');
+        bpToast('Please connect your wallet to view your order history.', 'warn');
         return;
       }
 
@@ -30034,7 +30274,7 @@ const response = await fetch(`/api/merch/orders/my-orders?wallet=${walletAddress
           const elapsed = Date.now() - parseInt(lastClaimAttempt);
           if (elapsed < 60000) { // 60 seconds
             const remaining = Math.ceil((60000 - elapsed) / 1000);
-            alert(`Please wait ${remaining} seconds before trying again.`);
+            bpToast(`Please wait ${remaining} seconds before trying again.`, 'warn');
             return;
           }
         }
