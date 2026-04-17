@@ -204,15 +204,20 @@ const apiLimiter = rateLimit({
     return req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || 'unknown';
   },
   skip: (req) => {
+    // NOTE: this limiter is mounted at app.use('/api/', apiLimiter), so req.path
+    // inside the skip function is RELATIVE to the mount point — e.g. the full URL
+    // /api/admin/foo arrives here as /admin/foo. Also handle originalUrl as a fallback.
+    const p = req.path || '';
+    const url = req.originalUrl || '';
     // Admin routes have their own auth; skip rate limit
-    if (req.path.startsWith('/api/admin/')) return true;
+    if (p.startsWith('/admin/') || url.startsWith('/api/admin/')) return true;
     // Cached read-only endpoints don't hit the DB, so don't count them against the limit.
     // These are hot paths served from in-memory/Redis cache — rate limiting them causes
     // user-visible outages without real abuse protection.
     if (req.method === 'GET' && (
-      req.path === '/api/xrpl/trading-stats' ||
-      req.path === '/api/memes/timer' ||
-      req.path === '/api/memes/current-week'
+      p === '/xrpl/trading-stats' || url.startsWith('/api/xrpl/trading-stats') ||
+      p === '/memes/timer' || url.startsWith('/api/memes/timer') ||
+      p === '/memes/current-week' || url.startsWith('/api/memes/current-week')
     )) return true;
     return false;
   }
