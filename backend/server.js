@@ -2161,12 +2161,15 @@ const verifyAdmin = async (req, res, next) => {
 
     const admin_wallet = session.wallet;
 
-    // Check database for actual admin role (use service role to bypass RLS)
+    // Check database for actual admin role (use service role to bypass RLS).
+    // ilike is case-insensitive — session wallets are normalized to lowercase
+    // by issueWalletAuthToken(), but admin_roles stores the original XRPL
+    // r-address (case-sensitive), so eq would never match.
     const adminClient = supabaseAdmin || supabase;
     const { data: adminRole, error } = await adminClient
       .from('admin_roles')
       .select('role, is_active')
-      .eq('wallet_address', admin_wallet)
+      .ilike('wallet_address', admin_wallet)
       .eq('is_active', true)
       .single();
 
