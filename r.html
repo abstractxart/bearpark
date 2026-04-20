@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#141619" />
+<title>BEAR Park — Raid Call</title>
+<meta property="og:title" content="BEAR Park — Raid Call" />
+<meta property="og:description" content="Join the raid. Earn honey points." />
+<meta property="og:image" content="https://bearpark.xyz/bearpark-og.png" />
+<meta property="og:type" content="website" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Nunito:wght@500;700;900&display=swap" rel="stylesheet" />
+
+<style>
+  :root {
+    --gold: #ffae00;
+    --gold-ink: #231b04;
+    --charcoal: #141619;
+    --card: #1e2226;
+    --ink: #0b0d0e;
+    --honey: #ffefb3;
+    --stripe-purple: #680cd9;
+    --stripe-yellow: #ffae00;
+    --stripe-green: #07ae08;
+    --tri-gradient: linear-gradient(to right,
+      var(--stripe-purple) 0%, var(--stripe-purple) 33.33%,
+      var(--stripe-yellow) 33.33%, var(--stripe-yellow) 66.66%,
+      var(--stripe-green) 66.66%, var(--stripe-green) 100%);
+    --glass-bg: rgba(30, 34, 38, 0.95);
+    --glass-border: rgba(255, 174, 0, 0.2);
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    background:
+      radial-gradient(1000px 600px at 50% -100px, rgba(104, 12, 217, 0.15), transparent 60%),
+      radial-gradient(800px 500px at 100% 100%, rgba(7, 174, 8, 0.1), transparent 60%),
+      var(--charcoal);
+    color: #fff;
+    font-family: 'Nunito', -apple-system, system-ui, sans-serif;
+    font-weight: 500;
+    overflow-x: hidden;
+  }
+
+  /* Tricolor stripe — used top + bottom */
+  .tri-stripe {
+    height: 8px;
+    width: 100%;
+    background: var(--tri-gradient);
+  }
+
+  /* Layout */
+  .page {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 48px 20px 80px;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+  }
+
+  /* Header */
+  .hero {
+    text-align: center;
+  }
+  .hero-kicker {
+    font-size: 14px;
+    font-weight: 900;
+    letter-spacing: 4px;
+    color: var(--gold);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    opacity: 0.9;
+  }
+  .hero-title {
+    font-family: 'Luckiest Guy', 'Nunito', sans-serif;
+    font-size: clamp(44px, 9vw, 72px);
+    line-height: 1;
+    color: #fff;
+    letter-spacing: 1.5px;
+    margin: 0;
+    -webkit-text-stroke: 1px rgba(0, 0, 0, 0.4);
+    text-shadow:
+      0 2px 0 rgba(0, 0, 0, 0.35),
+      0 0 30px rgba(255, 174, 0, 0.25);
+  }
+  .hero-title .emoji {
+    font-family: 'Nunito', sans-serif;
+    -webkit-text-stroke: 0;
+    text-shadow: none;
+  }
+  .hero-sub {
+    margin: 14px auto 0;
+    max-width: 480px;
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 16px;
+    line-height: 1.5;
+  }
+
+  /* Raid card — mirrors main.html .raid-card-compact with tri-gradient border */
+  .raid-card {
+    position: relative;
+    background: var(--glass-bg);
+    border-radius: 22px;
+    padding: 28px;
+    box-shadow:
+      0 12px 40px rgba(0, 0, 0, 0.5),
+      inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    animation: cardRise 0.5s cubic-bezier(0.18, 0.9, 0.2, 1);
+  }
+  .raid-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 22px;
+    padding: 3px;
+    background: var(--tri-gradient);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+  @keyframes cardRise {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .profile-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+  .profile-emoji {
+    font-size: 36px;
+    width: 52px;
+    height: 52px;
+    display: grid;
+    place-items: center;
+    background: rgba(255, 174, 0, 0.08);
+    border: 2px solid rgba(255, 174, 0, 0.2);
+    border-radius: 14px;
+    flex-shrink: 0;
+  }
+  .profile-meta { min-width: 0; }
+  .profile-name {
+    font-weight: 900;
+    font-size: 18px;
+    color: #fff;
+    line-height: 1.2;
+  }
+  .profile-handle {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.55);
+    font-weight: 700;
+  }
+
+  .tweet-thumb {
+    width: 100%;
+    max-height: 280px;
+    object-fit: cover;
+    border-radius: 14px;
+    margin-bottom: 20px;
+    border: 1px solid rgba(255, 174, 0, 0.15);
+    display: block;
+  }
+
+  .description {
+    background: rgba(0, 0, 0, 0.35);
+    border-left: 3px solid var(--gold);
+    border-radius: 0 12px 12px 0;
+    padding: 16px 18px;
+    color: rgba(255, 255, 255, 0.92);
+    font-size: 16px;
+    line-height: 1.55;
+    margin-bottom: 20px;
+    font-style: italic;
+  }
+
+  .meta-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .meta-tile {
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 14px;
+    padding: 14px 16px;
+  }
+  .meta-tile .label {
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 2px;
+    color: rgba(255, 255, 255, 0.5);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .meta-tile .value {
+    font-family: 'Luckiest Guy', 'Nunito', sans-serif;
+    font-size: 28px;
+    color: var(--gold);
+    letter-spacing: 0.5px;
+    line-height: 1;
+  }
+  .meta-tile.timer .value { color: #fff; }
+  .meta-tile.timer.urgent .value { color: #ff6b6b; }
+  .meta-tile.timer.medium .value { color: #ffd60a; }
+
+  /* CTA */
+  .cta-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .cta {
+    display: block;
+    width: 100%;
+    padding: 20px 28px;
+    background: linear-gradient(135deg, var(--gold) 0%, #ffca3a 50%, var(--gold) 100%);
+    background-size: 200% 100%;
+    color: var(--gold-ink);
+    text-align: center;
+    text-decoration: none;
+    font-family: 'Luckiest Guy', 'Nunito', sans-serif;
+    font-size: 24px;
+    letter-spacing: 2px;
+    border-radius: 16px;
+    border: none;
+    cursor: pointer;
+    box-shadow:
+      0 8px 24px rgba(255, 174, 0, 0.35),
+      inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    transition: all 0.25s cubic-bezier(0.18, 0.9, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+  }
+  .cta:hover {
+    transform: translateY(-2px);
+    background-position: 100% 0;
+    box-shadow:
+      0 12px 32px rgba(255, 174, 0, 0.5),
+      inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  }
+  .cta:active { transform: translateY(0); }
+
+  .tweet-link {
+    display: block;
+    width: 100%;
+    padding: 14px;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.65);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.25);
+    transition: all 0.2s ease;
+  }
+  .tweet-link:hover {
+    color: #fff;
+    border-color: rgba(255, 174, 0, 0.4);
+    background: rgba(255, 174, 0, 0.05);
+  }
+
+  /* Footer note */
+  .footnote {
+    text-align: center;
+    color: rgba(255, 255, 255, 0.42);
+    font-size: 13px;
+    line-height: 1.6;
+    margin-top: 6px;
+  }
+  .footnote strong { color: var(--gold); font-weight: 900; }
+
+  /* Loading / error */
+  .status {
+    padding: 40px 24px;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 16px;
+  }
+  .status .spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid rgba(255, 174, 0, 0.15);
+    border-top-color: var(--gold);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    margin: 0 auto 16px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .error-state {
+    background: var(--glass-bg);
+    border: 1px solid rgba(255, 107, 107, 0.3);
+    border-radius: 16px;
+    padding: 28px;
+    text-align: center;
+  }
+  .error-state h3 {
+    font-family: 'Luckiest Guy', 'Nunito', sans-serif;
+    font-size: 28px;
+    margin: 0 0 10px;
+    letter-spacing: 1px;
+  }
+  .error-state p { color: rgba(255, 255, 255, 0.65); margin: 0 0 18px; }
+  .go-home {
+    display: inline-block;
+    padding: 12px 24px;
+    background: var(--gold);
+    color: var(--gold-ink);
+    text-decoration: none;
+    font-weight: 900;
+    border-radius: 10px;
+  }
+
+  /* Small branding — bottom */
+  .brand {
+    text-align: center;
+    margin-top: 8px;
+    color: rgba(255, 255, 255, 0.3);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 2px;
+  }
+  .brand a { color: var(--gold); text-decoration: none; }
+  .brand a:hover { text-decoration: underline; }
+
+  @media (max-width: 540px) {
+    .page { padding: 32px 16px 60px; gap: 20px; }
+    .raid-card { padding: 22px; }
+    .meta-grid { grid-template-columns: 1fr; }
+    .cta { font-size: 20px; padding: 18px 20px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="tri-stripe"></div>
+
+<main class="page">
+
+  <header class="hero">
+    <div class="hero-kicker">🐻 BEAR Park</div>
+    <h1 class="hero-title"><span class="emoji">🪖</span> RAID CALL</h1>
+    <p class="hero-sub">A new raid is live. Engage on X to earn honey points.</p>
+  </header>
+
+  <div id="content">
+    <div class="status">
+      <div class="spinner"></div>
+      Loading raid…
+    </div>
+  </div>
+
+  <p class="brand">POWERED BY <a href="/">BEARPARK.XYZ</a></p>
+
+</main>
+
+<div class="tri-stripe"></div>
+
+<script>
+  (function() {
+    // Read raid id from URL ?id=N or /r/N
+    const params = new URLSearchParams(window.location.search);
+    let raidId = params.get('id');
+    if (!raidId) {
+      const match = window.location.pathname.match(/\/r\/(\d+)/);
+      if (match) raidId = match[1];
+    }
+    raidId = raidId ? parseInt(raidId, 10) : null;
+
+    const container = document.getElementById('content');
+
+    function renderError(title, msg) {
+      container.innerHTML = `
+        <div class="error-state">
+          <h3>🐻 ${title}</h3>
+          <p>${msg}</p>
+          <a class="go-home" href="/">BACK TO BEAR PARK</a>
+        </div>
+      `;
+    }
+
+    function escapeHtml(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    }
+
+    function timeLeftStr(ms) {
+      if (ms <= 0) return 'EXPIRED';
+      const s = Math.floor(ms / 1000);
+      const d = Math.floor(s / 86400);
+      const h = Math.floor((s % 86400) / 3600);
+      const m = Math.floor((s % 3600) / 60);
+      if (d > 0) return `${d}d ${h}h`;
+      if (h > 0) return `${h}h ${m}m`;
+      return `${m}m`;
+    }
+
+    function urgencyClass(ms) {
+      if (ms < 60 * 60 * 1000) return 'urgent';     // < 1h
+      if (ms < 6 * 60 * 60 * 1000) return 'medium'; // < 6h
+      return '';
+    }
+
+    function renderRaid(raid) {
+      const expiresMs = raid.expires_at ? new Date(raid.expires_at).getTime() - Date.now() : null;
+      const urg = expiresMs != null ? urgencyClass(expiresMs) : '';
+      const timeLabel = expiresMs != null ? timeLeftStr(expiresMs) : '—';
+
+      const thumb = raid.image_url ?
+        `<img class="tweet-thumb" src="${escapeHtml(raid.image_url)}" alt="" onerror="this.style.display='none'">` : '';
+
+      const handle = raid.profile_handle ? `@${String(raid.profile_handle).replace(/^@/, '')}` : '';
+
+      container.innerHTML = `
+        <article class="raid-card">
+          <div class="profile-row">
+            <div class="profile-emoji">${escapeHtml(raid.profile_emoji || '🐻')}</div>
+            <div class="profile-meta">
+              <div class="profile-name">${escapeHtml(raid.profile_name || 'BearXRPL')}</div>
+              <div class="profile-handle">${escapeHtml(handle)}</div>
+            </div>
+          </div>
+
+          ${thumb}
+
+          <div class="description">${escapeHtml(raid.description || 'Like and retweet to support the BEAR community.')}</div>
+
+          <div class="meta-grid">
+            <div class="meta-tile">
+              <div class="label">🍯 Reward</div>
+              <div class="value">${Number(raid.reward || 0)} pts</div>
+            </div>
+            <div class="meta-tile timer ${urg}">
+              <div class="label">⏰ Ends in</div>
+              <div class="value" id="countdown">${timeLabel}</div>
+            </div>
+          </div>
+
+          <div class="cta-stack">
+            <a class="cta" href="/?raid=${encodeURIComponent(raid.id)}">JOIN THE RAID →</a>
+            <a class="tweet-link" href="${escapeHtml(raid.twitter_url)}" target="_blank" rel="noopener noreferrer">
+              View tweet on X ↗
+            </a>
+          </div>
+        </article>
+
+        <p class="footnote">
+          Sign in to <strong>BEAR Park</strong> on this device to earn <strong>${Number(raid.reward || 0)} honey points</strong>.
+          <br>Others: welcome to the raid.
+        </p>
+      `;
+
+      // Live countdown
+      if (expiresMs != null && expiresMs > 0) {
+        const endMs = new Date(raid.expires_at).getTime();
+        const el = document.getElementById('countdown');
+        const tile = el && el.closest('.meta-tile');
+        const tick = () => {
+          const left = endMs - Date.now();
+          if (el) el.textContent = timeLeftStr(left);
+          if (tile) {
+            tile.classList.remove('urgent', 'medium');
+            const u = urgencyClass(left);
+            if (u) tile.classList.add(u);
+          }
+          if (left <= 0) clearInterval(id);
+        };
+        const id = setInterval(tick, 30 * 1000);
+      }
+    }
+
+    // Dev preview: ?mock=1 renders a sample raid without hitting the API.
+    if (params.get('mock') === '1') {
+      renderRaid({
+        id: raidId || 1,
+        description: 'Drop your favorite $BEAR meme. Tag $BEAR and @BearXRPL.',
+        twitter_url: 'https://x.com/BearXRPL/status/1234567890',
+        reward: 30,
+        profile_name: 'BearXRPL',
+        profile_handle: 'BearXRPL',
+        profile_emoji: '🐻',
+        expires_at: new Date(Date.now() + 3.5 * 60 * 60 * 1000).toISOString(),
+        is_active: true
+      });
+      return;
+    }
+
+    if (!raidId) {
+      renderError('No raid specified', 'This link is missing a raid id.');
+      return;
+    }
+
+    fetch('/api/raids/current', { cache: 'no-store' })
+      .then(r => r.json())
+      .then(data => {
+        const raids = (data && data.raids) || [];
+        const raid = raids.find(r => Number(r.id) === raidId);
+        if (!raid) {
+          renderError('Raid not found', 'This raid may have expired or been removed.');
+          return;
+        }
+        document.title = `BEAR Park — Raid ${raid.id}`;
+        renderRaid(raid);
+      })
+      .catch(err => {
+        console.error(err);
+        renderError('Something went wrong', 'Could not load the raid. Try again in a moment.');
+      });
+  })();
+</script>
+
+</body>
+</html>

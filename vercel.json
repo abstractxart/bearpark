@@ -128,6 +128,10 @@
       "dest": "/merch-admin.html"
     },
     {
+      "src": "/r/(\\d+)",
+      "dest": "/r.html?id=$1"
+    },
+    {
       "src": "/(.*\\.(html|css|js|png|jpg|jpeg|gif|svg|ico))",
       "dest": "/$1"
     },
