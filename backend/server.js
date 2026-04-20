@@ -850,15 +850,19 @@ async function applyHoneyDelta({
       //   1. Exact match to the user-supplied wallet (original case)
       //   2. Rows that aren't all-lowercase (real XRPL addresses are mixed)
       //   3. Highest existing total as a tiebreaker
+      // Callers already normalized `wallet` to lowercase before reaching
+      // this helper, so we can't rely on it to pick a mixed-case row.
+      // Instead, always prefer rows that aren't all-lowercase (a real
+      // XRPL r-address has uppercase letters), then highest total as
+      // a tiebreaker.
       const canonicalLookup = await client.query(
         `SELECT wallet_address FROM honey_points
          WHERE wallet_address ILIKE $1
          ORDER BY
-           CASE WHEN wallet_address = $2 THEN 0 ELSE 1 END,
-           CASE WHEN wallet_address = lower(wallet_address) THEN 1 ELSE 0 END,
+           CASE WHEN wallet_address <> lower(wallet_address) THEN 0 ELSE 1 END,
            total_points DESC NULLS LAST
          LIMIT 1`,
-        [normalizedWallet, wallet]
+        [normalizedWallet]
       );
       const canonicalWallet = canonicalLookup.rows[0]?.wallet_address || wallet;
 
