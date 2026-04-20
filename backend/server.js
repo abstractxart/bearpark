@@ -3350,16 +3350,53 @@ app.post('/api/raids/complete', validateWallet, requireWalletOwnership(['wallet_
       throw completionError;
     }
 
-    // Check if points record exists for this wallet
-    const { balance } = await applyHoneyDelta({
-      wallet: normalizedWallet,
-      totalDelta: actualReward,
-      raidingDelta: actualReward,
-      transactionType: 'raid_reward',
-      reason: `Raid ${raid_id} completion`,
-      activityType: 'raid',
-      activityId: String(raid_id)
-    });
+    // Credit honey directly — bypass applyHoneyDelta because its
+    // point_transactions insert uses column "amount" which doesn't
+    // exist in the live DB schema (that upsert blows up the whole
+    // transaction with 500, no honey ever lands). Mirror the tg-claim
+    // pattern: ILIKE-based canonical wallet lookup, upsert honey_points,
+    // done. Audit log skipped here; raid_completions + honey_points_activity
+    // below still capture the event.
+    let balance;
+    if (!pgPool) {
+      throw new Error('pg pool unavailable');
+    }
+    const creditClient = await pgPool.connect();
+    try {
+      await creditClient.query('BEGIN');
+      const canonicalLookup = await creditClient.query(
+        `SELECT wallet_address FROM honey_points
+         WHERE wallet_address ILIKE $1
+         ORDER BY
+           CASE WHEN wallet_address <> lower(wallet_address) THEN 0 ELSE 1 END,
+           total_points DESC NULLS LAST
+         LIMIT 1`,
+        [normalizedWallet]
+      );
+      const canonicalWallet = canonicalLookup.rows[0]?.wallet_address || wallet_address;
+
+      await creditClient.query(
+        `INSERT INTO honey_points (wallet_address, total_points, raiding_points, games_points, updated_at)
+         VALUES ($1, $2, $2, 0, NOW())
+         ON CONFLICT (wallet_address) DO UPDATE
+         SET total_points = honey_points.total_points + EXCLUDED.total_points,
+             raiding_points = honey_points.raiding_points + EXCLUDED.raiding_points,
+             updated_at = NOW()`,
+        [canonicalWallet, actualReward]
+      );
+
+      const balanceResult = await creditClient.query(
+        `SELECT total_points, raiding_points, games_points FROM honey_points WHERE wallet_address = $1`,
+        [canonicalWallet]
+      );
+      await creditClient.query('COMMIT');
+      balance = balanceResult.rows[0] || { total_points: 0 };
+    } catch (creditErr) {
+      await creditClient.query('ROLLBACK').catch(() => {});
+      throw creditErr;
+    } finally {
+      creditClient.release();
+    }
 
     console.log(`✅ Raid completed: User ${wallet_address} earned ${actualReward} points for raid ${raid_id} (server-validated)`);
 
