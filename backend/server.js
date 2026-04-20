@@ -373,7 +373,7 @@ const GAME_SESSION_TTL_MS = 4 * 60 * 60 * 1000;
 const RAID_SESSION_TTL_MS = 30 * 60 * 1000;
 const MIN_RAID_SESSION_SECONDS = 115;
 const GAME_MAX_DAILY_MINUTES = 123;
-const GAME_MIN_SESSION_MS = 10 * 1000;
+const GAME_MIN_SESSION_MS = 3 * 1000;
 const GAME_MAX_SESSION_MS = 30 * 60 * 1000;
 const GAME_HEARTBEAT_INTERVAL_MS = 15 * 1000;
 const GAME_HEARTBEAT_CREDIT_CAP_MS = 20 * 1000;
@@ -1606,7 +1606,7 @@ async function completeTrackedGameSession({ sessionId, wallet, gameId, today }) 
           success: true,
           response: {
             success: false,
-            message: 'Session too short (minimum 10 seconds of active play)',
+            message: 'Session too short (minimum 3 seconds of active play)',
             minutes_today: 0,
             max_minutes: GAME_MAX_DAILY_MINUTES,
             remaining_minutes: GAME_MAX_DAILY_MINUTES,
@@ -1697,7 +1697,7 @@ async function completeTrackedGameSession({ sessionId, wallet, gameId, today }) 
       success: true,
       response: {
         success: false,
-        message: 'Session too short (minimum 10 seconds of active play)',
+        message: 'Session too short (minimum 3 seconds of active play)',
         minutes_today: 0,
         max_minutes: GAME_MAX_DAILY_MINUTES,
         remaining_minutes: GAME_MAX_DAILY_MINUTES,

@@ -1,119 +1,398 @@
 /**
  * BEAR Park Game Points Helper - Bear Market Edition
  *
- * Call this when a user completes a game to award honey points
- * 1 point per minute, max 20 minutes/day, 0.1 point increments
+ * Server-tracked activity heartbeats back game rewards.
+ * One wallet sign-in should cover the whole session.
  */
+const gamePointsApi = (() => {
+  const GAME_POINTS_CONFIG = {
+    POINTS_PER_MINUTE: 1,
+    MAX_DAILY_MINUTES: 123,
+    HEARTBEAT_INTERVAL_MS: 15000,
+    CLIENT_ACTIVITY_WINDOW_MS: 25000,
+    API_BASE_URL: (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+      ? 'http://localhost:3000'
+      : ''
+  };
 
-const GAME_POINTS_CONFIG = {
-  POINTS_PER_MINUTE: 1,
-  MAX_DAILY_MINUTES: 123,
-  // Auto-detect: localhost uses local API, production uses Railway API
-  API_BASE_URL: (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-    ? 'http://localhost:3000'
-    : 'https://bearpark-api-production.up.railway.app'
-};
+  const GAME_SESSION_STORAGE_PREFIX = 'bearpark_game_session_';
+  const TRUSTED_ACTIVITY_EVENTS = ['pointerdown', 'pointermove', 'keydown', 'touchstart', 'touchmove', 'mousedown'];
+  const runtimeState = {
+    listenersAttached: false,
+    visibilityAttached: false,
+    heartbeatTimer: null,
+    heartbeatPromise: null,
+    lastHeartbeatAt: 0,
+    lastTrustedActivityAt: 0,
+    lastTrustedActivitySampleAt: 0
+  };
 
-/**
- * Award points for completing a game session
- * @param {string} gameId - Unique game identifier (e.g., 'bear-ninja', 'bear-pong')
- * @param {number} minutesPlayed - Minutes played in this session (rounded to 0.1)
- * @returns {Promise<object>} Response with points awarded and daily status
- */
-async function awardGamePoints(gameId, minutesPlayed) {
-  try {
-    // Get wallet from parent window or localStorage
-    // Support both bearpark_wallet (main site) and xaman_wallet_address (BEAR PONG)
-    const walletAddress = window.parent?.localStorage?.getItem('bearpark_wallet') ||
-                          localStorage.getItem('bearpark_wallet') ||
-                          localStorage.getItem('xaman_wallet_address');
+  function getConnectedWalletAddress() {
+    return window.parent?.localStorage?.getItem('bearpark_wallet') ||
+      localStorage.getItem('bearpark_wallet') ||
+      localStorage.getItem('xaman_wallet_address');
+  }
 
+  function getWalletAuthToken(walletAddress) {
     if (!walletAddress) {
-      console.warn('No wallet connected, cannot award points');
-      return {
-        success: false,
-        message: 'Please connect your wallet first'
-      };
+      return null;
     }
 
-    console.log(`🎮 Awarding points for ${gameId} - ${minutesPlayed} minutes...`);
-
-    const response = await fetch(`${GAME_POINTS_CONFIG.API_BASE_URL}/api/games/complete`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        wallet_address: walletAddress,
-        game_id: gameId,
-        minutes_played: minutesPlayed
-      })
-    });
-
-    const data = await response.json();
-
-    if (data.success) {
-      console.log(`✅ Awarded ${data.points_awarded} points! (${data.minutes_today}/${data.max_minutes} mins today)`);
-
-      // Show game-over style notification
-      showPointsNotification(data.points_awarded, data.remaining_minutes, data.minutes_today, data.max_minutes);
-
-      // Trigger event to refresh daily progress widget on main page
-      window.dispatchEvent(new CustomEvent('gamePointsAwarded', { detail: data }));
-
-      return data;
-    } else {
-      console.log(`⚠️ ${data.message}`);
-
-      // Show limit reached notification
-      if (data.minutes_today >= data.max_minutes) {
-        showLimitNotification();
-      }
-
-      return data;
+    if (typeof window.getBearparkAuthToken === 'function') {
+      return window.getBearparkAuthToken();
     }
 
-  } catch (error) {
-    console.error('Error awarding game points:', error);
+    const authToken = localStorage.getItem('bearpark_auth_token');
+    const authTokenWallet = (localStorage.getItem('bearpark_auth_token_wallet') || '').toLowerCase();
+    return authToken && authTokenWallet === walletAddress.toLowerCase() ? authToken : null;
+  }
+
+  function getProtectedHeaders(walletAddress, baseHeaders) {
+    const authToken = getWalletAuthToken(walletAddress);
+    if (typeof window.getBearparkAuthHeaders === 'function') {
+      return window.getBearparkAuthHeaders(baseHeaders);
+    }
+
+    const headers = new Headers(baseHeaders || {});
+    if (authToken && !headers.has('Authorization')) {
+      headers.set('Authorization', `Bearer ${authToken}`);
+    }
+    return headers;
+  }
+
+  function getRequestInit(walletAddress, baseHeaders, init = {}) {
     return {
-      success: false,
-      message: 'Failed to award points'
+      credentials: 'include',
+      ...init,
+      headers: getProtectedHeaders(walletAddress, baseHeaders)
     };
   }
-}
 
-/**
- * Check daily game status without awarding points
- * @param {string} gameId - Unique game identifier
- * @returns {Promise<object>} Daily status info
- */
-async function getDailyGameStatus(gameId) {
-  try {
-    const walletAddress = window.parent?.localStorage?.getItem('bearpark_wallet') ||
-                          localStorage.getItem('bearpark_wallet');
+  function getGameSessionStorageKey(gameId) {
+    return `${GAME_SESSION_STORAGE_PREFIX}${gameId}`;
+  }
 
-    if (!walletAddress) {
-      return {
-        success: false,
-        can_earn_points: false,
-        minutes_today: 0,
-        max_minutes: GAME_POINTS_CONFIG.MAX_DAILY_MINUTES,
-        remaining_minutes: GAME_POINTS_CONFIG.MAX_DAILY_MINUTES
-      };
+  function readStoredGameSession(gameId) {
+    try {
+      const raw = sessionStorage.getItem(getGameSessionStorageKey(gameId));
+      if (!raw) {
+        return null;
+      }
+      const parsed = JSON.parse(raw);
+      return parsed?.token || null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function writeStoredGameSession(gameId, token) {
+    try {
+      sessionStorage.setItem(getGameSessionStorageKey(gameId), JSON.stringify({ token, createdAt: Date.now() }));
+    } catch (error) {
+      // Ignore sessionStorage failures.
+    }
+  }
+
+  function clearStoredGameSession(gameId) {
+    try {
+      sessionStorage.removeItem(getGameSessionStorageKey(gameId));
+    } catch (error) {
+      // Ignore sessionStorage failures.
+    }
+  }
+
+  async function ensureGameSession(gameId, walletAddress) {
+    const existingToken = readStoredGameSession(gameId);
+    if (existingToken) {
+      return existingToken;
     }
 
     const response = await fetch(
-      `${GAME_POINTS_CONFIG.API_BASE_URL}/api/games/daily-status/${walletAddress}/${gameId}`
+      `${GAME_POINTS_CONFIG.API_BASE_URL}/api/games/session/start`,
+      getRequestInit(walletAddress, {
+        'Content-Type': 'application/json'
+      }, {
+        method: 'POST',
+        body: JSON.stringify({
+          wallet_address: walletAddress,
+          game_id: gameId
+        })
+      })
     );
 
-    return await response.json();
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.success || !data.session_token) {
+      throw new Error(data.error || 'Failed to start secure game session');
+    }
 
-  } catch (error) {
-    console.error('Error fetching daily game status:', error);
-    return { success: false };
+    writeStoredGameSession(gameId, data.session_token);
+    runtimeState.lastHeartbeatAt = 0;
+    return data.session_token;
   }
-}
 
+  function detectCurrentGameId() {
+    const path = window.location.pathname.toLowerCase();
+    if (path.includes('bear-ninja')) return 'bear-ninja';
+    if (path.includes('flappy-bear')) return 'flappy-bear';
+    if (path.includes('bear-jumpventure')) return 'bear-jumpventure';
+    if (path.includes('pong')) return 'bear-pong';
+    return null;
+  }
+
+  function hasRecentTrustedActivity() {
+    return runtimeState.lastTrustedActivityAt > 0 &&
+      (Date.now() - runtimeState.lastTrustedActivityAt) <= GAME_POINTS_CONFIG.CLIENT_ACTIVITY_WINDOW_MS;
+  }
+
+  function noteTrustedActivity(event) {
+    if (event && event.isTrusted === false) {
+      return;
+    }
+
+    const now = Date.now();
+    if ((now - runtimeState.lastTrustedActivitySampleAt) < 250) {
+      return;
+    }
+
+    runtimeState.lastTrustedActivityAt = now;
+    runtimeState.lastTrustedActivitySampleAt = now;
+  }
+
+  function attachRuntimeListeners() {
+    if (!runtimeState.listenersAttached) {
+      TRUSTED_ACTIVITY_EVENTS.forEach((eventName) => {
+        window.addEventListener(eventName, noteTrustedActivity, { passive: true });
+      });
+      window.addEventListener('focus', noteTrustedActivity);
+      runtimeState.listenersAttached = true;
+    }
+
+    if (!runtimeState.visibilityAttached) {
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          primeCurrentGameSession();
+        }
+      });
+      runtimeState.visibilityAttached = true;
+    }
+  }
+
+  async function sendGameHeartbeat(gameId, walletAddress, sessionToken, { force = false, silent = false } = {}) {
+    if (!gameId || !walletAddress || !sessionToken) {
+      return { success: false, skipped: true };
+    }
+
+    const now = Date.now();
+    if (!force && runtimeState.lastHeartbeatAt && (now - runtimeState.lastHeartbeatAt) < (GAME_POINTS_CONFIG.HEARTBEAT_INTERVAL_MS - 1000)) {
+      return { success: true, skipped: true };
+    }
+
+    const visible = document.visibilityState === 'visible';
+    const focused = typeof document.hasFocus === 'function' ? document.hasFocus() : true;
+    const trustedActivity = hasRecentTrustedActivity();
+
+    if (!force && (!visible || !focused || !trustedActivity)) {
+      return { success: true, skipped: true };
+    }
+
+    if (runtimeState.heartbeatPromise) {
+      return runtimeState.heartbeatPromise;
+    }
+
+    runtimeState.heartbeatPromise = (async () => {
+      const response = await fetch(
+        `${GAME_POINTS_CONFIG.API_BASE_URL}/api/games/session/heartbeat`,
+        getRequestInit(walletAddress, {
+          'Content-Type': 'application/json'
+        }, {
+          method: 'POST',
+          body: JSON.stringify({
+            wallet_address: walletAddress,
+            game_id: gameId,
+            session_token: sessionToken,
+            visible,
+            focused,
+            trusted_activity: trustedActivity
+          })
+        })
+      );
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.success) {
+        if ([401, 409, 410].includes(response.status)) {
+          clearStoredGameSession(gameId);
+        }
+
+        const message = data.error || 'Failed to sync game activity';
+        if (!silent) {
+          throw new Error(message);
+        }
+        return { success: false, error: message };
+      }
+
+      runtimeState.lastHeartbeatAt = now;
+      return data;
+    })();
+
+    try {
+      return await runtimeState.heartbeatPromise;
+    } finally {
+      runtimeState.heartbeatPromise = null;
+    }
+  }
+
+  function startHeartbeatLoop() {
+    if (runtimeState.heartbeatTimer) {
+      return;
+    }
+
+    runtimeState.heartbeatTimer = window.setInterval(() => {
+      const gameId = detectCurrentGameId();
+      const walletAddress = getConnectedWalletAddress();
+      if (!gameId || !walletAddress) {
+        return;
+      }
+
+      ensureGameSession(gameId, walletAddress)
+        .then((sessionToken) => sendGameHeartbeat(gameId, walletAddress, sessionToken, { silent: true }))
+        .catch(() => { });
+    }, GAME_POINTS_CONFIG.HEARTBEAT_INTERVAL_MS);
+  }
+
+  function primeCurrentGameSession() {
+    attachRuntimeListeners();
+    startHeartbeatLoop();
+
+    const gameId = detectCurrentGameId();
+    const walletAddress = getConnectedWalletAddress();
+    if (!gameId || !walletAddress) {
+      return;
+    }
+
+    ensureGameSession(gameId, walletAddress).catch(() => { });
+  }
+
+  async function awardGamePoints(gameId, minutesPlayed) {
+    try {
+      const walletAddress = getConnectedWalletAddress();
+
+      if (!walletAddress) {
+        console.warn('No wallet connected, cannot award points');
+        return {
+          success: false,
+          message: 'Please connect your wallet first'
+        };
+      }
+
+      console.log(`Awarding points for ${gameId} - local estimate ${minutesPlayed} minutes...`);
+
+      const sessionToken = await ensureGameSession(gameId, walletAddress);
+      await sendGameHeartbeat(gameId, walletAddress, sessionToken, { force: true });
+
+      const response = await fetch(
+        `${GAME_POINTS_CONFIG.API_BASE_URL}/api/games/complete`,
+        getRequestInit(walletAddress, {
+          'Content-Type': 'application/json'
+        }, {
+          method: 'POST',
+          body: JSON.stringify({
+            wallet_address: walletAddress,
+            game_id: gameId,
+            session_token: sessionToken,
+            client_minutes_played: minutesPlayed
+          })
+        })
+      );
+
+      const data = await response.json().catch(() => ({}));
+      const shouldRotateSession =
+        (response.ok && data.success !== undefined) ||
+        [401, 409, 410].includes(response.status);
+
+      if (shouldRotateSession) {
+        clearStoredGameSession(gameId);
+        runtimeState.lastHeartbeatAt = 0;
+        ensureGameSession(gameId, walletAddress).catch(() => { });
+      }
+
+      if (!response.ok || !data.success) {
+        const message = data.error || data.message || 'Failed to award points';
+        console.log(`Game claim rejected: ${message}`);
+
+        if (data.minutes_today >= data.max_minutes) {
+          showLimitNotification();
+        }
+
+        return {
+          success: false,
+          message,
+          minutes_today: data.minutes_today,
+          max_minutes: data.max_minutes,
+          points_awarded: data.points_awarded || 0
+        };
+      }
+
+      console.log(`Awarded ${data.points_awarded} points from ${data.tracked_minutes ?? data.minutes_played ?? 0} tracked minutes`);
+      showPointsNotification(data.points_awarded, data.remaining_minutes, data.minutes_today, data.max_minutes);
+      window.dispatchEvent(new CustomEvent('gamePointsAwarded', { detail: data }));
+      if (window.parent && window.parent !== window) {
+        window.parent.dispatchEvent(new CustomEvent('honeyPointsUpdated', { detail: data }));
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Error awarding game points:', error);
+      return {
+        success: false,
+        message: error?.message || 'Failed to award points'
+      };
+    }
+  }
+
+  async function getDailyGameStatus(gameId) {
+    try {
+      const walletAddress = getConnectedWalletAddress();
+
+      if (!walletAddress) {
+        return {
+          success: false,
+          can_earn_points: false,
+          minutes_today: 0,
+          max_minutes: GAME_POINTS_CONFIG.MAX_DAILY_MINUTES,
+          remaining_minutes: GAME_POINTS_CONFIG.MAX_DAILY_MINUTES
+        };
+      }
+
+      const response = await fetch(
+        `${GAME_POINTS_CONFIG.API_BASE_URL}/api/games/daily-status/${walletAddress}/${gameId}`,
+        {
+          credentials: 'include'
+        }
+      );
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching daily game status:', error);
+      return { success: false };
+    }
+  }
+
+  if (typeof window !== 'undefined') {
+    window.addEventListener('load', primeCurrentGameSession);
+  }
+
+  return {
+    awardGamePoints,
+    getDailyGameStatus,
+    primeCurrentGameSession,
+    GAME_POINTS_CONFIG
+  };
+})();
+
+const awardGamePoints = gamePointsApi.awardGamePoints;
+const getDailyGameStatus = gamePointsApi.getDailyGameStatus;
+const primeCurrentGameSession = gamePointsApi.primeCurrentGameSession;
+const GAME_POINTS_CONFIG = gamePointsApi.GAME_POINTS_CONFIG;
 /**
  * Show points notification - GAME OVER STYLE
  */
@@ -208,12 +487,12 @@ function showPointsNotification(points, remaining, minutesToday, maxMinutes) {
   // Click to dismiss
   overlay.addEventListener('click', dismissOverlay);
 
-  // Auto-dismiss after 5 seconds
+  // Auto-dismiss after 3.5 seconds
   setTimeout(() => {
     if (overlay.parentElement) {
       dismissOverlay();
     }
-  }, 5000);
+  }, 3500);
 }
 
 /**
@@ -272,13 +551,13 @@ function showLimitNotification() {
     setTimeout(() => overlay.remove(), 300);
   });
 
-  // Auto-dismiss after 5 seconds
+  // Auto-dismiss after 3.5 seconds
   setTimeout(() => {
     if (overlay.parentElement) {
       overlay.style.animation = 'fadeOut 0.3s ease-out';
       setTimeout(() => overlay.remove(), 300);
     }
-  }, 5000);
+  }, 3500);
 }
 
 /**
@@ -366,11 +645,6 @@ style.textContent = `
     0%, 100% { transform: translateY(0); }
     50% { transform: translateY(-20px); }
   }
-  @keyframes rainbowShift {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-  }
 `;
 document.head.appendChild(style);
 
@@ -379,7 +653,10 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = { awardGamePoints, getDailyGameStatus, showCelebration, GAME_POINTS_CONFIG };
 }
 
-// IMPORTANT: Expose to window for browser usage
-window.awardGamePoints = awardGamePoints;
-window.getDailyGameStatus = getDailyGameStatus;
-window.showCelebration = showCelebration;
+// Also expose to browser window for games loaded via script tag
+if (typeof window !== 'undefined') {
+  window.awardGamePoints = awardGamePoints;
+  window.getDailyGameStatus = getDailyGameStatus;
+  window.showCelebration = showCelebration;
+  window.GAME_POINTS_CONFIG = GAME_POINTS_CONFIG;
+}
