@@ -62,35 +62,38 @@
 
     if (!raidId) { bailToHome(0); return; }
 
-    // ---- Fetch raid to get the real twitter_url + verify it exists ----
-    fetch('/api/raids/current', { cache: 'no-store' })
-      .then((r) => r.json())
-      .then((data) => {
-        const raids = (data && data.raids) || [];
-        const raid = raids.find((r) => Number(r.id) === raidId);
+    (async function run() {
+      try {
+        // ---- Fetch raid to get the real twitter_url + verify it exists ----
+        const listResp = await fetch('/api/raids/current', { cache: 'no-store' });
+        const list = await listResp.json();
+        const raid = ((list && list.raids) || []).find((r) => Number(r.id) === raidId);
         if (!raid || !raid.twitter_url) {
           bailToHome(0);
           return;
         }
 
-        // ---- Fire-and-forget: claim honey for this wallet if signed in ----
+        // ---- Claim honey for this wallet if signed in. AWAIT it so the
+        //      server-side insert+credit finish before we navigate away.
+        //      ~200-400ms delay, but avoids the keepalive-killed-race.
         const wallet = localStorage.getItem('bearpark_wallet');
         if (wallet) {
           try {
-            fetch('/api/raids/tg-claim', {
+            await fetch('/api/raids/tg-claim', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ wallet_address: wallet, raid_id: raidId }),
-              keepalive: true, // survives the navigation below
               cache: 'no-store'
-            }).catch(() => {});
+            });
           } catch {}
         }
 
         // ---- Off to X. One-way trip. ----
         window.location.replace(raid.twitter_url);
-      })
-      .catch(() => bailToHome(0));
+      } catch {
+        bailToHome(0);
+      }
+    })();
   })();
 </script>
 

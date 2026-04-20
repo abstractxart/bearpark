@@ -3430,7 +3430,23 @@ app.post('/api/raids/tg-claim', validateWallet, async (req, res) => {
       });
     }
 
-    // Record completion (UNIQUE constraint also protects against races)
+    // Credit honey FIRST so we never end up with a completion row but no
+    // honey (happens if the client navigation kills the request after
+    // insert but before the credit writes).
+    const { balance } = await applyHoneyDelta({
+      wallet: normalizedWallet,
+      totalDelta: reward,
+      raidingDelta: reward,
+      transactionType: 'raid_tg_click',
+      reason: `TG raid ${raid_id} click`,
+      activityType: 'raid',
+      activityId: String(raid_id)
+    });
+
+    // Record completion. If the UNIQUE (wallet, raid_id) constraint fires
+    // here (true race — two concurrent claims for the same wallet+raid),
+    // the second request credited on top of the first. Refund by reversing
+    // the delta so we don't double-pay.
     const { error: insertError } = await supabase
       .from('raid_completions')
       .insert({
@@ -3442,21 +3458,20 @@ app.post('/api/raids/tg-claim', validateWallet, async (req, res) => {
 
     if (insertError) {
       if (insertError.code === '23505') {
+        // race: someone else's completion row already exists. Refund.
+        await applyHoneyDelta({
+          wallet: normalizedWallet,
+          totalDelta: -reward,
+          raidingDelta: -reward,
+          transactionType: 'raid_tg_click_refund',
+          reason: `TG raid ${raid_id} double-claim refund`,
+          activityType: 'raid',
+          activityId: String(raid_id)
+        }).catch((e) => console.error('Refund failed:', e));
         return res.json({ success: true, alreadyCompleted: true });
       }
       throw insertError;
     }
-
-    // Credit honey
-    const { balance } = await applyHoneyDelta({
-      wallet: normalizedWallet,
-      totalDelta: reward,
-      raidingDelta: reward,
-      transactionType: 'raid_tg_click',
-      reason: `TG raid ${raid_id} click`,
-      activityType: 'raid',
-      activityId: String(raid_id)
-    });
 
     console.log(`✅ TG raid claimed: ${normalizedWallet} +${reward} pts on raid ${raid_id}`);
 
