@@ -3369,6 +3369,107 @@ app.post('/api/raids/complete', validateWallet, requireWalletOwnership(['wallet_
   }
 });
 
+// Telegram raid click — fire-and-forget claim fired by the /r/<id> redirect
+// page when a signed-in user clicks a TG raid link. No session token, no
+// timer, no Twitter verification — honor-based. One claim per wallet per
+// raid is enforced by the UNIQUE (wallet_address, raid_id) constraint on
+// the raid_completions table.
+app.post('/api/raids/tg-claim', validateWallet, async (req, res) => {
+  try {
+    const { wallet_address, raid_id } = req.body;
+    if (!wallet_address || !raid_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'wallet_address and raid_id are required'
+      });
+    }
+
+    const normalizedWallet = normalizeWalletAddress(wallet_address);
+    if (!normalizedWallet) {
+      return res.status(400).json({ success: false, error: 'Invalid wallet address' });
+    }
+
+    // Fetch raid — check it's real, active, not expired
+    const { data: raid, error: raidError } = await supabase
+      .from('raids')
+      .select('id, reward, expires_at, is_active')
+      .eq('id', raid_id)
+      .single();
+
+    if (raidError || !raid) {
+      return res.status(400).json({ success: false, error: 'Invalid raid' });
+    }
+    if (!raid.is_active) {
+      return res.status(400).json({ success: false, error: 'Raid is not active' });
+    }
+    if (raid.expires_at && new Date(raid.expires_at).getTime() <= Date.now()) {
+      return res.status(400).json({ success: false, error: 'Raid has expired' });
+    }
+
+    const reward = parseInt(raid.reward, 10) || 0;
+    if (reward <= 0 || reward > 1000) {
+      return res.status(400).json({ success: false, error: 'Invalid raid reward' });
+    }
+
+    // Block double-claim
+    const { data: existing } = await supabase
+      .from('raid_completions')
+      .select('id')
+      .eq('wallet_address', normalizedWallet)
+      .eq('raid_id', raid_id)
+      .maybeSingle();
+
+    if (existing) {
+      return res.json({
+        success: true,
+        alreadyCompleted: true,
+        message: 'Raid already claimed'
+      });
+    }
+
+    // Record completion (UNIQUE constraint also protects against races)
+    const { error: insertError } = await supabase
+      .from('raid_completions')
+      .insert({
+        wallet_address: normalizedWallet,
+        raid_id,
+        points_awarded: reward,
+        completed_at: new Date().toISOString()
+      });
+
+    if (insertError) {
+      if (insertError.code === '23505') {
+        return res.json({ success: true, alreadyCompleted: true });
+      }
+      throw insertError;
+    }
+
+    // Credit honey
+    const { balance } = await applyHoneyDelta({
+      wallet: normalizedWallet,
+      totalDelta: reward,
+      raidingDelta: reward,
+      transactionType: 'raid_tg_click',
+      reason: `TG raid ${raid_id} click`,
+      activityType: 'raid',
+      activityId: String(raid_id)
+    });
+
+    console.log(`✅ TG raid claimed: ${normalizedWallet} +${reward} pts on raid ${raid_id}`);
+
+    return res.json({
+      success: true,
+      alreadyCompleted: false,
+      points_awarded: reward,
+      total_points: balance.total_points
+    });
+
+  } catch (error) {
+    console.error('Error in /api/raids/tg-claim:', error);
+    safeErrorResponse(res, error);
+  }
+});
+
 // Award Game Points with Daily Limit (Time-Based System)
 // Uses atomic database function to prevent race condition exploits
 app.post('/api/games/session/start', validateWallet, requireWalletOwnership(['wallet_address']), async (req, res) => {
