@@ -842,9 +842,20 @@ async function applyHoneyDelta({
     try {
       await client.query('BEGIN');
 
-      const current = await getHoneyBalance(normalizedWallet, client, true);
+      // Resolve to the ACTUAL stored case for this wallet. honey_points
+      // and friends were written with mixed case over the years, so an
+      // all-lowercase normalizedWallet would ON CONFLICT-miss and create
+      // a ghost row that nobody reads. Pick whatever case is already
+      // present (ILIKE match) and use that canonical form everywhere.
+      const canonicalLookup = await client.query(
+        `SELECT wallet_address FROM honey_points WHERE wallet_address ILIKE $1 LIMIT 1`,
+        [normalizedWallet]
+      );
+      const canonicalWallet = canonicalLookup.rows[0]?.wallet_address || wallet;
+
+      const current = await getHoneyBalance(canonicalWallet, client, true);
       const newBalance = {
-        wallet_address: normalizedWallet,
+        wallet_address: canonicalWallet,
         total_points: roundHoneyAmount(current.total_points + roundedTotalDelta),
         raiding_points: roundHoneyAmount(current.raiding_points + roundedRaidingDelta),
         games_points: roundHoneyAmount(current.games_points + roundedGamesDelta)
@@ -863,7 +874,7 @@ async function applyHoneyDelta({
              games_points = EXCLUDED.games_points,
              updated_at = EXCLUDED.updated_at`,
         [
-          normalizedWallet,
+          canonicalWallet,
           newBalance.total_points,
           newBalance.raiding_points,
           newBalance.games_points
@@ -871,7 +882,7 @@ async function applyHoneyDelta({
       );
 
       await insertPointTransactionRecordDb(client, {
-        wallet: normalizedWallet,
+        wallet: canonicalWallet,
         amount: roundedTotalDelta,
         transactionType,
         reason,
@@ -879,7 +890,7 @@ async function applyHoneyDelta({
       });
 
       await insertHoneyActivityRecordDb(client, {
-        wallet: normalizedWallet,
+        wallet: canonicalWallet,
         points: roundedTotalDelta,
         activityType,
         activityId
