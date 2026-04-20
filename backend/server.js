@@ -3431,10 +3431,21 @@ app.post('/api/raids/tg-claim', validateWallet, async (req, res) => {
     try {
       await client.query('BEGIN');
 
+      // Resolve the wallet to its ACTUAL stored case. honey_points +
+      // raid_completions were written with mixed case over time (ILIKE
+      // matches them all, but upsert/ON CONFLICT is case-sensitive), so
+      // we pick whatever case already exists. If none exists anywhere,
+      // fall back to the user-supplied (pre-normalization) case.
+      const existingHoney = await client.query(
+        `SELECT wallet_address FROM honey_points WHERE wallet_address ILIKE $1 LIMIT 1`,
+        [normalizedWallet]
+      );
+      const canonicalWallet = existingHoney.rows[0]?.wallet_address || wallet_address;
+
       const existing = await client.query(
         `SELECT id FROM raid_completions
          WHERE wallet_address ILIKE $1 AND raid_id = $2`,
-        [normalizedWallet, raid_id]
+        [canonicalWallet, raid_id]
       );
       if (existing.rows.length > 0) {
         await client.query('ROLLBACK');
@@ -3445,6 +3456,8 @@ app.post('/api/raids/tg-claim', validateWallet, async (req, res) => {
         });
       }
 
+      // Upsert using the canonical wallet so ON CONFLICT actually matches
+      // the existing row instead of creating a new (lowercase) ghost row.
       await client.query(
         `INSERT INTO honey_points (wallet_address, total_points, raiding_points, games_points, updated_at)
          VALUES ($1, $2, $2, 0, NOW())
@@ -3452,23 +3465,23 @@ app.post('/api/raids/tg-claim', validateWallet, async (req, res) => {
          SET total_points = honey_points.total_points + EXCLUDED.total_points,
              raiding_points = honey_points.raiding_points + EXCLUDED.raiding_points,
              updated_at = NOW()`,
-        [normalizedWallet, reward]
+        [canonicalWallet, reward]
       );
 
       await client.query(
         `INSERT INTO raid_completions (wallet_address, raid_id, points_awarded, completed_at)
          VALUES ($1, $2, $3, NOW())`,
-        [normalizedWallet, raid_id, reward]
+        [canonicalWallet, raid_id, reward]
       );
 
       const balanceResult = await client.query(
         `SELECT total_points, raiding_points FROM honey_points WHERE wallet_address = $1`,
-        [normalizedWallet]
+        [canonicalWallet]
       );
 
       await client.query('COMMIT');
 
-      console.log(`✅ TG raid claimed: ${normalizedWallet} +${reward} pts on raid ${raid_id}`);
+      console.log(`✅ TG raid claimed: ${canonicalWallet} +${reward} pts on raid ${raid_id}`);
 
       return res.json({
         success: true,
