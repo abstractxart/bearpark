@@ -10456,9 +10456,25 @@ app.post('/api/beardrops/claim', claimRateLimiter, validateWallet, requireWallet
 
         console.error(`❌ Airdrop claim failed: ${txResult}`);
 
+        // Translate XRPL engine results into something a bear can read.
+        const friendlyByCode = {
+          tecPATH_DRY: 'You need to set up your $BEAR trustline before we can send you the BEARdrop! 🐻🍯',
+          tecNO_LINE_INSUF_RESERVE: 'Your wallet needs a bit more XRP reserve to hold a $BEAR trustline. Top up ~2 XRP and try again.',
+          tecNO_DST: 'This wallet doesn\'t exist on XRPL yet. Fund it with at least 1 XRP first, then try again.',
+          tecNO_DST_INSUF_XRP: 'This wallet needs at least 1 XRP to activate before it can receive $BEAR.',
+          tecDST_TAG_NEEDED: 'Your wallet requires a destination tag, which the airdrop doesn\'t send. Disable the tag requirement or use a different wallet.',
+          tecUNFUNDED_PAYMENT: 'The airdrop wallet is temporarily out of $BEAR. Please ping an admin — we\'ll top it up shortly.',
+          tefMAX_LEDGER: 'The transaction timed out before XRPL validated it. Try the claim again in a moment.',
+          tefPAST_SEQ: 'A temporary sequence hiccup on the airdrop wallet. Try again in a minute.',
+          tecINSUFFICIENT_RESERVE: 'Your wallet is slightly under the XRP reserve needed. Top up ~1 XRP and try again.'
+        };
+        const friendly = friendlyByCode[txResult] ||
+          `Couldn't send the BEARdrop (${txResult}). Try again in a minute, or ping an admin.`;
+
         res.status(500).json({
           success: false,
-          error: `Transaction failed: ${txResult}`
+          error: friendly,
+          code: txResult
         });
       }
     } catch (txError) {
