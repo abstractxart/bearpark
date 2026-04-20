@@ -2756,22 +2756,57 @@ app.get('/api/points/:wallet', async (req, res) => {
     const { wallet } = req.params;
     const twitterConnection = await getTwitterConnection(wallet);
 
-    const { data, error } = await supabase
-      .from('honey_points')
-      .select('*')
-      .eq('wallet_address', wallet)
-      .single();
+    // Use ILIKE (case-insensitive) so /api/points matches regardless of
+    // the URL wallet case. If there are BOTH a mixed-case canonical row
+    // and a lowercase ghost row for the same wallet (can happen from
+    // past bugs), SUM them so the user sees all their honey no matter
+    // which row future credits land in. Without this aggregation, the
+    // user sees a split balance depending on URL casing.
+    let total_points = 0;
+    let raiding_points = 0;
+    let games_points = 0;
+    let rows = [];
 
-    if (error && error.code !== 'PGRST116') { // PGRST116 = not found
-      console.error('Error fetching points:', error);
-      return safeErrorResponse(res, error);
+    if (pgPool) {
+      try {
+        const pgRes = await pgPool.query(
+          `SELECT total_points, raiding_points, games_points
+           FROM honey_points WHERE wallet_address ILIKE $1`,
+          [wallet]
+        );
+        rows = pgRes.rows;
+      } catch (pgErr) {
+        console.error('pg points query failed, falling back to supabase:', pgErr.message);
+        rows = null;
+      }
+    }
+
+    // Fallback to supabase only if pg wasn't available or failed
+    if (rows === null || !pgPool) {
+      const { data, error } = await supabase
+        .from('honey_points')
+        .select('total_points, raiding_points, games_points')
+        .ilike('wallet_address', wallet)
+        .limit(10);
+
+      if (error) {
+        console.error('Error fetching points:', error);
+        return safeErrorResponse(res, error);
+      }
+      rows = data || [];
+    }
+
+    for (const r of rows) {
+      total_points   += parseFloat(r.total_points)   || 0;
+      raiding_points += parseFloat(r.raiding_points) || 0;
+      games_points   += parseFloat(r.games_points)   || 0;
     }
 
     res.json({
       success: true,
-      total_points: data?.total_points || 0,
-      raiding_points: data?.raiding_points || 0,
-      games_points: data?.games_points || 0,
+      total_points,
+      raiding_points,
+      games_points,
       twitter_connected: !!twitterConnection,
       twitter_username: twitterConnection?.twitter_username || null
     });
@@ -3499,10 +3534,18 @@ app.post('/api/raids/tg-claim', validateWallet, async (req, res) => {
       // Resolve the wallet to its ACTUAL stored case. honey_points +
       // raid_completions were written with mixed case over time (ILIKE
       // matches them all, but upsert/ON CONFLICT is case-sensitive), so
-      // we pick whatever case already exists. If none exists anywhere,
-      // fall back to the user-supplied (pre-normalization) case.
+      // we pick whatever case already exists. If there are BOTH a
+      // mixed-case and a lowercase ghost row (from past bugs), we MUST
+      // prefer the mixed-case one because that's the canonical row the
+      // UI reads via /api/points/:wallet (which is case-sensitive .eq).
+      // Without this ORDER BY tiebreaker, pg returns rows in arbitrary
+      // order — sometimes we'd credit the ghost, the UI wouldn't see it,
+      // and the user would think their honey didn't land.
       const existingHoney = await client.query(
-        `SELECT wallet_address FROM honey_points WHERE wallet_address ILIKE $1 LIMIT 1`,
+        `SELECT wallet_address FROM honey_points
+         WHERE wallet_address ILIKE $1
+         ORDER BY CASE WHEN wallet_address <> lower(wallet_address) THEN 0 ELSE 1 END
+         LIMIT 1`,
         [normalizedWallet]
       );
       const canonicalWallet = existingHoney.rows[0]?.wallet_address || wallet_address;
