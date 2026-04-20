@@ -48,11 +48,17 @@
   function bail() { window.location.replace('/'); }
   if (!raidId) { bail(); return; }
 
-  // ---- 2. Detect mobile for deep-link handling ----------------------------
+  // ---- 2. Detect mobile + TG in-app WebView for deep-link handling --------
   const ua = navigator.userAgent || '';
   const isIOS = /iPhone|iPad|iPod/i.test(ua);
   const isAndroid = /Android/i.test(ua);
   const isMobile = isIOS || isAndroid || /Mobile/i.test(ua);
+  // Telegram's in-app browser identifies itself in the UA. It sandboxes
+  // custom URL schemes (twitter://, etc.) inside the WebView — they either
+  // error silently or get swallowed — so the twitter:// deep-link trick
+  // doesn't reach the OS and the X app never opens. Detect it and skip
+  // the custom scheme attempt entirely when we're inside TG.
+  const isTelegramWebView = /Telegram/i.test(ua) || /TelegramBot/i.test(ua);
 
   // ---- 3. Fire the tg-claim with wallet from multiple sources -------------
   // Why multiple sources: on mobile, clicking a TG link opens the link in
@@ -146,15 +152,21 @@
     const idMatch = cleanUrl.match(/\/status(?:es)?\/(\d+)/);
     const tweetId = idMatch ? idMatch[1] : null;
 
-    // Mobile: use the twitter:// custom scheme which RELIABLY opens the
-    // specific post in the X / Twitter app. Universal-link handling of
-    // https://x.com/.../status/... is flaky on iOS when triggered from a
-    // WebView — X often opens to the home feed instead of the actual
-    // tweet. The custom scheme sidesteps that entirely.
-    //
-    // Fallback: if the app is not installed the scheme does nothing and
+    // Mobile (and NOT inside TG WebView): use the twitter:// custom scheme
+    // which RELIABLY opens the specific post in the X / Twitter app.
+    // Universal-link handling of https://x.com/.../status/... is flaky on
+    // iOS when triggered from a WebView — X often opens to the home feed
+    // instead of the actual tweet. The custom scheme sidesteps that.
+    // Fallback: if the X app isn't installed the scheme does nothing and
     // the timeout kicks the user to the web URL.
-    if (isMobile && tweetId) {
+    //
+    // IMPORTANT: inside TG's in-app WebView we SKIP the custom scheme
+    // attempt. TG's WebView sandboxes twitter:// and similar non-http
+    // schemes — they don't propagate to the OS, so the X app never opens
+    // AND the page errors out before our fallback can replace the URL,
+    // leaving the user stranded. Going straight to the web URL means TG
+    // WebView at least loads x.com/.../status/<id> which is usable.
+    if (isMobile && tweetId && !isTelegramWebView) {
       const deepLink = 'twitter://status?id=' + tweetId;
 
       // If the user is redirected out to the X app, this page becomes
@@ -181,7 +193,7 @@
       return;
     }
 
-    // Desktop / app-not-installed: just use the clean web URL.
+    // Desktop, TG in-app WebView, or app-not-installed: use the clean web URL.
     window.location.replace(cleanUrl);
   }
 
