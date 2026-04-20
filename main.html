@@ -18559,7 +18559,7 @@
             const truncatedWallet = truncateWallet(raider.wallet_address);
 
             // Parse avatar URL from avatar_nft JSON
-            let avatarUrl = 'https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/v2jedg.png'; // default bear
+            let avatarUrl = '/BEAR_Coin.png'; // default bear
             if (raider.avatar_nft) {
               try {
                 const avatarData = JSON.parse(raider.avatar_nft);
@@ -18605,7 +18605,7 @@
                 <img src="${avatarUrl}"
                      alt="Avatar"
                      style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:1; width:${avatarSize}; height:${avatarSize}; border-radius:50%; object-fit:cover;"
-                     onerror="this.src='https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/v2jedg.png'">
+                     onerror="this.src='/BEAR_Coin.png'">
                 <img src="${equippedRing.image_url}"
                      alt="Ring"
                      style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%)${ouroborosRotation}; width:${ringSize}; height:${ringSize}; object-fit:contain; z-index:2; pointer-events:none; ${spinAnimation}">
@@ -18613,7 +18613,7 @@
             `;
             } else {
               // No ring, just avatar
-              avatarHTML = `<img src="${avatarUrl}" alt="Avatar" class="raider-avatar" onerror="this.src='https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/v2jedg.png'">`;
+              avatarHTML = `<img src="${avatarUrl}" alt="Avatar" class="raider-avatar" onerror="this.src='/BEAR_Coin.png'">`;
             }
 
             html += `
