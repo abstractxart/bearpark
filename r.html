@@ -4,191 +4,39 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="theme-color" content="#141619" />
-<title>BEAR Park — Raid in progress</title>
+<title>BEAR Park</title>
 <meta name="robots" content="noindex" />
-
-<meta property="og:title" content="BEAR Park — Raid in progress" />
+<meta property="og:title" content="BEAR Park Raid" />
 <meta property="og:description" content="Joining the raid." />
 <meta property="og:type" content="website" />
-
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Nunito:wght@500;700;900&display=swap" rel="stylesheet" />
-
 <style>
-  :root {
-    --gold: #ffae00;
-    --gold-ink: #231b04;
-    --charcoal: #141619;
-    --purple: #680cd9;
-    --green: #07ae08;
-    --tri: linear-gradient(to right,
-      var(--purple) 0%, var(--purple) 33.33%,
-      var(--gold) 33.33%, var(--gold) 66.66%,
-      var(--green) 66.66%, var(--green) 100%);
-  }
-  *, *::before, *::after { box-sizing: border-box; }
   html, body {
-    margin: 0;
-    padding: 0;
-    min-height: 100vh;
-    background:
-      radial-gradient(900px 500px at 50% -50px, rgba(104, 12, 217, 0.18), transparent 60%),
-      radial-gradient(700px 400px at 100% 100%, rgba(7, 174, 8, 0.12), transparent 60%),
-      var(--charcoal);
-    color: #fff;
-    font-family: 'Nunito', -apple-system, system-ui, sans-serif;
-    font-weight: 500;
-    overflow-x: hidden;
+    margin: 0; padding: 0; height: 100%;
+    background: #141619; color: #fff;
+    font-family: system-ui, -apple-system, sans-serif;
+    display: grid; place-items: center; overflow: hidden;
   }
-  .tri { height: 8px; width: 100%; background: var(--tri); }
-  main { max-width: 520px; margin: 0 auto; padding: 40px 20px 60px; text-align: center; }
-
-  .kicker { font-size: 12px; letter-spacing: 4px; color: var(--gold); font-weight: 900; text-transform: uppercase; opacity: 0.85; margin-bottom: 10px; }
-  h1 {
-    font-family: 'Luckiest Guy', sans-serif;
-    font-size: clamp(40px, 8vw, 60px);
-    line-height: 1;
-    margin: 0 0 18px;
-    letter-spacing: 1.5px;
-    text-shadow: 0 2px 0 rgba(0,0,0,0.35), 0 0 30px rgba(255, 174, 0, 0.25);
+  .wrap { text-align: center; opacity: 0.7; }
+  .spinner {
+    width: 32px; height: 32px;
+    border: 3px solid rgba(255, 174, 0, 0.18);
+    border-top-color: #ffae00;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    margin: 0 auto 12px;
   }
-  .sub { color: rgba(255,255,255,0.72); font-size: 15px; line-height: 1.5; max-width: 420px; margin: 0 auto 30px; }
-
-  /* Countdown ring */
-  .ring-wrap {
-    position: relative;
-    width: 220px;
-    height: 220px;
-    margin: 0 auto 28px;
-  }
-  .ring-wrap svg { transform: rotate(-90deg); width: 100%; height: 100%; }
-  .ring-track { fill: none; stroke: rgba(255, 174, 0, 0.1); stroke-width: 12; }
-  .ring-progress {
-    fill: none;
-    stroke: url(#ringGrad);
-    stroke-width: 12;
-    stroke-linecap: round;
-    transition: stroke-dashoffset 1s linear;
-  }
-  .ring-label {
-    position: absolute; inset: 0;
-    display: grid; place-items: center; text-align: center;
-  }
-  .ring-seconds {
-    font-family: 'Luckiest Guy', sans-serif;
-    font-size: 72px;
-    line-height: 1;
-    color: #fff;
-    letter-spacing: 1px;
-  }
-  .ring-unit {
-    font-size: 14px;
-    letter-spacing: 3px;
-    color: var(--gold);
-    font-weight: 900;
-    text-transform: uppercase;
-    margin-top: 6px;
-  }
-
-  .pill {
-    display: inline-block;
-    padding: 8px 18px;
-    border-radius: 999px;
-    background: rgba(255, 174, 0, 0.1);
-    border: 1px solid rgba(255, 174, 0, 0.3);
-    color: var(--gold);
-    font-weight: 900;
-    font-size: 13px;
-    letter-spacing: 1px;
-    margin-bottom: 24px;
-  }
-
-  .cta {
-    display: inline-block;
-    padding: 14px 28px;
-    background: linear-gradient(135deg, var(--gold), #ffca3a);
-    color: var(--gold-ink);
-    text-decoration: none;
-    font-family: 'Luckiest Guy', sans-serif;
-    font-size: 18px;
-    letter-spacing: 1.5px;
-    border-radius: 14px;
-    box-shadow: 0 6px 20px rgba(255, 174, 0, 0.35);
-    transition: transform 0.2s;
-  }
-  .cta:hover { transform: translateY(-2px); }
-
-  .secondary-link {
-    display: inline-block;
-    margin-top: 10px;
-    color: rgba(255,255,255,0.6);
-    font-size: 13px;
-    text-decoration: underline;
-    text-decoration-color: rgba(255,255,255,0.3);
-    text-underline-offset: 3px;
-  }
-
-  .brand {
-    text-align: center;
-    margin-top: 32px;
-    color: rgba(255, 255, 255, 0.28);
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 2px;
-  }
-  .brand a { color: var(--gold); text-decoration: none; }
-
-  /* SUCCESS STATE */
-  .success h1 { color: var(--green); }
-  .reward-bubble {
-    display: inline-block;
-    font-family: 'Luckiest Guy', sans-serif;
-    font-size: 48px;
-    color: var(--gold);
-    text-shadow: 0 0 30px rgba(255, 174, 0, 0.5);
-    margin: 10px 0;
-  }
-
-  /* ERROR STATE */
-  .err .kicker { color: #ff6b6b; }
-  .err h1 { color: #ff9a9a; }
-
-  /* NOT-SIGNED-IN STATE */
-  .signin-panel {
-    background: rgba(30, 34, 38, 0.9);
-    border: 1px solid rgba(255, 174, 0, 0.2);
-    border-radius: 16px;
-    padding: 22px;
-    margin: 20px auto 0;
-    max-width: 440px;
-    text-align: left;
-  }
-  .signin-panel h3 {
-    margin: 0 0 8px;
-    font-family: 'Luckiest Guy', sans-serif;
-    font-size: 22px;
-    color: var(--gold);
-    letter-spacing: 1px;
-  }
-  .signin-panel p { margin: 0 0 14px; font-size: 14px; color: rgba(255,255,255,0.75); line-height: 1.5; }
+  .msg { font-size: 13px; letter-spacing: 2px; color: rgba(255,255,255,0.5); }
+  @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
-<div class="tri"></div>
-<main id="app">
-  <div class="kicker">🐻 BEAR Park</div>
-  <h1>🪖 RAID</h1>
-  <p class="sub">Loading raid…</p>
-</main>
-<div class="tri"></div>
-
+<div class="wrap">
+  <div class="spinner"></div>
+  <div class="msg">joining raid…</div>
+</div>
 <script>
 (function() {
-  const MIN_SECONDS = 115; // server-enforced minimum. 120 with a bit of headroom.
-  const app = document.getElementById('app');
-
-  // ---- Read raid id ----
+  // Read raid id from ?id=N or /r/<id>
   const params = new URLSearchParams(window.location.search);
   let raidId = params.get('id');
   if (!raidId) {
@@ -197,202 +45,40 @@
   }
   raidId = raidId ? parseInt(raidId, 10) : null;
 
-  function escapeHtml(s) {
-    return String(s == null ? '' : s)
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
-  }
+  function bail() { window.location.replace('/'); }
+  if (!raidId) { bail(); return; }
 
-  function renderError(title, msg) {
-    app.classList.add('err');
-    app.innerHTML = `
-      <div class="kicker">🐻 BEAR Park</div>
-      <h1>Hmm…</h1>
-      <p class="sub"><b>${escapeHtml(title)}</b><br>${escapeHtml(msg)}</p>
-      <a class="cta" href="/">BACK TO BEAR PARK</a>
-      <p class="brand">POWERED BY <a href="/">BEARPARK.XYZ</a></p>
-    `;
-  }
-
-  function renderSignedOutRedirect(tweetUrl) {
-    // No wallet on this device — no credit possible. Send them straight to the tweet.
-    app.innerHTML = `
-      <div class="kicker">🐻 BEAR Park</div>
-      <h1>RAID</h1>
-      <p class="sub">Sign in with BEAR Park on this device to earn honey for raids. Sending you to the tweet now…</p>
-    `;
-    setTimeout(() => { window.location.replace(tweetUrl); }, 1200);
-  }
-
-  function renderSuccess(reward) {
-    app.classList.add('success');
-    app.innerHTML = `
-      <div class="kicker">🐻 BEAR Park</div>
-      <h1>HONEY IN.</h1>
-      <div class="reward-bubble">+${reward} 🍯</div>
-      <p class="sub">Credit landed in your BEAR Park account. Onward and upward.</p>
-      <a class="cta" href="/">BACK TO BEAR PARK</a>
-      <p class="brand">POWERED BY <a href="/">BEARPARK.XYZ</a></p>
-    `;
-  }
-
-  function renderAlready(msg) {
-    app.innerHTML = `
-      <div class="kicker">🐻 BEAR Park</div>
-      <h1>ALREADY CLAIMED</h1>
-      <p class="sub">${escapeHtml(msg || 'You already completed this raid. One claim per bear.')}</p>
-      <a class="cta" href="/">BACK TO BEAR PARK</a>
-      <p class="brand">POWERED BY <a href="/">BEARPARK.XYZ</a></p>
-    `;
-  }
-
-  function renderInProgress(raid, tweetUrl) {
-    const reward = Number(raid.reward || 0);
-    const C = 2 * Math.PI * 96; // circumference of r=96 circle
-
-    app.innerHTML = `
-      <div class="kicker">🪖 Raid in progress</div>
-      <h1>HOLD THE LINE</h1>
-      <p class="sub">
-        Go engage the tweet. Honey lands in your account when the timer hits zero.
-      </p>
-
-      <div class="ring-wrap">
-        <svg viewBox="0 0 220 220" aria-hidden="true">
-          <defs>
-            <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stop-color="#680cd9"/>
-              <stop offset="50%" stop-color="#ffae00"/>
-              <stop offset="100%" stop-color="#07ae08"/>
-            </linearGradient>
-          </defs>
-          <circle class="ring-track" cx="110" cy="110" r="96"/>
-          <circle class="ring-progress" id="ring" cx="110" cy="110" r="96"
-                  stroke-dasharray="${C.toFixed(2)}" stroke-dashoffset="0"/>
-        </svg>
-        <div class="ring-label">
-          <div>
-            <div class="ring-seconds" id="seconds">${MIN_SECONDS}</div>
-            <div class="ring-unit">seconds</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="pill">🍯  ${reward} honey on deck</div>
-      <br>
-      <a class="cta" href="${escapeHtml(tweetUrl)}" target="_blank" rel="noopener noreferrer" id="openTweetBtn">OPEN TWEET AGAIN ↗</a>
-      <br>
-      <a class="secondary-link" href="/">Back to BEAR Park →</a>
-      <p class="brand">POWERED BY <a href="/">BEARPARK.XYZ</a></p>
-    `;
-
-    // Try to auto-open the tweet in a new tab. Mobile browsers often block
-    // this unless it's inside a user-gesture, so we also render the big
-    // "OPEN TWEET" CTA above that works unambiguously on tap.
-    let tweetWin = null;
-    try { tweetWin = window.open(tweetUrl, '_blank', 'noopener'); } catch {}
-
-    return {
-      totalSeconds: MIN_SECONDS,
-      C,
-      updateTimer(remaining) {
-        const secondsEl = document.getElementById('seconds');
-        const ringEl = document.getElementById('ring');
-        if (secondsEl) secondsEl.textContent = String(Math.max(0, Math.ceil(remaining)));
-        if (ringEl) {
-          const pct = Math.max(0, Math.min(1, remaining / MIN_SECONDS));
-          ringEl.setAttribute('stroke-dashoffset', (C * (1 - pct)).toFixed(2));
-        }
-      }
-    };
-  }
-
-  async function runFlow() {
-    if (!raidId) { renderError('Missing raid', 'This link has no raid id.'); return; }
-
-    // Fetch raid info
-    let raid;
+  (async function run() {
+    // Get the tweet URL so we can redirect there after the invisible claim
+    let tweetUrl = '';
     try {
-      const listResp = await fetch('/api/raids/current', { cache: 'no-store' });
-      const list = await listResp.json();
-      raid = ((list && list.raids) || []).find((r) => Number(r.id) === raidId);
+      const list = await fetch('/api/raids/current', { cache: 'no-store' }).then((r) => r.json());
+      const raid = ((list && list.raids) || []).find((r) => Number(r.id) === raidId);
+      tweetUrl = (raid && raid.twitter_url) || '';
     } catch {}
-    if (!raid || !raid.twitter_url) {
-      renderError('Raid not found', 'This raid may have ended or been removed.');
-      return;
-    }
-    const tweetUrl = raid.twitter_url;
+    if (!tweetUrl) { bail(); return; }
 
     const wallet = localStorage.getItem('bearpark_wallet');
-    if (!wallet) {
-      renderSignedOutRedirect(tweetUrl);
-      return;
-    }
 
-    // Start the session — same endpoint the main site uses.
-    const authToken = (localStorage.getItem('bearpark_auth_token') || '').trim();
-    const authTokenWallet = (localStorage.getItem('bearpark_auth_token_wallet') || '').toLowerCase();
-    const authHeader = authToken && authTokenWallet === wallet.toLowerCase() ? { 'Authorization': 'Bearer ' + authToken } : {};
-
-    let sessionToken;
-    try {
-      const sResp = await fetch('/api/raids/session/start', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json', ...authHeader },
-        body: JSON.stringify({ wallet_address: wallet, raid_id: raidId })
-      });
-      const sData = await sResp.json();
-      if (!sResp.ok || !sData.success || !sData.session_token) {
-        renderError('Could not start raid', sData.error || 'Unknown error from server.');
-        return;
-      }
-      sessionToken = sData.session_token;
-    } catch (e) {
-      renderError('Network error', 'Could not reach BEAR Park. Try again in a moment.');
-      return;
-    }
-
-    // Render the countdown + open tweet
-    const timer = renderInProgress(raid, tweetUrl);
-    const startedAt = Date.now();
-
-    const tick = () => {
-      const elapsed = (Date.now() - startedAt) / 1000;
-      const remaining = Math.max(0, timer.totalSeconds - elapsed);
-      timer.updateTimer(remaining);
-      if (remaining <= 0) {
-        clearInterval(intervalId);
-        complete();
-      }
-    };
-    const intervalId = setInterval(tick, 250);
-
-    async function complete() {
+    // If signed in on this device, fire the TG claim. This credits honey
+    // immediately (no 120s timer, no visible UI) and also logs the raid
+    // to honey_points_activity for BEARdrops 24h. Fire-and-wait briefly so
+    // the credit lands even if the browser kills the request on nav.
+    if (wallet) {
       try {
-        const cResp = await fetch('/api/raids/complete', {
+        await fetch('/api/raids/tg-claim', {
           method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json', ...authHeader },
-          body: JSON.stringify({ wallet_address: wallet, raid_id: raidId, session_token: sessionToken })
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ wallet_address: wallet, raid_id: raidId }),
+          cache: 'no-store',
+          keepalive: true
         });
-        const cData = await cResp.json();
-        if (cData.alreadyCompleted) {
-          renderAlready(cData.message);
-          return;
-        }
-        if (cResp.ok && cData.success) {
-          renderSuccess(cData.points_awarded || Number(raid.reward || 0));
-          return;
-        }
-        renderError('Could not credit honey', cData.error || 'Unknown error.');
-      } catch (e) {
-        renderError('Network error', 'Could not finalize the raid. Your session may still be valid — try the main site.');
-      }
+      } catch {}
     }
-  }
 
-  runFlow();
+    // One-way trip to the tweet — no BEAR Park page in the user's face.
+    window.location.replace(tweetUrl);
+  })();
 })();
 </script>
 </body>
