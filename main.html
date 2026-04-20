@@ -13551,13 +13551,8 @@
     </div>
   </section>
 
-  <!-- PWA Install & Notifications Controls -->
-  <div id="pwaControls" style="display:none;position:fixed;bottom:100px;right:20px;z-index:9999;max-width:300px;">
-    <button id="installAppBtn"
-      style="display:none;width:100%;padding:14px 20px;margin-bottom:10px;background:linear-gradient(135deg,#8b5cf6,#ec4899);color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:900;cursor:pointer;box-shadow:0 4px 12px rgba(139,92,246,0.5);text-shadow:0 1px 2px rgba(0,0,0,0.3);transition:all 0.2s;">
-      📱 Install BEAR Park App
-    </button>
-  </div>
+  <!-- PWA Install prompt removed per UX request -->
+  <div id="pwaControls" style="display:none;"></div>
 
   <style>
     #pwaControls button:hover:not(:disabled) {
@@ -14093,7 +14088,7 @@
         'https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/2weeov.png',
         'https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/ijhbbj.png',
         'https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/6t4s3b.png',
-        'https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/ugu1kl.png',
+        '/BEAR_Coin.png',
         'https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/y72z5w.png',
         'https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/6a7p84.png',
         'https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/qwh0mg.png'
@@ -17558,7 +17553,7 @@
               const displayName = entry.display_name || `${entry.wallet_address.substring(0, 6)}...${entry.wallet_address.substring(entry.wallet_address.length - 4)}`;
 
               // Get avatar URL
-              let avatarUrl = 'https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/ugu1kl.png'; // default
+              let avatarUrl = '/BEAR_Coin.png'; // default
               if (entry.avatar_nft) {
                 try {
                   const avatarData = JSON.parse(entry.avatar_nft);
@@ -17611,7 +17606,7 @@
                        alt="${displayName} avatar"
                        class="leaderboard-avatar-img"
                        style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:1; width:${avatarSize}; height:${avatarSize}; border-radius:50%; object-fit:cover;"
-                       onerror="this.src='https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/ugu1kl.png'">
+                       onerror="this.src='/BEAR_Coin.png'">
                   <img src="${equippedRing.image_url}"
                        alt="Ring"
                        class="${ringClass}"
@@ -17623,7 +17618,7 @@
                 avatarHTML = `<img src="${avatarUrl}"
                    style="width:40px; height:40px; border-radius:50%; object-fit:cover; margin-right:8px;"
                    alt="${displayName} avatar"
-                   onerror="this.src='https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/ugu1kl.png'">`;
+                   onerror="this.src='/BEAR_Coin.png'">`;
               }
 
               return `
@@ -20431,11 +20426,11 @@
           welcomeAvatar.src = localProfile.avatar_url;
           welcomeAvatarContainer.style.display = 'block';
           welcomeAvatar.onerror = function () {
-            this.src = 'https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/ugu1kl.png';
+            this.src = '/BEAR_Coin.png';
           };
         } else {
           // Show default bear avatar if no avatar is set
-          welcomeAvatar.src = 'https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/ugu1kl.png';
+          welcomeAvatar.src = '/BEAR_Coin.png';
           welcomeAvatarContainer.style.display = 'block';
         }
 
@@ -20495,7 +20490,7 @@
                       if (avatarData.fallbackImageUrl && this.src !== avatarData.fallbackImageUrl) {
                         this.src = avatarData.fallbackImageUrl;
                       } else {
-                        this.src = 'https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/ugu1kl.png';
+                        this.src = '/BEAR_Coin.png';
                       }
                     };
                   }
@@ -20585,7 +20580,7 @@
                 const equippedRing = equippedCosmetics[entry.wallet_address]?.ring;
 
                 // Get avatar URL
-                let avatarUrl = 'https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/ugu1kl.png';
+                let avatarUrl = '/BEAR_Coin.png';
                 if (entry.avatar_nft) {
                   try {
                     const avatarData = JSON.parse(entry.avatar_nft);
@@ -20634,7 +20629,7 @@
                          alt="${displayName} avatar"
                          class="leaderboard-avatar-img"
                          style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:1; width:${avatarSize}; height:${avatarSize}; border-radius:50%; object-fit:cover;"
-                         onerror="this.src='https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/ugu1kl.png'">
+                         onerror="this.src='/BEAR_Coin.png'">
                     <img src="${equippedRing.image_url}"
                          alt="Ring"
                          class="${ringClass}"
@@ -20646,7 +20641,7 @@
                      class="leaderboard-avatar-simple"
                      style="width:40px; height:40px; border-radius:50%; object-fit:cover; margin-right:8px;"
                      alt="${displayName} avatar"
-                     onerror="this.src='https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/ugu1kl.png'">`;
+                     onerror="this.src='/BEAR_Coin.png'">`;
                 }
 
                 // For BEAR PONG, show weighted score + W/L stats
@@ -20853,12 +20848,12 @@
             try {
               const avatarData = JSON.parse(user.avatar_nft);
               const avatarUrl = avatarData.imageUrl || avatarData.fallbackImageUrl;
-              avatarHTML = `<img src="${avatarUrl}" class="community-user-avatar" alt="${displayName}" onerror="this.src='https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/ugu1kl.png'">`;
+              avatarHTML = `<img src="${avatarUrl}" class="community-user-avatar" alt="${displayName}" onerror="this.src='/BEAR_Coin.png'">`;
             } catch (e) {
-              avatarHTML = `<img src="https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/ugu1kl.png" class="community-user-avatar" alt="${displayName}">`;
+              avatarHTML = `<img src="/BEAR_Coin.png" class="community-user-avatar" alt="${displayName}">`;
             }
           } else {
-            avatarHTML = `<img src="https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/ugu1kl.png" class="community-user-avatar" alt="${displayName}">`;
+            avatarHTML = `<img src="/BEAR_Coin.png" class="community-user-avatar" alt="${displayName}">`;
           }
 
           // Follow button (only show if not viewing own profile and user is logged in)
@@ -21368,12 +21363,12 @@
             try {
               const avatarData = JSON.parse(user.avatar_nft);
               const avatarUrl = avatarData.imageUrl || avatarData.fallbackImageUrl;
-              avatarHTML = `<img src="${avatarUrl}" class="bear-user-avatar" alt="${displayName}" onerror="this.src='https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/ugu1kl.png'">`;
+              avatarHTML = `<img src="${avatarUrl}" class="bear-user-avatar" alt="${displayName}" onerror="this.src='/BEAR_Coin.png'">`;
             } catch (e) {
-              avatarHTML = `<img src="https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/ugu1kl.png" class="bear-user-avatar" alt="${displayName}">`;
+              avatarHTML = `<img src="/BEAR_Coin.png" class="bear-user-avatar" alt="${displayName}">`;
             }
           } else {
-            avatarHTML = `<img src="https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/ugu1kl.png" class="bear-user-avatar" alt="${displayName}">`;
+            avatarHTML = `<img src="/BEAR_Coin.png" class="bear-user-avatar" alt="${displayName}">`;
           }
 
           return `
@@ -21487,12 +21482,12 @@
 
             // If no avatar set, use default bear avatar
             if (!avatarUrl) {
-              avatarUrl = 'https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/ugu1kl.png';
+              avatarUrl = '/BEAR_Coin.png';
             }
 
             profilePictureDisplay.src = avatarUrl;
             profilePictureDisplay.onerror = function () {
-              this.src = 'https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/ugu1kl.png';
+              this.src = '/BEAR_Coin.png';
             };
             profilePictureDisplay.classList.add('loaded');
             profilePicturePlaceholder.style.display = 'none';
@@ -22063,12 +22058,12 @@
             try {
               const avatarData = JSON.parse(user.avatar_nft);
               const avatarUrl = avatarData.imageUrl || avatarData.fallbackImageUrl;
-              avatarHTML = `<img src="${avatarUrl}" class="follow-list-avatar" alt="${displayName}" onerror="this.src='https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/ugu1kl.png'">`;
+              avatarHTML = `<img src="${avatarUrl}" class="follow-list-avatar" alt="${displayName}" onerror="this.src='/BEAR_Coin.png'">`;
             } catch (e) {
-              avatarHTML = `<img src="https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/ugu1kl.png" class="follow-list-avatar" alt="${displayName}">`;
+              avatarHTML = `<img src="/BEAR_Coin.png" class="follow-list-avatar" alt="${displayName}">`;
             }
           } else {
-            avatarHTML = `<img src="https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/ugu1kl.png" class="follow-list-avatar" alt="${displayName}">`;
+            avatarHTML = `<img src="/BEAR_Coin.png" class="follow-list-avatar" alt="${displayName}">`;
           }
 
           return `
@@ -22195,12 +22190,12 @@
           try {
             const avatarData = JSON.parse(comment.commenter_avatar);
             const avatarUrl = avatarData.imageUrl || avatarData.fallbackImageUrl;
-            avatarHTML = `<img src="${avatarUrl}" class="comment-avatar" alt="${comment.commenter_name}" onerror="this.src='https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/ugu1kl.png';">`;
+            avatarHTML = `<img src="${avatarUrl}" class="comment-avatar" alt="${comment.commenter_name}" onerror="this.src='/BEAR_Coin.png';">`;
           } catch (e) {
-            avatarHTML = `<img src="https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/ugu1kl.png" class="comment-avatar" alt="${comment.commenter_name}">`;
+            avatarHTML = `<img src="/BEAR_Coin.png" class="comment-avatar" alt="${comment.commenter_name}">`;
           }
         } else {
-          avatarHTML = `<img src="https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/ugu1kl.png" class="comment-avatar" alt="${comment.commenter_name}">`;
+          avatarHTML = `<img src="/BEAR_Coin.png" class="comment-avatar" alt="${comment.commenter_name}">`;
         }
 
         // Load reactions
@@ -23440,26 +23435,10 @@
       }
     })();
 
-    // PWA Install & Notifications
-    let deferredPrompt;
-
+    // PWA install prompt removed — suppress the browser's default banner too
+    // so nothing pops up asking the user to install the app.
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
-      deferredPrompt = e;
-      const btn = document.getElementById('installAppBtn');
-      if (btn) {
-        btn.style.display = 'block';
-        document.getElementById('pwaControls').style.display = 'block';
-      }
-    });
-
-    document.getElementById('installAppBtn')?.addEventListener('click', async () => {
-      if (!deferredPrompt) return;
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      console.log(`🐻 PWA install: ${outcome}`);
-      deferredPrompt = null;
-      document.getElementById('installAppBtn').style.display = 'none';
     });
 
 
@@ -23641,16 +23620,16 @@
                 const avatarData = JSON.parse(avatarNft);
                 const avatarUrl = avatarData.imageUrl || avatarData.fallbackImageUrl;
                 if (avatarUrl) {
-                  avatarHTML = `<img src="${avatarUrl}" style="width:40px; height:40px; border-radius:50%; object-fit:cover;" alt="${displayName} avatar" onerror="this.src='https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/ugu1kl.png'">`;
+                  avatarHTML = `<img src="${avatarUrl}" style="width:40px; height:40px; border-radius:50%; object-fit:cover;" alt="${displayName} avatar" onerror="this.src='/BEAR_Coin.png'">`;
                 }
               } catch (e) {
                 // If not JSON, try using it directly as NFT ID
-                avatarHTML = `<img src="https://nft.xrpl-labs.com/${avatarNft}" style="width:40px; height:40px; border-radius:50%; object-fit:cover;" alt="${displayName} avatar" onerror="this.src='https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/ugu1kl.png'">`;
+                avatarHTML = `<img src="https://nft.xrpl-labs.com/${avatarNft}" style="width:40px; height:40px; border-radius:50%; object-fit:cover;" alt="${displayName} avatar" onerror="this.src='/BEAR_Coin.png'">`;
               }
             }
             // Default avatar if none provided
             if (!avatarHTML) {
-              avatarHTML = `<img src="https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/ugu1kl.png" style="width:40px; height:40px; border-radius:50%; object-fit:cover;" alt="${displayName} avatar">`;
+              avatarHTML = `<img src="/BEAR_Coin.png" style="width:40px; height:40px; border-radius:50%; object-fit:cover;" alt="${displayName} avatar">`;
             }
             return avatarHTML;
           };
