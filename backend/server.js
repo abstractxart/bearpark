@@ -3076,11 +3076,12 @@ app.post('/api/raids/check-completion', validateWallet, async (req, res) => {
       return res.status(400).json({ error: 'wallet_address and raid_id are required' });
     }
 
-    // Check if already completed
+    // Check if already completed — ILIKE so legacy lowercase rows
+    // and modern canonical rows are both detected for the same wallet.
     const { data, error } = await supabase
       .from('raid_completions')
       .select('*')
-      .eq('wallet_address', wallet_address)
+      .ilike('wallet_address', wallet_address)
       .eq('raid_id', raid_id)
       .maybeSingle();
 
@@ -3154,11 +3155,12 @@ app.get('/api/raids/completed/:wallet_address', async (req, res) => {
       return res.status(400).json({ error: 'wallet_address is required' });
     }
 
-    // Get all completed raids
+    // Get all completed raids. ILIKE so mixed-case legacy rows and
+    // modern canonical rows all surface for the same wallet.
     const { data, error } = await supabase
       .from('raid_completions')
       .select('raid_id, completed_at, points_awarded')
-      .eq('wallet_address', wallet_address)
+      .ilike('wallet_address', wallet_address)
       .order('completed_at', { ascending: false });
 
     if (error) {
