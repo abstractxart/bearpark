@@ -7877,6 +7877,78 @@ app.post('/api/admin/merge-ghost-wallets', verifyAdmin, async (req, res) => {
   }
 });
 
+// Zero out all honey_points rows matching a wallet (case-insensitive),
+// and clear raid_completions + honey_points_activity for that wallet.
+// Used to reset a single user to a clean slate — handy for test wallets
+// after the ghost-split bug left them with duplicate rows. Master only.
+app.post('/api/admin/reset-wallet', verifyAdmin, async (req, res) => {
+  try {
+    const { target_wallet } = req.body;
+    if (!target_wallet) {
+      return res.status(400).json({ success: false, error: 'target_wallet required' });
+    }
+    if (req.adminRole !== 'master') {
+      return res.status(403).json({ success: false, error: 'Only MASTER accounts can reset wallets' });
+    }
+    if (!pgPool) {
+      return res.status(500).json({ success: false, error: 'pg pool unavailable' });
+    }
+
+    const client = await pgPool.connect();
+    const result = { walletsZeroed: [], raidCompletionsCleared: 0, activityCleared: 0 };
+
+    try {
+      await client.query('BEGIN');
+
+      // 1. Zero every honey_points row matching ILIKE. Returns the rows
+      //    we touched so the caller can see exactly which cases existed.
+      const zeroRes = await client.query(
+        `UPDATE honey_points
+            SET total_points   = 0,
+                raiding_points = 0,
+                games_points   = 0,
+                updated_at     = NOW()
+          WHERE wallet_address ILIKE $1
+          RETURNING wallet_address`,
+        [target_wallet]
+      );
+      result.walletsZeroed = zeroRes.rows.map(r => r.wallet_address);
+
+      // 2. Clear raid_completions so the user can re-test raids.
+      const rcRes = await client.query(
+        `DELETE FROM raid_completions WHERE wallet_address ILIKE $1 RETURNING id`,
+        [target_wallet]
+      );
+      result.raidCompletionsCleared = rcRes.rowCount;
+
+      // 3. Clear honey_points_activity so the 24h BEARdrops counter resets.
+      try {
+        const actRes = await client.query(
+          `DELETE FROM honey_points_activity WHERE wallet_address ILIKE $1 RETURNING id`,
+          [target_wallet]
+        );
+        result.activityCleared = actRes.rowCount;
+      } catch (e) {
+        console.error('activity clear failed (table may not exist):', e.message);
+      }
+
+      await client.query('COMMIT');
+
+      console.log(`🧹 Wallet reset by ${req.adminWallet}: ${target_wallet}`, JSON.stringify(result));
+
+      return res.json({ success: true, ...result });
+    } catch (txErr) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw txErr;
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Error in /api/admin/reset-wallet:', error);
+    safeErrorResponse(res, error);
+  }
+});
+
 // Set a specific user's honey points (master only)
 app.post('/api/admin/set-user-points', verifyAdmin, async (req, res) => {
   try {
