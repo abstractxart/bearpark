@@ -5,8 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>BEAR Park - Admin Raid Creator</title>
   <!-- BROWSER COMPATIBILITY: Polyfills -->
-  <script>if(typeof Promise==='undefined'){document.write('<script src="https://cdn.jsdelivr.net/npm/promise-polyfill@8/dist/polyfill.min.js"><\/script>')}</script>
-  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6,fetch,URLSearchParams,Array.from,Object.assign"></script>
+<script>if(typeof Promise==='undefined'){document.write('<script src="https://cdn.jsdelivr.net/npm/promise-polyfill@8/dist/polyfill.min.js"><\/script>')}</script>
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6,fetch,URLSearchParams,Array.from,Object.assign"></script>
+<script src="/auth-fetch.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
   <style>
     /* ==== BEAR PARK THEME =========================================================== */
@@ -617,6 +618,19 @@
           <input type="number" id="pointsPerParticipation" value="15" min="1" max="100">
         </div>
 
+        <div class="form-group">
+          <label for="raidVerificationType">Verification Type *</label>
+          <select id="raidVerificationType" required style="background: var(--charcoal); border: 2px solid var(--stripe-yellow); color: white; padding: 12px; border-radius: 8px; width: 100%; font-family: 'Nunito', sans-serif; font-size: 16px;">
+            <option value="retweet">Retweet or Repost</option>
+            <option value="like">Like</option>
+            <option value="reply">Reply</option>
+            <option value="unverified">Unverified (reward disabled)</option>
+          </select>
+          <div class="small-text" style="margin-top: 8px;">
+            Only like, retweet, and reply raids can pay Honey Points. Unverified raids stay visible but cannot be claimed.
+          </div>
+        </div>
+
         <button type="submit">🚀 Create Raid</button>
         </form>
       </div>
@@ -812,12 +826,11 @@
         throw new Error('Please connect your wallet first');
       }
 
-      const headers = {
-        ...options.headers,
-        'X-Admin-Wallet': adminWallet
-      };
-
-      return fetch(url, { ...options, headers });
+      return fetch(url, {
+        ...options,
+        credentials: options.credentials || 'include',
+        headers: options.headers || {}
+      });
     }
 
     async function connectWallet() {
@@ -937,6 +950,7 @@
             <h3>${raid.description}</h3>
             <p><strong>URL:</strong> ${raid.twitter_url}</p>
             <p><strong>Reward:</strong> ${raid.reward} points</p>
+            <p><strong>Verification:</strong> ${(raid.verification_type || 'unverified').toUpperCase()}</p>
             <p><strong>Handle:</strong> ${raid.profile_handle}</p>
             <p><strong>Expires:</strong> ${new Date(raid.expires_at).toLocaleString()}</p>
             <p><strong>Active:</strong> ${raid.is_active ? '✅ Yes' : '❌ No'}</p>
@@ -956,17 +970,8 @@
       if (!confirm('Are you sure you want to delete this raid?')) return;
 
       try {
-        const adminWallet = localStorage.getItem('bearpark_wallet');
-        if (!adminWallet) {
-          alert('Please connect your wallet first');
-          return;
-        }
-
-        const response = await fetch(`/api/raids/${raidId}`, {
-          method: 'DELETE',
-          headers: {
-            'X-Admin-Wallet': adminWallet
-          }
+        const response = await adminFetch(`/api/raids/${raidId}`, {
+          method: 'DELETE'
         });
 
         const result = await response.json();
@@ -1058,6 +1063,7 @@
         twitter_url: document.getElementById('raidUrl').value,
         tweet_text: document.getElementById('tweetText').value || null,
         reward: parseInt(document.getElementById('pointsPerParticipation').value),
+        verification_type: document.getElementById('raidVerificationType').value,
         profile_name: 'BearXRPL',
         profile_handle: '@BearXRPL',
         profile_emoji: '🐻',
@@ -1065,17 +1071,10 @@
       };
 
       try {
-        const adminWallet = localStorage.getItem('bearpark_wallet');
-        if (!adminWallet) {
-          showStatus('❌ Please connect your wallet first', 'error');
-          return;
-        }
-
-        const response = await fetch('/api/raids', {
+        const response = await adminFetch('/api/raids', {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-            'X-Admin-Wallet': adminWallet
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify(raidData)
         });

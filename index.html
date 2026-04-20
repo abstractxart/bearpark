@@ -39,7 +39,8 @@
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&display=swap" rel="stylesheet" />
   <!-- 🐻❄️ COCAINE BEAR: Kill console in production -->
-  <script>if(location.hostname!=='localhost')console.log=console.warn=console.info=console.debug=function(){};</script>
+<script>if(location.hostname!=='localhost')console.log=console.warn=console.info=console.debug=function(){};</script>
+<script src="/auth-fetch.js"></script>
   <!-- Capacitor removed - causes module errors in browser, only needed for native Android app build -->
 
   <style>
@@ -416,7 +417,7 @@
       item.className = status;
     }
 
-    async function checkWalletRequirements(walletAddress){
+    async function checkWalletRequirements(walletAddress, authToken = null){
       try{
         showStatus('Verifying wallet holdings...', 'loading');
         verificationList.innerHTML = '';
@@ -619,6 +620,8 @@
           showStatus('✓ Access granted! Redirecting...', 'success');
           localStorage.setItem('bearpark_auth', 'true');
           localStorage.setItem('bearpark_wallet', walletAddress);
+          localStorage.removeItem('bearpark_auth_token');
+          localStorage.removeItem('bearpark_auth_token_wallet');
 
           // ❌ localStorage is NEVER used for honey points anymore
           // Backend database is the ONLY source of truth
@@ -665,11 +668,12 @@
     }
 
     // XAMAN API Integration via Production Backend (Railway)
-    const PROXY_API_URL = 'https://bearpark-api-production.up.railway.app/api/xaman';
+    const PROXY_API_URL = '/api/xaman';
 
     async function createXAMANPayload(){
       const response = await fetch(`${PROXY_API_URL}/payload`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
         }
@@ -684,7 +688,9 @@
     }
 
     async function getPayloadStatus(payloadUuid){
-      const response = await fetch(`${PROXY_API_URL}/payload/${payloadUuid}`);
+      const response = await fetch(`${PROXY_API_URL}/payload/${payloadUuid}`, {
+        credentials: 'include'
+      });
 
       if(!response.ok){
         const error = await response.json();
@@ -846,7 +852,7 @@
                 if(status.meta.signed){
                   const walletAddress = status.response.account;
                   showStatus('Wallet connected! Verifying requirements...', 'success');
-                  await checkWalletRequirements(walletAddress);
+                  await checkWalletRequirements(walletAddress, status.auth_token || null);
                 } else {
                   showStatus('Sign request was rejected', 'error');
                   connectXamanBtn.disabled = false;
