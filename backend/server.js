@@ -3432,12 +3432,14 @@ app.post('/api/raids/tg-claim', validateWallet, async (req, res) => {
 
     // Credit honey FIRST so we never end up with a completion row but no
     // honey (happens if the client navigation kills the request after
-    // insert but before the credit writes).
+    // insert but before the credit writes). Use the same transactionType
+    // string as /api/raids/complete to avoid any downstream CHECK constraint
+    // or analytics that expects specific values.
     const { balance } = await applyHoneyDelta({
       wallet: normalizedWallet,
       totalDelta: reward,
       raidingDelta: reward,
-      transactionType: 'raid_tg_click',
+      transactionType: 'raid_reward',
       reason: `TG raid ${raid_id} click`,
       activityType: 'raid',
       activityId: String(raid_id)
@@ -3463,7 +3465,7 @@ app.post('/api/raids/tg-claim', validateWallet, async (req, res) => {
           wallet: normalizedWallet,
           totalDelta: -reward,
           raidingDelta: -reward,
-          transactionType: 'raid_tg_click_refund',
+          transactionType: 'raid_reward',
           reason: `TG raid ${raid_id} double-claim refund`,
           activityType: 'raid',
           activityId: String(raid_id)
