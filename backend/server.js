@@ -3362,13 +3362,17 @@ app.post('/api/raids/complete', validateWallet, requireWalletOwnership(['wallet_
     console.log(`✅ Raid completed: User ${wallet_address} earned ${actualReward} points for raid ${raid_id} (server-validated)`);
 
     // Log to honey_points_activity for BEARDROPS 24h tracking
-    // Use supabaseAdmin to bypass RLS policies
+    // Log the raid activity for BEARdrops 24h tracking. Previously
+    // this wrote points:0 / activity_type:'raid_legacy_disabled'
+    // which meant raids never contributed to the 24h counter.
+    // Write the actual reward with activity_type:'raid' and the
+    // user's original-case wallet so the 24h ilike query picks it up.
     const activityClient = supabaseAdmin || supabase;
     try {
       const { data, error } = await activityClient.from('honey_points_activity').insert({
-        wallet_address: normalizedWallet,
-        points: 0,
-        activity_type: 'raid_legacy_disabled',
+        wallet_address: wallet_address,
+        points: actualReward,
+        activity_type: 'raid',
         activity_id: raid_id
       }).select();
       if (error) {
@@ -3500,6 +3504,14 @@ app.post('/api/raids/tg-claim', validateWallet, async (req, res) => {
         `SELECT total_points, raiding_points FROM honey_points WHERE wallet_address = $1`,
         [canonicalWallet]
       );
+
+      // Log for BEARdrops 24h tracking. Fire-and-forget — failure here
+      // shouldn't roll back the honey credit we just committed.
+      await client.query(
+        `INSERT INTO honey_points_activity (wallet_address, points, activity_type, activity_id)
+         VALUES ($1, $2, 'raid', $3)`,
+        [canonicalWallet, reward, String(raid_id)]
+      ).catch((e) => console.error('TG raid activity log failed:', e.message));
 
       await client.query('COMMIT');
 
