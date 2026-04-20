@@ -1640,9 +1640,23 @@ async function completeTrackedGameSession({ sessionId, wallet, gameId, today }) 
         };
       }
 
+      // Resolve wallet to its canonical stored case so the SP's
+      // honey_points upsert hits the user's real mixed-case row
+      // instead of creating/growing the lowercase ghost.
+      const canonicalLookup = await client.query(
+        `SELECT wallet_address FROM honey_points
+         WHERE wallet_address ILIKE $1
+         ORDER BY
+           CASE WHEN wallet_address <> lower(wallet_address) THEN 0 ELSE 1 END,
+           total_points DESC NULLS LAST
+         LIMIT 1`,
+        [normalizedWallet]
+      );
+      const canonicalWallet = canonicalLookup.rows[0]?.wallet_address || normalizedWallet;
+
       const rpcResult = await client.query(
         'SELECT atomic_time_play($1, $2, $3::date, $4, $5) AS result',
-        [normalizedWallet, gameId, today, GAME_MAX_DAILY_MINUTES, trackedMinutes]
+        [canonicalWallet, gameId, today, GAME_MAX_DAILY_MINUTES, trackedMinutes]
       );
       const result = rpcResult.rows[0]?.result;
 
