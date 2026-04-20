@@ -600,7 +600,7 @@
         <form id="raidForm">
         <div class="form-group">
           <label for="raidTitle">Raid Message *</label>
-          <input type="text" id="raidTitle" value="POST A $BEAR MEME AND TAG @BearXRPL! 🐻🃏" placeholder="e.g., POST A $BEAR MEME AND TAG @BearXRPL!" required>
+          <input type="text" id="raidTitle" value="Post your favorite $BEAR meme and tag @BearXRPL!" placeholder="e.g., Post your favorite $BEAR meme and tag @BearXRPL!" required>
         </div>
 
         <div class="form-group">
@@ -819,18 +819,37 @@
       }
     }
 
-    // Helper function for authenticated admin API calls
+    // Helper function for authenticated admin API calls.
+    // auth-fetch.js monkey-patches window.fetch so it attaches a Bearer
+    // token from localStorage when available. If the user signed in on
+    // the main site (index.html / main.html) the token is present and
+    // admin actions work regardless of cookie behavior. On mobile /
+    // TG in-app WebViews where cookies can be dropped, the Bearer
+    // header is what keeps admin access alive.
     async function adminFetch(url, options = {}) {
       const adminWallet = localStorage.getItem('bearpark_wallet');
       if (!adminWallet) {
-        throw new Error('Please connect your wallet first');
+        throw new Error('Please connect your wallet on the main site first (mobile tip: open bearpark.xyz, sign in, then come back here).');
       }
 
-      return fetch(url, {
+      const response = await fetch(url, {
         ...options,
         credentials: options.credentials || 'include',
         headers: options.headers || {}
       });
+
+      // Surface auth failures early and loudly — otherwise a 401/403
+      // just shows a quiet "Failed to delete raid" toast that mobile
+      // users miss.
+      if (response.status === 401 || response.status === 403) {
+        const hasToken = !!localStorage.getItem('bearpark_auth_token');
+        const hint = hasToken
+          ? 'Your session has expired. Sign out on the main site and sign back in with XAMAN.'
+          : 'Your auth token is missing (common on mobile/in-app browsers). Open bearpark.xyz on this device, sign in with XAMAN, then retry.';
+        showStatus('🔒 ' + hint, 'error');
+      }
+
+      return response;
     }
 
     async function connectWallet() {
@@ -1107,6 +1126,13 @@
       statusEl.textContent = message;
       statusEl.className = 'status ' + type;
       statusEl.style.display = 'block';
+      // Scroll the toast into the viewport so mobile users (who often
+      // trigger actions from well below the fold) actually see the
+      // success/error message. Without this the toast renders at the
+      // top of the page invisible to the user = "nothing happened".
+      try {
+        statusEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } catch (_) {}
     }
 
     // User Search Filter

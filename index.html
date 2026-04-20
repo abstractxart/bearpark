@@ -620,8 +620,20 @@
           showStatus('✓ Access granted! Redirecting...', 'success');
           localStorage.setItem('bearpark_auth', 'true');
           localStorage.setItem('bearpark_wallet', walletAddress);
-          localStorage.removeItem('bearpark_auth_token');
-          localStorage.removeItem('bearpark_auth_token_wallet');
+          // If the XAMAN sign-in returned an auth token, persist it so
+          // auth-fetch.js can attach it as `Authorization: Bearer ...`
+          // to every /api/* call. Without this the site falls back to
+          // cookie-only auth which breaks on mobile WebViews (Telegram
+          // in-app, some mobile Safari/Chrome builds with strict ITP).
+          if (authToken) {
+            localStorage.setItem('bearpark_auth_token', authToken);
+            localStorage.setItem('bearpark_auth_token_wallet', String(walletAddress).toLowerCase());
+          } else {
+            // No token received — clear any stale token so auth-fetch
+            // doesn't try to use an old one for a new wallet.
+            localStorage.removeItem('bearpark_auth_token');
+            localStorage.removeItem('bearpark_auth_token_wallet');
+          }
 
           // ❌ localStorage is NEVER used for honey points anymore
           // Backend database is the ONLY source of truth
