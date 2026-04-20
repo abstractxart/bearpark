@@ -2792,10 +2792,13 @@ app.get('/api/honey-points/24h', async (req, res) => {
     const midnightUTC = new Date();
     midnightUTC.setUTCHours(0, 0, 0, 0);
 
+    // ilike — activity rows may have been written with mixed case over
+    // time (canonical-wallet migration); eq would miss any row not
+    // matching the case the frontend passes in.
     const { data, error } = await supabase
       .from('honey_points_activity')
       .select('points')
-      .eq('wallet_address', wallet)
+      .ilike('wallet_address', wallet)
       .gte('created_at', midnightUTC.toISOString());
     if (error) {
       console.error('❌ 24h Points Fetch Error:', error.message, error.code, error.details);
@@ -3719,9 +3722,12 @@ app.post('/api/games/complete', validateWallet, requireWalletOwnership(['wallet_
 
       if (result.points_awarded > 0) {
         const activityClient = supabaseAdmin || supabase;
+        // Mirror the canonical case resolved inside the SP/applyHoneyDelta
+        // path so BEARdrops 24h queries and this activity row stay aligned.
+        const activityWallet = result.canonical_wallet || wallet_address || normalizedWallet;
         try {
           const { data, error } = await activityClient.from('honey_points_activity').insert({
-            wallet_address: normalizedWallet,
+            wallet_address: activityWallet,
             points: result.points_awarded,
             activity_type: 'game',
             activity_id: game_id
