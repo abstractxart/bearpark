@@ -15211,6 +15211,20 @@
       return result;
     };
 
+    // === PERF: Single-wallet equipped-cosmetics fetcher (routes through batch cache) ===
+    // The 30s cache + in-flight dedup in fetchEquippedBatch applies here too, so
+    // rapid-fire per-row calls (post feed, comments, profile open) collapse into
+    // at most 1 network request per wallet per 30s.
+    window.getEquippedCosmetics = async function (wallet) {
+      if (!wallet) return { ring: null, banner: null };
+      const result = await window.fetchEquippedBatch([wallet]);
+      return result[wallet] || { ring: null, banner: null };
+    };
+    // Clear a wallet's cached entry (call after equip/unequip so user sees change immediately)
+    window.invalidateEquippedCosmetics = function (wallet) {
+      if (wallet && window.__equippedBatchCache) window.__equippedBatchCache.delete(wallet);
+    };
+
     // === POLISH: Skeleton helper — swap plain "Loading..." text for shimmer rows ===
     window.bpSkeletonRows = function (count = 5) {
       return Array.from({ length: count }).map(() => `
@@ -18545,7 +18559,7 @@
             const truncatedWallet = truncateWallet(raider.wallet_address);
 
             // Parse avatar URL from avatar_nft JSON
-            let avatarUrl = 'https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/pxcklj.png'; // default bear
+            let avatarUrl = 'https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/v2jedg.png'; // default bear
             if (raider.avatar_nft) {
               try {
                 const avatarData = JSON.parse(raider.avatar_nft);
@@ -18591,7 +18605,7 @@
                 <img src="${avatarUrl}"
                      alt="Avatar"
                      style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:1; width:${avatarSize}; height:${avatarSize}; border-radius:50%; object-fit:cover;"
-                     onerror="this.src='https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/pxcklj.png'">
+                     onerror="this.src='https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/v2jedg.png'">
                 <img src="${equippedRing.image_url}"
                      alt="Ring"
                      style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%)${ouroborosRotation}; width:${ringSize}; height:${ringSize}; object-fit:contain; z-index:2; pointer-events:none; ${spinAnimation}">
@@ -18599,7 +18613,7 @@
             `;
             } else {
               // No ring, just avatar
-              avatarHTML = `<img src="${avatarUrl}" alt="Avatar" class="raider-avatar" onerror="this.src='https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/pxcklj.png'">`;
+              avatarHTML = `<img src="${avatarUrl}" alt="Avatar" class="raider-avatar" onerror="this.src='https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/v2jedg.png'">`;
             }
 
             html += `
@@ -20497,10 +20511,9 @@
 
         // Load and apply equipped cosmetics (ring)
         try {
-          const cosmeticResponse = await fetch(`${API_BASE_URL}/api/cosmetics/equipped/${walletAddress}`);
-          if (cosmeticResponse.ok) {
-            const cosmeticData = await cosmeticResponse.json();
-            if (cosmeticData.success && cosmeticData.equipped) {
+          const cosmeticData = { success: true, equipped: await window.getEquippedCosmetics(walletAddress) };
+          if (cosmeticData.success && cosmeticData.equipped) {
+            {
               const equippedRing = cosmeticData.equipped.ring;
 
               // Remove any existing ring
@@ -21553,11 +21566,9 @@
 
           console.log('🎨 Loading cosmetics for profile:', walletAddress);
 
-          // Fetch equipped cosmetics
-          const response = await fetch(`${API_BASE_URL}/api/cosmetics/equipped/${walletAddress}`);
-          if (!response.ok) return;
-
-          const data = await response.json();
+          // Fetch equipped cosmetics (cached 30s, deduped with batch fetcher)
+          const equipped = await window.getEquippedCosmetics(walletAddress);
+          const data = { success: true, equipped };
           if (!data.success || !data.equipped) return;
 
           const equippedRing = data.equipped.ring;
@@ -25216,14 +25227,11 @@
       const linkPreview = post.link_preview ? createLinkPreview(post.link_preview) : '';
       const avatarUrl = getAvatarUrl(post.author_avatar);
 
-      // Fetch equipped cosmetics for post author
+      // Fetch equipped cosmetics for post author (cached + deduped)
       let equippedRing = null;
       try {
-        const cosmeticRes = await fetch(`${API_BASE_URL}/api/cosmetics/equipped/${post.wallet_address}`);
-        const cosmeticData = await cosmeticRes.json();
-        if (cosmeticData.success && cosmeticData.equipped) {
-          equippedRing = cosmeticData.equipped.ring || null;
-        }
+        const equipped = await window.getEquippedCosmetics(post.wallet_address);
+        equippedRing = equipped?.ring || null;
       } catch (e) {
         // Ignore errors
       }
@@ -26235,14 +26243,11 @@
       // Parse avatar using helper function
       const avatarUrl = getAvatarUrl(comment.author_avatar);
 
-      // Fetch equipped cosmetics for comment author
+      // Fetch equipped cosmetics for comment author (cached + deduped)
       let equippedRing = null;
       try {
-        const cosmeticRes = await fetch(`${API_BASE_URL}/api/cosmetics/equipped/${comment.wallet_address}`);
-        const cosmeticData = await cosmeticRes.json();
-        if (cosmeticData.success && cosmeticData.equipped) {
-          equippedRing = cosmeticData.equipped.ring || null;
-        }
+        const equipped = await window.getEquippedCosmetics(comment.wallet_address);
+        equippedRing = equipped?.ring || null;
       } catch (e) {
         // Ignore errors
       }
@@ -27593,17 +27598,12 @@
       if (!walletAddress) return;
 
       try {
-        console.log('👔 Loading equipped items from API...');
-        const response = await fetch(`${API_BASE_URL}/api/cosmetics/equipped/${walletAddress}`);
-
-        if (!response.ok) throw new Error('Failed to load equipped items');
-
-        const data = await response.json();
-
-        if (data.success && data.equipped) {
+        console.log('👔 Loading equipped items from API (cached)...');
+        const equipped = await window.getEquippedCosmetics(walletAddress);
+        if (equipped) {
           equippedItems = {
-            ring: data.equipped.ring?.cosmetic_id || null,
-            banner: data.equipped.banner?.cosmetic_id || null
+            ring: equipped.ring?.cosmetic_id || null,
+            banner: equipped.banner?.cosmetic_id || null
           };
           console.log(`✅ Loaded equipped items:`, equippedItems);
         }
@@ -27776,6 +27776,9 @@
 
         console.log('✅ Item equipped successfully!');
 
+        // Invalidate the wallet's cached cosmetics so UI reflects the new equip immediately
+        window.invalidateEquippedCosmetics && window.invalidateEquippedCosmetics(walletAddress);
+
         // Update local equipped state
         if (type === 'ring') {
           equippedItems.ring = cosmeticId;
@@ -27854,6 +27857,9 @@
         }
 
         console.log('✅ Item unequipped successfully!');
+
+        // Invalidate the wallet's cached cosmetics so UI reflects the removal immediately
+        window.invalidateEquippedCosmetics && window.invalidateEquippedCosmetics(walletAddress);
 
         // Update local equipped state
         if (type === 'ring') {
