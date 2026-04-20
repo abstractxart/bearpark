@@ -845,11 +845,20 @@ async function applyHoneyDelta({
       // Resolve to the ACTUAL stored case for this wallet. honey_points
       // and friends were written with mixed case over the years, so an
       // all-lowercase normalizedWallet would ON CONFLICT-miss and create
-      // a ghost row that nobody reads. Pick whatever case is already
-      // present (ILIKE match) and use that canonical form everywhere.
+      // a ghost row that nobody reads. If multiple rows match ILIKE
+      // (the typical "real row + prior lowercase ghost"), prefer:
+      //   1. Exact match to the user-supplied wallet (original case)
+      //   2. Rows that aren't all-lowercase (real XRPL addresses are mixed)
+      //   3. Highest existing total as a tiebreaker
       const canonicalLookup = await client.query(
-        `SELECT wallet_address FROM honey_points WHERE wallet_address ILIKE $1 LIMIT 1`,
-        [normalizedWallet]
+        `SELECT wallet_address FROM honey_points
+         WHERE wallet_address ILIKE $1
+         ORDER BY
+           CASE WHEN wallet_address = $2 THEN 0 ELSE 1 END,
+           CASE WHEN wallet_address = lower(wallet_address) THEN 1 ELSE 0 END,
+           total_points DESC NULLS LAST
+         LIMIT 1`,
+        [normalizedWallet, wallet]
       );
       const canonicalWallet = canonicalLookup.rows[0]?.wallet_address || wallet;
 
