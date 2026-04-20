@@ -3414,75 +3414,81 @@ app.post('/api/raids/tg-claim', validateWallet, async (req, res) => {
       return res.status(400).json({ success: false, error: 'Invalid raid reward' });
     }
 
-    // Block double-claim
-    const { data: existing } = await supabase
-      .from('raid_completions')
-      .select('id')
-      .eq('wallet_address', normalizedWallet)
-      .eq('raid_id', raid_id)
-      .maybeSingle();
+    // Do everything in one pg transaction:
+    //   - double-claim check (ILIKE for case-insensitive wallet match)
+    //   - credit honey_points
+    //   - insert raid_completions (UNIQUE guards the race)
+    // Bypasses applyHoneyDelta on purpose: that helper tries to write
+    // a `point_transactions.amount` column that doesn't exist in this
+    // deployment's schema, causing the whole transaction to roll back.
+    // Audit trail via point_transactions is skipped here — acceptable
+    // for honor-system TG clicks; proper raid completion via the web
+    // flow still goes through applyHoneyDelta and the verified path.
+    if (!pgPool) {
+      throw new Error('pg pool unavailable');
+    }
+    const client = await pgPool.connect();
+    try {
+      await client.query('BEGIN');
 
-    if (existing) {
+      const existing = await client.query(
+        `SELECT id FROM raid_completions
+         WHERE wallet_address ILIKE $1 AND raid_id = $2`,
+        [normalizedWallet, raid_id]
+      );
+      if (existing.rows.length > 0) {
+        await client.query('ROLLBACK');
+        return res.json({
+          success: true,
+          alreadyCompleted: true,
+          message: 'Raid already claimed'
+        });
+      }
+
+      await client.query(
+        `INSERT INTO honey_points (wallet_address, total_points, raiding_points, games_points, updated_at)
+         VALUES ($1, $2, $2, 0, NOW())
+         ON CONFLICT (wallet_address) DO UPDATE
+         SET total_points = honey_points.total_points + EXCLUDED.total_points,
+             raiding_points = honey_points.raiding_points + EXCLUDED.raiding_points,
+             updated_at = NOW()`,
+        [normalizedWallet, reward]
+      );
+
+      await client.query(
+        `INSERT INTO raid_completions (wallet_address, raid_id, points_awarded, completed_at)
+         VALUES ($1, $2, $3, NOW())`,
+        [normalizedWallet, raid_id, reward]
+      );
+
+      const balanceResult = await client.query(
+        `SELECT total_points, raiding_points FROM honey_points WHERE wallet_address = $1`,
+        [normalizedWallet]
+      );
+
+      await client.query('COMMIT');
+
+      console.log(`✅ TG raid claimed: ${normalizedWallet} +${reward} pts on raid ${raid_id}`);
+
       return res.json({
         success: true,
-        alreadyCompleted: true,
-        message: 'Raid already claimed'
-      });
-    }
-
-    // Credit honey FIRST so we never end up with a completion row but no
-    // honey (happens if the client navigation kills the request after
-    // insert but before the credit writes). Use the same transactionType
-    // string as /api/raids/complete to avoid any downstream CHECK constraint
-    // or analytics that expects specific values.
-    const { balance } = await applyHoneyDelta({
-      wallet: normalizedWallet,
-      totalDelta: reward,
-      raidingDelta: reward,
-      transactionType: 'raid_reward',
-      reason: `TG raid ${raid_id} click`,
-      activityType: 'raid',
-      activityId: String(raid_id)
-    });
-
-    // Record completion. If the UNIQUE (wallet, raid_id) constraint fires
-    // here (true race — two concurrent claims for the same wallet+raid),
-    // the second request credited on top of the first. Refund by reversing
-    // the delta so we don't double-pay.
-    const { error: insertError } = await supabase
-      .from('raid_completions')
-      .insert({
-        wallet_address: normalizedWallet,
-        raid_id,
+        alreadyCompleted: false,
         points_awarded: reward,
-        completed_at: new Date().toISOString()
+        total_points: balanceResult.rows[0]?.total_points
       });
-
-    if (insertError) {
-      if (insertError.code === '23505') {
-        // race: someone else's completion row already exists. Refund.
-        await applyHoneyDelta({
-          wallet: normalizedWallet,
-          totalDelta: -reward,
-          raidingDelta: -reward,
-          transactionType: 'raid_reward',
-          reason: `TG raid ${raid_id} double-claim refund`,
-          activityType: 'raid',
-          activityId: String(raid_id)
-        }).catch((e) => console.error('Refund failed:', e));
-        return res.json({ success: true, alreadyCompleted: true });
+    } catch (txErr) {
+      await client.query('ROLLBACK').catch(() => {});
+      if (txErr.code === '23505') {
+        return res.json({
+          success: true,
+          alreadyCompleted: true,
+          message: 'Raid already claimed'
+        });
       }
-      throw insertError;
+      throw txErr;
+    } finally {
+      client.release();
     }
-
-    console.log(`✅ TG raid claimed: ${normalizedWallet} +${reward} pts on raid ${raid_id}`);
-
-    return res.json({
-      success: true,
-      alreadyCompleted: false,
-      points_awarded: reward,
-      total_points: balance.total_points
-    });
 
   } catch (error) {
     console.error('Error in /api/raids/tg-claim:', error);
