@@ -7730,6 +7730,153 @@ app.post('/api/admin/reset-economy', verifyAdmin, async (req, res) => {
   }
 });
 
+// One-shot merge of lowercase ghost wallet rows into their mixed-case
+// canonical counterparts. Heals the case-split bug that caused:
+//   - tg-claim credits to silently land in ghost rows invisible to the UI
+//   - the same user showing up twice on the leaderboard (canonical + ghost)
+//   - /api/points returning a split balance depending on URL casing
+// Safe to re-run: it's idempotent. A wallet without a canonical partner
+// is left alone. Updates raid_completions, honey_points_activity, and
+// point_transactions to the canonical wallet_address so all historical
+// data is attributed to one row going forward, then deletes the ghost
+// row from honey_points.
+app.post('/api/admin/merge-ghost-wallets', verifyAdmin, async (req, res) => {
+  try {
+    if (req.adminRole !== 'master') {
+      return res.status(403).json({
+        success: false,
+        error: 'Only MASTER accounts can merge ghost wallets'
+      });
+    }
+
+    if (!pgPool) {
+      return res.status(500).json({ success: false, error: 'pg pool unavailable' });
+    }
+
+    const client = await pgPool.connect();
+    const summary = { pairsFound: 0, honeyMerged: [], raidCompletionsMoved: 0, raidCompletionsDeduped: 0, activityMoved: 0, transactionsMoved: 0 };
+
+    try {
+      await client.query('BEGIN');
+
+      // 1. Discover every (canonical, ghost) pair.
+      //    canonical = mixed-case row (wallet_address <> lower(wallet_address))
+      //    ghost     = fully-lowercase row whose lower(...) equals the ghost itself
+      //                AND a canonical partner exists with the same lower(...)
+      const pairsRes = await client.query(
+        `SELECT
+           c.wallet_address AS canonical,
+           g.wallet_address AS ghost,
+           g.total_points   AS g_total,
+           g.raiding_points AS g_raiding,
+           g.games_points   AS g_games
+         FROM honey_points c
+         JOIN honey_points g
+           ON lower(c.wallet_address) = g.wallet_address
+          AND g.wallet_address = lower(g.wallet_address)
+          AND c.wallet_address <> lower(c.wallet_address)`
+      );
+      summary.pairsFound = pairsRes.rows.length;
+
+      for (const p of pairsRes.rows) {
+        // 2. Roll ghost's honey into canonical
+        await client.query(
+          `UPDATE honey_points
+              SET total_points   = COALESCE(total_points, 0)   + $2,
+                  raiding_points = COALESCE(raiding_points, 0) + $3,
+                  games_points   = COALESCE(games_points, 0)   + $4,
+                  updated_at = NOW()
+            WHERE wallet_address = $1`,
+          [p.canonical, p.g_total || 0, p.g_raiding || 0, p.g_games || 0]
+        );
+        summary.honeyMerged.push({
+          canonical: p.canonical,
+          rolled: {
+            total_points: parseFloat(p.g_total) || 0,
+            raiding_points: parseFloat(p.g_raiding) || 0,
+            games_points: parseFloat(p.g_games) || 0
+          }
+        });
+
+        // 3. raid_completions: move ghost rows to canonical, but drop
+        //    duplicates (same raid_id already completed on canonical row)
+        //    to avoid violating the UNIQUE (wallet_address, raid_id) constraint.
+        const dupRes = await client.query(
+          `DELETE FROM raid_completions
+            WHERE wallet_address = $1
+              AND raid_id IN (
+                SELECT raid_id FROM raid_completions WHERE wallet_address = $2
+              )
+            RETURNING id`,
+          [p.ghost, p.canonical]
+        );
+        summary.raidCompletionsDeduped += dupRes.rowCount;
+
+        const movedRes = await client.query(
+          `UPDATE raid_completions
+              SET wallet_address = $2
+            WHERE wallet_address = $1
+            RETURNING id`,
+          [p.ghost, p.canonical]
+        );
+        summary.raidCompletionsMoved += movedRes.rowCount;
+
+        // 4. honey_points_activity: just reattribute (no unique constraint to worry about)
+        try {
+          const actRes = await client.query(
+            `UPDATE honey_points_activity
+                SET wallet_address = $2
+              WHERE wallet_address = $1
+              RETURNING id`,
+            [p.ghost, p.canonical]
+          );
+          summary.activityMoved += actRes.rowCount;
+        } catch (e) {
+          console.error('honey_points_activity move failed (table may not exist):', e.message);
+        }
+
+        // 5. point_transactions: reattribute if table exists
+        try {
+          const txRes = await client.query(
+            `UPDATE point_transactions
+                SET wallet_address = $2
+              WHERE wallet_address = $1
+              RETURNING id`,
+            [p.ghost, p.canonical]
+          );
+          summary.transactionsMoved += txRes.rowCount;
+        } catch (e) {
+          console.error('point_transactions move failed (table may not exist):', e.message);
+        }
+
+        // 6. Finally, delete the ghost honey_points row
+        await client.query(
+          `DELETE FROM honey_points WHERE wallet_address = $1`,
+          [p.ghost]
+        );
+      }
+
+      await client.query('COMMIT');
+
+      console.log(`🧹 Ghost merge complete by ${req.adminWallet}:`, JSON.stringify(summary));
+
+      return res.json({
+        success: true,
+        ...summary
+      });
+    } catch (txErr) {
+      await client.query('ROLLBACK').catch(() => {});
+      console.error('Ghost merge transaction failed:', txErr);
+      throw txErr;
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Error in /api/admin/merge-ghost-wallets:', error);
+    safeErrorResponse(res, error);
+  }
+});
+
 // Set a specific user's honey points (master only)
 app.post('/api/admin/set-user-points', verifyAdmin, async (req, res) => {
   try {
