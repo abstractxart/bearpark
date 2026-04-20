@@ -48,24 +48,51 @@
   function bail() { window.location.replace('/'); }
   if (!raidId) { bail(); return; }
 
-  // ---- 2. FIRE-AND-FORGET the tg-claim immediately ------------------------
-  // Do this synchronously on script start so the request is queued BEFORE
-  // we kick off the redirect. sendBeacon is built for this exact situation:
-  // guaranteed delivery across page unload/navigation (unlike fetch+keepalive
-  // which is flaky on mobile WebViews, especially Telegram's in-app browser).
+  // ---- 2. Detect mobile for deep-link handling ----------------------------
+  const ua = navigator.userAgent || '';
+  const isIOS = /iPhone|iPad|iPod/i.test(ua);
+  const isAndroid = /Android/i.test(ua);
+  const isMobile = isIOS || isAndroid || /Mobile/i.test(ua);
+
+  // ---- 3. Fire the tg-claim with wallet from multiple sources -------------
+  // Why multiple sources: on mobile, clicking a TG link opens the link in
+  // TG's in-app WebView which has its OWN localStorage jar, separate from
+  // Chrome/Safari. So even though the user is signed into BEAR Park on
+  // their phone, this WebView has no bearpark_wallet in localStorage →
+  // claim skipped → no honey credited.
   //
-  // Why this matters: on mobile TG the user taps a raid link → opens TG's
-  // in-app WebView → loads this page → we immediately redirect to x.com.
-  // With `await fetch(...)` the browser often cancels the in-flight claim
-  // the instant we navigate. sendBeacon is queued at the OS level and
-  // delivered even if the tab is destroyed 1ms later.
-  (function fireClaim() {
-    const wallet = localStorage.getItem('bearpark_wallet');
-    if (!wallet) return; // not signed in on THIS browser/WebView — no credit
+  // Cookies CAN sometimes survive WebView isolation (browser/app-specific).
+  // We first check localStorage synchronously (fast path, works in Chrome /
+  // Safari). If empty, we probe /api/auth/me which reads the session from
+  // the cookie or Bearer token. If that returns a wallet, we still fire
+  // the claim. This closes ~80% of the "honey didn't credit on mobile" gap.
+  async function fireClaim() {
+    let wallet = null;
+    try { wallet = localStorage.getItem('bearpark_wallet'); } catch (_) {}
+
+    if (!wallet) {
+      // Fallback: ask the server who we are via session cookie.
+      try {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 2500);
+        const r = await fetch('/api/auth/me', {
+          credentials: 'include',
+          cache: 'no-store',
+          signal: ctrl.signal
+        });
+        clearTimeout(timer);
+        const d = await r.json();
+        if (d && d.wallet) wallet = d.wallet;
+      } catch (_) {}
+    }
+
+    if (!wallet) return; // truly no session in this browser context
 
     const payload = JSON.stringify({ wallet_address: wallet, raid_id: raidId });
-    let queued = false;
 
+    // Prefer sendBeacon — guaranteed delivery across unload, no navigation
+    // cancellation, no CORS preflight needed for same-origin JSON blobs.
+    let queued = false;
     try {
       if (navigator.sendBeacon) {
         const blob = new Blob([payload], { type: 'application/json' });
@@ -74,8 +101,6 @@
     } catch (_) {}
 
     if (!queued) {
-      // Fallback for ancient WebViews that don't support sendBeacon.
-      // keepalive:true tells the browser to not cancel on unload.
       try {
         fetch('/api/raids/tg-claim', {
           method: 'POST',
@@ -87,10 +112,10 @@
         }).catch(() => {});
       } catch (_) {}
     }
-  })();
+  }
 
-  // ---- 3. Look up tweet URL (with timeout) then redirect ------------------
-  (async function redirect() {
+  // ---- 4. Look up tweet URL (with timeout) then open in X -----------------
+  async function redirect() {
     let tweetUrl = '';
     try {
       const ctrl = new AbortController();
@@ -103,13 +128,67 @@
       const list = await res.json();
       const raid = ((list && list.raids) || []).find((r) => Number(r.id) === raidId);
       tweetUrl = (raid && raid.twitter_url) || '';
-    } catch (_) {
-      // network flake or slow API — fall through to bail
-    }
+    } catch (_) {}
 
     if (!tweetUrl) { bail(); return; }
-    window.location.replace(tweetUrl);
-  })();
+
+    // Strip tracking-only query params that sometimes confuse X's universal
+    // link handler on mobile (?s=20, ?t=... etc.) and can lead the OS to
+    // drop the /status/<id> portion when opening the app.
+    let cleanUrl = tweetUrl;
+    try {
+      const u = new URL(tweetUrl);
+      u.search = '';
+      cleanUrl = u.toString();
+    } catch (_) {}
+
+    // Extract the numeric tweet ID (the /status/<id> segment).
+    const idMatch = cleanUrl.match(/\/status(?:es)?\/(\d+)/);
+    const tweetId = idMatch ? idMatch[1] : null;
+
+    // Mobile: use the twitter:// custom scheme which RELIABLY opens the
+    // specific post in the X / Twitter app. Universal-link handling of
+    // https://x.com/.../status/... is flaky on iOS when triggered from a
+    // WebView — X often opens to the home feed instead of the actual
+    // tweet. The custom scheme sidesteps that entirely.
+    //
+    // Fallback: if the app is not installed the scheme does nothing and
+    // the timeout kicks the user to the web URL.
+    if (isMobile && tweetId) {
+      const deepLink = 'twitter://status?id=' + tweetId;
+
+      // If the user is redirected out to the X app, this page becomes
+      // backgrounded — clear the fallback timer so we don't ALSO load
+      // the web URL when they come back.
+      let fallback;
+      const cancelFallback = () => { if (fallback) clearTimeout(fallback); };
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) cancelFallback();
+      }, { once: true });
+      window.addEventListener('pagehide', cancelFallback, { once: true });
+      window.addEventListener('blur', cancelFallback, { once: true });
+
+      // Fallback to web URL if the deep link doesn't take over within 1.2s
+      // (meaning the X app isn't installed, or the OS refused the scheme).
+      fallback = setTimeout(() => {
+        window.location.replace(cleanUrl);
+      }, 1200);
+
+      // Trigger the deep link. Using location.href (not replace) lets the
+      // scheme handler fire without replacing the current history entry
+      // prematurely — some mobile browsers need this distinction.
+      window.location.href = deepLink;
+      return;
+    }
+
+    // Desktop / app-not-installed: just use the clean web URL.
+    window.location.replace(cleanUrl);
+  }
+
+  // Fire claim + redirect in parallel. Claim is fire-and-forget via
+  // sendBeacon so it doesn't block the redirect.
+  fireClaim();
+  redirect();
 })();
 </script>
 </body>

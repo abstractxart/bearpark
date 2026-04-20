@@ -2310,6 +2310,26 @@ app.post('/api/auth/logout', (req, res) => {
   res.json({ success: true });
 });
 
+// Return the wallet for the current session (cookie or Bearer) or null.
+// Used by r.html when localStorage is empty (e.g. Telegram in-app WebView
+// vs. Safari have separate localStorage jars but may share cookies).
+// Lets the tg-claim credit still fire in that WebView-isolation case.
+app.get('/api/auth/me', (req, res) => {
+  try {
+    const token = extractWalletAuthToken(req);
+    if (!token) {
+      return res.json({ success: true, wallet: null });
+    }
+    const session = verifySignedSessionToken(token, 'wallet_auth');
+    if (!session || !session.wallet) {
+      return res.json({ success: true, wallet: null });
+    }
+    return res.json({ success: true, wallet: session.wallet });
+  } catch (e) {
+    return res.json({ success: true, wallet: null });
+  }
+});
+
 app.post('/api/auth/twitter/start', validateWallet, requireWalletOwnership(['wallet_address']), async (req, res) => {
   try {
     const { wallet_address } = req.body;
