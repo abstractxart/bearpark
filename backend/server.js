@@ -3130,22 +3130,9 @@ app.post('/api/raids/session/start', validateWallet, requireWalletOwnership(['wa
       });
     }
 
-    const verificationType = getRaidVerificationType(raid);
-    if (!VERIFIED_RAID_TYPES.has(verificationType)) {
-      return res.status(403).json({
-        success: false,
-        error: 'This raid is not server-verified and cannot award Honey Points.'
-      });
-    }
-
-    const twitterConnection = await getTwitterConnection(normalizedWallet);
-    if (!twitterConnection) {
-      return res.status(400).json({
-        success: false,
-        error: 'Link your X account before starting verified raids.'
-      });
-    }
-
+    // Honor system — xaman sign-in + the click is the gate.
+    // No X-account link required, no server-side verification of the
+    // retweet. Matches the TG deep-link flow.
     res.json({
       success: true,
       session_token: issueRaidSessionToken(normalizedWallet, raid_id),
@@ -3335,14 +3322,8 @@ app.post('/api/raids/complete', validateWallet, requireWalletOwnership(['wallet_
       });
     }
 
-    const twitterConnection = await getTwitterConnection(normalizedWallet);
-    const verificationResult = await verifyRaidParticipation(raid, twitterConnection);
-    if (!verificationResult.verified) {
-      return res.status(getRaidVerificationType(raid) === 'unverified' ? 403 : 400).json({
-        success: false,
-        error: verificationResult.error
-      });
-    }
+    // Honor system — no Twitter verification. The xaman sign-in plus
+    // the session timer is the only gate. Matches TG-flow behavior.
 
     // Record completion in raid_completions table (use actual reward, not client value)
     const { error: completionError } = await supabase
