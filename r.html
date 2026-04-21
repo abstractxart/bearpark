@@ -25,9 +25,22 @@
       var(--purple) 0%, var(--purple) 33.33%,
       var(--gold)   33.33%, var(--gold)   66.66%,
       var(--green)  66.66%, var(--green)  100%);
+    /* Safe-area shortcuts (notch / pill / status bar aware) */
+    --safe-top:    env(safe-area-inset-top, 0px);
+    --safe-right:  env(safe-area-inset-right, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left:   env(safe-area-inset-left, 0px);
   }
 
   *, *::before, *::after { box-sizing: border-box; }
+
+  html {
+    /* Honor user's preferred font scaling for a11y, but cap at 120% so the
+       layout never blows out. */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
   html, body {
     margin: 0; padding: 0;
     min-height: 100%;
@@ -38,42 +51,78 @@
     overflow-x: hidden;
   }
 
-  /* ===== Full-bleed mountain hero that matches the main site ===== */
+  /* ===== Full-bleed mountain hero that matches the main site =====
+     Use `100dvh` where possible (dynamic viewport, accounts for the URL
+     bar retracting on mobile) but fall back to plain vh for older UAs.
+     Background is non-fixed on mobile — iOS Safari has bugs with
+     `background-attachment: fixed` and it kills scroll performance on
+     foldables and low-power Androids. Fixed only at tablet+. */
   body {
     background:
       radial-gradient(1200px 500px at 50% -10%, rgba(255,255,255,.065), transparent 60%),
       linear-gradient(180deg, rgba(20,22,25,0.15) 0%, rgba(20,22,25,0.55) 50%, rgba(20,22,25,0.88) 100%),
-      url('https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/qnd2tx.png') center/cover no-repeat fixed;
+      url('https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/qnd2tx.png') center/cover no-repeat;
+    background-attachment: scroll;
+  }
+  @media (min-width: 768px) {
+    body { background-attachment: scroll, scroll, fixed; }
   }
 
-  /* Top + bottom tricolor stripes — signature BEAR Park edge */
+  /* Top + bottom tricolor stripes — signature BEAR Park edge. Stripe
+     height scales up on tablet/desktop; on mobile stays slim so it
+     doesn't eat vertical space. */
   .tri-top, .tri-bot {
-    position: fixed; left: 0; right: 0; height: 6px;
+    position: fixed; left: 0; right: 0;
+    height: 6px;
     background: var(--tri); z-index: 10;
+    pointer-events: none;
   }
   .tri-top { top: 0; }
   .tri-bot { bottom: 0; }
+  @media (min-width: 768px) {
+    .tri-top, .tri-bot { height: 8px; }
+  }
 
+  /* ===== Layout container — safe-area aware, scales to screen ===== */
   main {
     min-height: 100vh;
+    min-height: 100dvh;
     display: grid;
     place-items: center;
-    padding: 40px 20px 56px;
+    padding:
+      clamp(28px, 7vh, 56px)
+      clamp(16px, 5vw, 28px)
+      clamp(40px, 8vh, 72px);
+    padding-top:    calc(clamp(28px, 7vh, 56px) + var(--safe-top));
+    padding-right:  calc(clamp(16px, 5vw, 28px) + var(--safe-right));
+    padding-bottom: calc(clamp(40px, 8vh, 72px) + var(--safe-bottom));
+    padding-left:   calc(clamp(16px, 5vw, 28px) + var(--safe-left));
     position: relative;
   }
 
-  /* ===== The gold plate (hero card) ===== */
+  /* Tablet+: stack the plate a bit higher so the chip row sits in view */
+  @media (min-width: 900px) {
+    main { place-items: start center; padding-top: clamp(72px, 12vh, 120px); }
+  }
+
+  /* ===== The gold plate (hero card) =====
+     Fluid width from ~320px phones all the way up through tablet, with
+     generous max-width on desktop. All paddings use clamp so nothing
+     feels cramped on a 320px iPhone SE or oversized on a 1200px iPad Pro. */
   .plate {
     width: 100%;
-    max-width: 440px;
+    max-width: clamp(320px, 92vw, 520px);
     background: var(--gold);
     color: var(--ink);
     border: 6px solid transparent;
-    border-radius: 22px;
+    border-radius: clamp(18px, 4vw, 26px);
     box-shadow:
       0 22px 48px rgba(0,0,0,.55),
       0 2px 0 rgba(255,255,255,.25) inset;
-    padding: 28px 24px 22px;
+    padding:
+      clamp(22px, 6vw, 34px)
+      clamp(20px, 6vw, 32px)
+      clamp(18px, 5vw, 26px);
     position: relative;
     background-image: linear-gradient(var(--gold), var(--gold)), var(--tri);
     background-origin: padding-box, border-box;
@@ -86,10 +135,13 @@
     100% { opacity: 1; transform: translateY(0) scale(1); }
   }
 
-  /* Wooden sign floats above + tilts like on the homepage */
+  /* Wooden sign floats above + tilts like on the homepage. Scales from
+     110px on a tiny phone up to 220px on tablets/desktop. The negative
+     top margin keeps it half-overlapping the plate regardless of size. */
   .sign {
-    width: 150px;
-    margin: -70px auto 8px;
+    width: clamp(110px, 28vw, 220px);
+    max-width: 70%;
+    margin: calc(-1 * clamp(58px, 16vw, 120px)) auto 8px;
     display: block;
     transform: rotate(-3deg);
     filter: drop-shadow(0 10px 0 rgba(0,0,0,.35));
@@ -103,9 +155,11 @@
   .kicker {
     display: inline-block;
     font-family: 'Luckiest Guy', cursive;
-    font-size: 12px; letter-spacing: 3px;
+    font-size: clamp(11px, 2.8vw, 13px);
+    letter-spacing: clamp(2px, 0.6vw, 3.5px);
     background: var(--charcoal); color: var(--gold);
-    padding: 6px 14px; border-radius: 999px;
+    padding: 6px 14px;
+    border-radius: 999px;
     margin: 0 0 10px;
     border: 2px solid var(--ink);
     box-shadow: 0 2px 0 rgba(0,0,0,.2);
@@ -113,7 +167,7 @@
 
   h1 {
     font-family: 'Luckiest Guy', cursive;
-    font-size: clamp(36px, 9vw, 46px);
+    font-size: clamp(30px, 9vw, 56px);
     line-height: 1;
     letter-spacing: 1.5px;
     margin: 2px 0 4px;
@@ -121,12 +175,14 @@
     text-shadow:
       0 2px 0 rgba(255,255,255,.4),
       0 3px 0 rgba(0,0,0,.1);
+    /* Break gracefully if something narrow */
+    overflow-wrap: break-word;
   }
   h1 .slash { color: var(--purple); }
 
   .subtitle {
     font-family: 'Luckiest Guy', cursive;
-    font-size: clamp(14px, 3.6vw, 17px);
+    font-size: clamp(13px, 3.4vw, 19px);
     letter-spacing: 1px;
     color: var(--ink);
     opacity: 0.85;
@@ -140,7 +196,8 @@
     padding: 18px 0 8px;
   }
   .spinner {
-    width: 22px; height: 22px;
+    width: clamp(20px, 5vw, 26px);
+    height: clamp(20px, 5vw, 26px);
     border: 3px solid rgba(35,27,4,.2);
     border-top-color: var(--purple);
     border-radius: 50%;
@@ -148,7 +205,8 @@
   }
   .loader .msg {
     font-family: 'Luckiest Guy', cursive;
-    font-size: 13px; letter-spacing: 2px;
+    font-size: clamp(12px, 3vw, 15px);
+    letter-spacing: 2px;
     color: var(--ink); opacity: 0.7;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
@@ -160,7 +218,7 @@
   .escape-body {
     background: rgba(35,27,4,0.06);
     border-radius: 14px;
-    padding: 16px 14px;
+    padding: clamp(14px, 4vw, 20px) clamp(12px, 4vw, 18px);
     margin: 4px 0 12px;
     border: 2px dashed rgba(35,27,4,0.25);
     text-align: left;
@@ -168,7 +226,8 @@
   .escape-body p {
     font-family: 'Nunito', sans-serif;
     font-weight: 800;
-    font-size: 14px; line-height: 1.5;
+    font-size: clamp(13px, 3.5vw, 16px);
+    line-height: 1.5;
     color: var(--ink); opacity: 0.92;
     margin: 0;
   }
@@ -179,13 +238,14 @@
     display: flex; align-items: center; justify-content: center;
     gap: 10px;
     width: 100%;
-    padding: 17px 18px;
+    min-height: 54px;         /* 48px minimum tap target + breathing room */
+    padding: clamp(14px, 4vw, 20px) clamp(16px, 5vw, 24px);
     border-radius: 14px;
     background: linear-gradient(120deg, var(--purple) 0%, #8f2cf5 50%, var(--purple) 100%);
     background-size: 200% 100%;
     color: #fff;
     font-family: 'Luckiest Guy', cursive;
-    font-size: 20px;
+    font-size: clamp(17px, 4.8vw, 22px);
     letter-spacing: 2px;
     text-decoration: none;
     border: 3px solid var(--ink);
@@ -197,6 +257,8 @@
     animation: shimmer 3s ease infinite;
     position: relative;
     overflow: hidden;
+    /* Improve contrast with platform's tap-highlight removal */
+    -webkit-tap-highlight-color: transparent;
   }
   .btn-primary:active {
     transform: translateY(4px);
@@ -213,31 +275,38 @@
     display: block;
     width: 100%;
     text-align: center;
-    padding: 10px 12px;
+    padding: 12px;
+    min-height: 44px;         /* still a tap target */
     margin-top: 10px;
     font-family: 'Luckiest Guy', cursive;
-    font-size: 12px; letter-spacing: 2px;
+    font-size: clamp(11px, 2.8vw, 13px);
+    letter-spacing: 2px;
     color: var(--ink);
     opacity: 0.55;
     text-decoration: none;
     background: transparent;
     border: none;
+    -webkit-tap-highlight-color: transparent;
   }
-  .btn-secondary:hover { opacity: 0.9; }
+  .btn-secondary:hover,
+  .btn-secondary:active { opacity: 0.9; }
 
   /* Flavor line (lore) */
   .flavor {
     font-family: 'Luckiest Guy', cursive;
-    font-size: 12px; letter-spacing: 2px;
+    font-size: clamp(11px, 2.8vw, 13px);
+    letter-spacing: 2px;
     color: var(--ink); opacity: 0.55;
     margin: 14px 0 0;
   }
 
-  /* Reward chip below plate */
+  /* Reward chip row below plate. Wraps naturally; on very narrow screens
+     falls to a column; on tablets spreads wider. */
   .chip-row {
     display: flex; justify-content: center; gap: 10px;
     flex-wrap: wrap;
-    margin-top: 18px;
+    margin: 18px auto 0;
+    max-width: clamp(320px, 92vw, 520px);
   }
   .chip {
     display: inline-flex; align-items: center; gap: 6px;
@@ -246,7 +315,8 @@
     padding: 8px 14px;
     border-radius: 999px;
     font-family: 'Luckiest Guy', cursive;
-    font-size: 12px; letter-spacing: 1.5px;
+    font-size: clamp(11px, 2.8vw, 13px);
+    letter-spacing: 1.5px;
     border: 2px solid transparent;
     background-image: linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), var(--tri);
     background-origin: padding-box, border-box;
@@ -255,7 +325,8 @@
     box-shadow: 0 4px 12px rgba(0,0,0,0.5);
   }
 
-  /* Tiny honey dots bg sprinkle for flavor */
+  /* Tiny honey dots bg sprinkle for flavor. Denser dots on high-DPI
+     so they don't look chunky on retina. */
   .dots {
     position: fixed; inset: 0;
     pointer-events: none;
@@ -266,10 +337,124 @@
     mask-image: linear-gradient(180deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0) 60%);
     -webkit-mask-image: linear-gradient(180deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0) 60%);
   }
+  @media (min-resolution: 2dppx) {
+    .dots { background-size: 22px 22px; }
+  }
 
   /* Hide spinner state when escape shown */
   .escape.show ~ .loader,
   .escape.show + .chip-row + .loader { display: none; }
+
+  /* ========================================================================
+     RESPONSIVE REFINEMENTS
+     We already use clamp() for fluid scaling, so these breakpoints only
+     handle cases that clamp alone can't solve: orientation, aspect ratio,
+     and a11y preferences.
+     ======================================================================== */
+
+  /* ---- Very small phones (iPhone SE, old Androids < 360px wide) ----
+     Squeeze padding, drop the sign a touch, keep everything on-screen. */
+  @media (max-width: 360px) {
+    main { padding-left: 12px; padding-right: 12px; }
+    .plate { padding: 22px 18px 20px; }
+    .sign { margin-top: -54px; }
+    .kicker { letter-spacing: 2px; }
+    h1 { font-size: 28px; letter-spacing: 1px; }
+    .btn-primary { letter-spacing: 1.5px; gap: 8px; }
+  }
+
+  /* ---- Landscape phones (short height, wide enough for side-by-side) ----
+     Shrink the sign so the whole plate fits without scrolling, compress
+     the vertical rhythm, and let the hero background still show. */
+  @media (orientation: landscape) and (max-height: 520px) {
+    main { padding-top: 16px; padding-bottom: 24px; }
+    .plate { padding: 16px 20px 14px; max-width: 520px; }
+    .sign {
+      width: 86px; margin-top: -40px; margin-bottom: 4px;
+    }
+    h1 { font-size: 28px; margin-bottom: 2px; }
+    .subtitle { font-size: 13px; margin-bottom: 8px; }
+    .escape-body { padding: 10px 12px; margin-bottom: 8px; }
+    .escape-body p { font-size: 13px; line-height: 1.4; }
+    .btn-primary { min-height: 46px; padding: 10px 16px; font-size: 16px; }
+    .btn-secondary { padding: 6px; margin-top: 4px; }
+    .flavor { margin-top: 8px; }
+    .chip-row { margin-top: 10px; gap: 6px; }
+    .chip { padding: 5px 10px; }
+    .loader { padding: 8px 0 4px; }
+  }
+
+  /* ---- Tablets portrait (iPad, foldable unfolded, large phones) ----
+     More generous plate, bigger sign, more air around it. */
+  @media (min-width: 640px) and (orientation: portrait) {
+    .plate { padding: 38px 40px 30px; }
+    .sign { max-width: 200px; }
+    .chip-row { gap: 14px; margin-top: 24px; }
+    .chip { padding: 10px 18px; font-size: 13px; }
+  }
+
+  /* ---- Tablets landscape (iPad/foldable landscape, small laptops) ---- */
+  @media (min-width: 900px) {
+    .plate { padding: 42px 48px 34px; }
+    .escape-body p { font-size: 15px; }
+    .btn-primary { font-size: 22px; padding: 18px 22px; }
+    .chip { padding: 10px 18px; font-size: 14px; }
+    .chip-row { gap: 14px; }
+  }
+
+  /* ---- Desktop (post-escape `?esc=1` landing in Chrome/Safari) ---- */
+  @media (min-width: 1200px) {
+    .plate { max-width: 560px; }
+    .sign { max-width: 230px; }
+  }
+
+  /* ---- Foldable Z Fold / Duo cover screens (extremely narrow, tall)
+     Catch ultra-narrow devices like the Galaxy Z Fold cover (280-320px)
+     and cover them with the tiny-phone tweaks above, but also tighten
+     the sign so it doesn't dwarf the plate. */
+  @media (max-width: 300px) {
+    .sign { width: 96px; margin-top: -44px; }
+    h1 { font-size: 24px; }
+    .kicker { font-size: 10px; letter-spacing: 1.5px; padding: 5px 10px; }
+    .btn-primary { font-size: 15px; letter-spacing: 1px; }
+  }
+
+  /* ---- High pixel density screens — crisper shadow separation ---- */
+  @media (min-resolution: 2dppx) {
+    .plate {
+      box-shadow:
+        0 24px 56px rgba(0,0,0,.6),
+        0 2px 0 rgba(255,255,255,.28) inset;
+    }
+  }
+
+  /* ---- Dark mode is already our default; light mode fallback --- */
+  @media (prefers-color-scheme: light) {
+    /* Design intentionally stays dark regardless — raid calls are
+       supposed to feel cinematic, not like a spreadsheet. */
+  }
+
+  /* ---- Accessibility: honor reduced-motion preferences ---- */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+    }
+    .sign { transform: rotate(-2deg); }
+    .btn-primary { background-position: 0% 50%; }
+  }
+
+  /* ---- Forced-colors (Windows High Contrast, etc.) ---- */
+  @media (forced-colors: active) {
+    .plate { border: 3px solid CanvasText; background: Canvas; color: CanvasText; }
+    .btn-primary {
+      background: ButtonFace; color: ButtonText;
+      border: 2px solid ButtonText; box-shadow: none;
+    }
+    .chip { background: Canvas; color: CanvasText; border: 2px solid CanvasText; }
+    .tri-top, .tri-bot { background: Highlight; }
+  }
 </style>
 </head>
 <body>
