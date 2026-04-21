@@ -2,71 +2,322 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <meta name="theme-color" content="#141619" />
-<title>BEAR Park</title>
+<title>BEAR Park — Raid Call</title>
 <meta name="robots" content="noindex" />
-<meta property="og:title" content="BEAR Park Raid" />
-<meta property="og:description" content="Joining the raid." />
+<meta property="og:title" content="BEAR Park — Raid Call" />
+<meta property="og:description" content="The jester is rallying the den. Tap in to join the raid." />
 <meta property="og:type" content="website" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet" />
+
 <style>
-  html, body {
-    margin: 0; padding: 0; min-height: 100%;
-    background: #141619; color: #fff;
-    font-family: system-ui, -apple-system, sans-serif;
-    display: grid; place-items: center;
+  :root {
+    --purple:  #680cd9;
+    --gold:    #ffae00;
+    --green:   #07ae08;
+    --ink:     #231b04;
+    --charcoal:#141619;
+    --tri: linear-gradient(to right,
+      var(--purple) 0%, var(--purple) 33.33%,
+      var(--gold)   33.33%, var(--gold)   66.66%,
+      var(--green)  66.66%, var(--green)  100%);
   }
-  .wrap { text-align: center; padding: 24px; max-width: 420px; }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    min-height: 100%;
+    color: #fff;
+    background: var(--charcoal);
+    font-family: 'Nunito', -apple-system, system-ui, sans-serif;
+    font-weight: 700;
+    overflow-x: hidden;
+  }
+
+  /* ===== Full-bleed mountain hero that matches the main site ===== */
+  body {
+    background:
+      radial-gradient(1200px 500px at 50% -10%, rgba(255,255,255,.065), transparent 60%),
+      linear-gradient(180deg, rgba(20,22,25,0.15) 0%, rgba(20,22,25,0.55) 50%, rgba(20,22,25,0.88) 100%),
+      url('https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/qnd2tx.png') center/cover no-repeat fixed;
+  }
+
+  /* Top + bottom tricolor stripes — signature BEAR Park edge */
+  .tri-top, .tri-bot {
+    position: fixed; left: 0; right: 0; height: 6px;
+    background: var(--tri); z-index: 10;
+  }
+  .tri-top { top: 0; }
+  .tri-bot { bottom: 0; }
+
+  main {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 40px 20px 56px;
+    position: relative;
+  }
+
+  /* ===== The gold plate (hero card) ===== */
+  .plate {
+    width: 100%;
+    max-width: 440px;
+    background: var(--gold);
+    color: var(--ink);
+    border: 6px solid transparent;
+    border-radius: 22px;
+    box-shadow:
+      0 22px 48px rgba(0,0,0,.55),
+      0 2px 0 rgba(255,255,255,.25) inset;
+    padding: 28px 24px 22px;
+    position: relative;
+    background-image: linear-gradient(var(--gold), var(--gold)), var(--tri);
+    background-origin: padding-box, border-box;
+    background-clip: padding-box, border-box;
+    text-align: center;
+    animation: plateIn 0.6s cubic-bezier(0.25, 1.2, 0.4, 1.1) both;
+  }
+  @keyframes plateIn {
+    0% { opacity: 0; transform: translateY(12px) scale(0.96); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  /* Wooden sign floats above + tilts like on the homepage */
+  .sign {
+    width: 150px;
+    margin: -70px auto 8px;
+    display: block;
+    transform: rotate(-3deg);
+    filter: drop-shadow(0 10px 0 rgba(0,0,0,.35));
+    animation: signSway 4s ease-in-out infinite alternate;
+  }
+  @keyframes signSway {
+    0%   { transform: rotate(-3deg) translateY(0); }
+    100% { transform: rotate(-1deg) translateY(-4px); }
+  }
+
+  .kicker {
+    display: inline-block;
+    font-family: 'Luckiest Guy', cursive;
+    font-size: 12px; letter-spacing: 3px;
+    background: var(--charcoal); color: var(--gold);
+    padding: 6px 14px; border-radius: 999px;
+    margin: 0 0 10px;
+    border: 2px solid var(--ink);
+    box-shadow: 0 2px 0 rgba(0,0,0,.2);
+  }
+
+  h1 {
+    font-family: 'Luckiest Guy', cursive;
+    font-size: clamp(36px, 9vw, 46px);
+    line-height: 1;
+    letter-spacing: 1.5px;
+    margin: 2px 0 4px;
+    color: var(--ink);
+    text-shadow:
+      0 2px 0 rgba(255,255,255,.4),
+      0 3px 0 rgba(0,0,0,.1);
+  }
+  h1 .slash { color: var(--purple); }
+
+  .subtitle {
+    font-family: 'Luckiest Guy', cursive;
+    font-size: clamp(14px, 3.6vw, 17px);
+    letter-spacing: 1px;
+    color: var(--ink);
+    opacity: 0.85;
+    margin: 0 0 14px;
+  }
+
+  /* Spinner shown during the initial claim/redirect attempt */
+  .loader {
+    display: flex; align-items: center; justify-content: center;
+    gap: 10px;
+    padding: 18px 0 8px;
+  }
   .spinner {
-    width: 32px; height: 32px;
-    border: 3px solid rgba(255, 174, 0, 0.18);
-    border-top-color: #ffae00;
+    width: 22px; height: 22px;
+    border: 3px solid rgba(35,27,4,.2);
+    border-top-color: var(--purple);
     border-radius: 50%;
     animation: spin 0.7s linear infinite;
-    margin: 0 auto 12px;
   }
-  .msg { font-size: 13px; letter-spacing: 2px; color: rgba(255,255,255,0.5); }
+  .loader .msg {
+    font-family: 'Luckiest Guy', cursive;
+    font-size: 13px; letter-spacing: 2px;
+    color: var(--ink); opacity: 0.7;
+  }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  /* Escape UI — shown only if we're inside TG WebView and programmatic
-     escape silently failed. User tap on a real <a href="intent://..."> has
-     a user-gesture context which most WebViews honor even when JS can't.  */
-  .escape { display: none; margin-top: 18px; }
+  /* ===== Escape card — appears for TG WebView users ===== */
+  .escape { display: none; }
   .escape.show { display: block; }
-  .escape h2 {
-    font-family: "Luckiest Guy", system-ui, sans-serif;
-    font-size: 20px; letter-spacing: 1px; margin: 0 0 6px;
-    color: #fff; text-shadow: 0 2px 0 rgba(0,0,0,0.4);
+
+  .escape-body {
+    background: rgba(35,27,4,0.06);
+    border-radius: 14px;
+    padding: 16px 14px;
+    margin: 4px 0 12px;
+    border: 2px dashed rgba(35,27,4,0.25);
+    text-align: left;
   }
-  .escape p { color: rgba(255,255,255,0.65); font-size: 13px; margin: 0 0 14px; line-height: 1.5; }
-  .escape a.btn {
-    display: inline-block; width: 100%; padding: 14px 18px;
-    border-radius: 12px; background: linear-gradient(135deg, #680cd9, #ffae00, #07ae08);
-    background-size: 200% 100%; color: #fff; font-weight: 900; text-decoration: none;
-    font-family: "Luckiest Guy", system-ui, sans-serif; letter-spacing: 1px; font-size: 16px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.4); border: 2px solid rgba(255,255,255,0.08);
+  .escape-body p {
+    font-family: 'Nunito', sans-serif;
+    font-weight: 800;
+    font-size: 14px; line-height: 1.5;
+    color: var(--ink); opacity: 0.92;
+    margin: 0;
+  }
+  .escape-body p + p { margin-top: 8px; }
+  .escape-body strong { font-weight: 900; color: var(--purple); }
+
+  .btn-primary {
+    display: flex; align-items: center; justify-content: center;
+    gap: 10px;
+    width: 100%;
+    padding: 17px 18px;
+    border-radius: 14px;
+    background: linear-gradient(120deg, var(--purple) 0%, #8f2cf5 50%, var(--purple) 100%);
+    background-size: 200% 100%;
+    color: #fff;
+    font-family: 'Luckiest Guy', cursive;
+    font-size: 20px;
+    letter-spacing: 2px;
+    text-decoration: none;
+    border: 3px solid var(--ink);
+    box-shadow:
+      0 6px 0 var(--ink),
+      0 10px 24px rgba(104,12,217,0.5);
+    text-shadow: 0 2px 0 rgba(0,0,0,0.35);
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
     animation: shimmer 3s ease infinite;
+    position: relative;
+    overflow: hidden;
   }
-  .escape a.btn.secondary {
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.12);
-    margin-top: 8px; font-size: 13px; letter-spacing: 2px;
+  .btn-primary:active {
+    transform: translateY(4px);
+    box-shadow:
+      0 2px 0 var(--ink),
+      0 4px 12px rgba(104,12,217,0.4);
   }
-  @keyframes shimmer { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
+  @keyframes shimmer {
+    0%,100% { background-position: 0% 50%; }
+    50%     { background-position: 100% 50%; }
+  }
+
+  .btn-secondary {
+    display: block;
+    width: 100%;
+    text-align: center;
+    padding: 10px 12px;
+    margin-top: 10px;
+    font-family: 'Luckiest Guy', cursive;
+    font-size: 12px; letter-spacing: 2px;
+    color: var(--ink);
+    opacity: 0.55;
+    text-decoration: none;
+    background: transparent;
+    border: none;
+  }
+  .btn-secondary:hover { opacity: 0.9; }
+
+  /* Flavor line (lore) */
+  .flavor {
+    font-family: 'Luckiest Guy', cursive;
+    font-size: 12px; letter-spacing: 2px;
+    color: var(--ink); opacity: 0.55;
+    margin: 14px 0 0;
+  }
+
+  /* Reward chip below plate */
+  .chip-row {
+    display: flex; justify-content: center; gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 18px;
+  }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(0,0,0,0.55);
+    color: #fff;
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-family: 'Luckiest Guy', cursive;
+    font-size: 12px; letter-spacing: 1.5px;
+    border: 2px solid transparent;
+    background-image: linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), var(--tri);
+    background-origin: padding-box, border-box;
+    background-clip: padding-box, border-box;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  }
+
+  /* Tiny honey dots bg sprinkle for flavor */
+  .dots {
+    position: fixed; inset: 0;
+    pointer-events: none;
+    background-image: radial-gradient(rgba(255,174,0,0.08) 1px, transparent 1.5px);
+    background-size: 28px 28px;
+    opacity: 0.4;
+    z-index: 0;
+    mask-image: linear-gradient(180deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0) 60%);
+    -webkit-mask-image: linear-gradient(180deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0) 60%);
+  }
+
+  /* Hide spinner state when escape shown */
+  .escape.show ~ .loader,
+  .escape.show + .chip-row + .loader { display: none; }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="spinner" id="bp-spinner"></div>
-  <div class="msg" id="bp-msg">joining raid…</div>
 
-  <div class="escape" id="bp-escape">
-    <h2>🃏 Open in your browser</h2>
-    <p id="bp-escape-desc">Tap below to finish the raid in Chrome — that's where your BEAR Park session lives, so your honey points credit correctly.</p>
-    <a class="btn" id="bp-escape-btn" href="#">🚀 Open in Chrome</a>
-    <a class="btn secondary" id="bp-escape-continue" href="#">continue here without credit →</a>
+<div class="tri-top"></div>
+<div class="tri-bot"></div>
+<div class="dots" aria-hidden="true"></div>
+
+<main>
+  <div class="plate">
+    <img class="sign" src="https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/25ekkd.png" alt="BEAR PARK" />
+
+    <span class="kicker">🃏 JESTER BEAR</span>
+    <h1><span class="slash">//</span> RAID CALL <span class="slash">//</span></h1>
+    <div class="subtitle">Joining the den.</div>
+
+    <!-- Spinner state (shown while claim + redirect run) -->
+    <div class="loader" id="bp-loader">
+      <div class="spinner"></div>
+      <div class="msg" id="bp-msg">signing you in…</div>
+    </div>
+
+    <!-- Escape state (shown on mobile to kick user to real browser) -->
+    <div class="escape" id="bp-escape">
+      <div class="escape-body">
+        <p id="bp-escape-desc">
+          Telegram's built-in browser doesn't see your <strong>BEAR Park</strong> session,
+          so your honey points won't credit here. Tap below to finish the raid in
+          <strong>Chrome</strong> — your wallet, your honey, your $BEAR.
+        </p>
+      </div>
+      <a class="btn-primary" id="bp-escape-btn" href="#">
+        <span>🚀</span>
+        <span>OPEN IN CHROME</span>
+      </a>
+      <a class="btn-secondary" id="bp-escape-continue" href="#">continue without credit →</a>
+    </div>
+
+    <div class="flavor">✦ &nbsp; the jester raises his hand &nbsp; ✦</div>
   </div>
-</div>
+
+  <div class="chip-row">
+    <span class="chip">🍯 HONEY POINTS</span>
+    <span class="chip">🐻 $BEAR</span>
+    <span class="chip">🪖 RAID</span>
+  </div>
+</main>
+
 <script>
 (function() {
   // ---- 1. Parse raid id from ?id=N or /r/<id> -----------------------------
@@ -87,14 +338,6 @@
   const isAndroid = /Android/i.test(ua);
   const isMobile = isIOS || isAndroid || /Mobile/i.test(ua);
 
-  // TG WebView detection — UA sniffing alone is UNRELIABLE because modern
-  // Telegram on Android often ships a UA that looks identical to Chrome.
-  // The reliable signals are JS globals that TG injects into the page:
-  //   window.TelegramWebviewProxy      → Android TG in-app browser
-  //   window.TelegramWebview           → older Android TG
-  //   window.Telegram.WebApp           → TG Mini App (not our case but harmless)
-  //   window.webkit.messageHandlers.performAction → iOS TG in-app browser
-  // Fall back to UA sniff as a belt-and-braces last resort.
   function detectTelegramWebView() {
     try {
       if (typeof window.TelegramWebviewProxy !== 'undefined') return true;
@@ -110,15 +353,7 @@
   }
   const isTelegramWebView = detectTelegramWebView();
 
-  // ---- 2a. ESCAPE LOGIC — always-armed escape button for mobile -----------
-  // Detection-less strategy: always PRECOMPUTE the intent:// / x-safari-
-  // URL and always arm the visible escape button. If the user's r.html
-  // load is already in Chrome/Safari (not TG WebView), the normal flow
-  // redirects them before the button ever appears. If they ARE stuck in
-  // TG WebView, the button shows after 1.3s and a single tap with user-
-  // gesture context forces Chrome (Android) / opens Safari (iOS) to take
-  // over. More reliable than any UA / JS-global detection because those
-  // are inconsistent across TG app versions.
+  // ---- 2a. Build escape URLs ---------------------------------------------
   const alreadyEscaped = /(?:\?|&)esc=1\b/.test(window.location.search);
   const host = window.location.host;
   const path = window.location.pathname;
@@ -130,25 +365,19 @@
     'intent://' + host + path + qs +
     '#Intent;scheme=https;package=com.android.chrome;' +
     'S.browser_fallback_url=' + encodeURIComponent(selfHttps) + ';end';
-  // iOS: direct https link — iOS WebViews may offer a "Open in Safari"
-  // menu on long-press, and the normal <a> tap may trigger universal
-  // link handoff on some TG iOS versions. x-safari- was removed in
-  // iOS 14 so we don't try it anymore.
   const chooseableUrl = isAndroid ? intentUrl : selfHttps;
 
   function showEscapeUI() {
     try {
-      const escUI = document.getElementById('bp-escape');
-      const escBtn = document.getElementById('bp-escape-btn');
-      const escCont = document.getElementById('bp-escape-continue');
-      const spin = document.getElementById('bp-spinner');
-      const msg = document.getElementById('bp-msg');
+      const escUI     = document.getElementById('bp-escape');
+      const escBtn    = document.getElementById('bp-escape-btn');
+      const escCont   = document.getElementById('bp-escape-continue');
+      const loader    = document.getElementById('bp-loader');
+      const desc      = document.getElementById('bp-escape-desc');
       if (!escUI || escUI.classList.contains('show')) return;
 
       if (escBtn) escBtn.setAttribute('href', chooseableUrl);
       if (escBtn && isAndroid) {
-        // Extra belt-and-braces: on tap, also try programmatic intent
-        // in case the href alone doesn't fire. User gesture is active.
         escBtn.addEventListener('click', () => {
           try { window.location.href = intentUrl; } catch (_) {}
         }, { once: true });
@@ -158,58 +387,37 @@
         escCont.setAttribute('href', '#');
         escCont.addEventListener('click', (e) => {
           e.preventDefault();
-          if (escUI) escUI.classList.remove('show');
-          if (spin) spin.style.display = 'block';
+          if (escUI)  escUI.classList.remove('show');
+          if (loader) loader.style.display = 'flex';
+          const msg = document.getElementById('bp-msg');
           if (msg) msg.textContent = 'joining raid…';
           fireClaim().catch(() => {});
           redirect().catch(() => {});
         }, { once: true });
       }
 
-      const desc = document.getElementById('bp-escape-desc');
+      // iOS-specific copy + button text (can't force Safari from inside WebView)
       if (desc && isIOS) {
-        desc.textContent = 'Telegram\'s in-app browser can\'t pass you to Safari automatically. Tap below, or open Telegram → Data and Storage → Open Links In → Default Browser so next time it works in one tap.';
+        desc.innerHTML =
+          'Telegram\u2019s browser can\u2019t pass you to <strong>Safari</strong> automatically. ' +
+          'Tap below — or open <strong>Telegram \u2192 Data &amp; Storage \u2192 Open Links In \u2192 Default Browser</strong> ' +
+          'to make this one-tap forever.';
       }
-      if (escBtn && isIOS) escBtn.textContent = '🦁 Open in Safari';
+      if (escBtn && isIOS) {
+        escBtn.innerHTML = '<span>🦁</span><span>OPEN IN SAFARI</span>';
+      }
 
       escUI.classList.add('show');
-      if (spin) spin.style.display = 'none';
-      if (msg) msg.textContent = '';
+      if (loader) loader.style.display = 'none';
     } catch (_) {}
   }
 
-  // On mobile WITHOUT an escape marker, we have no reliable way to tell
-  // whether we're inside TG's WebView or in the user's real browser, and
-  // the penalty for guessing wrong is bad (twitter:// intercepted inside
-  // TG opens X to home feed, web-URL fallback leaves user stranded on
-  // x.com inside TG browser). So we short-circuit the redirect and make
-  // the decision explicit: show the escape button, user taps once, we
-  // come back via ?esc=1 in a REAL browser and run the full flow there.
-  // The "continue here without credit" link is always available for
-  // users who can't or won't escape (e.g. iOS where we can't force Safari).
-  if (isMobile && !alreadyEscaped) {
-    showEscapeUI();
-    return;
-  }
-
-  // ---- 3. Fire the tg-claim with wallet from multiple sources -------------
-  // Why multiple sources: on mobile, clicking a TG link opens the link in
-  // TG's in-app WebView which has its OWN localStorage jar, separate from
-  // Chrome/Safari. So even though the user is signed into BEAR Park on
-  // their phone, this WebView has no bearpark_wallet in localStorage →
-  // claim skipped → no honey credited.
-  //
-  // Cookies CAN sometimes survive WebView isolation (browser/app-specific).
-  // We first check localStorage synchronously (fast path, works in Chrome /
-  // Safari). If empty, we probe /api/auth/me which reads the session from
-  // the cookie or Bearer token. If that returns a wallet, we still fire
-  // the claim. This closes ~80% of the "honey didn't credit on mobile" gap.
+  // ---- 3. Claim (tg-claim) using wallet from multiple sources -------------
   async function fireClaim() {
     let wallet = null;
     try { wallet = localStorage.getItem('bearpark_wallet'); } catch (_) {}
 
     if (!wallet) {
-      // Fallback: ask the server who we are via session cookie.
       try {
         const ctrl = new AbortController();
         const timer = setTimeout(() => ctrl.abort(), 2500);
@@ -224,12 +432,10 @@
       } catch (_) {}
     }
 
-    if (!wallet) return; // truly no session in this browser context
+    if (!wallet) return;
 
     const payload = JSON.stringify({ wallet_address: wallet, raid_id: raidId });
 
-    // Prefer sendBeacon — guaranteed delivery across unload, no navigation
-    // cancellation, no CORS preflight needed for same-origin JSON blobs.
     let queued = false;
     try {
       if (navigator.sendBeacon) {
@@ -252,7 +458,7 @@
     }
   }
 
-  // ---- 4. Look up tweet URL (with timeout) then open in X -----------------
+  // ---- 4. Look up tweet URL then redirect (X app preferred on mobile) -----
   async function redirect() {
     let tweetUrl = '';
     try {
@@ -270,9 +476,6 @@
 
     if (!tweetUrl) { bail(); return; }
 
-    // Strip tracking-only query params that sometimes confuse X's universal
-    // link handler on mobile (?s=20, ?t=... etc.) and can lead the OS to
-    // drop the /status/<id> portion when opening the app.
     let cleanUrl = tweetUrl;
     try {
       const u = new URL(tweetUrl);
@@ -280,30 +483,11 @@
       cleanUrl = u.toString();
     } catch (_) {}
 
-    // Extract the numeric tweet ID (the /status/<id> segment).
     const idMatch = cleanUrl.match(/\/status(?:es)?\/(\d+)/);
     const tweetId = idMatch ? idMatch[1] : null;
 
-    // Mobile (and NOT inside TG WebView): use the twitter:// custom scheme
-    // which RELIABLY opens the specific post in the X / Twitter app.
-    // Universal-link handling of https://x.com/.../status/... is flaky on
-    // iOS when triggered from a WebView — X often opens to the home feed
-    // instead of the actual tweet. The custom scheme sidesteps that.
-    // Fallback: if the X app isn't installed the scheme does nothing and
-    // the timeout kicks the user to the web URL.
-    //
-    // IMPORTANT: inside TG's in-app WebView we SKIP the custom scheme
-    // attempt. TG's WebView sandboxes twitter:// and similar non-http
-    // schemes — they don't propagate to the OS, so the X app never opens
-    // AND the page errors out before our fallback can replace the URL,
-    // leaving the user stranded. Going straight to the web URL means TG
-    // WebView at least loads x.com/.../status/<id> which is usable.
     if (isMobile && tweetId && !isTelegramWebView) {
       const deepLink = 'twitter://status?id=' + tweetId;
-
-      // If the user is redirected out to the X app, this page becomes
-      // backgrounded — clear the fallback timer so we don't ALSO load
-      // the web URL when they come back.
       let fallback;
       const cancelFallback = () => { if (fallback) clearTimeout(fallback); };
       document.addEventListener('visibilitychange', () => {
@@ -311,30 +495,26 @@
       }, { once: true });
       window.addEventListener('pagehide', cancelFallback, { once: true });
       window.addEventListener('blur', cancelFallback, { once: true });
-
-      // Fallback to web URL if the deep link doesn't take over within 1.2s
-      // (meaning the X app isn't installed, or the OS refused the scheme).
       fallback = setTimeout(() => {
         window.location.replace(cleanUrl);
       }, 1200);
-
-      // Trigger the deep link. Using location.href (not replace) lets the
-      // scheme handler fire without replacing the current history entry
-      // prematurely — some mobile browsers need this distinction.
       window.location.href = deepLink;
       return;
     }
 
-    // Desktop, TG in-app WebView, or app-not-installed: use the clean web URL.
     window.location.replace(cleanUrl);
   }
 
-  // Fire claim + redirect in parallel. Claim is fire-and-forget via
-  // sendBeacon so it doesn't block the redirect. The escape button (if
-  // armed) shows at 1.3s only if this path hasn't navigated away by then
-  // — i.e. only if we're stuck in TG WebView with a failed/slow redirect.
-  // On Chrome/Safari the redirect completes well before 1.3s and the
-  // button never appears to the user.
+  // ---- 5. Flow control ----------------------------------------------------
+  // On mobile without alreadyEscaped, show the escape button IMMEDIATELY.
+  // No auto-redirect — make the escape decision explicit so TG WebView users
+  // aren't silently trapped on x.com inside TG's browser.
+  if (isMobile && !alreadyEscaped) {
+    showEscapeUI();
+    return;
+  }
+
+  // Desktop OR post-escape mobile: run the full silent flow.
   fireClaim();
   redirect();
 })();
