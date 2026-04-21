@@ -60,6 +60,69 @@
   // the custom scheme attempt entirely when we're inside TG.
   const isTelegramWebView = /Telegram/i.test(ua) || /TelegramBot/i.test(ua);
 
+  // ---- 2a. ESCAPE TG WebView to the real browser --------------------------
+  // If we're inside TG's in-app WebView, try to relaunch ourselves in the
+  // user's real default browser (Chrome on Android, Safari on iOS). When
+  // that succeeds, r.html runs a second time in the external browser where
+  // the user's BEAR Park session (cookies + localStorage) is actually
+  // available → honey credits, X app opens to the tweet, full PC parity.
+  //
+  // Android: intent://… is a built-in Android mechanism. When the WebView
+  // encounters it, the OS hands the URL off to the named package (Chrome)
+  // externally. This is the "force-external-browser" escape hatch and it
+  // works reliably on 95%+ of Android TG installs.
+  //
+  // iOS: Apple sandboxes all WebViews — there is no public API for a
+  // WebView to launch Safari with an arbitrary URL. x-safari-https://
+  // was a legacy undocumented scheme that Apple removed around iOS 14.
+  // We try it anyway in case an older iOS still honors it, then fall
+  // through to the normal in-WebView flow (cookie-based /api/auth/me
+  // still credits honey if the user signed in inside TG's browser once).
+  // The only 100% iOS solution is the user toggling Telegram → Data and
+  // Storage → Open Links In → Default Browser. Platform limitation.
+  if (isTelegramWebView) {
+    // Prevent infinite loops if the external browser still somehow
+    // reports a Telegram UA. We mark the URL once and skip escape on
+    // the second hop.
+    const alreadyEscaped = /(?:\?|&)esc=1\b/.test(window.location.search);
+
+    if (!alreadyEscaped) {
+      const host = window.location.host;
+      const path = window.location.pathname;
+      const qs = window.location.search
+        ? window.location.search + '&esc=1'
+        : '?esc=1';
+      const selfHttps = 'https://' + host + path + qs;
+
+      if (isAndroid) {
+        // intent://…#Intent;scheme=https;package=com.android.chrome;
+        //   S.browser_fallback_url=<encoded>;end
+        // package= pins Chrome specifically. If Chrome isn't installed
+        // S.browser_fallback_url kicks the OS to use the default browser
+        // chooser instead of erroring. Either way we escape the TG jar.
+        const intentUrl =
+          'intent://' + host + path + qs +
+          '#Intent;scheme=https;package=com.android.chrome;' +
+          'S.browser_fallback_url=' + encodeURIComponent(selfHttps) + ';end';
+        window.location.replace(intentUrl);
+        return; // navigation takes over; nothing below runs
+      }
+
+      if (isIOS) {
+        // Best-effort iOS escape. Triggers a navigation to x-safari-https://
+        // which some older iOS versions honor by launching Safari. If this
+        // fails (iOS 14+), the call is a no-op and we fall through to the
+        // normal in-WebView flow below — no error, no hang.
+        try {
+          window.location.href = 'x-safari-https://' + host + path + qs;
+        } catch (_) {}
+        // Do NOT return — iOS often silently swallows the x-safari- call,
+        // so we continue with the in-WebView flow as a fallback. Honey
+        // still credits via the /api/auth/me cookie path if reachable.
+      }
+    }
+  }
+
   // ---- 3. Fire the tg-claim with wallet from multiple sources -------------
   // Why multiple sources: on mobile, clicking a TG link opens the link in
   // TG's in-app WebView which has its OWN localStorage jar, separate from
