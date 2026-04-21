@@ -11,12 +11,12 @@
 <meta property="og:type" content="website" />
 <style>
   html, body {
-    margin: 0; padding: 0; height: 100%;
+    margin: 0; padding: 0; min-height: 100%;
     background: #141619; color: #fff;
     font-family: system-ui, -apple-system, sans-serif;
-    display: grid; place-items: center; overflow: hidden;
+    display: grid; place-items: center;
   }
-  .wrap { text-align: center; opacity: 0.7; }
+  .wrap { text-align: center; padding: 24px; max-width: 420px; }
   .spinner {
     width: 32px; height: 32px;
     border: 3px solid rgba(255, 174, 0, 0.18);
@@ -27,12 +27,45 @@
   }
   .msg { font-size: 13px; letter-spacing: 2px; color: rgba(255,255,255,0.5); }
   @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Escape UI — shown only if we're inside TG WebView and programmatic
+     escape silently failed. User tap on a real <a href="intent://..."> has
+     a user-gesture context which most WebViews honor even when JS can't.  */
+  .escape { display: none; margin-top: 18px; }
+  .escape.show { display: block; }
+  .escape h2 {
+    font-family: "Luckiest Guy", system-ui, sans-serif;
+    font-size: 20px; letter-spacing: 1px; margin: 0 0 6px;
+    color: #fff; text-shadow: 0 2px 0 rgba(0,0,0,0.4);
+  }
+  .escape p { color: rgba(255,255,255,0.65); font-size: 13px; margin: 0 0 14px; line-height: 1.5; }
+  .escape a.btn {
+    display: inline-block; width: 100%; padding: 14px 18px;
+    border-radius: 12px; background: linear-gradient(135deg, #680cd9, #ffae00, #07ae08);
+    background-size: 200% 100%; color: #fff; font-weight: 900; text-decoration: none;
+    font-family: "Luckiest Guy", system-ui, sans-serif; letter-spacing: 1px; font-size: 16px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4); border: 2px solid rgba(255,255,255,0.08);
+    animation: shimmer 3s ease infinite;
+  }
+  .escape a.btn.secondary {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    margin-top: 8px; font-size: 13px; letter-spacing: 2px;
+  }
+  @keyframes shimmer { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="spinner"></div>
-  <div class="msg">joining raid…</div>
+  <div class="spinner" id="bp-spinner"></div>
+  <div class="msg" id="bp-msg">joining raid…</div>
+
+  <div class="escape" id="bp-escape">
+    <h2>🃏 Open in your browser</h2>
+    <p id="bp-escape-desc">Tap below to finish the raid in Chrome — that's where your BEAR Park session lives, so your honey points credit correctly.</p>
+    <a class="btn" id="bp-escape-btn" href="#">🚀 Open in Chrome</a>
+    <a class="btn secondary" id="bp-escape-continue" href="#">continue here without credit →</a>
+  </div>
 </div>
 <script>
 (function() {
@@ -53,74 +86,110 @@
   const isIOS = /iPhone|iPad|iPod/i.test(ua);
   const isAndroid = /Android/i.test(ua);
   const isMobile = isIOS || isAndroid || /Mobile/i.test(ua);
-  // Telegram's in-app browser identifies itself in the UA. It sandboxes
-  // custom URL schemes (twitter://, etc.) inside the WebView — they either
-  // error silently or get swallowed — so the twitter:// deep-link trick
-  // doesn't reach the OS and the X app never opens. Detect it and skip
-  // the custom scheme attempt entirely when we're inside TG.
-  const isTelegramWebView = /Telegram/i.test(ua) || /TelegramBot/i.test(ua);
 
-  // ---- 2a. ESCAPE TG WebView to the real browser --------------------------
-  // If we're inside TG's in-app WebView, try to relaunch ourselves in the
-  // user's real default browser (Chrome on Android, Safari on iOS). When
-  // that succeeds, r.html runs a second time in the external browser where
-  // the user's BEAR Park session (cookies + localStorage) is actually
-  // available → honey credits, X app opens to the tweet, full PC parity.
-  //
-  // Android: intent://… is a built-in Android mechanism. When the WebView
-  // encounters it, the OS hands the URL off to the named package (Chrome)
-  // externally. This is the "force-external-browser" escape hatch and it
-  // works reliably on 95%+ of Android TG installs.
-  //
-  // iOS: Apple sandboxes all WebViews — there is no public API for a
-  // WebView to launch Safari with an arbitrary URL. x-safari-https://
-  // was a legacy undocumented scheme that Apple removed around iOS 14.
-  // We try it anyway in case an older iOS still honors it, then fall
-  // through to the normal in-WebView flow (cookie-based /api/auth/me
-  // still credits honey if the user signed in inside TG's browser once).
-  // The only 100% iOS solution is the user toggling Telegram → Data and
-  // Storage → Open Links In → Default Browser. Platform limitation.
-  if (isTelegramWebView) {
-    // Prevent infinite loops if the external browser still somehow
-    // reports a Telegram UA. We mark the URL once and skip escape on
-    // the second hop.
-    const alreadyEscaped = /(?:\?|&)esc=1\b/.test(window.location.search);
+  // TG WebView detection — UA sniffing alone is UNRELIABLE because modern
+  // Telegram on Android often ships a UA that looks identical to Chrome.
+  // The reliable signals are JS globals that TG injects into the page:
+  //   window.TelegramWebviewProxy      → Android TG in-app browser
+  //   window.TelegramWebview           → older Android TG
+  //   window.Telegram.WebApp           → TG Mini App (not our case but harmless)
+  //   window.webkit.messageHandlers.performAction → iOS TG in-app browser
+  // Fall back to UA sniff as a belt-and-braces last resort.
+  function detectTelegramWebView() {
+    try {
+      if (typeof window.TelegramWebviewProxy !== 'undefined') return true;
+      if (typeof window.TelegramWebview !== 'undefined') return true;
+      if (window.Telegram && window.Telegram.WebView) return true;
+      if (window.Telegram && window.Telegram.WebApp) return true;
+      if (window.webkit && window.webkit.messageHandlers &&
+          window.webkit.messageHandlers.performAction) return true;
+      if (window.webkit && window.webkit.messageHandlers &&
+          window.webkit.messageHandlers.TelegramWebviewProxy) return true;
+    } catch (_) {}
+    return /Telegram/i.test(ua) || /TelegramBot/i.test(ua);
+  }
+  const isTelegramWebView = detectTelegramWebView();
 
-    if (!alreadyEscaped) {
-      const host = window.location.host;
-      const path = window.location.pathname;
-      const qs = window.location.search
-        ? window.location.search + '&esc=1'
-        : '?esc=1';
-      const selfHttps = 'https://' + host + path + qs;
+  // ---- 2a. ESCAPE LOGIC — always-armed escape button for mobile -----------
+  // Detection-less strategy: always PRECOMPUTE the intent:// / x-safari-
+  // URL and always arm the visible escape button. If the user's r.html
+  // load is already in Chrome/Safari (not TG WebView), the normal flow
+  // redirects them before the button ever appears. If they ARE stuck in
+  // TG WebView, the button shows after 1.3s and a single tap with user-
+  // gesture context forces Chrome (Android) / opens Safari (iOS) to take
+  // over. More reliable than any UA / JS-global detection because those
+  // are inconsistent across TG app versions.
+  const alreadyEscaped = /(?:\?|&)esc=1\b/.test(window.location.search);
+  const host = window.location.host;
+  const path = window.location.pathname;
+  const qs = window.location.search
+    ? window.location.search + '&esc=1'
+    : '?esc=1';
+  const selfHttps = 'https://' + host + path + qs;
+  const intentUrl =
+    'intent://' + host + path + qs +
+    '#Intent;scheme=https;package=com.android.chrome;' +
+    'S.browser_fallback_url=' + encodeURIComponent(selfHttps) + ';end';
+  // iOS: direct https link — iOS WebViews may offer a "Open in Safari"
+  // menu on long-press, and the normal <a> tap may trigger universal
+  // link handoff on some TG iOS versions. x-safari- was removed in
+  // iOS 14 so we don't try it anymore.
+  const chooseableUrl = isAndroid ? intentUrl : selfHttps;
 
-      if (isAndroid) {
-        // intent://…#Intent;scheme=https;package=com.android.chrome;
-        //   S.browser_fallback_url=<encoded>;end
-        // package= pins Chrome specifically. If Chrome isn't installed
-        // S.browser_fallback_url kicks the OS to use the default browser
-        // chooser instead of erroring. Either way we escape the TG jar.
-        const intentUrl =
-          'intent://' + host + path + qs +
-          '#Intent;scheme=https;package=com.android.chrome;' +
-          'S.browser_fallback_url=' + encodeURIComponent(selfHttps) + ';end';
-        window.location.replace(intentUrl);
-        return; // navigation takes over; nothing below runs
+  function showEscapeUI() {
+    try {
+      const escUI = document.getElementById('bp-escape');
+      const escBtn = document.getElementById('bp-escape-btn');
+      const escCont = document.getElementById('bp-escape-continue');
+      const spin = document.getElementById('bp-spinner');
+      const msg = document.getElementById('bp-msg');
+      if (!escUI || escUI.classList.contains('show')) return;
+
+      if (escBtn) escBtn.setAttribute('href', chooseableUrl);
+      if (escBtn && isAndroid) {
+        // Extra belt-and-braces: on tap, also try programmatic intent
+        // in case the href alone doesn't fire. User gesture is active.
+        escBtn.addEventListener('click', () => {
+          try { window.location.href = intentUrl; } catch (_) {}
+        }, { once: true });
       }
 
-      if (isIOS) {
-        // Best-effort iOS escape. Triggers a navigation to x-safari-https://
-        // which some older iOS versions honor by launching Safari. If this
-        // fails (iOS 14+), the call is a no-op and we fall through to the
-        // normal in-WebView flow below — no error, no hang.
-        try {
-          window.location.href = 'x-safari-https://' + host + path + qs;
-        } catch (_) {}
-        // Do NOT return — iOS often silently swallows the x-safari- call,
-        // so we continue with the in-WebView flow as a fallback. Honey
-        // still credits via the /api/auth/me cookie path if reachable.
+      if (escCont) {
+        escCont.setAttribute('href', '#');
+        escCont.addEventListener('click', (e) => {
+          e.preventDefault();
+          if (escUI) escUI.classList.remove('show');
+          if (spin) spin.style.display = 'block';
+          if (msg) msg.textContent = 'joining raid…';
+          fireClaim().catch(() => {});
+          redirect().catch(() => {});
+        }, { once: true });
       }
-    }
+
+      const desc = document.getElementById('bp-escape-desc');
+      if (desc && isIOS) {
+        desc.textContent = 'Telegram\'s in-app browser can\'t pass you to Safari automatically. Tap below, or open Telegram → Data and Storage → Open Links In → Default Browser so next time it works in one tap.';
+      }
+      if (escBtn && isIOS) escBtn.textContent = '🦁 Open in Safari';
+
+      escUI.classList.add('show');
+      if (spin) spin.style.display = 'none';
+      if (msg) msg.textContent = '';
+    } catch (_) {}
+  }
+
+  // On mobile WITHOUT an escape marker, we have no reliable way to tell
+  // whether we're inside TG's WebView or in the user's real browser, and
+  // the penalty for guessing wrong is bad (twitter:// intercepted inside
+  // TG opens X to home feed, web-URL fallback leaves user stranded on
+  // x.com inside TG browser). So we short-circuit the redirect and make
+  // the decision explicit: show the escape button, user taps once, we
+  // come back via ?esc=1 in a REAL browser and run the full flow there.
+  // The "continue here without credit" link is always available for
+  // users who can't or won't escape (e.g. iOS where we can't force Safari).
+  if (isMobile && !alreadyEscaped) {
+    showEscapeUI();
+    return;
   }
 
   // ---- 3. Fire the tg-claim with wallet from multiple sources -------------
@@ -261,7 +330,11 @@
   }
 
   // Fire claim + redirect in parallel. Claim is fire-and-forget via
-  // sendBeacon so it doesn't block the redirect.
+  // sendBeacon so it doesn't block the redirect. The escape button (if
+  // armed) shows at 1.3s only if this path hasn't navigated away by then
+  // — i.e. only if we're stuck in TG WebView with a failed/slow redirect.
+  // On Chrome/Safari the redirect completes well before 1.3s and the
+  // button never appears to the user.
   fireClaim();
   redirect();
 })();
