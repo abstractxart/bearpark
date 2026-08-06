@@ -1,0 +1,47 @@
+# bearpark.xyz
+#
+# Added 2026-08-06. Context: Forcepoint ThreatSeeker had this domain categorised
+# "Elevated Exposure", which cascaded to every subdomain and surfaced as an
+# "unsafe link" interstitial on X. Leaving admin, diagnostic and demo pages
+# openly crawlable is the kind of signal that keeps a domain looking suspicious
+# to reputation vendors, so they are excluded here.
+#
+# NOTE: Cloudflare serves a *managed* robots.txt for this zone and appends its
+# own block to whatever the origin returns. Verify the live file still contains
+# these rules after deploying.
+
+User-agent: *
+
+# Admin consoles
+Disallow: /admin.html
+Disallow: /admin-beardrops.html
+Disallow: /admin-blacklist.html
+Disallow: /admin-raids.html
+Disallow: /admin-store.html
+Disallow: /merch-admin.html
+Disallow: /NFTrequests
+Disallow: /store-admin
+Disallow: /merch-admin
+
+# Diagnostic and one-off tooling pages
+Disallow: /check-offers.html
+Disallow: /diagnostic-nft.html
+Disallow: /find-transfer.html
+Disallow: /nft-history.html
+Disallow: /test-nft.html
+Disallow: /game-points-test.html
+Disallow: /game-integration-example.html
+
+# Demos and partial UI fragments (not real pages)
+Disallow: /cosmetics-demo.html
+Disallow: /cosmetics-demo-v2.html
+Disallow: /inventory-modal.html
+Disallow: /store-modal.html
+Disallow: /store-modal-v2.html
+
+# Server-side and operational scripts — these are not browser assets
+Disallow: /server.js
+Disallow: /daily-airdrop-snapshot.js
+Disallow: /reset-specific-wallet.js
+
+Allow: /

@@ -45,7 +45,8 @@
   <!-- 🐻❄️ COCAINE BEAR: Kill console + preconnect -->
   <script>if (location.hostname !== 'localhost') console.log = console.warn = console.info = console.debug = function () { };</script>
   <link rel="preconnect" href="https://unpkg.com" crossorigin />
-  <link rel="preconnect" href="https://files.catbox.moe" crossorigin />
+  <!-- files.catbox.moe preconnect removed 2026-08-06: nothing on this page loads
+       from it, and an anonymous-upload host is a needless reputation signal. -->
 
   <!-- XRPL Library (deferred) -->
   <script defer src="https://unpkg.com/xrpl@3.0.0/build/xrpl-latest-min.js"></script>

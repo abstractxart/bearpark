@@ -30,6 +30,10 @@
       "use": "@vercel/static"
     },
     {
+      "src": "*.txt",
+      "use": "@vercel/static"
+    },
+    {
       "src": "frontend/**",
       "use": "@vercel/static"
     },
@@ -43,6 +47,17 @@
     }
   ],
   "routes": [
+    {
+      "src": "/(server|daily-airdrop-snapshot|reset-specific-wallet)\\.js",
+      "status": 404
+    },
+    {
+      "src": "/robots.txt",
+      "dest": "/robots.txt",
+      "headers": {
+        "Content-Type": "text/plain; charset=utf-8"
+      }
+    },
     {
       "src": "/site.webmanifest",
       "dest": "/site.webmanifest",
