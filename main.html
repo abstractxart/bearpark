@@ -30650,6 +30650,14 @@ const response = await fetch(`/api/merch/orders/my-orders?wallet=${walletAddress
     })();
   </script>
 
+
+  <!-- Cloudflare Web Analytics - installed MANUALLY on purpose.
+       Automatic RUM injection inserts an INLINE script with a per-request token,
+       so no pinned CSP hash can ever match it. The site is set to
+       "Enable with JS Snippet installation" in the Cloudflare dashboard and this
+       external script replaces it. The token is a public site id, not a secret. -->
+  <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js"
+          data-cf-beacon='{"token": "9c3c4ab3ee1d48c7afe6bdcd2cbbd4d3"}'></script>
 </body>
 
 </html><!-- 🐻❄️ COCAINE BEAR v1.0 -->
