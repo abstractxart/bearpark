@@ -1,1 +1,17 @@
-
+# Server-side / operational scripts that are not browser assets.
+#
+# vercel.json's "*.js" build glob was publishing these, so
+# https://www.bearpark.xyz/server.js served the full 394KB backend source.
+# The 404 route in vercel.json stops new requests, but Cloudflare and Vercel
+# both still held a cached 200 and kept revalidating it against the file that
+# was still present in the deployment. Removing them from the upload means
+# there is nothing left to revalidate against.
+#
+# LEADING SLASH IS REQUIRED. .vercelignore uses .gitignore syntax, where a bare
+# "server.js" matches at EVERY level -- it would also exclude backend/server.js,
+# which is the file vercel.json actually builds and `npm start` runs.
+#
+# Root server.js is only referenced by the local "dev" script (node server.js).
+/server.js
+/daily-airdrop-snapshot.js
+/reset-specific-wallet.js
