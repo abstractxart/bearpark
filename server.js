@@ -493,6 +493,13 @@ app.post('/api/games/bet',
     body('result').isString().trim().isIn(['win', 'loss'])
   ],
   async (req, res) => {
+    const wallet = req.body?.wallet_address || 'unknown-wallet';
+    console.log(`🛑 [PONG BETTING] Rejected disabled betting request for ${wallet}`);
+    return res.status(410).json({
+      success: false,
+      error: 'Pong honey-point betting has been removed.'
+    });
+
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ error: 'Validation failed', details: errors.array() });
