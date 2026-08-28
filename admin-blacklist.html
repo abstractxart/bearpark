@@ -378,12 +378,13 @@
     </div>
   </div>
 
-  <script>
+<script src="/auth-fetch.js"></script>
+<script>
     // MUKT Master Wallet - only this wallet can access
     const ADMIN_WALLET = 'rKkkYMCvC63HEgxjQHmayKADaxYqnsMUkT';
 
     // API URL - Railway backend
-    const API_BASE_URL = 'https://bearpark-production.up.railway.app';
+    const API_BASE_URL = '';
 
     let blacklist = [];
 
@@ -472,12 +473,10 @@
       addBtn.textContent = 'Banning...';
 
       try {
-        // Include admin_wallet for server-side authorization
-        const adminWallet = localStorage.getItem('bearpark_wallet');
         const response = await fetch(`${API_BASE_URL}/api/admin/blacklist`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ wallet_address: wallet, reason: reason, admin_wallet: adminWallet })
+          body: JSON.stringify({ wallet_address: wallet, reason: reason })
         });
 
         const data = await response.json();
@@ -505,9 +504,7 @@
       }
 
       try {
-        // Include admin_wallet for server-side authorization
-        const adminWallet = localStorage.getItem('bearpark_wallet');
-        const response = await fetch(`${API_BASE_URL}/api/admin/blacklist/${wallet}?admin_wallet=${adminWallet}`, {
+        const response = await fetch(`${API_BASE_URL}/api/admin/blacklist/${wallet}`, {
           method: 'DELETE'
         });
 

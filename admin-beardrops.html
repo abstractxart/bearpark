@@ -5,8 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>BEAR Park - BEARDROPS Admin Dashboard</title>
   <!-- BROWSER COMPATIBILITY: Polyfills -->
-  <script>if(typeof Promise==='undefined'){document.write('<script src="https://cdn.jsdelivr.net/npm/promise-polyfill@8/dist/polyfill.min.js"><\/script>')}</script>
-  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6,fetch,URLSearchParams,Array.from,Object.assign"></script>
+<script>if(typeof Promise==='undefined'){document.write('<script src="https://cdn.jsdelivr.net/npm/promise-polyfill@8/dist/polyfill.min.js"><\/script>')}</script>
+<!-- polyfill.io removed: 2024 supply-chain compromise; Safe Browsing flags sites that embed it. The Promise fallback above covers legacy browsers; es6/fetch/URLSearchParams/Array.from/Object.assign are natively supported. -->
+<script src="/auth-fetch.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/luxon@3.4.4/build/global/luxon.min.js"></script>
@@ -842,6 +843,10 @@
       'rKkkYMCvC63HEgxjQHmayKADaxYqnsMUkT' // MUKT (APEX)
     ];
 
+    const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+      ? 'http://localhost:3000'
+      : '';
+
     const SUPABASE_URL = 'https://cfdgdisaexvyrdjjcuss.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNmZGdkaXNhZXh2eXJkampjdXNzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIwMzg1NjUsImV4cCI6MjA3NzYxNDU2NX0.jPjk2nE295VBXTned5Gh7jbU0MqmrfxNdW4nq8uWUqE';
 
@@ -1125,19 +1130,14 @@
       status.style.color = 'var(--gold)';
 
       try {
-        // First try to insert
-        const response = await fetch(`${SUPABASE_URL}/rest/v1/lp_blacklist`, {
+        const response = await fetch(`${API_BASE_URL}/api/beardrops/admin/blacklist`, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-            'apikey': SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-            'Prefer': 'return=representation'
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            wallet_address: wallet,
+            target_wallet: wallet,
             reason: reason,
-            is_active: true,
             notes: `Added by admin ${currentWallet}`
           })
         });
@@ -1149,37 +1149,9 @@
           loadBlacklist();
           loadLpChanges();
           loadStats();
-        } else if (response.status === 409) {
-          // Wallet exists but was deactivated - reactivate it
-          const updateResponse = await fetch(`${SUPABASE_URL}/rest/v1/lp_blacklist?wallet_address=eq.${wallet}`, {
-            method: 'PATCH',
-            headers: {
-              'Content-Type': 'application/json',
-              'apikey': SUPABASE_ANON_KEY,
-              'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
-            },
-            body: JSON.stringify({
-              is_active: true,
-              reason: reason,
-              detected_at: new Date().toISOString(),
-              notes: `Re-blacklisted by admin ${currentWallet}`
-            })
-          });
-
-          if (updateResponse.ok) {
-            status.textContent = 'Wallet re-blacklisted! LP rewards will be blocked.';
-            status.style.color = 'var(--stripe-green)';
-            document.getElementById('blacklistWalletInput').value = '';
-            loadBlacklist();
-            loadLpChanges();
-            loadStats();
-          } else {
-            status.textContent = 'Error re-activating blacklist';
-            status.style.color = 'var(--red)';
-          }
         } else {
           const err = await response.json();
-          status.textContent = 'Error: ' + (err.message || 'Unknown error');
+          status.textContent = 'Error: ' + (err.error || err.message || 'Unknown error');
           status.style.color = 'var(--red)';
         }
       } catch (e) {
@@ -1192,14 +1164,12 @@
       if (!confirm(`Remove ${wallet.slice(0,8)}... from blacklist? They will receive LP rewards again.`)) return;
 
       try {
-        const response = await fetch(`${SUPABASE_URL}/rest/v1/lp_blacklist?wallet_address=eq.${wallet}`, {
-          method: 'PATCH',
+        const response = await fetch(`${API_BASE_URL}/api/beardrops/admin/unblacklist`, {
+          method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-            'apikey': SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+            'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ is_active: false })
+          body: JSON.stringify({ target_wallet: wallet })
         });
 
         if (response.ok) {
@@ -1215,18 +1185,14 @@
       if (!confirm(`Blacklist ${wallet.slice(0,8)}... for single-side deposit?`)) return;
 
       try {
-        const response = await fetch(`${SUPABASE_URL}/rest/v1/lp_blacklist`, {
+        const response = await fetch(`${API_BASE_URL}/api/beardrops/admin/blacklist`, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-            'apikey': SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-            'Prefer': 'return=representation'
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            wallet_address: wallet,
+            target_wallet: wallet,
             reason: 'single_side_deposit',
-            is_active: true,
             notes: `Quick blacklist by admin from LP changes view`
           })
         });

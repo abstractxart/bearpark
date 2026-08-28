@@ -5,8 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>BEAR Park - Store Admin</title>
   <!-- BROWSER COMPATIBILITY: Polyfills -->
-  <script>if(typeof Promise==='undefined'){document.write('<script src="https://cdn.jsdelivr.net/npm/promise-polyfill@8/dist/polyfill.min.js"><\/script>')}</script>
-  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6,fetch,URLSearchParams,Array.from,Object.assign"></script>
+<script>if(typeof Promise==='undefined'){document.write('<script src="https://cdn.jsdelivr.net/npm/promise-polyfill@8/dist/polyfill.min.js"><\/script>')}</script>
+<!-- polyfill.io removed: 2024 supply-chain compromise; Safe Browsing flags sites that embed it. The Promise fallback above covers legacy browsers; es6/fetch/URLSearchParams/Array.from/Object.assign are natively supported. -->
+<script src="/auth-fetch.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
   <style>
     :root {
@@ -502,7 +503,7 @@
     // Supabase config
     const SUPABASE_URL = 'https://trglxtqfebplmvhuzgso.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRyZ2x4dHFmZWJwbG12aHV6Z3NvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMwMDYwNDYsImV4cCI6MjA1ODU4MjA0Nn0.wRz6J7apnaEgM5mLFxVs2vgfgZ8xdakfNTKmQWOcpL4';
-    const API_BASE_URL = 'https://bearpark-api-production.up.railway.app';
+    const API_BASE_URL = '';
 
     const TOKEN_LOGOS = {
       FARM: 'https://img.xmagnetic.org/u/rPrAEfVATUNDTJm9CUa8tYeD7oJrVdEGhU_FARM.webp',

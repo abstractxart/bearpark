@@ -91,33 +91,22 @@
       const spinnerEl = document.getElementById('spinner');
       const returnBtn = document.getElementById('returnBtn');
 
-      console.log('Twitter callback page loaded');
-
       // Parse URL parameters
       const urlParams = new URLSearchParams(window.location.search);
       const code = urlParams.get('code');
       const state = urlParams.get('state');
       const error = urlParams.get('error');
 
-      console.log('URL params:', {
-        hasCode: !!code,
-        hasState: !!state,
-        hasError: !!error,
-        fullUrl: window.location.href
-      });
-
       // Check for errors from Twitter
       if (error) {
-        console.error('Twitter OAuth error:', error);
         spinnerEl.style.display = 'none';
         statusEl.className = 'status error';
-        statusEl.textContent = 'Twitter authorization was cancelled or failed: ' + error;
+        statusEl.textContent = 'X authorization was cancelled or failed: ' + error;
         returnBtn.style.display = 'block';
         return;
       }
 
       if (!code) {
-        console.error('No code in URL');
         spinnerEl.style.display = 'none';
         statusEl.className = 'status error';
         statusEl.textContent = 'Invalid callback - no authorization code received.';
@@ -126,7 +115,6 @@
       }
 
       if (!state) {
-        console.error('No state in URL');
         spinnerEl.style.display = 'none';
         statusEl.className = 'status error';
         statusEl.textContent = 'Invalid callback - no state parameter received.';
@@ -135,48 +123,39 @@
       }
 
       try {
-        console.log('Decoding state...');
-        // Decode state to get wallet address
-        const stateData = JSON.parse(atob(state));
-        console.log('State decoded:', stateData);
-        const walletAddress = stateData.wallet_address;
-
-        if (!walletAddress) {
-          throw new Error('No wallet address in state');
-        }
-
-        // Restore wallet session (in case it was cleared during redirect)
-        console.log('Restoring wallet session for:', walletAddress);
-        localStorage.setItem('bearpark_wallet', walletAddress);
-        localStorage.setItem('bearpark_auth', 'true');
-
-        console.log('Sending POST request to /api/auth/twitter...');
-        // Send code to backend API
-        const response = await fetch('/api/auth/twitter', {
+        const response = await fetch('/api/auth/twitter/complete', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
             code,
-            state,
-            wallet_address: walletAddress
+            state
           })
         });
 
-        console.log('Response status:', response.status);
         const result = await response.json();
-        console.log('Response data:', result);
-
         spinnerEl.style.display = 'none';
 
         if (response.ok && result.success) {
+          const twitterUsername = result.user?.twitter_username || '';
+          if (twitterUsername) {
+            localStorage.setItem('twitter_connected', 'true');
+            localStorage.setItem('twitter_username', twitterUsername);
+          }
+
+          if (window.opener && !window.opener.closed) {
+            window.opener.postMessage({
+              type: 'bearpark-twitter-connected',
+              success: true,
+              twitter_username: twitterUsername
+            }, window.location.origin);
+          }
+
           statusEl.className = 'status success';
           statusEl.innerHTML = `
             <div style="font-size:18px; margin-bottom:8px;">✅ Success!</div>
-            <div>Connected as @${result.user.twitter_username}</div>
-            <div style="margin-top:8px;">Total Points: <strong>${result.user.total_points}</strong></div>
-            ${result.user.claimed_points > 0 ? `<div style="margin-top:4px; font-size:14px;">🎉 Claimed ${result.user.claimed_points} pending points!</div>` : ''}
+            <div>Connected as @${twitterUsername}</div>
             <div style="margin-top:12px; font-size:14px; opacity:0.8;">This window will close automatically...</div>
           `;
 
@@ -191,20 +170,31 @@
             }
           }, 2000);
         } else {
+          if (window.opener && !window.opener.closed) {
+            window.opener.postMessage({
+              type: 'bearpark-twitter-connect-failed',
+              success: false,
+              error: result.error || 'Failed to connect X account'
+            }, window.location.origin);
+          }
           statusEl.className = 'status error';
-          statusEl.textContent = '❌ ' + (result.error || 'Failed to connect Twitter account');
+          statusEl.textContent = '❌ ' + (result.error || 'Failed to connect X account');
           returnBtn.style.display = 'block';
         }
 
       } catch (error) {
-        console.error('Callback error:', error);
-        console.error('Error stack:', error.stack);
         spinnerEl.style.display = 'none';
+        if (window.opener && !window.opener.closed) {
+          window.opener.postMessage({
+            type: 'bearpark-twitter-connect-failed',
+            success: false,
+            error: error.message || 'An unknown error occurred while connecting X'
+          }, window.location.origin);
+        }
         statusEl.className = 'status error';
         statusEl.innerHTML = `
           <div>❌ An error occurred</div>
           <div style="margin-top:8px; font-size:14px;">${error.message}</div>
-          <div style="margin-top:8px; font-size:12px; opacity:0.8;">Check browser console (F12) for details</div>
         `;
         returnBtn.style.display = 'block';
       }
