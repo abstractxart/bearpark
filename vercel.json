@@ -147,6 +147,18 @@
       "dest": "/r.html?id=$1"
     },
     {
+      "src": "/privacy",
+      "dest": "/privacy.html"
+    },
+    {
+      "src": "/terms",
+      "dest": "/terms.html"
+    },
+    {
+      "src": "/support",
+      "dest": "/support.html"
+    },
+    {
       "src": "/(.*\\.(html|css|js|png|jpg|jpeg|gif|svg|ico))",
       "dest": "/$1"
     },

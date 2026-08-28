@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Privacy Policy — BEAR Wallet</title>
+<meta name="description" content="How BEAR Wallet handles your data. BEAR Wallet is non-custodial: your keys are generated and stored on your device and never reach our servers.">
+<meta name="robots" content="index,follow">
+<link rel="stylesheet" href="/bear-legal.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="mark" href="/">BEAR<span> Wallet</span></a>
+    <nav>
+      <a href="/privacy" aria-current="page">Privacy</a>
+      <a href="/terms">Terms</a>
+      <a href="/support">Support</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <h1>Privacy Policy</h1>
+  <p class="sub">BEAR Wallet &middot; Effective August 27, 2026 &middot; Last updated August 27, 2026</p>
+
+  <div class="note key">
+    <span class="lab">The short version</span>
+    <p>BEAR Wallet is <strong>non-custodial</strong>. Your recovery phrase and private keys are created on your phone, encrypted on your phone, and never sent to us. We cannot see them, cannot recover them, and cannot move your funds.</p>
+    <p>There is <strong>no account</strong> &mdash; no email, username, or password is needed to use the wallet. We run <strong>no analytics, crash-reporting, advertising, or tracking SDKs of any kind</strong>.</p>
+  </div>
+
+  <p>This policy explains what BEAR Wallet (the &ldquo;App&rdquo;) does and does not collect. It is published by <strong>BEAR Technologies LLC</strong>, a Colorado limited liability company (&ldquo;BEAR&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;).</p>
+
+  <h2>1. Your keys never reach us</h2>
+  <p>When you create or import a wallet, the recovery phrase and private key are generated and held <strong>on your device only</strong>. They are encrypted with your PIN and stored in the operating system&rsquo;s secure storage &mdash; Keychain on iOS, Keystore on Android.</p>
+  <p>Transactions are signed locally on your device and only the signed result is broadcast to the XRP Ledger. The secret itself never leaves the phone.</p>
+
+  <div class="note warn">
+    <span class="lab">What this means for you</span>
+    <p>Because we never hold your keys, <strong>we cannot restore your wallet if you lose your recovery phrase.</strong> No support request, identity check, or legal process can recover it. Your written-down phrase is the only backup that exists.</p>
+  </div>
+
+  <h2>2. What we do not collect</h2>
+  <ul>
+    <li><strong>No account or identity.</strong> We do not ask for your name, email, phone number, date of birth, or government ID to use the wallet.</li>
+    <li><strong>No analytics or tracking SDKs.</strong> The App contains no Google Analytics, Firebase Analytics, Crashlytics, Sentry, Segment, Mixpanel, Amplitude, PostHog, or comparable telemetry library.</li>
+    <li><strong>No advertising identifiers.</strong> We do not read the IDFA or Android Advertising ID, do not serve ads, and do not track you across other apps or websites.</li>
+    <li><strong>No contacts, photos, or precise location.</strong> The App does not request these permissions. Camera access is used only for scanning QR codes, and those images are processed on-device and never uploaded.</li>
+    <li><strong>No selling of data.</strong> We do not sell, rent, or trade personal information, and we run no advertising business.</li>
+  </ul>
+
+  <h2>3. What stays on your device</h2>
+  <p>The following is stored locally and is not transmitted to us:</p>
+  <ul>
+    <li>Encrypted recovery phrases and private keys, and your PIN verifier.</li>
+    <li>Your wallet addresses, labels, and address book entries.</li>
+    <li>Which tokens you hold a trustline for, used so notifications can filter out unsolicited airdrops.</li>
+    <li>Preferences &mdash; theme, display currency, slippage, auto-lock timeout, notification toggles.</li>
+    <li>Cached token icons and market data, so the App does not refetch on every launch.</li>
+  </ul>
+  <p>Uninstalling the App, or using <strong>Factory Reset</strong> in Settings, erases all of it from the device.</p>
+
+  <h2>4. What our own servers receive</h2>
+
+  <h3>Market and token data</h3>
+  <p>To show prices, charts, token details, balances, and transaction history, the App requests data from our market-data service. These requests carry your IP address and the address or token being looked up. We use them to serve the response; we do not build advertising or behavioural profiles from them.</p>
+
+  <h3>Push notifications &mdash; only if you turn them on</h3>
+  <p>Incoming-payment and price alerts are <strong>off until you enable them</strong>. When you do, the App registers with our notification service. That registration was designed to reveal as little as possible:</p>
+  <ul>
+    <li>Your device proves it controls the wallet by <strong>signing a one-time challenge</strong> &mdash; it does not send us your key.</li>
+    <li>The server stores a <strong>cryptographic hash of your wallet address</strong>, not the address itself, alongside an <strong>encrypted push token</strong>.</li>
+    <li>The push message <strong>never contains an amount</strong>. It carries only a transaction hash, and your App looks up the details itself from the public ledger.</li>
+  </ul>
+  <p>Turning notifications off in Settings deletes the registration. Delivery is handled by Google&rsquo;s Firebase Cloud Messaging, which necessarily learns that a message was sent to your device.</p>
+
+  <h3>Regional availability</h3>
+  <p>To determine which country you are connecting from, the App makes a request to a third-party IP-geolocation service that returns a <strong>country code only</strong>. This uses your IP address; it does not use GPS, and the App never requests location permission.</p>
+
+  <h2>5. Third-party services</h2>
+  <p>The App fetches data directly from the services below. When it does, those parties can see your IP address and what was requested. They are independent of BEAR and handle data under their own policies.</p>
+  <div class="tw">
+  <table>
+    <thead><tr><th>Service</th><th>Used for</th><th>What it can see</th></tr></thead>
+    <tbody>
+      <tr><td>Public XRP Ledger nodes</td><td>Balances, transactions, submitting signed transactions</td><td>IP address, queried addresses</td></tr>
+      <tr><td>Firebase Cloud Messaging (Google)</td><td>Delivering push notifications</td><td>Device push token</td></tr>
+      <tr><td>DexScreener</td><td>Price charts</td><td>IP address, token viewed</td></tr>
+      <tr><td>Bithomp, XRPSCAN, XRPL.to, XRPLMeta, xMagnetic, XPMarket, onXRP, xrp.cafe</td><td>Token metadata, icons, NFT and account data</td><td>IP address, address or token viewed</td></tr>
+      <tr><td>IP-geolocation provider</td><td>Country code for regional availability</td><td>IP address</td></tr>
+      <tr><td>WalletConnect</td><td>Connecting to third-party dApps you choose</td><td>Connection metadata</td></tr>
+      <tr><td>Google Search</td><td>Only if you type a search term into the in-app browser</td><td>Your search term, IP address</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h2>6. The public ledger is permanent</h2>
+  <div class="note warn">
+    <span class="lab">Please read this one</span>
+    <p>The XRP Ledger is a <strong>public blockchain</strong>. Every address, balance, trustline, and transaction is visible to anyone, forever, and is <strong>not controlled by BEAR</strong>.</p>
+    <p>We cannot edit, hide, reverse, or delete anything recorded on it &mdash; not on your request, and not on anyone else&rsquo;s. Anyone who learns your address can view its full history. Deleting the App does not remove on-chain activity.</p>
+  </div>
+
+  <h2>7. Children</h2>
+  <p>BEAR Wallet is not directed to children, and we do not knowingly collect personal information from anyone under 13 (or the minimum digital-consent age in your country). If you believe a child has provided us information, contact us and we will delete it.</p>
+
+  <h2>8. Your choices and deletion</h2>
+  <ul>
+    <li><strong>Notifications:</strong> turn off in Settings; the server registration is deleted.</li>
+    <li><strong>All on-device data:</strong> use Factory Reset in Settings, or uninstall the App.</li>
+    <li><strong>Off-chain data held by us:</strong> email <a href="mailto:support@bearpark.xyz?subject=Data%20Deletion%20Request">support@bearpark.xyz</a> and we will delete what we hold.</li>
+  </ul>
+  <p>Depending on where you live, you may have rights to access, correct, port, or delete personal data, and to complain to a supervisory authority. Contact us and we will honour those rights. Because the App is usable without an account, in most cases <strong>we hold nothing linked to you to begin with.</strong></p>
+
+  <h2>9. Security</h2>
+  <p>Keys are stored in the operating system&rsquo;s hardware-backed secure storage and encrypted with your PIN. Biometric unlock and an idle auto-lock are available in Settings, and the App blocks screenshots on screens that display your recovery phrase. No system is perfectly secure, and a device that is jailbroken, rooted, or infected with malware may expose data regardless of these measures.</p>
+
+  <h2>10. Changes</h2>
+  <p>If this policy changes materially, we will update the date at the top and, where the change is significant, note it in the App. Continued use after an update means you accept the revised policy.</p>
+
+  <h2>11. Contact</h2>
+  <p>
+    BEAR Technologies LLC<br>
+    1500 N Grant St, Ste N, Denver, CO 80203, United States<br>
+    <a href="mailto:support@bearpark.xyz">support@bearpark.xyz</a>
+  </p>
+
+  <div class="foot">
+    <p>&copy; 2026 BEAR Technologies LLC &middot; <a href="/terms">Terms of Service</a> &middot; <a href="/support">Support</a></p>
+  </div>
+</main>
+
+</body>
+</html>

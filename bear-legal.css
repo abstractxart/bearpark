@@ -1,0 +1,109 @@
+/* BEAR Wallet — legal & support pages.
+   Deliberately dependency-free: no webfonts, no CDN, no third-party requests.
+   A privacy policy that phones home to a font CDN undercuts its own text. */
+
+:root{
+  --ground:#ffffff; --surface:#f7f8f9; --raise:#ffffff;
+  --ink:#14171a; --ink-2:#525a62; --ink-3:#79838c;
+  --line:#e4e7ea; --line-2:#d4d9dd;
+  --gold:#8a6400; --gold-bg:#fdf6e3;
+  --good:#0f7a44; --good-bg:#eaf7f0;
+  --warn:#9a3412; --warn-bg:#fdf0e8;
+  --radius:14px;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#0b0d0e; --surface:#121417; --raise:#171a1e;
+    --ink:#e9ecef; --ink-2:#a2abb3; --ink-3:#79838c;
+    --line:#232830; --line-2:#2e343d;
+    --gold:#edb723; --gold-bg:#241d08;
+    --good:#00ff88; --good-bg:#08241a;
+    --warn:#ffae00; --warn-bg:#2a1a08;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0b0d0e; --surface:#121417; --raise:#171a1e;
+  --ink:#e9ecef; --ink-2:#a2abb3; --ink-3:#79838c;
+  --line:#232830; --line-2:#2e343d;
+  --gold:#edb723; --gold-bg:#241d08;
+  --good:#00ff88; --good-bg:#08241a;
+  --warn:#ffae00; --warn-bg:#2a1a08;
+}
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--ground); color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  font-size:17px; line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+}
+
+.wrap{max-width:44rem;margin:0 auto;padding:0 1.25rem 5rem}
+
+/* ── masthead ── */
+.top{border-bottom:1px solid var(--line);margin-bottom:2.5rem;background:var(--surface)}
+.top .wrap{padding-top:1.5rem;padding-bottom:1.5rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap}
+.mark{font-weight:800;letter-spacing:-.02em;font-size:1.05rem;color:var(--ink);text-decoration:none;display:flex;align-items:center;gap:.5rem}
+.mark span{color:var(--gold)}
+.top nav{margin-left:auto;display:flex;gap:1.25rem;flex-wrap:wrap}
+.top nav a{color:var(--ink-2);text-decoration:none;font-size:.9rem;font-weight:500}
+.top nav a:hover,.top nav a:focus-visible{color:var(--gold)}
+.top nav a[aria-current="page"]{color:var(--gold);font-weight:600}
+
+h1{font-size:2.1rem;line-height:1.15;letter-spacing:-.025em;margin:0 0 .5rem;text-wrap:balance;font-weight:800}
+.sub{color:var(--ink-3);font-size:.9rem;margin:0 0 2.5rem;font-variant-numeric:tabular-nums}
+h2{font-size:1.3rem;line-height:1.25;letter-spacing:-.015em;margin:2.75rem 0 .75rem;padding-top:1.5rem;border-top:1px solid var(--line);text-wrap:balance;font-weight:700}
+h2:first-of-type{border-top:0;padding-top:0}
+h3{font-size:1.02rem;margin:1.75rem 0 .4rem;font-weight:700;color:var(--ink)}
+p,li{color:var(--ink-2)}
+p{margin:0 0 1rem}
+ul,ol{margin:0 0 1rem;padding-left:1.35rem}
+li{margin-bottom:.45rem}
+strong{color:var(--ink);font-weight:650}
+a{color:var(--gold)}
+a:focus-visible,button:focus-visible{outline:2px solid var(--gold);outline-offset:2px;border-radius:3px}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.86em;background:var(--surface);border:1px solid var(--line);padding:.1em .38em;border-radius:5px;color:var(--ink);word-break:break-all}
+
+/* ── callouts ── */
+.note{border:1px solid var(--line-2);background:var(--surface);border-radius:var(--radius);padding:1.1rem 1.25rem;margin:1.5rem 0}
+.note p:last-child{margin-bottom:0}
+.note.key{border-color:var(--good);background:var(--good-bg)}
+.note.key .lab{color:var(--good)}
+.note.warn{border-color:var(--warn);background:var(--warn-bg)}
+.note.warn .lab{color:var(--warn)}
+.lab{display:block;font-size:.72rem;font-weight:750;letter-spacing:.09em;text-transform:uppercase;margin-bottom:.4rem;color:var(--gold)}
+
+/* ── tables ── */
+.tw{overflow-x:auto;margin:1.5rem 0;border:1px solid var(--line);border-radius:var(--radius)}
+table{border-collapse:collapse;width:100%;font-size:.92rem;min-width:30rem}
+th,td{text-align:left;padding:.7rem .9rem;border-bottom:1px solid var(--line);vertical-align:top;color:var(--ink-2)}
+th{background:var(--surface);color:var(--ink);font-weight:650;font-size:.8rem;letter-spacing:.03em;text-transform:uppercase}
+tbody tr:last-child td{border-bottom:0}
+
+/* ── FAQ ── */
+details{border:1px solid var(--line);border-radius:var(--radius);margin-bottom:.6rem;background:var(--surface);overflow:hidden}
+summary{padding:.95rem 1.15rem;cursor:pointer;font-weight:600;color:var(--ink);list-style:none;display:flex;justify-content:space-between;gap:1rem;align-items:center}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";color:var(--gold);font-weight:700;font-size:1.2rem;line-height:1;flex-shrink:0}
+details[open] summary::after{content:"\2212"}
+details[open] summary{border-bottom:1px solid var(--line)}
+.body{padding:1.05rem 1.15rem;background:var(--raise)}
+.body p:last-child,.body ul:last-child{margin-bottom:0}
+
+.foot{margin-top:4rem;padding-top:1.5rem;border-top:1px solid var(--line);color:var(--ink-3);font-size:.85rem}
+.foot a{color:var(--ink-3)}
+.foot a:hover{color:var(--gold)}
+
+@media (max-width:640px){
+  body{font-size:16px}
+  h1{font-size:1.7rem}
+  .top nav{margin-left:0;width:100%;gap:1rem}
+}
+@media print{
+  body{background:#fff;color:#000;font-size:11pt}
+  .top nav,.foot{display:none}
+  a{color:#000;text-decoration:underline}
+  details{border:1px solid #ccc}
+  details:not([open]) .body{display:block}
+}

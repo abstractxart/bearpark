@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Support — BEAR Wallet</title>
+<meta name="description" content="Help and contact for BEAR Wallet, a non-custodial XRP Ledger wallet. Answers to common questions and how to reach a human.">
+<meta name="robots" content="index,follow">
+<link rel="stylesheet" href="/bear-legal.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="mark" href="/">BEAR<span> Wallet</span></a>
+    <nav>
+      <a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a>
+      <a href="/support" aria-current="page">Support</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <h1>Support</h1>
+  <p class="sub">BEAR Wallet &middot; Updated August 27, 2026</p>
+
+  <div class="note key">
+    <span class="lab">Contact us</span>
+    <p>Email <a href="mailto:support@bearpark.xyz"><strong>support@bearpark.xyz</strong></a> and a human will reply, usually within two business days.</p>
+    <p>To help us help you, include your device and OS version, the App version from <strong>Settings &rarr; About</strong>, what you expected to happen, and what happened instead. If a transaction is involved, send its <strong>transaction hash</strong>.</p>
+  </div>
+
+  <div class="note warn">
+    <span class="lab">Never share your recovery phrase</span>
+    <p><strong>BEAR will never ask for your recovery phrase, private key, or PIN</strong> &mdash; not by email, not on social media, not in a support chat, not ever. Anyone who asks is trying to steal from you, no matter whose name or logo they use.</p>
+    <p>There is no situation in which we need it. We cannot access your wallet, and we do not need access to answer a support question.</p>
+  </div>
+
+  <h2>Common questions</h2>
+
+  <details>
+    <summary>I lost my recovery phrase. Can you restore my wallet?</summary>
+    <div class="body">
+      <p>No, and we want to be honest rather than encouraging about this. BEAR Wallet is non-custodial: your keys are generated on your device and never sent to us. We hold nothing that could rebuild your wallet.</p>
+      <p>If you still have the wallet open on your device, go to <strong>Settings &rarr; Security &rarr; Recovery Phrase</strong> and reveal it now, then write it on paper and store it somewhere safe. Once the app is uninstalled or the device is lost, an unrecorded phrase is gone permanently.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>What does &ldquo;non-custodial&rdquo; actually mean?</summary>
+    <div class="body">
+      <p>It means you hold your own funds. Your keys live in your phone&rsquo;s secure storage, encrypted with your PIN. We never take possession of them, so we cannot freeze your account, reverse a payment, or lose your money in a company failure.</p>
+      <p>The trade-off is real: there is no support line that can undo a mistake. Sending to a wrong address, approving a malicious transaction, or losing your phrase are all permanent.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>My token shows a zero balance, or the app says I have no trustline</summary>
+    <div class="body">
+      <p>On the XRP Ledger you must hold a <strong>trustline</strong> to an issuer before you can hold their token. If you have not set one up, the balance shows as zero.</p>
+      <p>Tokens with names longer than three characters are stored on the ledger in a hexadecimal form while being displayed to you in readable letters. If a balance looks wrong, please send us the token name, the issuer address, and a transaction hash, and we will look at the specific case.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Why do I need XRP just sitting in my account?</summary>
+    <div class="body">
+      <p>That is the ledger&rsquo;s reserve requirement, not a BEAR fee, and we never receive it. The XRP Ledger requires a small XRP balance to keep an account active, plus a further small amount for each trustline, offer, or other object your account owns.</p>
+      <p>The reserve is set by the network and can change by validator vote. It is released back to you if you remove the object it was held against.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>My transaction or swap failed</summary>
+    <div class="body">
+      <p>Common causes, roughly in order of likelihood:</p>
+      <ul>
+        <li><strong>The price moved.</strong> If the market shifted beyond your slippage tolerance, the ledger rejects the trade rather than filling it at a worse price. Raising slippage slightly and retrying usually works; the App will suggest this when it detects the cause.</li>
+        <li><strong>Not enough XRP for the reserve or network fee.</strong> Every transaction needs a small amount of spare XRP.</li>
+        <li><strong>No trustline</strong> for the token you are trying to receive.</li>
+        <li><strong>Not enough liquidity</strong> for the size you tried to trade.</li>
+      </ul>
+      <p>A failed transaction still consumes its small network fee &mdash; that is how the ledger prevents spam, and it does not go to us. If the reason is not clear, send us the transaction hash.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>I am not receiving notifications</summary>
+    <div class="body">
+      <p>Check that notifications are enabled for BEAR Wallet in your phone&rsquo;s system settings, and that the toggle is on in <strong>Settings</strong> in the App for the specific wallet you expect alerts for.</p>
+      <p>Alerts are per-wallet, so a newly added wallet needs its own toggle. Battery-optimisation and data-saver modes on some Android devices can also delay or suppress delivery.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>How do I delete my data?</summary>
+    <div class="body">
+      <p><strong>On your device:</strong> use <strong>Factory Reset</strong> in Settings, or uninstall the App. Both remove your keys and all local data. Make sure your recovery phrase is written down first if you intend to restore the wallet later.</p>
+      <p><strong>Anything we hold:</strong> email <a href="mailto:support@bearpark.xyz?subject=Data%20Deletion%20Request">support@bearpark.xyz</a> and we will delete it.</p>
+      <p><strong>On the blockchain:</strong> nobody can delete this, including us. The XRP Ledger is public and permanent by design. See the <a href="/privacy">Privacy Policy</a>.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>I think I found a security vulnerability</summary>
+    <div class="body">
+      <p>Please tell us before telling anyone else. Email <a href="mailto:support@bearpark.xyz?subject=Security%20Disclosure">support@bearpark.xyz</a> with &ldquo;Security Disclosure&rdquo; in the subject and enough detail to reproduce the issue.</p>
+      <p>We will acknowledge you, work on a fix, and credit you if you would like to be named. Please do not test against other people&rsquo;s wallets or funds.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Is someone messaging me from BEAR support?</summary>
+    <div class="body">
+      <p>Almost certainly not. We do not send unsolicited direct messages, we do not run a support chat on social media, and we will never contact you first asking you to &ldquo;verify&rdquo;, &ldquo;sync&rdquo;, or &ldquo;migrate&rdquo; your wallet.</p>
+      <p>Every one of those is a theft attempt. The only support channel is <strong>support@bearpark.xyz</strong>, and even there we will never ask for your recovery phrase.</p>
+    </div>
+  </details>
+
+  <h2>Contact</h2>
+  <p>
+    BEAR Technologies LLC<br>
+    1500 N Grant St, Ste N, Denver, CO 80203, United States<br>
+    <a href="mailto:support@bearpark.xyz">support@bearpark.xyz</a>
+  </p>
+
+  <div class="foot">
+    <p>&copy; 2026 BEAR Technologies LLC &middot; <a href="/privacy">Privacy Policy</a> &middot; <a href="/terms">Terms of Service</a></p>
+  </div>
+</main>
+
+</body>
+</html>
