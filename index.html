@@ -323,21 +323,17 @@
       <button id="connectXamanBtn" class="btn gold">
         Connect XAMAN Wallet
       </button>
-
-      <button id="connectJoeyBtn" class="btn" style="background: #8b5cf6; box-shadow: 0 10px 0 #5b21b6, 0 18px 24px rgba(0,0,0,.35);">
-        Connect Joey Wallet
-      </button>
     </div>
 
     <!-- Non-custodial security notice. This page authenticates via the user's own
-         wallet app (XAMAN / Joey over WalletConnect) and never collects a seed or
+         wallet app (XAMAN) and never collects a seed or
          private key. Stated plainly for user trust and so automated reviewers can
          see this is not phishing (Google Safe Browsing flagged bearpark.xyz as
          "Deceptive pages" — a false positive on the wallet sign-in). -->
     <div style="display:flex; align-items:flex-start; gap:10px; max-width:420px; margin:0 auto 18px; padding:12px 14px; border-radius:12px; background:rgba(34,197,94,0.08); border:1px solid rgba(34,197,94,0.28); text-align:left;">
       <span style="font-size:18px; line-height:1;">🔒</span>
       <p style="margin:0; font-size:12.5px; line-height:1.45; color:#bdf0cf; font-family:Arial,sans-serif;">
-        <strong style="color:#7CF1A8;">Secure, non-custodial sign-in.</strong> BEAR Park never asks for your seed phrase or private key. You sign in through your own wallet app (XAMAN or Joey), and your keys never leave your device or touch our servers.
+        <strong style="color:#7CF1A8;">Secure, non-custodial sign-in.</strong> BEAR Park never asks for your seed phrase or private key. You sign in through your own wallet app (XAMAN), and your keys never leave your device or touch our servers.
       </p>
     </div>
 
@@ -352,13 +348,6 @@
   <!-- QR Code Generator -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
-  <script type="module">
-  import SignClient from 'https://esm.sh/@walletconnect/sign-client@2.11.0';
-
-  // Make SignClient available globally
-  window.WalletConnectSignClient = SignClient;
-  </script>
-
   <script>
   (async function(){
     // Configuration
@@ -369,22 +358,9 @@
     // NFT issuer - Both Ultra Rare and Pixel BEAR collections use the same issuer
     const NFT_ISSUER = 'rBEARbo4Prn33894evmvYcAf9yAQjp4VJF'; // BearXRPL2
 
-    // WalletConnect Configuration
-    const WC_PROJECT_ID = 'da711418529df39d15cc68772619e270';
-
     const connectXamanBtn = document.getElementById('connectXamanBtn');
-    const connectJoeyBtn = document.getElementById('connectJoeyBtn');
     const statusEl = document.getElementById('status');
     const verificationList = document.getElementById('verificationList');
-
-    // WalletConnect client
-    let wcClient = null;
-    let wcSession = null;
-
-    // Wait for WalletConnect module to load
-    while(!window.WalletConnectSignClient){
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
 
     // Preserve raid deep link parameter through authentication
     const urlParams = new URLSearchParams(window.location.search);
@@ -723,105 +699,6 @@
 
       return await response.json();
     }
-
-    // Initialize WalletConnect
-    async function initWalletConnect(){
-      if(wcClient) return wcClient;
-
-      try{
-        const SignClient = window.WalletConnectSignClient;
-        if(!SignClient){
-          throw new Error('WalletConnect SignClient not loaded');
-        }
-
-        wcClient = await SignClient.init({
-          projectId: WC_PROJECT_ID,
-          metadata: {
-            name: 'BEAR Park',
-            description: 'BEAR Park - XRPL Community Hub',
-            url: 'https://bearpark.xyz',
-            icons: ['https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/25ekkd.png']
-          }
-        });
-        return wcClient;
-      }catch(error){
-        console.error('WalletConnect init error:', error);
-        throw error;
-      }
-    }
-
-    // Joey Wallet Connection via WalletConnect
-    connectJoeyBtn.addEventListener('click', async () => {
-      try{
-        connectJoeyBtn.disabled = true;
-        showStatus('Initializing WalletConnect...', 'loading');
-
-        const client = await initWalletConnect();
-
-        const { uri, approval } = await client.connect({
-          requiredNamespaces: {
-            xrpl: {
-              methods: ['xrpl_signTransaction'],
-              chains: ['xrpl:0'],  // Mainnet
-              events: []
-            }
-          }
-        });
-
-        if(uri){
-          showStatus('Scan QR code with Joey Wallet', 'loading');
-
-          // Generate QR code
-          const qrContainer = document.createElement('div');
-
-          // Create proper Joey Wallet deep link
-          const joeyDeepLink = `https://link.joeywallet.app/wc?uri=${encodeURIComponent(uri)}`;
-
-          qrContainer.innerHTML = `<p style="font-size: 16px; margin: 10px 0;">Connect with Joey Wallet:</p>
-                             <div style="margin: 20px auto; padding: 20px; background: white; border-radius: 12px; max-width: 300px; display: inline-block;">
-                               <div id="joeyQR"></div>
-                             </div>
-                             <a id="openJoeyBtn" href="${joeyDeepLink}" style="display: inline-block; margin: 15px auto; padding: 12px 24px; background: #8b5cf6; color: white; border: 3px solid transparent; border-image: var(--tri-gradient) 1; border-radius: 12px; font-family: 'Luckiest Guy', Arial; font-size: 16px; cursor: pointer; box-shadow: 0 6px 0 #5b21b6; text-decoration: none;">Open Joey Wallet</a>
-                             <p style="font-size: 14px; margin: 15px 0; color: #999; font-family: Arial, sans-serif;">Scan the QR code OR click "Open Joey Wallet" to connect automatically</p>
-                             <p style="font-size: 13px; margin: 20px 0; color: #999; font-family: Arial, sans-serif;">Note: If Joey Wallet isn't opening or scanning properly, please try XAMAN wallet instead for a more reliable connection.</p>`;
-
-          statusEl.innerHTML = '';
-          statusEl.appendChild(qrContainer);
-          statusEl.className = 'status show loading';
-
-          // Generate QR code using QRCode.js
-          setTimeout(() => {
-            new QRCode(document.getElementById('joeyQR'), {
-              text: uri,
-              width: 250,
-              height: 250
-            });
-          }, 100);
-
-          // Wait for approval
-          const session = await approval();
-          wcSession = session;
-
-          // Get wallet address from session
-          const accounts = session.namespaces.xrpl?.accounts || [];
-          if(accounts.length > 0){
-            // Format: "xrpl:0:rXXXXXXXX"
-            const walletAddress = accounts[0].split(':')[2];
-            showStatus('Joey Wallet connected! Verifying requirements...', 'success');
-            await checkWalletRequirements(walletAddress);
-          } else {
-            throw new Error('No accounts found in session');
-          }
-        } else {
-          throw new Error('Failed to generate WalletConnect URI');
-        }
-
-      }catch(error){
-        console.error('Joey wallet connection error:', error);
-        showStatus('Error connecting Joey wallet: ' + error.message, 'error');
-        connectJoeyBtn.disabled = false;
-      }
-    });
 
     // Wallet Connection via XAMAN
     connectXamanBtn.addEventListener('click', async () => {
