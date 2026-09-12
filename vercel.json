@@ -159,6 +159,10 @@
       "dest": "/support.html"
     },
     {
+      "src": "/data-deletion",
+      "dest": "/data-deletion.html"
+    },
+    {
       "src": "/(.*\\.(html|css|js|png|jpg|jpeg|gif|svg|ico))",
       "dest": "/$1"
     },

@@ -26,7 +26,7 @@ const NETWORK_FIRST_PATTERNS = [
   // Legal + support pages must never be served stale. An updated policy carries an
   // effective date, and stale-while-revalidate would show the OLD one until the
   // visitor's second visit. Always hit the network; cache is the offline fallback.
-  /\/(privacy|terms|support)(\.html)?$/
+  /\/(privacy|terms|support|data-deletion)(\.html)?$/
 ];
 
 // Install: Precache critical assets
