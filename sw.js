@@ -1,5 +1,5 @@
 // 🐻❄️ COCAINE BEAR: Optimized Service Worker with Smart Caching
-const CACHE_VERSION = 'bearpark-v3';
+const CACHE_VERSION = 'bearpark-v23';
 const STATIC_CACHE = CACHE_VERSION + '-static';
 const DYNAMIC_CACHE = CACHE_VERSION + '-dynamic';
 
@@ -26,7 +26,13 @@ const NETWORK_FIRST_PATTERNS = [
   // Legal + support pages must never be served stale. An updated policy carries an
   // effective date, and stale-while-revalidate would show the OLD one until the
   // visitor's second visit. Always hit the network; cache is the offline fallback.
-  /\/(privacy|terms|support|data-deletion)(\.html)?$/
+  /\/(privacy|terms|support|data-deletion)(\.html)?$/,
+  // Game pages must never be served stale either. Each game's index.html names
+  // its build by content hash (assets/index-XXXX.js) and a deploy replaces that
+  // file - so a cached old page asks for a bundle that no longer exists, and
+  // the game hangs on its loading screen until the visitor's second visit.
+  /\/(flappy-bear|bear-ninja|bear-jumpventure|pong)\/?(index\.html)?(\?.*)?$/,
+  /\/frontend\/(flappy-bear|bear-ninja|bear-jumpventure)\/(index\.html)?(\?.*)?$/
 ];
 
 // Install: Precache critical assets

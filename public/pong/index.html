@@ -1,147 +1,189 @@
 <!doctype html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport"
-    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, minimal-ui" />
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
 
-  <!-- Mobile fullscreen support -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="theme-color" content="#000000">
+  <meta name="theme-color" content="#07090d">
 
-  <title>BEAR PONG - Multiplayer</title>
+  <title>BEAR PONG - Professor BEAR's Pong Lab</title>
 
-  <!-- BEAR Park Font -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&display=swap" rel="stylesheet" />
 
-  <!-- BEAR Park Authentication - Read URL params and store to localStorage -->
-<script src="/auth-fetch.js"></script>
-<script>
+  <!-- BEAR Park authentication: bearpong.html hands the wallet over in the
+       query string. Persist it, then scrub it from the address bar. -->
+  <script src="/auth-fetch.js"></script>
+  <script>
     (function () {
       try {
-        // Read URL parameters
-        const urlParams = new URLSearchParams(window.location.search);
-        const wallet = urlParams.get('wallet');
-        const displayName = urlParams.get('display_name');
-        const twitterUsername = urlParams.get('twitter_username');
-        const avatarUrl = urlParams.get('avatar_url');
-
-        // Store to localStorage if provided
-        if (wallet) {
-          localStorage.setItem('xaman_wallet_address', wallet);
-        }
-
-        if (displayName) {
-          localStorage.setItem('display_name', displayName);
-        }
-
-        if (twitterUsername) {
-          localStorage.setItem('twitter_username', twitterUsername);
-        }
-
-        if (avatarUrl) {
-          localStorage.setItem('avatar_url', avatarUrl);
-        }
-
-        // Clean URL after reading params (optional - removes params from address bar)
-        if (wallet || displayName || twitterUsername || avatarUrl) {
-          const cleanUrl = window.location.origin + window.location.pathname;
-          window.history.replaceState({}, document.title, cleanUrl);
-        }
-      } catch (error) {
-        console.error('Error reading BEAR Park authentication data:', error);
+        var p = new URLSearchParams(window.location.search);
+        var keys = {
+          wallet: "xaman_wallet_address",
+          display_name: "display_name",
+          twitter_username: "twitter_username",
+          avatar_url: "avatar_url",
+          avatar_is_animated: "avatar_is_animated"
+        };
+        var any = false;
+        Object.keys(keys).forEach(function (k) {
+          var v = p.get(k);
+          if (v) { localStorage.setItem(keys[k], v); any = true; }
+        });
+        if (any) window.history.replaceState({}, document.title, window.location.origin + window.location.pathname);
+      } catch (e) {
+        console.error("Error reading BEAR Park authentication data:", e);
       }
     })();
   </script>
 
-  <!-- Mobile Fullscreen Trigger -->
+  <!-- Mobile fullscreen on first touch (Android). iOS ignores the API. -->
   <script>
     (function () {
-      // Detect device
-      const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
-      const isAndroid = /Android/.test(navigator.userAgent);
-
-      // Function to enter fullscreen
+      var isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
       function enterFullscreen() {
-        if (isIOS) {
-          setTimeout(() => { window.scrollTo(0, 1); }, 100);
-          return;
-        }
-
-        const elem = document.documentElement;
-        if (elem.requestFullscreen) {
-          elem.requestFullscreen().catch(() => { });
-        } else if (elem.webkitRequestFullscreen) {
-          elem.webkitRequestFullscreen();
-        } else if (elem.webkitEnterFullscreen) {
-          elem.webkitEnterFullscreen();
-        } else if (elem.mozRequestFullScreen) {
-          elem.mozRequestFullScreen();
-        } else if (elem.msRequestFullscreen) {
-          elem.msRequestFullscreen();
-        }
+        if (isIOS) { setTimeout(function () { window.scrollTo(0, 1); }, 100); return; }
+        var el = document.documentElement;
+        var req = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+        if (req) { try { var r = req.call(el); if (r && r.catch) r.catch(function () {}); } catch (e) {} }
       }
-
-      let fullscreenTriggered = false;
-
-      const triggerFullscreen = (event) => {
-        if (fullscreenTriggered) return;
-        fullscreenTriggered = true;
-        enterFullscreen();
-        document.removeEventListener('touchstart', triggerFullscreen);
-        document.removeEventListener('click', triggerFullscreen);
-        document.removeEventListener('pointerdown', triggerFullscreen);
-      };
-
-      document.addEventListener('touchstart', triggerFullscreen);
-      document.addEventListener('click', triggerFullscreen);
-      document.addEventListener('pointerdown', triggerFullscreen);
-
+      var done = false;
+      function trigger() {
+        if (done) return;
+        done = true;
+        if (matchMedia("(pointer: coarse)").matches) enterFullscreen();
+        document.removeEventListener("pointerdown", trigger);
+      }
+      document.addEventListener("pointerdown", trigger);
       window.enterFullscreen = enterFullscreen;
       window.isIOS = isIOS;
     })();
   </script>
 
-  <!-- 🍯 HONEY POINTS: Load game points helper -->
+  <!-- HONEY points (shared across every BEAR Park game) -->
   <script src="./game-points-helper.js"></script>
 
-
   <style>
-    html,
-    body {
-      background: black;
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      overscroll-behavior: none;
-    }
+    /* ------------------------------------------------------------------
+       BOOT SCREEN - inline so it paints before a single byte of JS.
+       Same handover contract as Flappy BEAR: it fires
+       "bearpong:bootdone" as it STARTS leaving, so the lobby turnstiles
+       in through the exit instead of behind it.
+       ------------------------------------------------------------------ */
+    html, body { margin: 0; height: 100%; background: #07090d; overflow: hidden; overscroll-behavior: none; }
 
-    #game-container {
-      width: 100%;
-      height: 100%;
+    #boot {
+      position: fixed; inset: 0; z-index: 99999;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      background: #07090d; color: #e7edf4; overflow: hidden;
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      transition: opacity .42s cubic-bezier(.3,0,.8,.15), visibility 0s linear .42s;
     }
+    #boot::before {
+      content: ""; position: absolute; inset: -20%;
+      background:
+        radial-gradient(40% 36% at 30% 40%, rgba(160,107,255,.30), transparent 70%),
+        radial-gradient(40% 36% at 70% 60%, rgba(47,208,106,.22), transparent 70%),
+        radial-gradient(50% 40% at 50% 110%, rgba(255,194,36,.22), transparent 72%);
+      animation: boot-drift 9s ease-in-out infinite alternate;
+    }
+    #boot.out { opacity: 0; visibility: hidden; pointer-events: none; }
+    #boot.out .boot-inner { transform: scale(1.06) translateY(-18px); opacity: 0;
+      transition: transform .42s cubic-bezier(.3,0,.8,.15), opacity .32s cubic-bezier(.3,0,.8,.15); }
 
-    /* Let Phaser handle canvas positioning */
-    #game-container canvas {
-      display: block;
+    .boot-inner { position: relative; display: flex; flex-direction: column; align-items: center; }
+    .boot-logo { width: 148px; height: auto; filter: drop-shadow(0 16px 30px rgba(0,0,0,.6));
+      animation: boot-in .9s cubic-bezier(.05,.7,.1,1) both, boot-bob 3s ease-in-out 1s infinite; }
+    .boot-word { margin-top: 14px; font-family: "Luckiest Guy", "Arial Black", sans-serif;
+      font-size: clamp(46px, 11vw, 84px); line-height: 1; letter-spacing: .02em;
+      display: flex; gap: .28em; opacity: 0; }
+    .boot-ready .boot-word { opacity: 1; }
+    .boot-ready .boot-word span { animation: boot-turn .7s cubic-bezier(.05,.7,.1,1) both; transform-origin: 0 50%; }
+    .boot-ready .boot-word span:nth-child(2) { animation-delay: .1s; }
+    .boot-word .g { background: linear-gradient(#fff6cf 4%, #ffe071 30%, #ffc224 55%, #e89000 80%, #b36a00);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+      filter: drop-shadow(0 3px 0 rgba(0,0,0,.55)) drop-shadow(0 0 18px rgba(255,194,36,.5)); }
+    .boot-word .w { color: #fff; filter: drop-shadow(0 3px 0 rgba(0,0,0,.55)); }
+    .boot-sub { margin-top: 12px; font-size: 11px; font-weight: 700; letter-spacing: .38em; color: #9fb0c0;
+      animation: boot-rise .6s ease-out .6s both; }
+
+    /* Windows Phone progress dots: five dots that race in, bunch up in the
+       middle and race out. The single most recognisable Metro loader. */
+    .boot-dots { position: relative; width: min(320px, 74vw); height: 6px; margin-top: 26px; overflow: hidden; }
+    .boot-dots i { position: absolute; top: 0; left: 0; width: 6px; height: 6px; border-radius: 50%;
+      background: #ffc224; box-shadow: 0 0 10px rgba(255,194,36,.8);
+      animation: boot-dot 2.6s cubic-bezier(.2,.8,.8,.2) infinite; opacity: 0; }
+    .boot-dots i:nth-child(2) { animation-delay: .16s; }
+    .boot-dots i:nth-child(3) { animation-delay: .32s; }
+    .boot-dots i:nth-child(4) { animation-delay: .48s; }
+    .boot-dots i:nth-child(5) { animation-delay: .64s; }
+    .boot-bar { width: min(320px, 74vw); height: 3px; margin-top: 14px; border-radius: 3px; background: rgba(255,255,255,.1); overflow: hidden; }
+    .boot-bar b { display: block; height: 100%; width: 0%; background: linear-gradient(90deg, #a06bff, #ffc224, #2fd06a); transition: width .18s linear; }
+    .boot-pct { width: min(320px, 74vw); margin-top: 8px; display: flex; justify-content: space-between;
+      font-size: 10px; font-weight: 700; letter-spacing: .22em; color: #7d8d9c; }
+
+    @keyframes boot-drift { from { transform: translate3d(-3%, -2%, 0) scale(1); } to { transform: translate3d(3%, 2%, 0) scale(1.08); } }
+    @keyframes boot-in { from { opacity: 0; transform: translateY(40px) scale(.7) rotate(-6deg); } to { opacity: 1; transform: none; } }
+    @keyframes boot-bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+    @keyframes boot-turn { from { opacity: 0; transform: perspective(600px) rotateY(-80deg); } to { opacity: 1; transform: perspective(600px) rotateY(0); } }
+    @keyframes boot-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+    @keyframes boot-dot {
+      0%   { left: 0%;   opacity: 0; }
+      12%  { opacity: 1; }
+      35%  { left: 46%; }
+      65%  { left: 54%; }
+      88%  { opacity: 1; }
+      100% { left: 100%; opacity: 0; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #boot::before, .boot-logo, .boot-ready .boot-word span, .boot-sub { animation: none !important; }
+      .boot-dots i { animation-duration: 4s; }
     }
   </style>
-  <script type="module" crossorigin src="./assets/index-CV7AQYAL.js"></script>
-  <link rel="modulepreload" crossorigin href="./assets/phaser-0YPJO2g1.js">
+  <script type="module" crossorigin src="./assets/index-CQ0scCrF.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/phaser-Czz4FBZH.js">
+  <link rel="stylesheet" crossorigin href="./assets/index-CQ9Zq0xs.css">
 </head>
 
 <body>
-  <div id="game-container"></div>
-</body>
+  <div id="stage">
+    <div id="backdrop" aria-hidden="true"></div>
+    <div id="game-container"></div>
+    <div id="hud-root"></div>
+    <div id="ui-root"></div>
+    <div id="fx-root" aria-live="polite"></div>
+  </div>
 
+  <div id="boot" role="status" aria-label="Loading BEAR Pong">
+    <div class="boot-inner">
+      <img class="boot-logo" src="bear-logo.png" alt="" decoding="async" />
+      <div class="boot-word"><span class="g">BEAR</span><span class="w">PONG</span></div>
+      <div class="boot-sub">PROFESSOR BEAR'S PONG LAB</div>
+      <div class="boot-dots"><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="boot-bar"><b id="boot-fill"></b></div>
+      <div class="boot-pct"><span id="boot-status">WARMING UP THE LAB</span><span id="boot-num">0%</span></div>
+    </div>
+  </div>
+  <script>
+    // Hold the wordmark until Luckiest Guy has actually arrived, so nobody
+    // watches it turnstile in as Arial and then snap into the real face.
+    (function () {
+      var boot = document.getElementById("boot");
+      var reveal = function () { boot.classList.add("boot-ready"); };
+      try {
+        if (document.fonts && document.fonts.load) {
+          Promise.race([document.fonts.load("1em 'Luckiest Guy'"), new Promise(function (r) { setTimeout(r, 1200); })]).then(reveal, reveal);
+        } else reveal();
+      } catch (e) { reveal(); }
+    })();
+  </script>
+</body>
 </html>
