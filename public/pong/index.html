@@ -17,7 +17,9 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&display=swap" rel="stylesheet" />
+  <!-- the title font never holds up first paint (a slow link would leave the boot screen blank) -->
+  <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
+  <noscript><link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&display=swap" rel="stylesheet" /></noscript>
 
   <!-- BEAR Park authentication: bearpong.html hands the wallet over in the
        query string. Persist it, then scrub it from the address bar. -->
@@ -148,9 +150,9 @@
       .boot-dots i { animation-duration: 4s; }
     }
   </style>
-  <script type="module" crossorigin src="./assets/index-B3qT-4E6.js"></script>
-  <link rel="modulepreload" crossorigin href="./assets/phaser-Czz4FBZH.js">
-  <link rel="stylesheet" crossorigin href="./assets/index-Devdon_h.css">
+  <script type="module" crossorigin src="./assets/index-Bvaty-_U.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/phaser-BnN8Yw84.js">
+  <link rel="stylesheet" crossorigin href="./assets/index-DRn0Mt5w.css">
 </head>
 
 <body>
