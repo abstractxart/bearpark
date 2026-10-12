@@ -16,6 +16,20 @@ const { createClient } = require('@supabase/supabase-js');
 const { Pool } = require('pg');
 const webpush = require('web-push');
 const multer = require('multer');
+const dailyBoard = require('./daily-board');
+const { createWalletSignIn } = require('./wallet-sign-in');
+const {
+  walletKey,
+  createKeyedMutex,
+  createRateLimiter,
+  createAccessGate,
+  isXrplRateLimitError,
+  pickTrueCaseAddress,
+  dailyCapForStoredCase,
+  claimedClientIp,
+} = require('./honey-guard');
+const { sendPaymentOnce } = require('./ledger-payout');
+const { isValidClassicAddress } = require('xrpl');
 const upload = multer({ storage: multer.memoryStorage() });
 
 const app = express();
@@ -70,6 +84,16 @@ if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
   console.log('✅ Supabase Admin Client initialized (bypasses RLS)');
 } else {
   console.warn('⚠️ SUPABASE_SERVICE_ROLE_KEY not set - Admin operations may fail');
+}
+
+// Every Supabase WRITE goes through `db`. The anon key is public (it ships in
+// browser pages and is public by design), so after
+// migrations/005-lock-down-anon-writes.sql the anon role can only read; writes
+// made with it would fail. Reads may stay on `supabase`.
+const db = supabaseAdmin || supabase;
+if (!supabaseAdmin) {
+  console.error('❌ SUPABASE_SERVICE_ROLE_KEY is not set: writes are falling back to the PUBLIC anon key. ' +
+    'They will FAIL once backend/migrations/005-lock-down-anon-writes.sql has run. Set the key before running it.');
 }
 
 // Initialize Direct PostgreSQL Pool (for reactions to bypass PostgREST cache)
@@ -143,7 +167,10 @@ const XRPL_WS_ENDPOINTS = [
   'wss://s2.ripple.com'
 ];
 let _xrplClient = null;
+let _xrplEndpoint = null;
 let _xrplConnectingPromise = null;
+// A hub that says this server's quota is spent is skipped for a while.
+const _xrplEndpointCooldownUntil = new Map();
 async function getXrplClient() {
   if (_xrplClient && _xrplClient.isConnected()) {
     return _xrplClient;
@@ -153,7 +180,9 @@ async function getXrplClient() {
   }
   _xrplConnectingPromise = (async () => {
     const xrpl = require('xrpl');
-    for (const endpoint of XRPL_WS_ENDPOINTS) {
+    const at = Date.now();
+    const rested = XRPL_WS_ENDPOINTS.filter((endpoint) => !((_xrplEndpointCooldownUntil.get(endpoint) || 0) > at));
+    for (const endpoint of (rested.length ? rested : XRPL_WS_ENDPOINTS)) {
       try {
         const c = new xrpl.Client(endpoint, { connectionTimeout: 10000 });
         await c.connect();
@@ -162,6 +191,7 @@ async function getXrplClient() {
           if (_xrplClient === c) _xrplClient = null;
         });
         _xrplClient = c;
+        _xrplEndpoint = endpoint;
         console.log(`✅ XRPL shared client connected to ${endpoint}`);
         return c;
       } catch (err) {
@@ -175,6 +205,39 @@ async function getXrplClient() {
   } finally {
     _xrplConnectingPromise = null;
   }
+}
+
+function retireXrplEndpoint(reason) {
+  if (_xrplEndpoint) {
+    _xrplEndpointCooldownUntil.set(_xrplEndpoint, Date.now() + 10 * 60 * 1000);
+    console.warn(`[XRPL] ${_xrplEndpoint} is rate-limiting this server (${reason}); using another hub for 10 min`);
+  }
+  const old = _xrplClient;
+  _xrplClient = null;
+  _xrplEndpoint = null;
+  if (old) old.disconnect().catch(() => {});
+}
+
+// For read-only requests that are safe to repeat: when the hub refuses with a
+// quota error, move the shared client to the next hub and ask once more. The
+// honey entry-rule check uses this, so a spent quota does not quietly turn
+// the gate into fail-open.
+async function getResilientXrplClient() {
+  await getXrplClient(); // connection failures surface here, as before
+  return {
+    request: async (request) => {
+      // The shared client as it is NOW: an earlier request may have moved it.
+      const client = await getXrplClient();
+      try {
+        return await client.request(request);
+      } catch (error) {
+        if (!isXrplRateLimitError(error)) throw error;
+        if (_xrplClient === client) retireXrplEndpoint(error.message);
+        const next = await getXrplClient();
+        return next.request(request);
+      }
+    }
+  };
 }
 
 // Warm up the shared XRPL client at boot so the first real request doesn't pay the connect cost
@@ -200,9 +263,7 @@ const apiLimiter = rateLimit({
   message: { success: false, error: 'Too many requests, please try again later' },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => {
-    return req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || 'unknown';
-  },
+  keyGenerator: (req) => claimedClientIp(req), // IPv6 by /56 (honey-guard.js ipKey)
   skip: (req) => {
     // NOTE: this limiter is mounted at app.use('/api/', apiLimiter), so req.path
     // inside the skip function is RELATIVE to the mount point — e.g. the full URL
@@ -237,7 +298,7 @@ const claimRateLimiter = rateLimit({
   legacyHeaders: false,
   keyGenerator: (req) => {
     const wallet = req.body?.wallet_address || 'unknown';
-    return `${req.ip}-${wallet}`;
+    return `${claimedClientIp(req)}-${wallet}`;
   }
 });
 console.log('✅ Claim rate limiter: 5 req/min per IP+wallet');
@@ -248,6 +309,12 @@ app.use(cors({
 }));
 // SECURITY: Cap JSON body size to prevent DoS via huge payloads
 app.use(express.json({ limit: '1mb' }));
+
+// Public reads answered from memory for a few seconds, folded when they arrive
+// together, and dropped by any write that changes them (read-cache.js).
+const { createReadCache } = require('./read-cache');
+const readCache = createReadCache();
+app.use(readCache.middleware);
 
 // ===== SECURITY: SAFE ERROR HANDLER =====
 // AUDIT COMPLIANCE: Never expose internal error details to clients
@@ -472,12 +539,19 @@ function verifySignedSessionToken(token, expectedType = null) {
 
 function issueWalletAuthToken(wallet) {
   const now = Date.now();
-  return signSessionToken({
+  const payload = {
     type: 'wallet_auth',
     wallet: wallet.toLowerCase(),
     iat: now,
     exp: now + WALLET_AUTH_TTL_MS
-  });
+  };
+  // The address exactly as the signer proved it. XRPL addresses are
+  // case-checksummed, so the ledger (entry-rule check, payouts) needs this
+  // spelling; `wallet` stays lowercase for every comparison.
+  if (typeof wallet === 'string' && isValidClassicAddress(wallet)) {
+    payload.addr = wallet;
+  }
+  return signSessionToken(payload);
 }
 
 function issueGameSessionToken(wallet, gameId) {
@@ -636,7 +710,7 @@ function getVerifiedWalletSession(req, res) {
   if (!token) {
     res.status(401).json({
       success: false,
-      error: 'Wallet authentication required. Sign in with XAMAN again.'
+      error: 'Wallet authentication required. Sign in again.'
     });
     return null;
   }
@@ -645,7 +719,7 @@ function getVerifiedWalletSession(req, res) {
   if (!session?.wallet) {
     res.status(401).json({
       success: false,
-      error: 'Wallet session expired or invalid. Sign in with XAMAN again.'
+      error: 'Wallet session expired or invalid. Sign in again.'
     });
     return null;
   }
@@ -727,95 +801,318 @@ function roundHoneyAmount(value) {
   return Math.round((parseHoneyNumber(value) + Number.EPSILON) * 100) / 100;
 }
 
-function createPublicError(statusCode, publicMessage) {
+// One constructor for errors whose message is safe to show. There used to be two
+// with opposite argument orders; function hoisting let the later one win, so
+// createPublicError(400, msg) set statusCode = msg and res.status(msg) threw
+// inside a catch block: an unhandled rejection, which ends the Node process.
+// Either order works now.
+function createPublicError(a, b) {
+  const statusCode = typeof a === 'number' ? a : (typeof b === 'number' ? b : 400);
+  const publicMessage = typeof a === 'string' ? a : (typeof b === 'string' ? b : 'Request failed');
   const error = new Error(publicMessage);
   error.statusCode = statusCode;
   error.publicMessage = publicMessage;
   return error;
 }
 
-async function getHoneyBalance(wallet, dbClient = null, lockForUpdate = false) {
-  const normalizedWallet = normalizeWalletAddress(wallet);
-  if (!normalizedWallet) {
-    return {
-      wallet_address: '',
-      total_points: 0,
-      raiding_points: 0,
-      games_points: 0
-    };
+// ===== HONEY: LOCKS, LEDGER, AND THE ONE WAY A BALANCE CHANGES =====
+//
+// Every credit and debit goes through applyHoneyDelta() (games and raids use the
+// same building blocks inside their own transaction):
+//   1. the wallet's in-process lock (walletLocks) and, in Postgres, an advisory
+//      lock on lower(wallet) for the transaction, so two requests for one wallet
+//      never interleave: a check and the write that follows it are one step;
+//   2. a conditional UPDATE that cannot take any balance below zero;
+//   3. one honey_ledger row (wallet, delta, balance after, source, ref id) in the
+//      same transaction. A ledger idempotency key makes a reward that is claimed
+//      twice land once.
+// honey_points rows keep the letter case they were first stored in (the
+// leaderboard joins profiles on it). Every lookup is case-insensitive, and rows
+// that exist only to block a second claim are written lowercase.
+
+const walletLocks = createKeyedMutex();
+// Every payout from the hot wallet (store tokens, BEARdrops) goes one at a time:
+// two autofills in parallel take the same Sequence and one of them fails.
+const payoutLocks = createKeyedMutex();
+const HOT_WALLET_PAYOUT_KEY = 'airdrop-wallet';
+const HONEY_LEDGER_TABLE = 'honey_ledger';
+let honeyLedgerReadyPromise = null;
+
+function walletLockKey(wallet) {
+  return `wallet:${walletKey(wallet)}`;
+}
+
+function withWalletLock(wallet, fn) {
+  return walletLocks.run(walletLockKey(wallet), fn);
+}
+
+async function lockWalletInTransaction(client, wallet) {
+  await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`honey:${walletKey(wallet)}`]);
+}
+
+// Tables this server creates at runtime belong to the database owner, and
+// Supabase grants new public tables to the anon role. RLS with no policy keeps
+// PostgREST (so the public anon key) out; the owner connection bypasses it.
+async function enableRowLevelSecurity(client, table) {
+  try {
+    await client.query(`ALTER TABLE ${table} ENABLE ROW LEVEL SECURITY`);
+  } catch (error) {
+    console.error(`⚠️ Could not enable RLS on ${table}:`, error.message);
   }
+}
 
-  if (dbClient) {
-    const result = await dbClient.query(
-      `SELECT total_points, raiding_points, games_points
-       FROM honey_points
-       WHERE wallet_address = $1
-       LIMIT 1${lockForUpdate ? ' FOR UPDATE' : ''}`,
-      [normalizedWallet]
-    );
-    const row = result.rows[0];
-    return {
-      wallet_address: normalizedWallet,
-      total_points: parseHoneyNumber(row?.total_points),
-      raiding_points: parseHoneyNumber(row?.raiding_points),
-      games_points: parseHoneyNumber(row?.games_points)
-    };
+async function ensureHoneyLedgerReady() {
+  if (!pgPool) {
+    return false;
   }
-
-  const readClient = supabaseAdmin || supabase;
-  const { data, error } = await readClient
-    .from('honey_points')
-    .select('total_points, raiding_points, games_points')
-    .eq('wallet_address', normalizedWallet)
-    .maybeSingle();
-
-  if (error) {
-    throw error;
+  if (!honeyLedgerReadyPromise) {
+    honeyLedgerReadyPromise = (async () => {
+      const client = await pgPool.connect();
+      try {
+        // Same definition as backend/migrations/004-honey-ledger.sql.
+        await client.query(`
+          CREATE TABLE IF NOT EXISTS ${HONEY_LEDGER_TABLE} (
+            id BIGSERIAL PRIMARY KEY,
+            wallet_address TEXT NOT NULL,
+            stored_wallet TEXT,
+            delta NUMERIC(14, 2) NOT NULL,
+            balance_after NUMERIC(14, 2),
+            source TEXT NOT NULL,
+            ref_id TEXT,
+            idempotency_key TEXT UNIQUE,
+            reason TEXT,
+            actor TEXT,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+          )
+        `);
+        await client.query(`CREATE INDEX IF NOT EXISTS idx_honey_ledger_wallet_created ON ${HONEY_LEDGER_TABLE} (wallet_address, created_at DESC)`);
+        await client.query(`CREATE INDEX IF NOT EXISTS idx_honey_ledger_source_ref ON ${HONEY_LEDGER_TABLE} (source, ref_id)`);
+        await enableRowLevelSecurity(client, HONEY_LEDGER_TABLE);
+        return true;
+      } finally {
+        client.release();
+      }
+    })().catch((error) => {
+      console.error('Error preparing honey ledger:', error);
+      honeyLedgerReadyPromise = null;
+      return false;
+    });
   }
+  return honeyLedgerReadyPromise;
+}
 
+// No ledger table (no DATABASE_URL, or it could not be created): keep a
+// structured line in the logs so the movement can still be traced.
+function logLedgerFallback(row) {
+  console.log('[honey-ledger]', JSON.stringify(row));
+}
+
+function buildLedgerRow(entry) {
   return {
-    wallet_address: normalizedWallet,
-    total_points: parseHoneyNumber(data?.total_points),
-    raiding_points: parseHoneyNumber(data?.raiding_points),
-    games_points: parseHoneyNumber(data?.games_points)
+    wallet_address: walletKey(entry.wallet),
+    stored_wallet: entry.storedWallet || null,
+    delta: roundHoneyAmount(entry.delta),
+    balance_after: entry.balanceAfter === undefined || entry.balanceAfter === null
+      ? null
+      : roundHoneyAmount(entry.balanceAfter),
+    source: entry.source || 'unknown',
+    ref_id: entry.refId === undefined || entry.refId === null ? null : String(entry.refId),
+    idempotency_key: entry.idempotencyKey || null,
+    reason: entry.reason || null,
+    actor: entry.actor || null
   };
 }
 
-async function insertPointTransactionRecordDb(client, {
-  wallet,
-  amount,
-  transactionType,
-  reason = null,
-  adminWallet = null
-}) {
-  if (!transactionType) {
+async function insertHoneyLedgerRowDb(client, ledgerReady, entry) {
+  const row = buildLedgerRow(entry);
+  if (!ledgerReady) {
+    logLedgerFallback(row);
     return;
   }
-
   await client.query(
-    `INSERT INTO point_transactions (wallet_address, amount, transaction_type, reason, admin_wallet)
-     VALUES ($1, $2, $3, $4, $5)`,
-    [wallet, roundHoneyAmount(amount), transactionType, reason, adminWallet]
+    `INSERT INTO ${HONEY_LEDGER_TABLE}
+       (wallet_address, stored_wallet, delta, balance_after, source, ref_id, idempotency_key, reason, actor)
+     VALUES ($1, $2, $3::numeric, $4::numeric, $5, $6, $7, $8, $9)`,
+    [row.wallet_address, row.stored_wallet, row.delta, row.balance_after, row.source, row.ref_id, row.idempotency_key, row.reason, row.actor]
   );
 }
 
-async function insertHoneyActivityRecordDb(client, {
-  wallet,
-  points,
-  activityType,
-  activityId = null
-}) {
+async function ledgerKeyExistsDb(client, ledgerReady, idempotencyKey) {
+  if (!ledgerReady || !idempotencyKey) {
+    return false;
+  }
+  const seen = await client.query(
+    `SELECT 1 FROM ${HONEY_LEDGER_TABLE} WHERE idempotency_key = $1 LIMIT 1`,
+    [idempotencyKey]
+  );
+  return seen.rowCount > 0;
+}
+
+// BEARdrops' daily counter: positive earnings only. Runs in a savepoint: any
+// failure is logged and the credit stands (the ledger row is the audit record).
+// `points` must be NUMERIC (migrations/007): on the setup script's INTEGER
+// column Postgres rounds 2.5 honey to 3 here, inflating the BEARdrops count.
+async function insertHoneyActivityRecordDb(client, { wallet, points, activityType, activityId = null }) {
   if (!activityType || roundHoneyAmount(points) <= 0) {
-    return;
+    return false;
   }
-
-  await client.query(
-    `INSERT INTO honey_points_activity (wallet_address, points, activity_type, activity_id)
-     VALUES ($1, $2, $3, $4)`,
-    [wallet, roundHoneyAmount(points), activityType, activityId]
-  );
+  await client.query('SAVEPOINT honey_activity');
+  try {
+    await client.query(
+      `INSERT INTO honey_points_activity (wallet_address, points, activity_type, activity_id)
+       VALUES ($1, $2::numeric, $3, $4)`,
+      [wallet, roundHoneyAmount(points), activityType, activityId === null || activityId === undefined ? null : String(activityId)]
+    );
+    await client.query('RELEASE SAVEPOINT honey_activity');
+    return true;
+  } catch (error) {
+    await client.query('ROLLBACK TO SAVEPOINT honey_activity');
+    console.error('honey_points_activity insert failed (credit kept):', error.message);
+    return false;
+  }
 }
 
+/**
+ * The honey_points row a wallet's balance lives in, in whatever letter case it
+ * was stored: a mixed-case row (a real XRPL spelling) before an all-lowercase
+ * ghost, then the larger balance, then a stable order. No row yet: the verified
+ * true-case address if we have one, else lowercase.
+ */
+async function resolveHoneyRowWalletDb(client, wallet, preferredAddress = null) {
+  const lower = walletKey(wallet);
+  const found = await client.query(
+    `SELECT wallet_address FROM honey_points
+     WHERE lower(wallet_address) = $1
+     ORDER BY
+       CASE WHEN wallet_address <> lower(wallet_address) THEN 0 ELSE 1 END,
+       total_points DESC NULLS LAST,
+       wallet_address
+     LIMIT 1`,
+    [lower]
+  );
+  if (found.rows[0]?.wallet_address) {
+    return found.rows[0].wallet_address;
+  }
+  return pickTrueCaseAddress(lower, [preferredAddress]) || lower;
+}
+
+function pickHoneyRow(rows) {
+  const sorted = [...(rows || [])].filter((row) => row?.wallet_address).sort((a, b) => {
+    const aMixed = a.wallet_address !== a.wallet_address.toLowerCase() ? 0 : 1;
+    const bMixed = b.wallet_address !== b.wallet_address.toLowerCase() ? 0 : 1;
+    if (aMixed !== bMixed) return aMixed - bMixed;
+    const diff = parseHoneyNumber(b.total_points) - parseHoneyNumber(a.total_points);
+    if (diff) return diff;
+    return a.wallet_address < b.wallet_address ? -1 : 1;
+  });
+  return sorted[0] || null;
+}
+
+function honeyBalanceFromRow(wallet, row) {
+  return {
+    wallet_address: wallet,
+    total_points: parseHoneyNumber(row?.total_points),
+    raiding_points: parseHoneyNumber(row?.raiding_points),
+    games_points: parseHoneyNumber(row?.games_points)
+  };
+}
+
+/**
+ * Add deltas to one stored row without letting any column go negative. The
+ * condition is part of the UPDATE itself, so a concurrent spend cannot overdraw
+ * even without the locks. Returns { previous, balance }, or null when it would.
+ */
+async function addToHoneyRowDb(client, storedWallet, { total = 0, raiding = 0, games = 0 }) {
+  const t = roundHoneyAmount(total);
+  const r = roundHoneyAmount(raiding);
+  const g = roundHoneyAmount(games);
+  const updated = await client.query(
+    `UPDATE honey_points
+        SET total_points   = COALESCE(total_points, 0)   + $2::numeric,
+            raiding_points = COALESCE(raiding_points, 0) + $3::numeric,
+            games_points   = COALESCE(games_points, 0)   + $4::numeric,
+            updated_at = NOW()
+      WHERE wallet_address = $1
+        -- only a column being LOWERED must stay >= 0 (old rows may hold odd values elsewhere)
+        AND ($2::numeric >= 0 OR COALESCE(total_points, 0)   + $2::numeric >= 0)
+        AND ($3::numeric >= 0 OR COALESCE(raiding_points, 0) + $3::numeric >= 0)
+        AND ($4::numeric >= 0 OR COALESCE(games_points, 0)   + $4::numeric >= 0)
+      RETURNING total_points, raiding_points, games_points`,
+    [storedWallet, t, r, g]
+  );
+
+  let balance;
+  if (updated.rowCount) {
+    balance = honeyBalanceFromRow(storedWallet, updated.rows[0]);
+  } else {
+    const exists = await client.query('SELECT 1 FROM honey_points WHERE wallet_address = $1', [storedWallet]);
+    if (exists.rowCount || t < 0 || r < 0 || g < 0) {
+      return null;
+    }
+    const inserted = await client.query(
+      `INSERT INTO honey_points (wallet_address, total_points, raiding_points, games_points, updated_at)
+       VALUES ($1, $2::numeric, $3::numeric, $4::numeric, NOW())
+       RETURNING total_points, raiding_points, games_points`,
+      [storedWallet, t, r, g]
+    );
+    balance = honeyBalanceFromRow(storedWallet, inserted.rows[0]);
+  }
+
+  return {
+    previous: {
+      wallet_address: storedWallet,
+      total_points: roundHoneyAmount(balance.total_points - t),
+      raiding_points: roundHoneyAmount(balance.raiding_points - r),
+      games_points: roundHoneyAmount(balance.games_points - g)
+    },
+    balance
+  };
+}
+
+/** The balance a spend will be checked against (the row applyHoneyDelta writes). */
+async function getHoneyBalance(wallet, dbClient = null) {
+  const lower = walletKey(wallet);
+  if (!lower) {
+    return honeyBalanceFromRow('', null);
+  }
+
+  if (dbClient) {
+    const stored = await resolveHoneyRowWalletDb(dbClient, lower);
+    const result = await dbClient.query(
+      'SELECT total_points, raiding_points, games_points FROM honey_points WHERE wallet_address = $1',
+      [stored]
+    );
+    return honeyBalanceFromRow(stored, result.rows[0]);
+  }
+
+  if (pgPool) {
+    const client = await pgPool.connect();
+    try {
+      return await getHoneyBalance(lower, client);
+    } finally {
+      client.release();
+    }
+  }
+
+  const { data, error } = await db
+    .from('honey_points')
+    .select('wallet_address, total_points, raiding_points, games_points')
+    .ilike('wallet_address', lower)
+    .limit(10);
+  if (error) {
+    throw error;
+  }
+  const row = pickHoneyRow(data);
+  return honeyBalanceFromRow(row?.wallet_address || lower, row);
+}
+
+/**
+ * The one way a honey balance changes. Beyond the deltas:
+ *   transactionType   ledger `source`;  reason, refId, adminWallet (ledger `actor`)
+ *   activityType/Id   also count a positive delta toward BEARdrops' daily total
+ *   idempotencyKey    the same key twice applies once (returns { duplicate: true })
+ *   preferredAddress  true-case spelling, used only if the wallet has no row yet
+ */
 async function applyHoneyDelta({
   wallet,
   totalDelta = 0,
@@ -826,163 +1123,185 @@ async function applyHoneyDelta({
   adminWallet = null,
   activityType = null,
   activityId = null,
+  refId = null,
+  idempotencyKey = null,
+  preferredAddress = null,
   insufficientMessage = 'Insufficient Honey Points'
 }) {
-  const normalizedWallet = normalizeWalletAddress(wallet);
-  if (!normalizedWallet) {
+  const lower = walletKey(wallet);
+  if (!lower) {
     throw createPublicError(400, 'Valid wallet address required');
   }
 
-  const roundedTotalDelta = roundHoneyAmount(totalDelta);
-  const roundedRaidingDelta = roundHoneyAmount(raidingDelta);
-  const roundedGamesDelta = roundHoneyAmount(gamesDelta);
-
-  if (pgPool) {
-    const client = await pgPool.connect();
-    try {
-      await client.query('BEGIN');
-
-      // Resolve to the ACTUAL stored case for this wallet. honey_points
-      // and friends were written with mixed case over the years, so an
-      // all-lowercase normalizedWallet would ON CONFLICT-miss and create
-      // a ghost row that nobody reads. If multiple rows match ILIKE
-      // (the typical "real row + prior lowercase ghost"), prefer:
-      //   1. Exact match to the user-supplied wallet (original case)
-      //   2. Rows that aren't all-lowercase (real XRPL addresses are mixed)
-      //   3. Highest existing total as a tiebreaker
-      // Callers already normalized `wallet` to lowercase before reaching
-      // this helper, so we can't rely on it to pick a mixed-case row.
-      // Instead, always prefer rows that aren't all-lowercase (a real
-      // XRPL r-address has uppercase letters), then highest total as
-      // a tiebreaker.
-      const canonicalLookup = await client.query(
-        `SELECT wallet_address FROM honey_points
-         WHERE wallet_address ILIKE $1
-         ORDER BY
-           CASE WHEN wallet_address <> lower(wallet_address) THEN 0 ELSE 1 END,
-           total_points DESC NULLS LAST
-         LIMIT 1`,
-        [normalizedWallet]
-      );
-      const canonicalWallet = canonicalLookup.rows[0]?.wallet_address || wallet;
-
-      const current = await getHoneyBalance(canonicalWallet, client, true);
-      const newBalance = {
-        wallet_address: canonicalWallet,
-        total_points: roundHoneyAmount(current.total_points + roundedTotalDelta),
-        raiding_points: roundHoneyAmount(current.raiding_points + roundedRaidingDelta),
-        games_points: roundHoneyAmount(current.games_points + roundedGamesDelta)
-      };
-
-      if (newBalance.total_points < 0 || newBalance.raiding_points < 0 || newBalance.games_points < 0) {
-        throw createPublicError(400, insufficientMessage);
-      }
-
-      await client.query(
-        `INSERT INTO honey_points (wallet_address, total_points, raiding_points, games_points, updated_at)
-         VALUES ($1, $2, $3, $4, NOW())
-         ON CONFLICT (wallet_address) DO UPDATE
-         SET total_points = EXCLUDED.total_points,
-             raiding_points = EXCLUDED.raiding_points,
-             games_points = EXCLUDED.games_points,
-             updated_at = EXCLUDED.updated_at`,
-        [
-          canonicalWallet,
-          newBalance.total_points,
-          newBalance.raiding_points,
-          newBalance.games_points
-        ]
-      );
-
-      await insertPointTransactionRecordDb(client, {
-        wallet: canonicalWallet,
-        amount: roundedTotalDelta,
-        transactionType,
-        reason,
-        adminWallet
-      });
-
-      await insertHoneyActivityRecordDb(client, {
-        wallet: canonicalWallet,
-        points: roundedTotalDelta,
-        activityType,
-        activityId
-      });
-
-      await client.query('COMMIT');
-      return { previousBalance: current, balance: newBalance };
-    } catch (error) {
-      try {
-        await client.query('ROLLBACK');
-      } catch (rollbackError) {
-      }
-      throw error;
-    } finally {
-      client.release();
-    }
-  }
-
-  const writeClient = supabaseAdmin || supabase;
-  const current = await getHoneyBalance(normalizedWallet);
-  const newBalance = {
-    wallet_address: normalizedWallet,
-    total_points: roundHoneyAmount(current.total_points + roundedTotalDelta),
-    raiding_points: roundHoneyAmount(current.raiding_points + roundedRaidingDelta),
-    games_points: roundHoneyAmount(current.games_points + roundedGamesDelta)
+  const deltas = {
+    total: roundHoneyAmount(totalDelta),
+    raiding: roundHoneyAmount(raidingDelta),
+    games: roundHoneyAmount(gamesDelta)
   };
+  const source = transactionType || activityType || 'honey_adjustment';
+  const ledgerRef = refId !== null && refId !== undefined ? refId : activityId;
 
-  if (newBalance.total_points < 0 || newBalance.raiding_points < 0 || newBalance.games_points < 0) {
-    throw createPublicError(400, insufficientMessage);
-  }
+  return withWalletLock(lower, async () => {
+    if (pgPool) {
+      const ledgerReady = await ensureHoneyLedgerReady();
+      const client = await pgPool.connect();
+      try {
+        await client.query('BEGIN');
+        await lockWalletInTransaction(client, lower);
 
-  const { error: upsertError } = await writeClient
-    .from('honey_points')
-    .upsert({
-      wallet_address: normalizedWallet,
-      total_points: newBalance.total_points,
-      raiding_points: newBalance.raiding_points,
-      games_points: newBalance.games_points,
-      updated_at: new Date().toISOString()
-    }, {
-      onConflict: 'wallet_address'
+        if (await ledgerKeyExistsDb(client, ledgerReady, idempotencyKey)) {
+          await client.query('ROLLBACK');
+          const balance = await getHoneyBalance(lower, client);
+          return { duplicate: true, previousBalance: balance, balance };
+        }
+
+        const storedWallet = await resolveHoneyRowWalletDb(client, lower, preferredAddress);
+        const applied = await addToHoneyRowDb(client, storedWallet, deltas);
+        if (!applied) {
+          throw createPublicError(400, insufficientMessage);
+        }
+
+        if (activityType && deltas.total > 0) {
+          await insertHoneyActivityRecordDb(client, {
+            wallet: storedWallet,
+            points: deltas.total,
+            activityType,
+            activityId
+          });
+        }
+
+        await insertHoneyLedgerRowDb(client, ledgerReady, {
+          wallet: lower,
+          storedWallet,
+          delta: deltas.total,
+          balanceAfter: applied.balance.total_points,
+          source,
+          refId: ledgerRef,
+          idempotencyKey,
+          reason,
+          actor: adminWallet
+        });
+
+        await client.query('COMMIT');
+        return { previousBalance: applied.previous, balance: applied.balance, storedWallet };
+      } catch (error) {
+        try {
+          await client.query('ROLLBACK');
+        } catch (rollbackError) {
+        }
+        if (error?.code === '23505' && idempotencyKey) {
+          const balance = await getHoneyBalance(lower);
+          return { duplicate: true, previousBalance: balance, balance };
+        }
+        throw error;
+      } finally {
+        client.release();
+      }
+    }
+
+    // No DATABASE_URL: PostgREST. The wallet lock serialises this process, and
+    // the UPDATE only matches the balance we read (compare-and-swap), so a write
+    // that raced us makes this one fail instead of being overwritten.
+    if (idempotencyKey) {
+      const { data: seen } = await db
+        .from(HONEY_LEDGER_TABLE)
+        .select('id')
+        .eq('idempotency_key', idempotencyKey)
+        .limit(1);
+      if (seen && seen.length) {
+        const balance = await getHoneyBalance(lower);
+        return { duplicate: true, previousBalance: balance, balance };
+      }
+    }
+
+    const { data: rows, error: readError } = await db
+      .from('honey_points')
+      .select('wallet_address, total_points, raiding_points, games_points')
+      .ilike('wallet_address', lower)
+      .limit(10);
+    if (readError) {
+      throw readError;
+    }
+    const row = pickHoneyRow(rows);
+    const storedWallet = row?.wallet_address || pickTrueCaseAddress(lower, [preferredAddress]) || lower;
+    const current = honeyBalanceFromRow(storedWallet, row);
+    const newBalance = {
+      wallet_address: storedWallet,
+      total_points: roundHoneyAmount(current.total_points + deltas.total),
+      raiding_points: roundHoneyAmount(current.raiding_points + deltas.raiding),
+      games_points: roundHoneyAmount(current.games_points + deltas.games)
+    };
+    if ((deltas.total < 0 && newBalance.total_points < 0) ||
+        (deltas.raiding < 0 && newBalance.raiding_points < 0) ||
+        (deltas.games < 0 && newBalance.games_points < 0)) {
+      throw createPublicError(400, insufficientMessage);
+    }
+
+    if (row) {
+      const { data: updated, error: updateError } = await db
+        .from('honey_points')
+        .update({
+          total_points: newBalance.total_points,
+          raiding_points: newBalance.raiding_points,
+          games_points: newBalance.games_points,
+          updated_at: new Date().toISOString()
+        })
+        .eq('wallet_address', storedWallet)
+        .eq('total_points', row.total_points)
+        .select('wallet_address');
+      if (updateError) {
+        throw updateError;
+      }
+      if (!updated || !updated.length) {
+        throw createPublicError(409, 'Your Honey balance changed while this was processing. Try again.');
+      }
+    } else {
+      const { error: insertError } = await db
+        .from('honey_points')
+        .insert({
+          wallet_address: storedWallet,
+          total_points: newBalance.total_points,
+          raiding_points: newBalance.raiding_points,
+          games_points: newBalance.games_points,
+          updated_at: new Date().toISOString()
+        });
+      if (insertError) {
+        throw insertError;
+      }
+    }
+
+    if (activityType && deltas.total > 0) {
+      const { error: activityError } = await db
+        .from('honey_points_activity')
+        .insert({
+          wallet_address: storedWallet,
+          points: deltas.total,
+          activity_type: activityType,
+          activity_id: activityId === null || activityId === undefined ? null : String(activityId)
+        });
+      if (activityError) {
+        console.error('honey_points_activity insert failed (credit kept):', activityError.message);
+      }
+    }
+
+    const ledgerRow = buildLedgerRow({
+      wallet: lower,
+      storedWallet,
+      delta: deltas.total,
+      balanceAfter: newBalance.total_points,
+      source,
+      refId: ledgerRef,
+      idempotencyKey,
+      reason,
+      actor: adminWallet
     });
-
-  if (upsertError) {
-    throw upsertError;
-  }
-
-  if (transactionType) {
-    const { error: transactionError } = await writeClient
-      .from('point_transactions')
-      .insert({
-        wallet_address: normalizedWallet,
-        amount: roundedTotalDelta,
-        transaction_type: transactionType,
-        reason,
-        admin_wallet: adminWallet
-      });
-
-    if (transactionError) {
-      throw transactionError;
+    const { error: ledgerError } = await db.from(HONEY_LEDGER_TABLE).insert(ledgerRow);
+    if (ledgerError) {
+      logLedgerFallback(ledgerRow);
     }
-  }
 
-  if (activityType && roundedTotalDelta > 0) {
-    const { error: activityError } = await writeClient
-      .from('honey_points_activity')
-      .insert({
-        wallet_address: normalizedWallet,
-        points: roundedTotalDelta,
-        activity_type: activityType,
-        activity_id: activityId
-      });
-
-    if (activityError) {
-      throw activityError;
-    }
-  }
-
-  return { previousBalance: current, balance: newBalance };
+    return { previousBalance: current, balance: newBalance, storedWallet };
+  });
 }
 
 async function spendHoney({
@@ -990,11 +1309,12 @@ async function spendHoney({
   amount,
   transactionType,
   reason,
+  refId = null,
   adminWallet = null,
   insufficientMessage
 }) {
   const spendAmount = roundHoneyAmount(amount);
-  if (spendAmount <= 0) {
+  if (!(spendAmount > 0)) {
     throw createPublicError(400, 'Invalid Honey Point amount');
   }
 
@@ -1003,11 +1323,13 @@ async function spendHoney({
     totalDelta: -spendAmount,
     transactionType,
     reason,
+    refId,
     adminWallet,
     insufficientMessage: insufficientMessage || 'Insufficient Honey Points'
   });
 }
 
+/** Admin only: set a balance outright. Applied and logged as the difference. */
 async function setHoneyBalance({
   wallet,
   totalPoints,
@@ -1017,100 +1339,33 @@ async function setHoneyBalance({
   reason = null,
   adminWallet = null
 }) {
-  const normalizedWallet = normalizeWalletAddress(wallet);
-  if (!normalizedWallet) {
+  const lower = walletKey(wallet);
+  if (!lower) {
     throw createPublicError(400, 'Valid wallet address required');
   }
 
-  const newBalance = {
-    wallet_address: normalizedWallet,
-    total_points: roundHoneyAmount(totalPoints),
-    raiding_points: roundHoneyAmount(raidingPoints),
-    games_points: roundHoneyAmount(gamesPoints)
+  const target = {
+    total: roundHoneyAmount(totalPoints),
+    raiding: roundHoneyAmount(raidingPoints),
+    games: roundHoneyAmount(gamesPoints)
   };
-
-  if (newBalance.total_points < 0 || newBalance.raiding_points < 0 || newBalance.games_points < 0) {
+  if (!Number.isFinite(target.total) || target.total < 0 || target.raiding < 0 || target.games < 0) {
     throw createPublicError(400, 'Honey balances cannot be negative');
   }
 
-  if (pgPool) {
-    const client = await pgPool.connect();
-    try {
-      await client.query('BEGIN');
-      const current = await getHoneyBalance(normalizedWallet, client, true);
-
-      await client.query(
-        `INSERT INTO honey_points (wallet_address, total_points, raiding_points, games_points, updated_at)
-         VALUES ($1, $2, $3, $4, NOW())
-         ON CONFLICT (wallet_address) DO UPDATE
-         SET total_points = EXCLUDED.total_points,
-             raiding_points = EXCLUDED.raiding_points,
-             games_points = EXCLUDED.games_points,
-             updated_at = EXCLUDED.updated_at`,
-        [
-          normalizedWallet,
-          newBalance.total_points,
-          newBalance.raiding_points,
-          newBalance.games_points
-        ]
-      );
-
-      await insertPointTransactionRecordDb(client, {
-        wallet: normalizedWallet,
-        amount: roundHoneyAmount(newBalance.total_points - current.total_points),
-        transactionType,
-        reason,
-        adminWallet
-      });
-
-      await client.query('COMMIT');
-      return { previousBalance: current, balance: newBalance };
-    } catch (error) {
-      try {
-        await client.query('ROLLBACK');
-      } catch (rollbackError) {
-      }
-      throw error;
-    } finally {
-      client.release();
-    }
-  }
-
-  const current = await getHoneyBalance(normalizedWallet);
-  const writeClient = supabaseAdmin || supabase;
-  const { error: updateError } = await writeClient
-    .from('honey_points')
-    .upsert({
-      wallet_address: normalizedWallet,
-      total_points: newBalance.total_points,
-      raiding_points: newBalance.raiding_points,
-      games_points: newBalance.games_points,
-      updated_at: new Date().toISOString()
-    }, {
-      onConflict: 'wallet_address'
+  return withWalletLock(lower, async () => {
+    const current = await getHoneyBalance(lower);
+    return applyHoneyDelta({
+      wallet: lower,
+      totalDelta: target.total - current.total_points,
+      raidingDelta: target.raiding - current.raiding_points,
+      gamesDelta: target.games - current.games_points,
+      transactionType: transactionType || 'admin_set_balance',
+      reason,
+      adminWallet,
+      insufficientMessage: 'Honey balances cannot be negative'
     });
-
-  if (updateError) {
-    throw updateError;
-  }
-
-  if (transactionType) {
-    const { error: transactionError } = await writeClient
-      .from('point_transactions')
-      .insert({
-        wallet_address: normalizedWallet,
-        amount: roundHoneyAmount(newBalance.total_points - current.total_points),
-        transaction_type: transactionType,
-        reason,
-        admin_wallet: adminWallet
-      });
-
-    if (transactionError) {
-      throw transactionError;
-    }
-  }
-
-  return { previousBalance: current, balance: newBalance };
+  });
 }
 
 function cleanupUsedGameSessions() {
@@ -1293,6 +1548,9 @@ async function ensureGameRewardSessionStoreReady() {
           ON ${GAME_REWARD_SESSION_TABLE} (wallet_address)
           WHERE status = 'active'
         `);
+        // Without this, anyone holding the public anon key could PATCH
+        // accrued_active_ms on a session through PostgREST.
+        await enableRowLevelSecurity(client, GAME_REWARD_SESSION_TABLE);
         return true;
       } finally {
         client.release();
@@ -1538,7 +1796,55 @@ async function recordTrackedGameHeartbeat({ sessionId, wallet, gameId, heartbeat
   };
 }
 
-async function completeTrackedGameSession({ sessionId, wallet, gameId, today }) {
+// Minutes this wallet has already been credited today in EVERY letter case, and
+// how many of those sit under `storedWallet` (the case atomic_time_play counts).
+async function getDailyGameMinutesDb(client, wallet, storedWallet, today) {
+  const result = await client.query(
+    `SELECT
+       COALESCE(SUM(minutes_played), 0) AS all_minutes,
+       COALESCE(SUM(minutes_played) FILTER (WHERE wallet_address = $2), 0) AS stored_minutes
+     FROM daily_game_plays
+     WHERE lower(wallet_address) = $1 AND play_date = $3::date`,
+    [walletKey(wallet), storedWallet, today]
+  );
+  return {
+    allCaseMinutes: parseHoneyNumber(result.rows[0]?.all_minutes),
+    storedCaseMinutes: parseHoneyNumber(result.rows[0]?.stored_minutes)
+  };
+}
+
+// The SP reports minutes and the cap for the case it counted; report the
+// wallet's real day instead.
+function presentDailyGameResult(result, otherCaseMinutes) {
+  if (!result || typeof result !== 'object') {
+    return result;
+  }
+  const shown = { ...result, max_minutes: GAME_MAX_DAILY_MINUTES };
+  if (otherCaseMinutes) {
+    shown.minutes_today = roundHoneyAmount(parseHoneyNumber(result.minutes_today) + otherCaseMinutes);
+  }
+  return shown;
+}
+
+function completeTrackedGameSession(args) {
+  return withWalletLock(args.wallet, () => completeTrackedGameSessionLocked(args));
+}
+
+// Under 0.1 tracked minutes: nothing paid, and the session stays open
+// (session_kept) so the helper keeps using it. No minutes_today here: this
+// path never reads the day, and "0 today" was wrong for anyone who had played.
+function tooShortGameResponse(trackedMinutes) {
+  return {
+    success: false,
+    session_kept: true,
+    message: 'Session too short (minimum 6 seconds of active play); it carries over to your next run',
+    max_minutes: GAME_MAX_DAILY_MINUTES,
+    points_awarded: 0,
+    minutes_played: trackedMinutes
+  };
+}
+
+async function completeTrackedGameSessionLocked({ sessionId, wallet, gameId, today, preferredAddress = null }) {
   cleanupUsedGameSessions();
 
   const normalizedWallet = normalizeWalletAddress(wallet);
@@ -1546,9 +1852,11 @@ async function completeTrackedGameSession({ sessionId, wallet, gameId, today }) 
   const storeReady = await ensureGameRewardSessionStoreReady();
 
   if (storeReady) {
+    const ledgerReady = await ensureHoneyLedgerReady();
     const client = await pgPool.connect();
     try {
       await client.query('BEGIN');
+      await lockWalletInTransaction(client, normalizedWallet);
       const sessionResult = await client.query(
         `
           SELECT
@@ -1613,55 +1921,54 @@ async function completeTrackedGameSession({ sessionId, wallet, gameId, today }) 
       const consumeValues = [sessionId, 'consumed'];
 
       if (activeMs < GAME_MIN_SESSION_MS || trackedMinutes <= 0) {
-        await client.query(
-          `
-            UPDATE ${GAME_REWARD_SESSION_TABLE}
-            SET
-              status = $2,
-              consumed_at = NOW(),
-              ended_at = NOW(),
-              updated_at = NOW()
-            WHERE session_id = $1
-          `,
-          consumeValues
-        );
+        // Nothing to pay yet: leave the session open so these seconds count
+        // toward the next run (a Flappy round is often under 6 s). Consuming it
+        // threw them away. Nothing is credited, so keeping it pays nothing twice.
         await client.query('COMMIT');
-        return {
-          success: true,
-          response: {
-            success: false,
-            message: 'Session too short (minimum 3 seconds of active play)',
-            minutes_today: 0,
-            max_minutes: GAME_MAX_DAILY_MINUTES,
-            remaining_minutes: GAME_MAX_DAILY_MINUTES,
-            points_awarded: 0,
-            minutes_played: trackedMinutes
-          }
-        };
+        return { success: true, response: tooShortGameResponse(trackedMinutes) };
       }
 
-      // Resolve wallet to its canonical stored case so the SP's
-      // honey_points upsert hits the user's real mixed-case row
-      // instead of creating/growing the lowercase ghost.
-      const canonicalLookup = await client.query(
-        `SELECT wallet_address FROM honey_points
-         WHERE wallet_address ILIKE $1
-         ORDER BY
-           CASE WHEN wallet_address <> lower(wallet_address) THEN 0 ELSE 1 END,
-           total_points DESC NULLS LAST
-         LIMIT 1`,
-        [normalizedWallet]
-      );
-      const canonicalWallet = canonicalLookup.rows[0]?.wallet_address || normalizedWallet;
+      // The SP credits the row in the case we pass, so pass the wallet's real
+      // stored row, not a lowercase spelling that would grow a ghost row.
+      const canonicalWallet = await resolveHoneyRowWalletDb(client, normalizedWallet, preferredAddress);
+
+      // The daily cap is per WALLET: minutes stored under other letter cases
+      // come off the cap the SP enforces for this one.
+      const dayMinutes = await getDailyGameMinutesDb(client, normalizedWallet, canonicalWallet, today);
+      const { effectiveMax, otherCaseMinutes } = dailyCapForStoredCase({
+        maxMinutes: GAME_MAX_DAILY_MINUTES,
+        ...dayMinutes
+      });
 
       const rpcResult = await client.query(
         'SELECT atomic_time_play($1, $2, $3::date, $4, $5) AS result',
-        [canonicalWallet, gameId, today, GAME_MAX_DAILY_MINUTES, trackedMinutes]
+        [canonicalWallet, gameId, today, effectiveMax, trackedMinutes]
       );
-      const result = rpcResult.rows[0]?.result;
+      const result = presentDailyGameResult(rpcResult.rows[0]?.result, otherCaseMinutes);
 
       if (!result || typeof result !== 'object') {
         throw new Error('atomic_time_play returned an invalid response');
+      }
+
+      const pointsAwarded = roundHoneyAmount(result.points_awarded);
+      let activityLogged = false;
+      if (result.success && pointsAwarded > 0) {
+        activityLogged = await insertHoneyActivityRecordDb(client, {
+          wallet: canonicalWallet,
+          points: pointsAwarded,
+          activityType: 'game',
+          activityId: gameId
+        });
+        await insertHoneyLedgerRowDb(client, ledgerReady, {
+          wallet: normalizedWallet,
+          storedWallet: canonicalWallet,
+          delta: pointsAwarded,
+          balanceAfter: result.new_total_points,
+          source: 'game',
+          refId: gameId,
+          idempotencyKey: `game:${sessionId}`,
+          reason: `${result.minutes_played ?? trackedMinutes} min of ${gameId}`
+        });
       }
 
       await client.query(
@@ -1681,7 +1988,9 @@ async function completeTrackedGameSession({ sessionId, wallet, gameId, today }) 
       return {
         success: true,
         result,
-        trackedMinutes
+        trackedMinutes,
+        canonicalWallet,
+        activityLogged
       };
     } catch (error) {
       try {
@@ -1725,31 +2034,55 @@ async function completeTrackedGameSession({ sessionId, wallet, gameId, today }) 
 
   const activeMs = Math.min(GAME_MAX_SESSION_MS, Math.max(0, Number(session.accruedActiveMs) || 0));
   const trackedMinutes = roundTrackedGameMinutesFromMs(activeMs);
+  if (activeMs < GAME_MIN_SESSION_MS || trackedMinutes <= 0) {
+    return { success: true, response: tooShortGameResponse(trackedMinutes) };
+  }
   session.status = 'consumed';
   session.consumedAt = now;
   session.endedAt = now;
   usedGameSessions.set(sessionId, Date.now() + GAME_SESSION_TTL_MS);
 
-  if (activeMs < GAME_MIN_SESSION_MS || trackedMinutes <= 0) {
-    return {
-      success: true,
-      response: {
-        success: false,
-        message: 'Session too short (minimum 3 seconds of active play)',
-        minutes_today: 0,
-        max_minutes: GAME_MAX_DAILY_MINUTES,
-        remaining_minutes: GAME_MAX_DAILY_MINUTES,
-        points_awarded: 0,
-        minutes_played: trackedMinutes
-      }
-    };
+  // No session table (no DATABASE_URL): PostgREST with the service role. The
+  // wallet lock above serialises this wallet's completions in this process.
+  let fallbackWallet = pickTrueCaseAddress(normalizedWallet, [preferredAddress]) || normalizedWallet;
+  let otherCaseMinutes = 0;
+  let effectiveMax = GAME_MAX_DAILY_MINUTES;
+  try {
+    const { data: honeyRows } = await db
+      .from('honey_points')
+      .select('wallet_address, total_points')
+      .ilike('wallet_address', normalizedWallet)
+      .limit(10);
+    fallbackWallet = pickHoneyRow(honeyRows)?.wallet_address || fallbackWallet;
+
+    const { data: dayRows, error: dayError } = await db
+      .from('daily_game_plays')
+      .select('wallet_address, minutes_played')
+      .ilike('wallet_address', normalizedWallet)
+      .eq('play_date', today);
+    if (dayError) throw dayError;
+    const allCaseMinutes = (dayRows || []).reduce((sum, row) => sum + parseHoneyNumber(row.minutes_played), 0);
+    const storedCaseMinutes = (dayRows || [])
+      .filter((row) => row.wallet_address === fallbackWallet)
+      .reduce((sum, row) => sum + parseHoneyNumber(row.minutes_played), 0);
+    ({ effectiveMax, otherCaseMinutes } = dailyCapForStoredCase({
+      maxMinutes: GAME_MAX_DAILY_MINUTES,
+      allCaseMinutes,
+      storedCaseMinutes
+    }));
+  } catch (capError) {
+    session.status = 'active';
+    session.consumedAt = 0;
+    session.endedAt = 0;
+    usedGameSessions.delete(sessionId);
+    throw capError;
   }
 
-  const { data, error } = await supabase.rpc('atomic_time_play', {
-    p_wallet: normalizedWallet,
+  const { data, error } = await db.rpc('atomic_time_play', {
+    p_wallet: fallbackWallet,
     p_game: gameId,
     p_date: today,
-    p_max_minutes: GAME_MAX_DAILY_MINUTES,
+    p_max_minutes: effectiveMax,
     p_minutes_played: trackedMinutes
   });
 
@@ -1761,18 +2094,31 @@ async function completeTrackedGameSession({ sessionId, wallet, gameId, today }) 
     throw error;
   }
 
+  const result = presentDailyGameResult(data, otherCaseMinutes);
+  if (result?.success && roundHoneyAmount(result.points_awarded) > 0) {
+    const ledgerRow = buildLedgerRow({
+      wallet: normalizedWallet,
+      storedWallet: fallbackWallet,
+      delta: result.points_awarded,
+      balanceAfter: result.new_total_points,
+      source: 'game',
+      refId: gameId,
+      idempotencyKey: `game:${sessionId}`,
+      reason: `${result.minutes_played ?? trackedMinutes} min of ${gameId}`
+    });
+    const { error: ledgerError } = await db.from(HONEY_LEDGER_TABLE).insert(ledgerRow);
+    if (ledgerError) {
+      logLedgerFallback(ledgerRow);
+    }
+  }
+
   return {
     success: true,
-    result: data,
-    trackedMinutes
+    result,
+    trackedMinutes,
+    canonicalWallet: fallbackWallet,
+    activityLogged: false
   };
-}
-
-function createPublicError(message, statusCode = 400) {
-  const error = new Error(message);
-  error.statusCode = statusCode;
-  error.publicMessage = message;
-  return error;
 }
 
 async function ensureTwitterIntegrationStoreReady() {
@@ -1801,6 +2147,7 @@ async function ensureTwitterIntegrationStoreReady() {
           ALTER TABLE raids
           ADD COLUMN IF NOT EXISTS verification_type TEXT NOT NULL DEFAULT 'unverified'
         `);
+        await enableRowLevelSecurity(client, TWITTER_CONNECTIONS_TABLE);
         return true;
       } finally {
         client.release();
@@ -1930,7 +2277,7 @@ function getRaidVerificationType(raid) {
 
 function buildTwitterOAuthUrl(wallet) {
   if (!TWITTER_CLIENT_ID || !TWITTER_CLIENT_SECRET) {
-    throw createPublicError('X linking is not configured on this deployment.', 503);
+    throw createPublicError('Linking an X account is paused right now. Try again a little later.', 503);
   }
 
   const { verifier, challenge } = generatePkcePair();
@@ -2261,13 +2608,9 @@ const verifyAdminOrCron = (req, res, next) => {
   return verifyAdmin(req, res, next);
 };
 
-// Serve static files from parent directory
-app.use(express.static(path.join(__dirname, '..')));
-
-// Serve games
-app.use('/bear-ninja', express.static(path.join(__dirname, '..', 'frontend', 'bear-ninja')));
-app.use('/flappy-bear', express.static(path.join(__dirname, '..', 'frontend', 'flappy-bear')));
-app.use('/bear-jumpventure', express.static(path.join(__dirname, '..', 'frontend', 'bear-jumpventure')));
+// This host is the API only. The site and the games are served by Vercel; the
+// static mounts that used to sit here published the whole repository, backend
+// source and SQL included, from the API's own domain.
 
 // ===== XAMAN ENDPOINTS =====
 
@@ -2277,22 +2620,30 @@ app.post('/api/xaman/payload', async (req, res) => {
     console.log('Creating XAMAN payload...');
     const transaction = { TransactionType: 'SignIn' };
     const payload = await xumm.payload.create(transaction, true);
-    console.log('Payload created:', payload);
     res.json(payload);
   } catch (error) {
-    console.error('Error creating payload:', error);
-    res.status(500).json({ error: 'Internal server error', message: error.message, stack: error.stack });
+    safeErrorResponse(res, error);
   }
 });
 
-// Get Payload Status
+// Get Payload Status (legacy: pages cached before /api/auth/xaman/*).
+// A signed payload mints ONE session. This route used to mint a fresh 7-day
+// session for anyone who asked about a signed uuid, and the uuid is printed in
+// the QR code. The new flow also binds the poll to its creator.
+const legacyXamanSessionsIssued = new Map();
 app.get('/api/xaman/payload/:uuid', async (req, res) => {
   try {
     const { uuid } = req.params;
     const payload = await xumm.payload.get(uuid);
     const responsePayload = { ...payload };
 
-    if (payload?.meta?.signed && payload?.response?.account) {
+    const firstClaim = !legacyXamanSessionsIssued.has(uuid);
+    if (payload?.meta?.signed && payload?.response?.account && firstClaim) {
+      legacyXamanSessionsIssued.set(uuid, Date.now());
+      if (legacyXamanSessionsIssued.size > 5000) {
+        const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+        for (const [key, at] of legacyXamanSessionsIssued) if (at < cutoff) legacyXamanSessionsIssued.delete(key);
+      }
       const authToken = issueWalletAuthToken(payload.response.account);
       setWalletAuthCookie(res, authToken);
       responsePayload.auth_token = authToken;
@@ -2304,6 +2655,207 @@ app.get('/api/xaman/payload/:uuid', async (req, res) => {
     safeErrorResponse(res, error);
   }
 });
+
+// BEAR Wallet, BEAR Swap and Xaman sign-in (wallet-sign-in.js)
+const walletSignIn = createWalletSignIn({
+  xumm,
+  getXrplClient: getResilientXrplClient,
+  fetchWithTimeout,
+  issueWalletAuthToken,
+  setWalletAuthCookie,
+  isWalletBlacklisted,
+});
+// /api/auth/access/:wallet asks the ledger about ANY wallet without a session.
+// Unthrottled, it is a cheap way to burn this server's XRPL quota (and so push
+// the honey entry-rule check into its outage mode).
+const accessCheckLimiter = createRateLimiter({ windowMs: 60 * 1000, max: 20 });
+app.use('/api/auth/access', (req, res, next) => {
+  const verdict = accessCheckLimiter.hit(claimedClientIp(req));
+  if (verdict.allowed) return next();
+  res.setHeader('Retry-After', String(Math.max(1, Math.ceil(verdict.retryAfterMs / 1000))));
+  return res.status(429).json({ success: false, error: 'Too many access checks. Wait a moment.' });
+});
+
+walletSignIn.register(app, rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: 'Too many sign-in attempts. Wait a few minutes and try again.' },
+  keyGenerator: (req) => claimedClientIp(req),
+  validate: false,
+}));
+
+// ===== HONEY EARNING GATE =====
+// The site's entry rule (10,000 $BEAR or one BEAR NFT) used to live only in the
+// browser, so any wallet could farm honey by calling the API directly. Every
+// route that EARNS honey runs requireHoneyEarner. walletSignIn.checkAccess has
+// its own 60 s cache; the gate fails open when the ledger is unreachable but
+// keeps out a wallet it recently saw failing the rule (honey-guard.js).
+const honeyAccessGate = createAccessGate({ checkAccess: walletSignIn.checkAccess });
+const HONEY_ACCESS_DENIED = 'Earning Honey needs 10,000 $BEAR or a BEAR NFT in this wallet.';
+const bannedHoneyWallets = new Set();
+const trueCaseAddressCache = new Map();
+
+// Admin bans live in two tables that nothing used to read back after a
+// restart: wallet_blacklist (blocks the whole API) and banned_users (now:
+// cannot earn or cash out honey). Reload both every few minutes.
+async function refreshHoneyBans() {
+  try {
+    const { data: banned, error: bannedError } = await db
+      .from('banned_users')
+      .select('wallet_address')
+      .eq('is_banned', true);
+    if (!bannedError && Array.isArray(banned)) {
+      bannedHoneyWallets.clear();
+      for (const row of banned) {
+        if (row?.wallet_address) bannedHoneyWallets.add(walletKey(row.wallet_address));
+      }
+    }
+    const { data: blacklisted, error: blacklistError } = await db
+      .from('wallet_blacklist')
+      .select('wallet_address');
+    if (!blacklistError && Array.isArray(blacklisted)) {
+      for (const row of blacklisted) {
+        const key = walletKey(row?.wallet_address);
+        if (key && !BLACKLISTED_WALLETS.includes(key)) BLACKLISTED_WALLETS.push(key);
+      }
+    }
+  } catch (error) {
+    console.warn('[honey-bans] refresh failed:', error.message);
+  }
+}
+setTimeout(refreshHoneyBans, 3000);
+setInterval(refreshHoneyBans, 5 * 60 * 1000);
+
+function isBannedFromHoney(wallet) {
+  const key = walletKey(wallet);
+  return !key || isWalletBlacklisted(key) || bannedHoneyWallets.has(key);
+}
+
+function rememberTrueCaseAddress(lower, address) {
+  if (trueCaseAddressCache.size > 50000) trueCaseAddressCache.clear();
+  trueCaseAddressCache.set(lower, address);
+}
+
+/**
+ * The signed-in wallet as the ledger spells it. Sessions store it lowercase;
+ * tokens issued from now on also carry `addr`. Otherwise any request field or
+ * stored row whose spelling passes the address checksum will do.
+ */
+async function resolveLedgerAddress(req) {
+  const lower = req.authWallet;
+  if (!lower) return null;
+  const direct = pickTrueCaseAddress(lower, [
+    req.walletSession?.addr,
+    req.body?.wallet_address,
+    req.body?.wallet,
+    req.params?.wallet,
+    req.params?.wallet_address,
+    req.query?.wallet_address,
+    req.query?.wallet
+  ]);
+  if (direct) {
+    rememberTrueCaseAddress(lower, direct);
+    return direct;
+  }
+  const cached = trueCaseAddressCache.get(lower);
+  if (cached) return cached;
+
+  const candidates = [];
+  for (const table of ['honey_points', 'profiles']) {
+    try {
+      if (pgPool) {
+        const rows = await pgPool.query(
+          `SELECT wallet_address FROM ${table} WHERE lower(wallet_address) = $1 LIMIT 10`,
+          [lower]
+        );
+        candidates.push(...rows.rows.map((row) => row.wallet_address));
+      } else {
+        const { data } = await supabase.from(table).select('wallet_address').ilike('wallet_address', lower).limit(10);
+        candidates.push(...(data || []).map((row) => row.wallet_address));
+      }
+    } catch (error) {
+      console.warn(`[honey-gate] ${table} lookup failed:`, error.message);
+    }
+  }
+  const found = pickTrueCaseAddress(lower, candidates);
+  if (found) rememberTrueCaseAddress(lower, found);
+  return found;
+}
+
+// After requireWalletOwnership. Refuses banned wallets and wallets that fail
+// the entry rule; sets req.ledgerAddress for the handler.
+const requireHoneyEarner = async (req, res, next) => {
+  try {
+    const lower = req.authWallet;
+    if (!lower) {
+      return res.status(401).json({ success: false, error: 'Wallet authentication required. Sign in again.' });
+    }
+    if (isBannedFromHoney(lower)) {
+      return res.status(403).json({ success: false, error: 'This wallet cannot earn Honey.', code: 'WALLET_BANNED' });
+    }
+    const address = await resolveLedgerAddress(req);
+    if (!address) {
+      return res.status(403).json({
+        success: false,
+        error: 'We could not confirm your wallet address. Sign out, sign in again, and retry.',
+        code: 'ADDRESS_UNVERIFIED'
+      });
+    }
+    req.ledgerAddress = address;
+    const verdict = await honeyAccessGate.check(address);
+    if (!verdict.allowed && verdict.reason === 'ledger_unavailable') {
+      res.setHeader('Retry-After', '60');
+      return res.status(503).json({
+        success: false,
+        error: 'We cannot reach the XRP Ledger to check your wallet right now. Try again in a minute.',
+        code: 'LEDGER_UNAVAILABLE'
+      });
+    }
+    if (!verdict.allowed) {
+      return res.status(403).json({
+        success: false,
+        error: verdict.reason === 'ledger_rejected'
+          ? 'We could not check this wallet on the XRP Ledger. Try again in a moment.'
+          : HONEY_ACCESS_DENIED,
+        code: 'HONEY_ACCESS_REQUIRED'
+      });
+    }
+    next();
+  } catch (error) {
+    safeErrorResponse(res, error);
+  }
+};
+
+// Cashing honey out (store, NFTs, BEARdrops) is closed to banned wallets too.
+const refuseBannedWallet = (req, res, next) => {
+  if (isBannedFromHoney(req.authWallet)) {
+    return res.status(403).json({ success: false, error: 'This wallet is not allowed to use Honey.', code: 'WALLET_BANNED' });
+  }
+  next();
+};
+
+// Per-wallet throttles. They key on the signed session's wallet, which a client
+// cannot spoof; the per-IP one keys on the first X-Forwarded-For hop, which it
+// can, so it only trims floods and is never the binding limit.
+function limitPerWallet({ windowMs, max }) {
+  const limiter = createRateLimiter({ windowMs, max });
+  return (req, res, next) => {
+    const verdict = limiter.hit(req.authWallet ? `w:${req.authWallet}` : `ip:${claimedClientIp(req)}`);
+    if (verdict.allowed) return next();
+    res.setHeader('Retry-After', String(Math.max(1, Math.ceil(verdict.retryAfterMs / 1000))));
+    return res.status(429).json({ success: false, error: 'Too many requests for this wallet. Wait a moment and try again.' });
+  };
+}
+
+const earnIpLimiter = createRateLimiter({ windowMs: 60 * 1000, max: 300 });
+const limitEarningPerIp = (req, res, next) => {
+  const verdict = earnIpLimiter.hit(claimedClientIp(req));
+  if (verdict.allowed) return next();
+  res.setHeader('Retry-After', String(Math.max(1, Math.ceil(verdict.retryAfterMs / 1000))));
+  return res.status(429).json({ success: false, error: 'Too many requests. Wait a moment and try again.' });
+};
 
 app.post('/api/auth/logout', (req, res) => {
   clearWalletAuthCookie(res);
@@ -2324,7 +2876,12 @@ app.get('/api/auth/me', (req, res) => {
     if (!session || !session.wallet) {
       return res.json({ success: true, wallet: null });
     }
-    return res.json({ success: true, wallet: session.wallet });
+    // The address as signed when the token carries it: the raid claim and the
+    // entry-rule check need the ledger's spelling, not the lowercase key.
+    const wallet = typeof session.addr === 'string' && session.addr.toLowerCase() === session.wallet
+      ? session.addr
+      : session.wallet;
+    return res.json({ success: true, wallet });
   } catch (e) {
     return res.json({ success: true, wallet: null });
   }
@@ -2368,7 +2925,7 @@ app.post('/api/auth/twitter/complete', async (req, res) => {
     if (!TWITTER_CLIENT_ID || !TWITTER_CLIENT_SECRET) {
       return res.status(503).json({
         success: false,
-        error: 'X linking is not configured on this deployment.'
+        error: 'Linking an X account is paused right now. Try again a little later.'
       });
     }
 
@@ -2522,11 +3079,16 @@ app.get('/api/leaderboard/:gameId', async (req, res) => {
 
     // Query the view that joins game_leaderboards with profiles
     // Don't apply limit yet for bear-pong since we need to calculate weighted scores first
-    const { data, error } = await supabase
+    let query = supabase
       .from('game_leaderboard_with_profiles')
       .select('*')
       .eq('game_id', gameId)
       .order('score', { ascending: false });
+    // Flappy Bear Daily boards: every row carries a ghost, so never pull the
+    // whole day's table to show the top few.
+    const isDaily = dailyBoard.isDailyGameId(gameId);
+    if (isDaily) query = query.limit(Math.min(Math.max(limit, 1), 100));
+    const { data, error } = await query;
 
     if (error) {
       console.error(`Error fetching ${gameId} leaderboard:`, error);
@@ -2569,6 +3131,8 @@ app.get('/api/leaderboard/:gameId', async (req, res) => {
 
     // Apply limit after sorting
     leaderboard = leaderboard.slice(0, limit);
+    // Lists flag a ghost rather than carrying it; the entry endpoint has it.
+    if (isDaily) leaderboard = leaderboard.map(dailyBoard.withoutGhost);
 
     res.json({
       success: true,
@@ -2631,16 +3195,33 @@ app.get('/api/leaderboard/:gameId/:walletAddress', async (req, res) => {
 });
 
 // Submit Game Score to Leaderboard
-app.post('/api/leaderboard', validateWallet, validateAmount, async (req, res) => {
+app.post('/api/leaderboard', validateWallet, requireWalletOwnership(['wallet_address']), validateAmount, async (req, res) => {
   try {
-    const { wallet_address, game_id, score, metadata } = req.body;
+    const { wallet_address, game_id } = req.body;
+    let { metadata } = req.body;
 
     // Validate required fields
-    if (!wallet_address || !game_id || score === undefined) {
+    if (!wallet_address || !game_id || req.body.score === undefined) {
       return res.status(400).json({
         success: false,
         error: 'Missing required fields: wallet_address, game_id, score'
       });
+    }
+
+    // game_leaderboards.score is an INTEGER column: a fraction used to get past
+    // validateAmount and fail in the database (500), and "1500" compared as text.
+    const score = typeof req.body.score === 'number' || typeof req.body.score === 'string' ? Number(req.body.score) : NaN;
+    if (!Number.isSafeInteger(score) || score < 0 || score > 2147483647) {
+      return res.status(400).json({ success: false, error: 'score must be a whole number' });
+    }
+
+    // Flappy Bear Daily: only today's board (anyone's today) takes scores,
+    // and only a well-formed ghost is stored with them. See daily-board.js.
+    if (dailyBoard.isDailyGameId(game_id)) {
+      if (!dailyBoard.isOpenDailyBoard(game_id)) {
+        return res.status(400).json({ success: false, error: 'That Daily Run board is closed' });
+      }
+      metadata = dailyBoard.cleanDailyMetadata(metadata);
     }
 
     console.log(`📝 Submitting score for ${game_id}: ${score} (wallet: ${wallet_address})`);
@@ -2667,7 +3248,7 @@ app.post('/api/leaderboard', validateWallet, validateAmount, async (req, res) =>
       if (game_id === 'bear-pong') {
         console.log(`🏓 Bear Pong: Updating metadata (wins/losses)`);
 
-        const { data, error: updateError } = await supabase
+        const { data, error: updateError } = await db
           .from('game_leaderboards')
           .update({
             score: score,
@@ -2693,7 +3274,7 @@ app.post('/api/leaderboard', validateWallet, validateAmount, async (req, res) =>
         console.log(`🎉 New high score! Old: ${existingScore.score}, New: ${score}`);
         is_high_score = true;
 
-        const { data, error: updateError } = await supabase
+        const { data, error: updateError } = await db
           .from('game_leaderboards')
           .update({
             score: score,
@@ -2720,7 +3301,7 @@ app.post('/api/leaderboard', validateWallet, validateAmount, async (req, res) =>
       console.log(`✨ First score submission for this game`);
       is_high_score = true;
 
-      const { data, error: insertError } = await supabase
+      const { data, error: insertError } = await db
         .from('game_leaderboards')
         .insert({
           wallet_address: wallet_address,
@@ -2774,6 +3355,10 @@ app.post('/api/leaderboard', validateWallet, validateAmount, async (req, res) =>
 app.get('/api/points/:wallet', async (req, res) => {
   try {
     const { wallet } = req.params;
+    // The lookup is case-insensitive; a '%' in the URL must not become a wildcard.
+    if (!isValidXRPLWallet(wallet)) {
+      return res.status(400).json({ success: false, error: 'Invalid wallet address' });
+    }
     const twitterConnection = await getTwitterConnection(wallet);
 
     // Use ILIKE (case-insensitive) so /api/points matches regardless of
@@ -2791,7 +3376,7 @@ app.get('/api/points/:wallet', async (req, res) => {
       try {
         const pgRes = await pgPool.query(
           `SELECT total_points, raiding_points, games_points
-           FROM honey_points WHERE wallet_address ILIKE $1`,
+           FROM honey_points WHERE lower(wallet_address) = lower($1)`,
           [wallet]
         );
         rows = pgRes.rows;
@@ -2840,7 +3425,7 @@ app.get('/api/points/:wallet', async (req, res) => {
 app.get('/api/honey-points/24h', async (req, res) => {
   try {
     const { wallet } = req.query;
-    if (!wallet) {
+    if (!wallet || !isValidXRPLWallet(wallet)) {
       return res.status(400).json({ success: false, error: 'Wallet address required' });
     }
     // Calculate midnight UTC for daily reset
@@ -3009,7 +3594,7 @@ app.post('/api/raids', verifyAdmin, validateTwitterURL, validateAmount, validate
       raidData.image_url = thumbnailUrl;
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('raids')
       .insert([raidData])
       .select()
@@ -3102,7 +3687,7 @@ app.delete('/api/raids/:id', verifyAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { error } = await supabase
+    const { error } = await db
       .from('raids')
       .delete()
       .eq('id', id);
@@ -3154,7 +3739,7 @@ app.post('/api/raids/check-completion', validateWallet, async (req, res) => {
   }
 });
 
-app.post('/api/raids/session/start', validateWallet, requireWalletOwnership(['wallet_address']), async (req, res) => {
+app.post('/api/raids/session/start', validateWallet, requireWalletOwnership(['wallet_address']), limitEarningPerIp, limitPerWallet({ windowMs: 60 * 1000, max: 30 }), requireHoneyEarner, async (req, res) => {
   try {
     const { wallet_address, raid_id } = req.body;
     const normalizedWallet = req.authWallet || normalizeWalletAddress(wallet_address);
@@ -3168,7 +3753,7 @@ app.post('/api/raids/session/start', validateWallet, requireWalletOwnership(['wa
 
     const { data: raid, error: raidError } = await supabase
       .from('raids')
-      .select('id, expires_at, verification_type')
+      .select('id, expires_at, is_active, verification_type')
       .eq('id', raid_id)
       .single();
 
@@ -3179,6 +3764,10 @@ app.post('/api/raids/session/start', validateWallet, requireWalletOwnership(['wa
       });
     }
 
+    if (raid.is_active === false) {
+      return res.status(400).json({ success: false, error: 'Raid is not active' });
+    }
+
     if (raid.expires_at && new Date(raid.expires_at).getTime() <= Date.now()) {
       return res.status(400).json({
         success: false,
@@ -3186,12 +3775,12 @@ app.post('/api/raids/session/start', validateWallet, requireWalletOwnership(['wa
       });
     }
 
-    // Honor system — xaman sign-in + the click is the gate.
-    // No X-account link required, no server-side verification of the
-    // retweet. Matches the TG deep-link flow.
+    // Honor system — sign-in + the click is the gate, no X verification (the
+    // owner's choice). The token is server-signed and carries its start time, so
+    // the timer below cannot be shortened by the client.
     res.json({
       success: true,
-      session_token: issueRaidSessionToken(normalizedWallet, raid_id),
+      session_token: issueRaidSessionToken(normalizedWallet, raid.id),
       minimum_seconds: MIN_RAID_SESSION_SECONDS,
       expires_in: Math.floor(RAID_SESSION_TTL_MS / 1000)
     });
@@ -3231,72 +3820,207 @@ app.get('/api/raids/completed/:wallet_address', async (req, res) => {
   }
 });
 
-// Get Raid Leaderboard (top raiders by points)
+// Get Raid Leaderboard (top raiders by honey from raids)
+//
+// total_points is honey_points.raiding_points: the honey raids actually
+// credited, the same number /api/points shows as "Honey from raids". It used to
+// be the sum of raid_completions.points_awarded, which is NOT what anyone was
+// paid: it still counts raids whose honey the November 2025 reset wiped, and
+// rewards the pre-ledger raid code recorded but lost (two raids completed at the
+// same instant both wrote "balance + reward" from one stale read, so one reward
+// vanished). Since the ledger, a completion row and its credit are written in
+// one transaction. total_raids counts completion rows.
+// One row per wallet in any letter case (completion rows are now stored
+// lowercase), shown with the address as the ledger spells it, and its profile.
+function raidBoardAddress(lower, spellings) {
+  const list = (spellings || []).filter((s) => typeof s === 'string');
+  return pickTrueCaseAddress(lower, list) || list.find((s) => s !== s.toLowerCase()) || lower;
+}
+
+async function loadRaidBoardRows() {
+  if (pgPool) {
+    const { rows } = await pgPool.query(`
+      WITH rc AS (
+        SELECT lower(wallet_address) AS k, count(*)::int AS total_raids, array_agg(DISTINCT wallet_address) AS spellings
+        FROM raid_completions GROUP BY 1
+      ), hp AS (
+        SELECT lower(wallet_address) AS k, COALESCE(sum(raiding_points), 0) AS raiding_points, array_agg(DISTINCT wallet_address) AS spellings
+        FROM honey_points WHERE lower(wallet_address) IN (SELECT k FROM rc) GROUP BY 1
+      ), pr AS (
+        SELECT DISTINCT ON (lower(wallet_address)) lower(wallet_address) AS k, wallet_address, display_name, avatar_nft
+        FROM profiles WHERE lower(wallet_address) IN (SELECT k FROM rc)
+        ORDER BY lower(wallet_address), (wallet_address = lower(wallet_address)), updated_at DESC NULLS LAST
+      )
+      SELECT rc.k, rc.total_raids, COALESCE(hp.raiding_points, 0) AS raiding_points,
+             rc.spellings || COALESCE(hp.spellings, '{}'::text[]) || COALESCE(ARRAY[pr.wallet_address::text], '{}'::text[]) AS spellings,
+             pr.display_name, pr.avatar_nft
+      FROM rc LEFT JOIN hp USING (k) LEFT JOIN pr USING (k)`);
+    return rows;
+  }
+
+  const { data: completions, error } = await supabase.from('raid_completions').select('wallet_address');
+  if (error) throw error;
+  const byKey = new Map();
+  for (const c of completions || []) {
+    const k = walletKey(c.wallet_address);
+    const row = byKey.get(k) || { k, total_raids: 0, raiding_points: 0, spellings: new Set([k]) };
+    row.total_raids += 1;
+    row.spellings.add(c.wallet_address);
+    byKey.set(k, row);
+  }
+  const spellings = [...new Set([...byKey.values()].flatMap((r) => [...r.spellings]))];
+  for (let i = 0; i < spellings.length; i += 200) {
+    const chunk = spellings.slice(i, i + 200);
+    const [{ data: honey }, { data: profiles }] = await Promise.all([
+      supabase.from('honey_points').select('wallet_address, raiding_points').in('wallet_address', chunk),
+      supabase.from('profiles').select('wallet_address, display_name, avatar_nft').in('wallet_address', chunk)
+    ]);
+    for (const h of honey || []) {
+      const row = byKey.get(walletKey(h.wallet_address));
+      if (row) { row.raiding_points += parseHoneyNumber(h.raiding_points); row.spellings.add(h.wallet_address); }
+    }
+    for (const p of profiles || []) {
+      const row = byKey.get(walletKey(p.wallet_address));
+      if (row && (!row.display_name || p.wallet_address !== walletKey(p.wallet_address))) {
+        row.display_name = p.display_name;
+        row.avatar_nft = p.avatar_nft;
+        row.spellings.add(p.wallet_address);
+      }
+    }
+  }
+  return [...byKey.values()].map((r) => ({ ...r, spellings: [...r.spellings] }));
+}
+
 app.get('/api/raids/leaderboard', async (req, res) => {
   try {
-    // Query raid_completions to get total points per user
-    const { data, error } = await supabase
-      .from('raid_completions')
-      .select('wallet_address, points_awarded');
-
-    if (error) {
-      console.error('Error fetching raid leaderboard:', error);
-      return res.json({ success: true, leaderboard: [] });
-    }
-
-    // Aggregate points by wallet
-    const userStats = {};
-    data.forEach(completion => {
-      if (!userStats[completion.wallet_address]) {
-        userStats[completion.wallet_address] = {
-          wallet_address: completion.wallet_address,
-          total_points: 0,
-          total_raids: 0
-        };
-      }
-      userStats[completion.wallet_address].total_points += completion.points_awarded || 0;
-      userStats[completion.wallet_address].total_raids += 1;
-    });
-
-    // Get all unique wallet addresses
-    const walletAddresses = Object.keys(userStats);
-
-    // Fetch profile data for all raiders
-    if (walletAddresses.length > 0) {
-      const { data: profiles, error: profileError } = await supabase
-        .from('profiles')
-        .select('wallet_address, display_name, avatar_nft')
-        .in('wallet_address', walletAddresses);
-
-      if (!profileError && profiles) {
-        // Merge profile data with stats
-        profiles.forEach(profile => {
-          if (userStats[profile.wallet_address]) {
-            userStats[profile.wallet_address].display_name = profile.display_name;
-            userStats[profile.wallet_address].avatar_nft = profile.avatar_nft;
-          }
-        });
-      }
-    }
-
-    // Convert to array and sort by points (descending)
-    const leaderboard = Object.values(userStats)
-      .sort((a, b) => b.total_points - a.total_points);
+    const rows = await loadRaidBoardRows();
+    const leaderboard = rows
+      .map((r) => ({
+        wallet_address: raidBoardAddress(r.k, r.spellings),
+        total_points: roundHoneyAmount(r.raiding_points),
+        total_raids: Number(r.total_raids) || 0,
+        display_name: r.display_name || null,
+        avatar_nft: r.avatar_nft || null
+      }))
+      .sort((a, b) => b.total_points - a.total_points || b.total_raids - a.total_raids);
 
     res.json({ success: true, leaderboard });
   } catch (error) {
     console.error('Error in raid leaderboard endpoint:', error);
-    res.json({ success: true, leaderboard: [] });
+    safeErrorResponse(res, error, 500, 'Failed to load the raid leaderboard');
   }
 });
 
-// SECURITY: Updated raid completion with SERVER-SIDE reward validation
-// CRITICAL FIX: Never trust client-submitted points_awarded - always look up from database
-app.post('/api/raids/complete', validateWallet, requireWalletOwnership(['wallet_address']), async (req, res) => {
+// One raid pays a wallet once, through either door (the web timer or the
+// Telegram link) and in any letter case. raid_completions' UNIQUE
+// (wallet_address, raid_id) is case-SENSITIVE and old rows exist in mixed case,
+// so it was never enough on its own: a raid claimed by Telegram (stored as
+// "rAbC…") could be claimed again on the web (stored as "rabc…"). Now the
+// check is case-insensitive, runs under the wallet's locks in the same
+// transaction as the credit, and new rows are lowercase. The ledger key
+// raid:<id>:<wallet> backs it up.
+async function creditRaidReward({ wallet, preferredAddress, raid, via }) {
+  if (!pgPool) {
+    throw createPublicError(503, 'Raid rewards are temporarily unavailable. Try again later.');
+  }
+  const lower = walletKey(wallet);
+  const raidId = String(raid.id);
+  const reward = parseInt(raid.reward, 10) || 0;
+  const idempotencyKey = `raid:${raidId}:${lower}`;
+
+  return withWalletLock(lower, async () => {
+    const ledgerReady = await ensureHoneyLedgerReady();
+    const client = await pgPool.connect();
+    try {
+      await client.query('BEGIN');
+      await lockWalletInTransaction(client, lower);
+
+      const existing = await client.query(
+        'SELECT 1 FROM raid_completions WHERE lower(wallet_address) = $1 AND raid_id = $2 LIMIT 1',
+        [lower, raid.id]
+      );
+      if (existing.rowCount || await ledgerKeyExistsDb(client, ledgerReady, idempotencyKey)) {
+        await client.query('ROLLBACK');
+        return { alreadyCompleted: true };
+      }
+
+      await client.query(
+        `INSERT INTO raid_completions (wallet_address, raid_id, points_awarded, completed_at)
+         VALUES ($1, $2, $3, NOW())`,
+        [lower, raid.id, reward]
+      );
+
+      const storedWallet = await resolveHoneyRowWalletDb(client, lower, preferredAddress);
+      const applied = await addToHoneyRowDb(client, storedWallet, { total: reward, raiding: reward });
+      if (!applied) {
+        throw new Error('raid credit could not be applied');
+      }
+
+      await insertHoneyActivityRecordDb(client, {
+        wallet: storedWallet,
+        points: reward,
+        activityType: 'raid',
+        activityId: raidId
+      });
+      await insertHoneyLedgerRowDb(client, ledgerReady, {
+        wallet: lower,
+        storedWallet,
+        delta: reward,
+        balanceAfter: applied.balance.total_points,
+        source: 'raid',
+        refId: raidId,
+        idempotencyKey,
+        reason: via
+      });
+
+      await client.query('COMMIT');
+      return { alreadyCompleted: false, reward, balance: applied.balance };
+    } catch (error) {
+      try {
+        await client.query('ROLLBACK');
+      } catch (rollbackError) {
+      }
+      if (error?.code === '23505') {
+        return { alreadyCompleted: true };
+      }
+      throw error;
+    } finally {
+      client.release();
+    }
+  });
+}
+
+// A raid that can still pay: real, active, not expired, sane reward.
+async function loadClaimableRaid(raidId) {
+  const { data: raid, error } = await supabase
+    .from('raids')
+    .select('id, reward, expires_at, is_active')
+    .eq('id', raidId)
+    .single();
+
+  if (error || !raid) {
+    return { error: 'Invalid raid' };
+  }
+  if (raid.is_active === false) {
+    return { error: 'Raid is not active' };
+  }
+  if (raid.expires_at && new Date(raid.expires_at).getTime() <= Date.now()) {
+    return { error: 'Raid has expired' };
+  }
+  const reward = parseInt(raid.reward, 10) || 0;
+  if (reward <= 0 || reward > 1000) {
+    console.log(`❌ SUSPICIOUS: Raid ${raidId} has unusual reward value: ${reward}`);
+    return { error: 'Invalid raid configuration' };
+  }
+  return { raid };
+}
+
+// Web raid: needs the server-signed raid session and its full timer.
+// CRITICAL: never trust client-submitted points — the reward comes from the raid row.
+app.post('/api/raids/complete', validateWallet, requireWalletOwnership(['wallet_address']), limitEarningPerIp, limitPerWallet({ windowMs: 60 * 1000, max: 20 }), requireHoneyEarner, async (req, res) => {
   try {
     const { wallet_address, raid_id, session_token } = req.body;
     const normalizedWallet = req.authWallet || normalizeWalletAddress(wallet_address);
-    // NOTE: We intentionally IGNORE points_awarded from client - security fix!
 
     if (!wallet_address || !raid_id || !session_token) {
       return res.status(400).json({
@@ -3321,57 +4045,27 @@ app.post('/api/raids/complete', validateWallet, requireWalletOwnership(['wallet_
     }
 
     const elapsedSeconds = Math.floor((Date.now() - raidSession.iat) / 1000);
-    if (elapsedSeconds < MIN_RAID_SESSION_SECONDS) {
+    if (!(elapsedSeconds >= MIN_RAID_SESSION_SECONDS)) {
       return res.status(400).json({
         success: false,
-        error: `Raid timer not finished. Wait ${MIN_RAID_SESSION_SECONDS - elapsedSeconds} more second(s).`
+        error: `Raid timer not finished. Wait ${Math.max(1, MIN_RAID_SESSION_SECONDS - (elapsedSeconds || 0))} more second(s).`
       });
     }
 
-    // SECURITY FIX: Look up the ACTUAL raid reward from database
-    const { data: raid, error: raidError } = await supabase
-      .from('raids')
-      .select('id, reward, expires_at, twitter_url, profile_handle, verification_type')
-      .eq('id', raid_id)
-      .single();
-
-    if (raidError || !raid) {
-      console.log(`❌ EXPLOIT BLOCKED: Invalid raid_id ${raid_id} from ${wallet_address}`);
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid raid'
-      });
+    const { raid, error: raidProblem } = await loadClaimableRaid(raid_id);
+    if (raidProblem) {
+      return res.status(400).json({ success: false, error: raidProblem });
     }
 
-    if (raid.expires_at && new Date(raid.expires_at).getTime() <= Date.now()) {
-      return res.status(400).json({
-        success: false,
-        error: 'Raid has expired'
-      });
-    }
+    const outcome = await creditRaidReward({
+      wallet: normalizedWallet,
+      preferredAddress: req.ledgerAddress,
+      raid,
+      via: 'web raid'
+    });
 
-    // Use SERVER-SIDE reward value, not client-submitted
-    const actualReward = parseInt(raid.reward) || 0;
-
-    // Validate the reward is reasonable (sanity check)
-    if (actualReward <= 0 || actualReward > 1000) {
-      console.log(`❌ SUSPICIOUS: Raid ${raid_id} has unusual reward value: ${actualReward}`);
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid raid configuration'
-      });
-    }
-
-    // CRITICAL: Check if already completed (prevent exploit)
-    const { data: existingCompletion } = await supabase
-      .from('raid_completions')
-      .select('*')
-      .eq('wallet_address', normalizedWallet)
-      .eq('raid_id', raid_id)
-      .maybeSingle();
-
-    if (existingCompletion) {
-      console.log(`❌ EXPLOIT BLOCKED: User ${wallet_address} attempted to complete raid ${raid_id} twice!`);
+    if (outcome.alreadyCompleted) {
+      console.log(`❌ EXPLOIT BLOCKED: ${normalizedWallet} tried to complete raid ${raid.id} twice`);
       return res.json({
         success: true,
         alreadyCompleted: true,
@@ -3379,125 +4073,25 @@ app.post('/api/raids/complete', validateWallet, requireWalletOwnership(['wallet_
       });
     }
 
-    // Honor system — no Twitter verification. The xaman sign-in plus
-    // the session timer is the only gate. Matches TG-flow behavior.
-
-    // Record completion in raid_completions table (use actual reward, not client value)
-    const { error: completionError } = await supabase
-      .from('raid_completions')
-      .insert({
-        wallet_address: normalizedWallet,
-        raid_id,
-        points_awarded: actualReward,
-        completed_at: new Date().toISOString()
-      });
-
-    if (completionError) {
-      // Check if it's a duplicate key error
-      if (completionError.code === '23505') { // PostgreSQL unique violation
-        console.log(`❌ EXPLOIT BLOCKED: Duplicate raid completion detected for ${wallet_address}, raid ${raid_id}`);
-        return res.json({
-          success: true,
-          alreadyCompleted: true,
-          message: 'Raid already completed - no points awarded'
-        });
-      }
-      throw completionError;
-    }
-
-    // Credit honey directly — bypass applyHoneyDelta because its
-    // point_transactions insert uses column "amount" which doesn't
-    // exist in the live DB schema (that upsert blows up the whole
-    // transaction with 500, no honey ever lands). Mirror the tg-claim
-    // pattern: ILIKE-based canonical wallet lookup, upsert honey_points,
-    // done. Audit log skipped here; raid_completions + honey_points_activity
-    // below still capture the event.
-    let balance;
-    if (!pgPool) {
-      throw new Error('pg pool unavailable');
-    }
-    const creditClient = await pgPool.connect();
-    try {
-      await creditClient.query('BEGIN');
-      const canonicalLookup = await creditClient.query(
-        `SELECT wallet_address FROM honey_points
-         WHERE wallet_address ILIKE $1
-         ORDER BY
-           CASE WHEN wallet_address <> lower(wallet_address) THEN 0 ELSE 1 END,
-           total_points DESC NULLS LAST
-         LIMIT 1`,
-        [normalizedWallet]
-      );
-      const canonicalWallet = canonicalLookup.rows[0]?.wallet_address || wallet_address;
-
-      await creditClient.query(
-        `INSERT INTO honey_points (wallet_address, total_points, raiding_points, games_points, updated_at)
-         VALUES ($1, $2, $2, 0, NOW())
-         ON CONFLICT (wallet_address) DO UPDATE
-         SET total_points = honey_points.total_points + EXCLUDED.total_points,
-             raiding_points = honey_points.raiding_points + EXCLUDED.raiding_points,
-             updated_at = NOW()`,
-        [canonicalWallet, actualReward]
-      );
-
-      const balanceResult = await creditClient.query(
-        `SELECT total_points, raiding_points, games_points FROM honey_points WHERE wallet_address = $1`,
-        [canonicalWallet]
-      );
-      await creditClient.query('COMMIT');
-      balance = balanceResult.rows[0] || { total_points: 0 };
-    } catch (creditErr) {
-      await creditClient.query('ROLLBACK').catch(() => {});
-      throw creditErr;
-    } finally {
-      creditClient.release();
-    }
-
-    console.log(`✅ Raid completed: User ${wallet_address} earned ${actualReward} points for raid ${raid_id} (server-validated)`);
-
-    // Log to honey_points_activity for BEARDROPS 24h tracking
-    // Log the raid activity for BEARdrops 24h tracking. Previously
-    // this wrote points:0 / activity_type:'raid_legacy_disabled'
-    // which meant raids never contributed to the 24h counter.
-    // Write the actual reward with activity_type:'raid' and the
-    // user's original-case wallet so the 24h ilike query picks it up.
-    const activityClient = supabaseAdmin || supabase;
-    try {
-      const { data, error } = await activityClient.from('honey_points_activity').insert({
-        wallet_address: wallet_address,
-        points: actualReward,
-        activity_type: 'raid',
-        activity_id: raid_id
-      }).select();
-      if (error) {
-        console.error('❌ RAID activity insert failed:', error.message, error.code, error.details);
-      } else {
-        console.log('✅ RAID activity logged:', wallet_address, actualReward, 'pts (server-validated)');
-      }
-    } catch (e) {
-      console.error('❌ RAID activity insert exception:', e.message);
-    }
-
+    console.log(`✅ Raid completed: ${normalizedWallet} +${outcome.reward} on raid ${raid.id}`);
     res.json({
       success: true,
       alreadyCompleted: false,
       message: 'Points awarded successfully',
-      points_awarded: actualReward,
-      total_points: balance.total_points
+      points_awarded: outcome.reward,
+      total_points: outcome.balance.total_points
     });
-
   } catch (error) {
     console.error('Error recording raid completion:', error);
-    safeErrorResponse(res, error);
+    safeErrorResponse(res, error, error.statusCode || 500, error.publicMessage || 'Internal server error');
   }
 });
 
-// Telegram raid click — fire-and-forget claim fired by the /r/<id> redirect
-// page when a signed-in user clicks a TG raid link. No session token, no
-// timer, no Twitter verification — honor-based. One claim per wallet per
-// raid is enforced by the UNIQUE (wallet_address, raid_id) constraint on
-// the raid_completions table.
-app.post('/api/raids/tg-claim', validateWallet, async (req, res) => {
+// Telegram raid click, fired by r.html (/r/<id>) with sendBeacon. Honor system
+// with no timer (the click is the claim), but it now needs a real wallet session
+// (the bearpark_auth cookie, which sendBeacon sends, or a Bearer token) for the
+// wallet it names. It used to credit any wallet named in the body.
+app.post('/api/raids/tg-claim', validateWallet, requireWalletOwnership(['wallet_address']), limitEarningPerIp, limitPerWallet({ windowMs: 60 * 1000, max: 20 }), requireHoneyEarner, async (req, res) => {
   try {
     const { wallet_address, raid_id } = req.body;
     if (!wallet_address || !raid_id) {
@@ -3507,147 +4101,45 @@ app.post('/api/raids/tg-claim', validateWallet, async (req, res) => {
       });
     }
 
-    const normalizedWallet = normalizeWalletAddress(wallet_address);
-    if (!normalizedWallet) {
-      return res.status(400).json({ success: false, error: 'Invalid wallet address' });
+    const { raid, error: raidProblem } = await loadClaimableRaid(raid_id);
+    if (raidProblem) {
+      return res.status(400).json({ success: false, error: raidProblem });
     }
 
-    // Fetch raid — check it's real, active, not expired
-    const { data: raid, error: raidError } = await supabase
-      .from('raids')
-      .select('id, reward, expires_at, is_active')
-      .eq('id', raid_id)
-      .single();
+    const outcome = await creditRaidReward({
+      wallet: req.authWallet,
+      preferredAddress: req.ledgerAddress,
+      raid,
+      via: 'telegram link'
+    });
 
-    if (raidError || !raid) {
-      return res.status(400).json({ success: false, error: 'Invalid raid' });
-    }
-    if (!raid.is_active) {
-      return res.status(400).json({ success: false, error: 'Raid is not active' });
-    }
-    if (raid.expires_at && new Date(raid.expires_at).getTime() <= Date.now()) {
-      return res.status(400).json({ success: false, error: 'Raid has expired' });
-    }
-
-    const reward = parseInt(raid.reward, 10) || 0;
-    if (reward <= 0 || reward > 1000) {
-      return res.status(400).json({ success: false, error: 'Invalid raid reward' });
-    }
-
-    // Do everything in one pg transaction:
-    //   - double-claim check (ILIKE for case-insensitive wallet match)
-    //   - credit honey_points
-    //   - insert raid_completions (UNIQUE guards the race)
-    // Bypasses applyHoneyDelta on purpose: that helper tries to write
-    // a `point_transactions.amount` column that doesn't exist in this
-    // deployment's schema, causing the whole transaction to roll back.
-    // Audit trail via point_transactions is skipped here — acceptable
-    // for honor-system TG clicks; proper raid completion via the web
-    // flow still goes through applyHoneyDelta and the verified path.
-    if (!pgPool) {
-      throw new Error('pg pool unavailable');
-    }
-    const client = await pgPool.connect();
-    try {
-      await client.query('BEGIN');
-
-      // Resolve the wallet to its ACTUAL stored case. honey_points +
-      // raid_completions were written with mixed case over time (ILIKE
-      // matches them all, but upsert/ON CONFLICT is case-sensitive), so
-      // we pick whatever case already exists. If there are BOTH a
-      // mixed-case and a lowercase ghost row (from past bugs), we MUST
-      // prefer the mixed-case one because that's the canonical row the
-      // UI reads via /api/points/:wallet (which is case-sensitive .eq).
-      // Without this ORDER BY tiebreaker, pg returns rows in arbitrary
-      // order — sometimes we'd credit the ghost, the UI wouldn't see it,
-      // and the user would think their honey didn't land.
-      const existingHoney = await client.query(
-        `SELECT wallet_address FROM honey_points
-         WHERE wallet_address ILIKE $1
-         ORDER BY CASE WHEN wallet_address <> lower(wallet_address) THEN 0 ELSE 1 END
-         LIMIT 1`,
-        [normalizedWallet]
-      );
-      const canonicalWallet = existingHoney.rows[0]?.wallet_address || wallet_address;
-
-      const existing = await client.query(
-        `SELECT id FROM raid_completions
-         WHERE wallet_address ILIKE $1 AND raid_id = $2`,
-        [canonicalWallet, raid_id]
-      );
-      if (existing.rows.length > 0) {
-        await client.query('ROLLBACK');
-        return res.json({
-          success: true,
-          alreadyCompleted: true,
-          message: 'Raid already claimed'
-        });
-      }
-
-      // Upsert using the canonical wallet so ON CONFLICT actually matches
-      // the existing row instead of creating a new (lowercase) ghost row.
-      await client.query(
-        `INSERT INTO honey_points (wallet_address, total_points, raiding_points, games_points, updated_at)
-         VALUES ($1, $2, $2, 0, NOW())
-         ON CONFLICT (wallet_address) DO UPDATE
-         SET total_points = honey_points.total_points + EXCLUDED.total_points,
-             raiding_points = honey_points.raiding_points + EXCLUDED.raiding_points,
-             updated_at = NOW()`,
-        [canonicalWallet, reward]
-      );
-
-      await client.query(
-        `INSERT INTO raid_completions (wallet_address, raid_id, points_awarded, completed_at)
-         VALUES ($1, $2, $3, NOW())`,
-        [canonicalWallet, raid_id, reward]
-      );
-
-      const balanceResult = await client.query(
-        `SELECT total_points, raiding_points FROM honey_points WHERE wallet_address = $1`,
-        [canonicalWallet]
-      );
-
-      // Log for BEARdrops 24h tracking. Fire-and-forget — failure here
-      // shouldn't roll back the honey credit we just committed.
-      await client.query(
-        `INSERT INTO honey_points_activity (wallet_address, points, activity_type, activity_id)
-         VALUES ($1, $2, 'raid', $3)`,
-        [canonicalWallet, reward, String(raid_id)]
-      ).catch((e) => console.error('TG raid activity log failed:', e.message));
-
-      await client.query('COMMIT');
-
-      console.log(`✅ TG raid claimed: ${canonicalWallet} +${reward} pts on raid ${raid_id}`);
-
+    if (outcome.alreadyCompleted) {
       return res.json({
         success: true,
-        alreadyCompleted: false,
-        points_awarded: reward,
-        total_points: balanceResult.rows[0]?.total_points
+        alreadyCompleted: true,
+        message: 'Raid already claimed'
       });
-    } catch (txErr) {
-      await client.query('ROLLBACK').catch(() => {});
-      if (txErr.code === '23505') {
-        return res.json({
-          success: true,
-          alreadyCompleted: true,
-          message: 'Raid already claimed'
-        });
-      }
-      throw txErr;
-    } finally {
-      client.release();
     }
 
+    console.log(`✅ TG raid claimed: ${req.authWallet} +${outcome.reward} on raid ${raid.id}`);
+    return res.json({
+      success: true,
+      alreadyCompleted: false,
+      points_awarded: outcome.reward,
+      total_points: outcome.balance.total_points
+    });
   } catch (error) {
     console.error('Error in /api/raids/tg-claim:', error);
-    safeErrorResponse(res, error);
+    safeErrorResponse(res, error, error.statusCode || 500, error.publicMessage || 'Internal server error');
   }
 });
 
 // Award Game Points with Daily Limit (Time-Based System)
 // Uses atomic database function to prevent race condition exploits
-app.post('/api/games/session/start', validateWallet, requireWalletOwnership(['wallet_address']), async (req, res) => {
+// Limits fit a Flappy round of a few seconds: start + forced heartbeat +
+// complete per round, plus the 15 s heartbeat. Credit is wall-clock bounded
+// and one session per wallet is live, so these only trim load.
+app.post('/api/games/session/start', validateWallet, requireWalletOwnership(['wallet_address']), limitEarningPerIp, limitPerWallet({ windowMs: 60 * 1000, max: 60 }), requireHoneyEarner, async (req, res) => {
   try {
     const { wallet_address, game_id } = req.body;
     const normalizedWallet = req.authWallet || normalizeWalletAddress(wallet_address);
@@ -3693,7 +4185,7 @@ app.post('/api/games/session/start', validateWallet, requireWalletOwnership(['wa
   }
 });
 
-app.post('/api/games/session/heartbeat', validateWallet, requireWalletOwnership(['wallet_address']), async (req, res) => {
+app.post('/api/games/session/heartbeat', validateWallet, requireWalletOwnership(['wallet_address']), limitEarningPerIp, limitPerWallet({ windowMs: 60 * 1000, max: 90 }), async (req, res) => {
   try {
     const { wallet_address, game_id, session_token, visible, focused, trusted_activity } = req.body;
     const normalizedWallet = req.authWallet || normalizeWalletAddress(wallet_address);
@@ -3756,7 +4248,7 @@ app.post('/api/games/session/heartbeat', validateWallet, requireWalletOwnership(
   }
 });
 
-app.post('/api/games/complete', validateWallet, requireWalletOwnership(['wallet_address']), async (req, res) => {
+app.post('/api/games/complete', validateWallet, requireWalletOwnership(['wallet_address']), limitEarningPerIp, limitPerWallet({ windowMs: 60 * 1000, max: 60 }), requireHoneyEarner, async (req, res) => {
   try {
     const { wallet_address, game_id, session_token } = req.body;
     const normalizedWallet = req.authWallet || normalizeWalletAddress(wallet_address);
@@ -3795,7 +4287,8 @@ app.post('/api/games/complete', validateWallet, requireWalletOwnership(['wallet_
       sessionId: gameSession.sid,
       wallet: normalizedWallet,
       gameId: game_id,
-      today
+      today,
+      preferredAddress: req.ledgerAddress
     });
 
     if (!completionResult.success) {
@@ -3815,11 +4308,12 @@ app.post('/api/games/complete', validateWallet, requireWalletOwnership(['wallet_
     if (result.success) {
       console.log(`Awarded ${result.points_awarded} pts to ${wallet_address} (${result.minutes_today}/${GAME_MAX_DAILY_MINUTES} mins today)`);
 
-      if (result.points_awarded > 0) {
-        const activityClient = supabaseAdmin || supabase;
-        // Mirror the canonical case resolved inside the SP/applyHoneyDelta
-        // path so BEARdrops 24h queries and this activity row stay aligned.
-        const activityWallet = result.canonical_wallet || wallet_address || normalizedWallet;
+      // The Postgres path logs the activity row inside the credit's own
+      // transaction; only the PostgREST fallback still needs it here.
+      if (result.points_awarded > 0 && !completionResult.activityLogged) {
+        const activityClient = db;
+        // Same letter case as the honey_points row the SP credited.
+        const activityWallet = completionResult.canonicalWallet || normalizedWallet;
         try {
           const { data, error } = await activityClient.from('honey_points_activity').insert({
             wallet_address: activityWallet,
@@ -4001,80 +4495,47 @@ app.post('/api/pong/betting', validateWallet, async (req, res) => {
   }
 });
 
-// PERF: per-wallet cache for daily game status (20s TTL).
-// /api/games/daily-status/{wallet}/all-games was taking ~1s+ on every page load.
-// Content rarely changes mid-session (only when user finishes a game round),
-// and endpoints that mutate plays can invalidate the cache.
-const _dailyStatusCache = new Map(); // key: wallet|game_id|date -> {data, ts}
-const DAILY_STATUS_TTL_MS = 20000;
-function invalidateDailyStatusCache(wallet) {
-  // Clear all entries for this wallet (any game_id, any date)
-  for (const k of _dailyStatusCache.keys()) {
-    if (k.startsWith(wallet + '|')) _dailyStatusCache.delete(k);
-  }
-}
-
+// Today's game minutes (UTC day, the day atomic_time_play caps). The shared
+// read cache (read-cache.js) keeps this for 10 s and drops it the moment a game
+// completes for the wallet; the private 20 s cache that sat here was never
+// dropped, so a finished game showed the old minutes for up to 20 s.
+// All letter cases of the wallet count as one, like the cap. For one game,
+// minutes/points are that game's, while remaining_minutes / can_earn_points are
+// the day's: the 123 minutes are shared by every game.
 app.get('/api/games/daily-status/:wallet/:game_id', async (req, res) => {
   try {
     const { wallet, game_id } = req.params;
+    if (!isValidXRPLWallet(wallet)) {
+      return res.status(400).json({ success: false, error: 'Invalid wallet address' });
+    }
     const today = new Date().toISOString().split('T')[0];
-    const cacheKey = `${wallet}|${game_id}|${today}`;
-    const cached = _dailyStatusCache.get(cacheKey);
-    if (cached && (Date.now() - cached.ts) < DAILY_STATUS_TTL_MS) {
-      return res.json({ ...cached.data, cached: true });
-    }
 
-    // Special case: "all-games" sums up ALL games for this wallet today
-    if (game_id === 'all-games') {
-      const { data, error } = await supabase
-        .from('daily_game_plays')
-        .select('*')
-        .eq('wallet_address', wallet)
-        .eq('play_date', today);
-
-      if (error) {
-        console.error('Error fetching all games status:', error);
-        return safeErrorResponse(res, error);
-      }
-
-      const MAX_DAILY_MINUTES = 123;
-      const totalMinutes = data?.reduce((sum, record) => sum + (record.minutes_played || 0), 0) || 0;
-      const totalPoints = data?.reduce((sum, record) => sum + (record.points_earned || 0), 0) || 0;
-
-      const resp = {
-        success: true,
-        minutes_today: Math.round(totalMinutes * 10) / 10,
-        max_minutes: MAX_DAILY_MINUTES,
-        remaining_minutes: Math.max(0, MAX_DAILY_MINUTES - totalMinutes),
-        can_earn_points: totalMinutes < MAX_DAILY_MINUTES,
-        points_earned_today: Math.round(totalPoints * 10) / 10
-      };
-      _dailyStatusCache.set(cacheKey, { data: resp, ts: Date.now() });
-      return res.json(resp);
-    }
-
-    // Single game status
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('daily_game_plays')
-      .select('*')
-      .eq('wallet_address', wallet)
-      .eq('game_id', game_id)
-      .eq('play_date', today)
-      .single();
+      .select('game_id, minutes_played, points_earned')
+      .ilike('wallet_address', wallet)
+      .eq('play_date', today);
 
-    const MAX_DAILY_MINUTES = 123;
-    const minutesToday = data?.minutes_played || 0;
+    if (error) {
+      console.error('Error fetching daily game status:', error);
+      return safeErrorResponse(res, error);
+    }
 
-    const resp = {
+    const rows = data || [];
+    const mine = game_id === 'all-games' ? rows : rows.filter((record) => record.game_id === game_id);
+    const dayMinutes = rows.reduce((sum, record) => sum + parseHoneyNumber(record.minutes_played), 0);
+    const minutesToday = mine.reduce((sum, record) => sum + parseHoneyNumber(record.minutes_played), 0);
+    const pointsToday = mine.reduce((sum, record) => sum + parseHoneyNumber(record.points_earned), 0);
+
+    res.json({
       success: true,
       minutes_today: Math.round(minutesToday * 10) / 10,
-      max_minutes: MAX_DAILY_MINUTES,
-      remaining_minutes: Math.max(0, MAX_DAILY_MINUTES - minutesToday),
-      can_earn_points: minutesToday < MAX_DAILY_MINUTES,
-      points_earned_today: Math.round((data?.points_earned || 0) * 10) / 10
-    };
-    _dailyStatusCache.set(cacheKey, { data: resp, ts: Date.now() });
-    res.json(resp);
+      max_minutes: GAME_MAX_DAILY_MINUTES,
+      remaining_minutes: Math.round(Math.max(0, GAME_MAX_DAILY_MINUTES - dayMinutes) * 10) / 10,
+      can_earn_points: dayMinutes < GAME_MAX_DAILY_MINUTES,
+      points_earned_today: Math.round(pointsToday * 10) / 10,
+      day_minutes_all_games: Math.round(dayMinutes * 10) / 10
+    });
 
   } catch (error) {
     console.error('Error fetching daily game status:', error);
@@ -4090,7 +4551,7 @@ app.post('/api/games/reset-daily/:wallet', verifyAdmin, async (req, res) => {
     const today = new Date().toISOString().split('T')[0];
 
     // Delete today's game plays
-    const { error } = await supabase
+    const { error } = await db
       .from('daily_game_plays')
       .delete()
       .eq('wallet_address', wallet)
@@ -4217,7 +4678,7 @@ app.post('/api/pong/betting', validateWallet, async (req, res) => {
     console.log(`💰 [PONG BETTING] New total: ${currentRaidingPoints} (raiding) + ${newGamesPoints} (games) = ${newTotalPoints}`);
 
     // 🔒 STEP 3: Update database with SERVER-CALCULATED values
-    const { data: updatedPoints, error: updateError } = await supabase
+    const { data: updatedPoints, error: updateError } = await db
       .from('honey_points')
       .upsert({
         wallet_address,
@@ -4316,12 +4777,12 @@ app.get('/api/users', async (req, res) => {
 
 app.get('/api/profile/:wallet', async (req, res) => {
   try {
-    const { wallet } = req.params;
+    const { wallet: asked } = req.params;
 
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('profiles')
       .select('*')
-      .eq('wallet_address', wallet)
+      .eq('wallet_address', asked)
       .single();
 
     if (error && error.code !== 'PGRST116') { // PGRST116 = not found
@@ -4329,10 +4790,22 @@ app.get('/api/profile/:wallet', async (req, res) => {
       return safeErrorResponse(res, error, 500, `Failed to fetch profile: ${error.message}`);
     }
 
+    // A link built from a lowercased address (old tokens and rows carried one):
+    // find the profile regardless of case and answer with its real address.
+    if (!data && /^r[1-9A-HJ-NP-Za-km-z]{24,34}$/i.test(asked)) {
+      const { data: rows } = await supabase
+        .from('profiles')
+        .select('*')
+        .ilike('wallet_address', asked)
+        .limit(2);
+      if (rows?.length === 1) data = rows[0];
+    }
+
     // If no profile found, return null
     if (!data) {
       return res.json({ success: true, profile: null });
     }
+    const wallet = data.wallet_address;
 
     // Fetch honey points for this wallet
     const { data: honeyData } = await supabase
@@ -4360,15 +4833,21 @@ app.get('/api/profile/:wallet', async (req, res) => {
 });
 
 // Save/Update User Profile
-app.post('/api/profile', validateWallet, validateTextLengths, async (req, res) => {
+app.post('/api/profile', validateWallet, requireWalletOwnership(['wallet_address']), validateTextLengths, async (req, res) => {
   try {
-    const { wallet_address, display_name, avatar_nft } = req.body;
+    const { wallet_address } = req.body;
+    // A name of spaces used to save as a blank name everywhere.
+    const display_name = typeof req.body.display_name === 'string' ? req.body.display_name.trim().replace(/\s+/g, ' ') : '';
+    const avatar_nft = req.body.avatar_nft ?? null;
 
     if (!wallet_address || !display_name) {
       return res.status(400).json({
         success: false,
         error: 'Missing required fields: wallet_address, display_name'
       });
+    }
+    if (avatar_nft !== null && (typeof avatar_nft !== 'string' || avatar_nft.length > 4000)) {
+      return res.status(400).json({ success: false, error: 'Invalid avatar' });
     }
 
     // Check if profile exists
@@ -4380,7 +4859,7 @@ app.post('/api/profile', validateWallet, validateTextLengths, async (req, res) =
 
     if (existingProfile) {
       // Update existing profile
-      const { error } = await supabase
+      const { error } = await db
         .from('profiles')
         .update({
           display_name: display_name,
@@ -4393,7 +4872,7 @@ app.post('/api/profile', validateWallet, validateTextLengths, async (req, res) =
       console.log(`✅ Updated profile for ${wallet_address}: ${display_name}`);
     } else {
       // Create new profile
-      const { error } = await supabase
+      const { error } = await db
         .from('profiles')
         .insert({
           wallet_address: wallet_address,
@@ -4417,7 +4896,7 @@ app.post('/api/profile', validateWallet, validateTextLengths, async (req, res) =
 });
 
 // Update Bio
-app.post('/api/profile/bio', validateWallet, validateTextLengths, async (req, res) => {
+app.post('/api/profile/bio', validateWallet, requireWalletOwnership(['wallet_address']), validateTextLengths, async (req, res) => {
   try {
     const { wallet_address, bio } = req.body;
 
@@ -4434,7 +4913,7 @@ app.post('/api/profile/bio', validateWallet, validateTextLengths, async (req, re
 
     if (existingProfile) {
       // Update bio
-      const { error } = await supabase
+      const { error } = await db
         .from('profiles')
         .update({ bio: bio, updated_at: new Date().toISOString() })
         .eq('wallet_address', wallet_address);
@@ -4442,7 +4921,7 @@ app.post('/api/profile/bio', validateWallet, validateTextLengths, async (req, re
       if (error) throw error;
     } else {
       // Create profile with bio
-      const { error } = await supabase
+      const { error } = await db
         .from('profiles')
         .insert({ wallet_address, bio });
 
@@ -4495,24 +4974,25 @@ app.get('/api/comments/:wallet', async (req, res) => {
 
       if (commentsError) throw commentsError;
 
-      // Enrich comments with current profile data
-      comments = await Promise.all((commentsData || []).map(async (comment) => {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('display_name, avatar_nft')
-          .eq('wallet_address', comment.commenter_wallet)
-          .single();
-
+      // Current names and avatars for every commenter in one query.
+      const commenters = [...new Set((commentsData || []).map((c) => c.commenter_wallet).filter(Boolean))];
+      const { data: commenterProfiles } = commenters.length
+        ? await supabase.from('profiles').select('wallet_address, display_name, avatar_nft').in('wallet_address', commenters)
+        : { data: [] };
+      const profileOf = new Map((commenterProfiles || []).map((pr) => [pr.wallet_address, pr]));
+      comments = (commentsData || []).map((comment) => {
+        const profile = profileOf.get(comment.commenter_wallet);
         return {
           ...comment,
           commenter_name: profile?.display_name || comment.commenter_name || 'Anonymous',
           commenter_avatar: profile?.avatar_nft || comment.commenter_avatar
         };
-      }));
+      });
 
       console.log(`✅ [Supabase] Fetched ${comments.length} comments for ${wallet}`);
     }
 
+    comments = await withReactions(comments, 'comment_reactions', 'comment_id');
     res.json({ success: true, comments: comments });
   } catch (error) {
     console.error('Error fetching comments:', error);
@@ -4521,18 +5001,56 @@ app.get('/api/comments/:wallet', async (req, res) => {
 });
 
 // Post a Comment
-app.post('/api/comments', validateWallet, validateTextLengths, async (req, res) => {
+app.post('/api/comments', validateWallet, requireWalletOwnership(['commenter_wallet']), validateTextLengths, async (req, res) => {
   try {
-    const { profile_wallet, commenter_wallet, comment_text, commenter_name, commenter_avatar, parent_id } = req.body;
+    const { profile_wallet, commenter_wallet, parent_id } = req.body;
+    const { text: comment_text, error: textError } = cleanUserText(req.body.comment_text, 2000, 'Your comment');
 
-    if (!profile_wallet || !commenter_wallet || !comment_text) {
+    if (!profile_wallet || !commenter_wallet || textError) {
       return res.status(400).json({
         success: false,
-        error: 'Missing required fields'
+        error: textError || 'Missing required fields'
       });
     }
+    if (parent_id != null && !/^\d+$/.test(String(parent_id))) {
+      return res.status(400).json({ success: false, error: 'Invalid comment id' });
+    }
+    // The wall is keyed by the address as the ledger spells it: a lowercased
+    // one passes the base58 pattern but would open a twin wall (and send the
+    // notification to a wallet nobody reads).
+    if (!isValidClassicAddress(profile_wallet)) {
+      return res.status(400).json({ success: false, error: 'That is not a valid XRPL address' });
+    }
 
-    const { data, error } = await supabase
+    // A reply must answer a comment on the same wall.
+    let parentComment = null;
+    if (parent_id != null) {
+      const { data: parentRow, error: parentError } = await supabase
+        .from('profile_comments')
+        .select('id, profile_wallet, commenter_wallet')
+        .eq('id', parent_id)
+        .maybeSingle();
+      if (parentError) throw parentError;
+      if (!parentRow) {
+        return res.status(404).json({ success: false, error: 'The comment you replied to was deleted' });
+      }
+      if (normalizeWalletAddress(parentRow.profile_wallet) !== normalizeWalletAddress(profile_wallet)) {
+        return res.status(400).json({ success: false, error: 'That reply belongs to another wall' });
+      }
+      parentComment = parentRow;
+    }
+
+    // Who the commenter is comes from their profile, not from the request (the
+    // name in a notification used to be whatever the client sent).
+    const { data: commenterProfile } = await supabase
+      .from('profiles')
+      .select('display_name, avatar_nft')
+      .eq('wallet_address', commenter_wallet)
+      .maybeSingle();
+    const commenter_name = commenterProfile?.display_name || null;
+    const commenter_avatar = commenterProfile?.avatar_nft || null;
+
+    const { data, error } = await db
       .from('profile_comments')
       .insert({
         profile_wallet,
@@ -4540,64 +5058,31 @@ app.post('/api/comments', validateWallet, validateTextLengths, async (req, res) 
         comment_text,
         commenter_name,
         commenter_avatar,
-        parent_id: parent_id || null
+        parent_id: parentComment ? parentComment.id : null
       })
       .select()
       .single();
 
     if (error) throw error;
 
-    // Send notification to profile owner or parent comment author
+    // Send notification to profile owner or parent comment author. These went
+    // through a raw insert with a `read` column the table doesn't have (it's
+    // is_read), so no wall notification was ever stored.
     try {
-      if (parent_id) {
-        // This is a reply to another comment
-        // Get the parent comment to find the author
-        const { data: parentComment, error: parentError } = await supabase
-          .from('profile_comments')
-          .select('commenter_wallet, commenter_name, commenter_avatar')
-          .eq('id', parent_id)
-          .single();
-
-        if (!parentError && parentComment && parentComment.commenter_wallet !== commenter_wallet) {
-          // Send notification to parent comment author (don't notify yourself)
-          await supabase
-            .from('notifications')
-            .insert({
-              wallet_address: parentComment.commenter_wallet,
-              type: 'profile_reply',
-              data: {
-                profileWallet: profile_wallet,
-                commentId: data.id,
-                commentText: comment_text.substring(0, 100),
-                displayName: commenter_name || 'Anonymous',
-                wallet: commenter_wallet,
-                avatarNft: commenter_avatar
-              },
-              read: false
-            });
-          console.log(`✅ Sent profile_reply notification to ${parentComment.commenter_wallet}`);
-        }
+      const note = {
+        profileWallet: profile_wallet,
+        commentId: String(data.id),
+        commentText: comment_text.substring(0, 100),
+        displayName: commenter_name || 'Anonymous',
+        wallet: commenter_wallet,
+        avatarNft: commenter_avatar
+      };
+      if (parentComment) {
+        // A reply: tell the person replied to (addNotification skips yourself)
+        await addNotification(parentComment.commenter_wallet, 'profile_reply', note);
       } else {
-        // This is a top-level comment on the profile
-        if (profile_wallet !== commenter_wallet) {
-          // Send notification to profile owner (don't notify yourself)
-          await supabase
-            .from('notifications')
-            .insert({
-              wallet_address: profile_wallet,
-              type: 'profile_comment',
-              data: {
-                profileWallet: profile_wallet,
-                commentId: data.id,
-                commentText: comment_text.substring(0, 100),
-                displayName: commenter_name || 'Anonymous',
-                wallet: commenter_wallet,
-                avatarNft: commenter_avatar
-              },
-              read: false
-            });
-          console.log(`✅ Sent profile_comment notification to ${profile_wallet}`);
-        }
+        // A top-level comment: tell the wall's owner (not when it's your own wall)
+        await addNotification(profile_wallet, 'profile_comment', note);
       }
     } catch (notifError) {
       console.error('Error sending notification:', notifError);
@@ -4612,7 +5097,7 @@ app.post('/api/comments', validateWallet, validateTextLengths, async (req, res) 
 });
 
 // Delete a Comment
-app.delete('/api/comments/:id', async (req, res) => {
+app.delete('/api/comments/:id', validateWallet, requireWalletOwnership(['wallet_address']), async (req, res) => {
   try {
     const { id } = req.params;
     const { wallet_address } = req.body;
@@ -4621,21 +5106,13 @@ app.delete('/api/comments/:id', async (req, res) => {
       return res.status(400).json({ success: false, error: 'wallet_address required' });
     }
 
-    // Check if user is actually an admin (server-side verification)
-    let is_admin = false;
-    try {
-      const { data: adminRole } = await supabase
-        .from('admin_roles')
-        .select('role, is_active')
-        .eq('wallet_address', wallet_address)
-        .eq('is_active', true)
-        .single();
-
-      is_admin = adminRole && (adminRole.role === 'admin' || adminRole.role === 'master');
-    } catch (adminCheckError) {
-      // Not an admin - continue with normal authorization check
-      is_admin = false;
+    if (!/^\d+$/.test(String(id))) {
+      return res.status(400).json({ success: false, error: 'Invalid comment id' });
     }
+
+    // Is this an admin? (server-side; admin_roles may store any letter case)
+    const role = await staffRoleOf(wallet_address);
+    const is_admin = role === 'admin' || role === 'master';
 
     let comment;
 
@@ -4677,12 +5154,16 @@ app.delete('/api/comments/:id', async (req, res) => {
 
     // Check permissions: admin, profile owner, or comment author
     const canDelete = is_admin ||
-      comment.profile_wallet === wallet_address ||
-      comment.commenter_wallet === wallet_address;
+      normalizeWalletAddress(comment.profile_wallet) === normalizeWalletAddress(wallet_address) ||
+      normalizeWalletAddress(comment.commenter_wallet) === normalizeWalletAddress(wallet_address);
 
     if (!canDelete) {
       return res.status(403).json({ success: false, error: 'Permission denied' });
     }
+
+    // The replies under it go too (cascade); note their ids for the bells.
+    const { data: wallThread } = await supabase.from('profile_comments').select('id, parent_id').eq('profile_wallet', comment.profile_wallet).limit(5000);
+    const goneIds = withDescendants(id, wallThread);
 
     // Delete the comment (CASCADE will delete reactions and child comments)
     try {
@@ -4699,7 +5180,7 @@ app.delete('/api/comments/:id', async (req, res) => {
       console.warn(`⚠️ pgPool failed (${pgError.message}), falling back to Supabase...`);
 
       // Fallback to Supabase
-      const { error: deleteError } = await supabase
+      const { error: deleteError } = await db
         .from('profile_comments')
         .delete()
         .eq('id', id);
@@ -4708,6 +5189,7 @@ app.delete('/api/comments/:id', async (req, res) => {
       console.log(`✅ [Supabase] Comment ${id} deleted successfully`);
     }
 
+    await forgetNotifications(['profile_comment', 'profile_reply', 'reaction'], 'commentId', goneIds);
     res.json({ success: true, message: 'Comment deleted successfully' });
   } catch (error) {
     console.error('Error deleting comment:', error);
@@ -4718,7 +5200,7 @@ app.delete('/api/comments/:id', async (req, res) => {
 // ===== COMMENT REACTIONS ENDPOINTS =====
 
 // Toggle Reaction on a Comment (using direct PostgreSQL to bypass cache)
-app.post('/api/comments/:id/react', async (req, res) => {
+app.post('/api/comments/:id/react', validateWallet, requireWalletOwnership(['wallet_address']), async (req, res) => {
   try {
     const { id } = req.params;
     const { wallet_address, reaction_type } = req.body;
@@ -4740,12 +5222,24 @@ app.post('/api/comments/:id/react', async (req, res) => {
     }
 
     // Convert id to integer for Supabase
+    if (!/^\d+$/.test(String(id))) {
+      return res.status(400).json({ success: false, error: 'Invalid comment id' });
+    }
     const commentId = parseInt(id);
-
-    console.log(`🔵 Checking reaction: comment_id=${commentId}, wallet=${wallet_address}, type=${reaction_type}`);
 
     // Use supabaseAdmin to bypass RLS
     const client = supabaseAdmin || supabase;
+
+    // The comment must exist (reacting to a deleted one used to surface as a 500).
+    const { data: commentData, error: commentError } = await client
+      .from('profile_comments')
+      .select('commenter_wallet, profile_wallet, comment_text')
+      .eq('id', commentId)
+      .maybeSingle();
+    if (commentError) throw commentError;
+    if (!commentData) {
+      return res.status(404).json({ success: false, error: 'That comment was deleted' });
+    }
     const { data: existing, error: checkError } = await client
       .from('comment_reactions')
       .select('id')
@@ -4851,7 +5345,8 @@ app.post('/api/comments/:id/react', async (req, res) => {
           reaction_type
         });
 
-      if (insertError) {
+      // A double tap that raced past the check above: it's added either way.
+      if (insertError && insertError.code !== '23505') {
         console.error(`❌ Insert error:`, insertError);
         throw insertError;
       }
@@ -4860,13 +5355,7 @@ app.post('/api/comments/:id/react', async (req, res) => {
 
       // Get comment author for notification (non-blocking - don't fail request if this fails)
       try {
-        const { data: commentData } = await supabase
-          .from('profile_comments')
-          .select('commenter_wallet, profile_wallet, comment_text')
-          .eq('id', commentId)
-          .single();
-
-        if (commentData && commentData.commenter_wallet !== wallet_address) {
+        if (normalizeWalletAddress(commentData.commenter_wallet) !== normalizeWalletAddress(wallet_address)) {
           // Get reactor's display name and avatar
           const { data: reactorProfile } = await supabase
             .from('profiles')
@@ -4896,8 +5385,8 @@ app.post('/api/comments/:id/react', async (req, res) => {
             return emojiMap[r.reaction_type] || r.reaction_type;
           });
 
-          // Send notification to comment author
-          addNotification(commentData.commenter_wallet, 'reaction', {
+          // Send notification to comment author (one per reactor per comment while unread)
+          await addNotification(commentData.commenter_wallet, 'reaction', {
             wallet: wallet_address,
             displayName: reactorDisplayName,
             avatarNft: reactorAvatar,
@@ -4905,7 +5394,7 @@ app.post('/api/comments/:id/react', async (req, res) => {
             commentText: commentData.comment_text?.substring(0, 100),
             commentId: commentId.toString(),
             profileWallet: commentData.profile_wallet
-          });
+          }, { merge: ['commentId'] });
         }
       } catch (notifError) {
         console.warn('⚠️ Failed to send notification (non-critical):', notifError.message);
@@ -5005,7 +5494,7 @@ app.get('/api/comments/:id/reactions', async (req, res) => {
 // ============================================
 
 // Toggle Follow/Unfollow
-app.post('/api/follow', validateWallet, async (req, res) => {
+app.post('/api/follow', validateWallet, requireWalletOwnership(['follower_wallet']), async (req, res) => {
   try {
     const { follower_wallet, following_wallet } = req.body;
 
@@ -5016,8 +5505,15 @@ app.post('/api/follow', validateWallet, async (req, res) => {
       });
     }
 
+    // Follows are keyed by the address exactly as the ledger spells it. A
+    // lowercased (or otherwise mangled) address passes the base58 pattern but
+    // not the checksum, and used to create a twin row nobody's counts saw.
+    if (!isValidClassicAddress(following_wallet) || !isValidClassicAddress(follower_wallet)) {
+      return res.status(400).json({ success: false, error: 'That is not a valid XRPL address' });
+    }
+
     // Prevent self-follows
-    if (follower_wallet === following_wallet) {
+    if (normalizeWalletAddress(follower_wallet) === normalizeWalletAddress(following_wallet)) {
       return res.status(400).json({
         success: false,
         error: 'Cannot follow yourself'
@@ -5026,69 +5522,30 @@ app.post('/api/follow', validateWallet, async (req, res) => {
 
     let action;
 
-    // Try direct PostgreSQL first, fall back to Supabase if it fails
-    try {
-      if (pgPool) {
-        // Check if already following using direct SQL
-        const checkResult = await pgPool.query(
-          'SELECT id FROM follows WHERE follower_wallet = $1 AND following_wallet = $2',
-          [follower_wallet, following_wallet]
-        );
-
-        if (checkResult.rows.length > 0) {
-          // Unfollow
-          console.log(`🔵 [Follow] BEFORE DELETE: Found existing follow row for ${follower_wallet} -> ${following_wallet}`);
-          const deleteResult = await pgPool.query(
-            'DELETE FROM follows WHERE follower_wallet = $1 AND following_wallet = $2 RETURNING *',
-            [follower_wallet, following_wallet]
-          );
-          console.log(`🔵 [Follow] DELETE EXECUTED: Deleted ${deleteResult.rowCount} row(s)`, deleteResult.rows);
-
-          // VERIFY THE DELETE WORKED - check immediately after
-          const verifyResult = await pgPool.query(
-            'SELECT * FROM follows WHERE follower_wallet = $1 AND following_wallet = $2',
-            [follower_wallet, following_wallet]
-          );
-          console.log(`🔵 [Follow] VERIFY AFTER DELETE: Found ${verifyResult.rows.length} rows (should be 0)`);
-          if (verifyResult.rows.length > 0) {
-            console.error(`❌ [Follow] DELETE FAILED! Row still exists:`, verifyResult.rows[0]);
-          } else {
-            console.log(`✅ [Follow] DELETE CONFIRMED: Row successfully removed`);
-          }
-
-          action = 'unfollowed';
-        } else {
-          // Follow
-          await pgPool.query(
-            'INSERT INTO follows (follower_wallet, following_wallet) VALUES ($1, $2)',
-            [follower_wallet, following_wallet]
-          );
-
-          // Get follower's display name and avatar for notification
-          const followerProfile = await pgPool.query(
-            'SELECT display_name, avatar_nft FROM profiles WHERE wallet_address = $1',
-            [follower_wallet]
-          );
-
-          const followerDisplayName = followerProfile.rows[0]?.display_name || null;
-          const followerAvatar = followerProfile.rows[0]?.avatar_nft || null;
-
-          // Send notification to the person being followed
-          addNotification(following_wallet, 'follower', {
-            wallet: follower_wallet,
-            displayName: followerDisplayName,
-            avatarNft: followerAvatar
-          });
-
-          action = 'followed';
-        }
+    // One path, not "try Postgres, then do it all again through Supabase": a
+    // failed INSERT used to fall through to the Supabase toggle, which saw the
+    // row the other tap had just made and DELETED it (a double tap unfollowed).
+    if (pgPool) {
+      const removed = await pgPool.query(
+        'DELETE FROM follows WHERE follower_wallet = $1 AND following_wallet = $2 RETURNING id',
+        [follower_wallet, following_wallet]
+      );
+      if (removed.rowCount > 0) {
+        action = 'unfollowed';
       } else {
-        throw new Error('pgPool not available');
+        try {
+          await pgPool.query(
+            `INSERT INTO follows (follower_wallet, following_wallet)
+             SELECT $1::text, $2::text WHERE NOT EXISTS (SELECT 1 FROM follows WHERE follower_wallet = $1::text AND following_wallet = $2::text)`,
+            [follower_wallet, following_wallet]
+          );
+        } catch (insertError) {
+          // A double tap: the other request made the row; that's still "followed".
+          if (insertError.code !== '23505') throw insertError;
+        }
+        action = 'followed';
       }
-    } catch (pgError) {
-      console.warn(`⚠️ pgPool failed (${pgError.message}), falling back to Supabase...`);
-
-      // Fallback to Supabase
+    } else {
       const { data: existing, error: checkError } = await supabase
         .from('follows')
         .select('id')
@@ -5099,8 +5556,7 @@ app.post('/api/follow', validateWallet, async (req, res) => {
       if (checkError) throw checkError;
 
       if (existing) {
-        // Unfollow
-        const { error: deleteError } = await supabase
+        const { error: deleteError } = await db
           .from('follows')
           .delete()
           .eq('follower_wallet', follower_wallet)
@@ -5109,32 +5565,29 @@ app.post('/api/follow', validateWallet, async (req, res) => {
         if (deleteError) throw deleteError;
         action = 'unfollowed';
       } else {
-        // Follow
-        const { error: insertError } = await supabase
+        const { error: insertError } = await db
           .from('follows')
           .insert({ follower_wallet, following_wallet });
 
-        if (insertError) throw insertError;
-
-        // Get follower's display name and avatar for notification
-        const { data: followerProfile } = await supabase
-          .from('profiles')
-          .select('display_name, avatar_nft')
-          .eq('wallet_address', follower_wallet)
-          .maybeSingle();
-
-        const followerDisplayName = followerProfile?.display_name || null;
-        const followerAvatar = followerProfile?.avatar_nft || null;
-
-        // Send notification to the person being followed
-        addNotification(following_wallet, 'follower', {
-          wallet: follower_wallet,
-          displayName: followerDisplayName,
-          avatarNft: followerAvatar
-        });
-
+        // A double tap: the other request made the row; that's still "followed".
+        if (insertError && insertError.code !== '23505') throw insertError;
         action = 'followed';
       }
+    }
+
+    if (action === 'followed') {
+      // Tell the person followed (a follow / unfollow / follow is one notification while unread)
+      const { data: followerProfile } = await supabase
+        .from('profiles')
+        .select('display_name, avatar_nft')
+        .eq('wallet_address', follower_wallet)
+        .maybeSingle();
+
+      await addNotification(following_wallet, 'follower', {
+        wallet: follower_wallet,
+        displayName: followerProfile?.display_name || null,
+        avatarNft: followerProfile?.avatar_nft || null
+      }, { merge: [] });
     }
 
     res.json({ success: true, action });
@@ -5143,6 +5596,7 @@ app.post('/api/follow', validateWallet, async (req, res) => {
     safeErrorResponse(res, error);
   }
 });
+
 
 // Get Follow Status (is user A following user B?)
 app.get('/api/follow/status', async (req, res) => {
@@ -5528,9 +5982,11 @@ app.get('/api/merch/products', async (req, res) => {
 });
 
 // Create merch order (supports multiple items)
-app.post('/api/merch/orders', async (req, res) => {
+// An order reserves stock, so it needs the signed session of the wallet it's
+// for (anyone could otherwise empty every size with orders nobody pays).
+app.post('/api/merch/orders', validateWallet, requireWalletOwnership(['wallet_address']), async (req, res) => {
   try {
-    const { wallet_address, items, items_summary, total_amount, product_id, size, payment_method, shipping } = req.body;
+    const { wallet_address, items, items_summary, product_id, size, payment_method, shipping } = req.body;
 
     if (!wallet_address || !shipping) {
       return res.status(400).json({ success: false, error: 'Missing required fields' });
@@ -5542,35 +5998,50 @@ app.post('/api/merch/orders', async (req, res) => {
     let primaryProductId = product_id;
     let primarySize = size;
 
-    if (items && items.length > 0) {
-      // Multi-item order
-      orderItems = items;
-      orderTotal = total_amount || items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-      primaryProductId = items[0].product_id;
-      primarySize = items[0].size;
-
-      // Validate all items exist and have stock
-      for (const item of items) {
-        const product = MERCH_PRODUCTS[item.product_id];
-        if (!product) {
-          return res.status(404).json({ success: false, error: `Product not found: ${item.product_id}` });
-        }
-        if (!product.sizes[item.size] || product.sizes[item.size] < item.quantity) {
-          return res.status(400).json({ success: false, error: `Insufficient stock for ${item.name} size ${item.size}` });
-        }
+    if (Array.isArray(items) && items.length > 0) {
+      // Multi-item order. Prices and the total come from MERCH_PRODUCTS: the
+      // client used to send both, so a $30 shirt could be ordered at $0.01.
+      if (items.length > 20) {
+        return res.status(400).json({ success: false, error: 'Too many items in one order' });
       }
+      for (const item of items) {
+        const product = item && Object.prototype.hasOwnProperty.call(MERCH_PRODUCTS, item.product_id)
+          ? MERCH_PRODUCTS[item.product_id]
+          : null;
+        if (!product) {
+          return res.status(404).json({ success: false, error: `Product not found: ${item?.product_id}` });
+        }
+        const quantity = Number(item.quantity);
+        if (!Number.isInteger(quantity) || quantity < 1 || quantity > 10) {
+          return res.status(400).json({ success: false, error: 'Invalid quantity' });
+        }
+        if (!Object.prototype.hasOwnProperty.call(product.sizes, item.size) || product.sizes[item.size] < quantity) {
+          return res.status(400).json({ success: false, error: `Insufficient stock for ${product.name} size ${item.size}` });
+        }
+        orderItems.push({
+          product_id: product.id,
+          name: product.name,
+          size: item.size,
+          quantity,
+          price: product.price_usd,
+          image: product.images?.[0] || ''
+        });
+      }
+      orderTotal = Math.round(orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0) * 100) / 100;
+      primaryProductId = orderItems[0].product_id;
+      primarySize = orderItems[0].size;
     } else {
       // Legacy single item order
       if (!product_id || !size) {
         return res.status(400).json({ success: false, error: 'Missing product_id or size' });
       }
 
-      const product = MERCH_PRODUCTS[product_id];
+      const product = Object.prototype.hasOwnProperty.call(MERCH_PRODUCTS, product_id) ? MERCH_PRODUCTS[product_id] : null;
       if (!product) {
         return res.status(404).json({ success: false, error: 'Product not found' });
       }
 
-      if (!product.sizes[size] || product.sizes[size] <= 0) {
+      if (!Object.prototype.hasOwnProperty.call(product.sizes, size) || !(product.sizes[size] > 0)) {
         return res.status(400).json({ success: false, error: 'Size not available' });
       }
 
@@ -5688,10 +6159,47 @@ app.post('/api/merch/orders', async (req, res) => {
   }
 });
 
-// Request payment for merch order - uses destination tag approach (no XUMM SDK needed)
+// Request payment for merch order - uses destination tag approach.
+// The amount comes from the stored order (priced server-side) and the XRP rate
+// from the XRP Ledger's own XRP/RLUSD AMM pool: both used to come from the
+// client, so an order could be "paid" with a cent. Tags are random, kept once
+// issued, and unique (they were the first digit run of a base-36 order number,
+// often one digit shared by many orders).
+const MERCH_RLUSD_ISSUER = 'rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De';
+const MERCH_RLUSD_HEX = '524C555344000000000000000000000000000000';
+const MERCH_MIN_RANDOM_TAG = 100000000;
+
+async function getXrpUsdFromLedger() {
+  const client = await getXrplClient();
+  const response = await client.request({
+    command: 'amm_info',
+    asset: { currency: 'XRP' },
+    asset2: { currency: MERCH_RLUSD_HEX, issuer: MERCH_RLUSD_ISSUER },
+    ledger_index: 'validated'
+  });
+  const amm = response.result?.amm || {};
+  const sides = [amm.amount, amm.amount2];
+  const xrpSide = sides.find((side) => typeof side === 'string');
+  const usdSide = sides.find((side) => side && typeof side === 'object' && side.issuer === MERCH_RLUSD_ISSUER);
+  const price = Number(usdSide?.value) / (Number(xrpSide) / 1e6);
+  if (!Number.isFinite(price) || price <= 0) {
+    throw new Error('No XRP/RLUSD price on the ledger');
+  }
+  return price;
+}
+
+async function pickMerchDestinationTag() {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const tag = crypto.randomInt(MERCH_MIN_RANDOM_TAG, 2147483647);
+    const { data, error } = await supabaseAdmin.from('merch_orders').select('id').eq('destination_tag', tag).limit(1);
+    if (!error && (!data || !data.length)) return tag;
+  }
+  throw new Error('Could not allocate a destination tag');
+}
+
 app.post('/api/merch/request-payment', async (req, res) => {
   try {
-    const { order_id, payment_method, amount_usd, xrp_price } = req.body;
+    const { order_id, payment_method } = req.body;
 
     if (!order_id) {
       return res.status(400).json({ success: false, error: 'Order ID required' });
@@ -5708,39 +6216,65 @@ app.post('/api/merch/request-payment', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Order not found' });
     }
 
-    // RLUSD issuer on mainnet
-    const RLUSD_ISSUER = 'rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De';
+    if (order.status !== 'pending') {
+      return res.status(409).json({ success: false, error: 'This order is not awaiting payment.' });
+    }
+
+    const RLUSD_ISSUER = MERCH_RLUSD_ISSUER;
     const MERCH_WALLET = process.env.MERCH_WALLET || 'rBEARKfWJS1LYdg2g6t99BgbvpWY5pgMB9';
 
-    // Generate destination tag from order number (numeric part only)
-    // Order numbers are like "BEAR-001234" - extract the numeric part
-    const orderNumMatch = order.order_number.match(/(\d+)/);
-    const destinationTag = orderNumMatch ? parseInt(orderNumMatch[1]) : Math.floor(Date.now() / 1000);
+    const amountUsd = Number(order.amount_usd);
+    if (!Number.isFinite(amountUsd) || amountUsd <= 0) {
+      return res.status(400).json({ success: false, error: 'This order has no valid total.' });
+    }
+
+    // Keep a tag once issued (a payment may already be on its way with it).
+    const existingTag = Number(order.destination_tag);
+    const destinationTag = Number.isInteger(existingTag) && existingTag >= MERCH_MIN_RANDOM_TAG
+      ? existingTag
+      : await pickMerchDestinationTag();
 
     let paymentAmount;
     let paymentCurrency;
     let xrpAmount = null;
+    let xrp_price = null;
 
     if (payment_method === 'RLUSD') {
-      paymentAmount = parseFloat(amount_usd).toFixed(2);
+      paymentAmount = amountUsd.toFixed(2);
       paymentCurrency = 'RLUSD';
     } else {
-      // XRP payment
-      xrpAmount = (amount_usd / xrp_price).toFixed(6);
+      try {
+        xrp_price = await getXrpUsdFromLedger();
+      } catch (priceError) {
+        console.error('XRP price lookup failed:', priceError.message);
+        return res.status(503).json({ success: false, error: 'XRP checkout is unavailable right now. Please pay with RLUSD.' });
+      }
+      xrpAmount = (amountUsd / xrp_price).toFixed(6);
       paymentAmount = xrpAmount;
       paymentCurrency = 'XRP';
     }
 
-    // Update order with destination tag and payment details
-    await supabaseAdmin
+    // Update order with destination tag and payment details. The tag is how the
+    // payment monitor matches a payment to this order: if it can't be saved,
+    // don't hand it out. (This write used to be unchecked, and it carried
+    // xrp_price_at_order, a column no schema file creates: one failed write
+    // dropped the tag and the order could never be matched.)
+    const { error: tagError } = await supabaseAdmin
       .from('merch_orders')
       .update({
         destination_tag: destinationTag,
         payment_currency: paymentCurrency,
-        payment_amount: paymentAmount,
-        xrp_price_at_order: xrp_price
+        payment_amount: paymentAmount
       })
       .eq('id', order_id);
+    if (tagError) {
+      console.error(`❌ Could not save the payment details for order ${order.order_number}:`, tagError.message);
+      return res.status(503).json({ success: false, error: 'Payment details couldn’t be saved, so nothing was charged. Try again in a moment.' });
+    }
+    if (xrp_price) {
+      const { error: priceError } = await supabaseAdmin.from('merch_orders').update({ xrp_price_at_order: xrp_price }).eq('id', order_id);
+      if (priceError) console.warn(`⚠️ xrp_price_at_order not saved for ${order.order_number}: ${priceError.message}`);
+    }
 
     console.log(`✅ Payment request for order ${order.order_number}: ${paymentAmount} ${paymentCurrency} to ${MERCH_WALLET} with tag ${destinationTag}`);
 
@@ -5889,7 +6423,7 @@ app.get('/api/merch/orders/wallet/:wallet', async (req, res) => {
 app.get('/api/merch/orders/my-orders', async (req, res) => {
   try {
     const wallet = req.query.wallet;
-    if (!wallet) {
+    if (!wallet || !isValidXRPLWallet(wallet)) {
       return res.status(400).json({ success: false, error: 'Wallet address required' });
     }
 
@@ -5925,7 +6459,7 @@ app.get('/api/merch/orders/my-orders', async (req, res) => {
 });
 
 // Admin: Update order status (for fulfillment)
-app.patch('/api/merch/orders/:orderId', async (req, res) => {
+app.patch('/api/merch/orders/:orderId', verifyAdminSession, async (req, res) => {
   try {
     const { orderId } = req.params;
     const { status, tracking_number } = req.body;
@@ -6119,12 +6653,31 @@ async function checkMerchPayments() {
 
       const transactions = response.result?.transactions || [];
 
+      // A ledger payment settles at most ONE order.
+      const seenHashes = transactions
+        .map((txData) => txData.hash || (txData.tx || txData.tx_json || {}).hash)
+        .filter(Boolean);
+      const usedHashes = new Set();
+      if (seenHashes.length) {
+        const { data: usedRows, error: usedError } = await supabaseAdmin
+          .from('merch_orders')
+          .select('payment_tx_hash')
+          .in('payment_tx_hash', seenHashes);
+        if (usedError) {
+          console.error('Merch payment check: could not read used hashes, skipping this round:', usedError.message);
+          return;
+        }
+        for (const row of usedRows || []) usedHashes.add(row.payment_tx_hash);
+      }
+
       for (const order of pendingOrders) {
         // Look for a matching transaction
         for (const txData of transactions) {
           // Handle both tx and tx_json formats
           const tx = txData.tx || txData.tx_json || {};
           const meta = txData.meta || {};
+          const candidateHash = txData.hash || tx.hash;
+          if (!candidateHash || usedHashes.has(candidateHash)) continue;
 
           // Skip if not a successful payment to us
           if (tx.TransactionType !== 'Payment') continue;
@@ -6136,8 +6689,10 @@ async function checkMerchPayments() {
           const orderTag = parseInt(order.destination_tag);
           if (isNaN(txTag) || isNaN(orderTag) || txTag !== orderTag) continue;
 
-          // Get amount (could be Amount or DeliverMax in different XRPL versions)
-          const txAmount = tx.DeliverMax || tx.Amount;
+          // What actually ARRIVED. Amount/DeliverMax is only the ceiling: a
+          // partial payment names a full Amount and delivers dust.
+          const txAmount = meta.delivered_amount ?? meta.DeliveredAmount;
+          if (txAmount === undefined || txAmount === 'unavailable') continue;
 
           // Check amount (with some tolerance for XRP)
           let amountMatches = false;
@@ -6147,10 +6702,12 @@ async function checkMerchPayments() {
           let isXrpPayment = false;
 
           if (order.payment_currency === 'RLUSD') {
-            // RLUSD payment
-            if (typeof txAmount === 'object' && (txAmount.currency === 'RLUSD' || txAmount.currency?.includes('524C555344'))) {
+            // Real RLUSD only: anyone can issue a token called "RLUSD".
+            if (typeof txAmount === 'object' &&
+                txAmount.issuer === MERCH_RLUSD_ISSUER &&
+                (txAmount.currency === 'RLUSD' || txAmount.currency === MERCH_RLUSD_HEX)) {
               const receivedAmount = parseFloat(txAmount.value);
-              amountMatches = Math.abs(receivedAmount - expectedAmount) < 0.01;
+              amountMatches = Number.isFinite(expectedAmount) && expectedAmount > 0 && receivedAmount >= expectedAmount - 0.01;
               console.log(`💵 RLUSD check: received ${receivedAmount}, expected ${expectedAmount}, matches: ${amountMatches}`);
             }
           } else {
@@ -6159,7 +6716,7 @@ async function checkMerchPayments() {
               receivedXRP = parseInt(txAmount) / 1000000;
               isXrpPayment = true;
               // Allow 10% tolerance for XRP price fluctuation
-              amountMatches = receivedXRP >= expectedAmount * 0.90;
+              amountMatches = Number.isFinite(expectedAmount) && expectedAmount > 0 && receivedXRP >= expectedAmount * 0.90;
               console.log(`💰 XRP check: received ${receivedXRP} XRP, expected ${expectedAmount} XRP, matches: ${amountMatches}`);
             }
           }
@@ -6168,6 +6725,7 @@ async function checkMerchPayments() {
             // Found matching payment! Update order
             // Hash can be at txData.hash or tx.hash depending on XRPL response format
             const txHash = txData.hash || tx.hash;
+            usedHashes.add(txHash);
             console.log(`✅ Found payment for order ${order.order_number}: ${txHash}`);
 
             // Auto-convert XRP to RLUSD if enabled
@@ -6466,13 +7024,14 @@ app.get('/api/merch/test-sdk-payment', verifyAdminSession, async (req, res) => {
   }
 });
 
-// Simple admin login - verify wallet is admin and create session
-// The wallet was already verified via XAMAN SignIn on the main site
-app.post('/api/merch/admin/login', (req, res) => {
+// Admin login for a wallet already signed in on the main site. The signed
+// session must BE that wallet: a body-only wallet used to be enough, and the
+// admin wallet is public, so anyone could open the decrypted shipping list.
+app.post('/api/merch/admin/login', requireWalletOwnership(['wallet']), (req, res) => {
   try {
     const { wallet } = req.body;
 
-    if (!wallet) {
+    if (!wallet || !isValidXRPLWallet(wallet)) {
       return res.status(400).json({ success: false, error: 'Wallet address required' });
     }
 
@@ -6729,8 +7288,6 @@ app.patch('/api/merch/admin/orders/:orderId', verifyAdminSession, async (req, re
     const updateData = { updated_at: new Date().toISOString() };
     if (status) updateData.status = status;
     if (tracking_number) updateData.tracking_number = tracking_number;
-    if (notes !== undefined) updateData.notes = notes;
-    if (status === 'shipped') updateData.shipped_at = new Date().toISOString();
 
     const { error } = await supabaseAdmin
       .from('merch_orders')
@@ -6738,6 +7295,16 @@ app.patch('/api/merch/admin/orders/:orderId', verifyAdminSession, async (req, re
       .eq('id', orderId);
 
     if (error) throw error;
+
+    // notes and shipped_at are extras no schema file creates: a table without
+    // them must not stop an order from being marked shipped.
+    const extra = {};
+    if (notes !== undefined) extra.notes = notes;
+    if (status === 'shipped') extra.shipped_at = new Date().toISOString();
+    if (Object.keys(extra).length) {
+      const { error: extraError } = await supabaseAdmin.from('merch_orders').update(extra).eq('id', orderId);
+      if (extraError) console.warn(`⚠️ Merch order ${orderId}: ${Object.keys(extra).join(', ')} not saved: ${extraError.message}`);
+    }
 
     console.log(`📦 Merch order ${orderId} updated by admin ${req.adminWallet}: ${JSON.stringify(updateData)}`);
     res.json({ success: true, message: 'Order updated' });
@@ -6990,12 +7557,8 @@ setTimeout(initializeInventoryFromDB, 3000);
 
 // ===== HEALTH & DEBUG =====
 
-// Serve main.html at root (with cache-busting headers to prevent old cached exploits)
 app.get('/', (req, res) => {
-  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-  res.setHeader('Pragma', 'no-cache');
-  res.setHeader('Expires', '0');
-  res.sendFile(path.join(__dirname, '..', 'main.html'));
+  res.type('text/plain').send('BEAR Park API');
 });
 
 // Version endpoint for deployment verification
@@ -7020,10 +7583,13 @@ app.get('/health', (req, res) => {
 // DO NOT re-add this in production
 
 // Update User Display Name (for admin moderation)
-app.patch('/api/users/:wallet', async (req, res) => {
+// Staff rename someone (admin-raids.html, "User Name Moderation"). Names live on
+// the profile; this used to need the renamed wallet's own session and wrote a
+// honey_points column that doesn't exist, so it could never work.
+app.patch('/api/users/:wallet', verifyAdmin, validateWallet, validateTextLengths, async (req, res) => {
   try {
     const { wallet } = req.params;
-    const { display_name } = req.body;
+    const display_name = typeof req.body.display_name === 'string' ? req.body.display_name.trim().replace(/\s+/g, ' ') : '';
 
     if (!display_name) {
       return res.status(400).json({
@@ -7032,17 +7598,22 @@ app.patch('/api/users/:wallet', async (req, res) => {
       });
     }
 
-    const { error } = await supabase
-      .from('honey_points')
-      .update({ display_name: display_name })
-      .eq('wallet_address', wallet);
+    const { data, error } = await db
+      .from('profiles')
+      .update({ display_name, updated_at: new Date().toISOString() })
+      .ilike('wallet_address', wallet)
+      .select('wallet_address');
 
     if (error) {
       console.error('Error updating user name:', error);
       return safeErrorResponse(res, error);
     }
+    if (!data || !data.length) {
+      return res.status(404).json({ success: false, error: 'That wallet has no profile to rename.' });
+    }
 
-    console.log(`✅ Updated display name for ${wallet} to: ${display_name}`);
+    await logAdminActivity(req.adminWallet, 'rename_user', { wallet_address: wallet, display_name }, wallet);
+    console.log(`✅ ${req.adminWallet} renamed ${wallet} to: ${display_name}`);
     res.json({ success: true });
   } catch (error) {
     console.error('Error in update user endpoint:', error);
@@ -7057,7 +7628,7 @@ app.patch('/api/users/:wallet', async (req, res) => {
 // Helper function to log admin activity
 async function logAdminActivity(adminWallet, actionType, details, targetWallet = null) {
   try {
-    await supabase.from('admin_activity_logs').insert({
+    await db.from('admin_activity_logs').insert({
       admin_wallet: adminWallet,
       action_type: actionType,
       details: details,
@@ -7137,7 +7708,7 @@ app.post('/api/admin/ban-user', verifyAdmin, validateWallet, validateTextLengths
       });
     }
 
-    const { error } = await supabase
+    const { error } = await db
       .from('banned_users')
       .upsert({
         wallet_address,
@@ -7155,6 +7726,7 @@ app.post('/api/admin/ban-user', verifyAdmin, validateWallet, validateTextLengths
       reason
     }, wallet_address);
 
+    bannedHoneyWallets.add(walletKey(wallet_address));
     console.log(`✅ Banned user: ${wallet_address}`);
     res.json({ success: true });
   } catch (error) {
@@ -7176,7 +7748,7 @@ app.post('/api/admin/unban-user', verifyAdmin, validateWallet, async (req, res) 
       });
     }
 
-    const { error } = await supabase
+    const { error } = await db
       .from('banned_users')
       .update({ is_banned: false })
       .eq('wallet_address', wallet_address);
@@ -7188,6 +7760,7 @@ app.post('/api/admin/unban-user', verifyAdmin, validateWallet, async (req, res) 
       wallet_address
     }, wallet_address);
 
+    bannedHoneyWallets.delete(walletKey(wallet_address));
     console.log(`✅ Unbanned user: ${wallet_address}`);
     res.json({ success: true });
   } catch (error) {
@@ -7345,7 +7918,7 @@ app.post('/api/admin/game-settings', verifyAdmin, validateWallet, async (req, re
 
     // Update each setting
     for (const [key, value] of Object.entries(settings)) {
-      await supabase
+      await db
         .from('game_settings')
         .upsert({
           key,
@@ -7405,6 +7978,43 @@ app.get('/api/admin/point-transactions', verifyAdmin, async (req, res) => {
     res.json({ success: true, transactions: data || [] });
   } catch (error) {
     console.error('Error fetching point transactions:', error);
+    safeErrorResponse(res, error);
+  }
+});
+
+// Every honey credit and debit since the ledger went live (honey_ledger).
+// point_transactions above is the old table; the live one never matched the
+// code's columns, so nothing has been written to it in a long time.
+app.get('/api/admin/honey-ledger', verifyAdmin, async (req, res) => {
+  try {
+    const wallet = typeof req.query.wallet === 'string' ? walletKey(req.query.wallet) : '';
+    const source = typeof req.query.source === 'string' ? req.query.source : '';
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 100, 1), 1000);
+
+    if (pgPool && await ensureHoneyLedgerReady()) {
+      const conditions = [];
+      const params = [];
+      if (wallet) { params.push(wallet); conditions.push(`wallet_address = $${params.length}`); }
+      if (source) { params.push(source); conditions.push(`source = $${params.length}`); }
+      params.push(limit);
+      const rows = await pgPool.query(
+        `SELECT * FROM ${HONEY_LEDGER_TABLE}
+         ${conditions.length ? 'WHERE ' + conditions.join(' AND ') : ''}
+         ORDER BY created_at DESC, id DESC
+         LIMIT $${params.length}`,
+        params
+      );
+      return res.json({ success: true, entries: rows.rows });
+    }
+
+    let query = db.from(HONEY_LEDGER_TABLE).select('*').order('created_at', { ascending: false }).limit(limit);
+    if (wallet) query = query.eq('wallet_address', wallet);
+    if (source) query = query.eq('source', source);
+    const { data, error } = await query;
+    if (error) throw error;
+    res.json({ success: true, entries: data || [] });
+  } catch (error) {
+    console.error('Error fetching honey ledger:', error);
     safeErrorResponse(res, error);
   }
 });
@@ -7483,15 +8093,22 @@ app.get('/api/admin/roles', verifyAdmin, async (req, res) => {
 app.get('/api/admin/check-role/:wallet', async (req, res) => {
   try {
     const { wallet } = req.params;
+    if (!isValidXRPLWallet(wallet)) {
+      return res.status(400).json({ success: false, error: 'Invalid wallet address' });
+    }
 
-    const { data, error } = await supabase
+    // Any letter case: some rows are stored lowercase (restore-admin-access.sql),
+    // and the routes that act on a role (verifyAdmin, the board's delete) match
+    // case-insensitively; this one has to agree or the UI hides their tools.
+    const { data: rows, error } = await supabase
       .from('admin_roles')
       .select('*')
-      .eq('wallet_address', wallet)
+      .ilike('wallet_address', wallet)
       .eq('is_active', true)
-      .single();
+      .limit(1);
 
-    if (error && error.code !== 'PGRST116') throw error;
+    if (error) throw error;
+    const data = rows?.[0] || null;
 
     res.json({
       success: true,
@@ -7520,15 +8137,9 @@ app.post('/api/admin/roles/assign', verifyAdmin, validateWallet, validateTextLen
       });
     }
 
-    // Verify the assigner is master
-    const { data: assignerRole } = await supabase
-      .from('admin_roles')
-      .select('role')
-      .eq('wallet_address', assigned_by)
-      .eq('is_active', true)
-      .single();
-
-    if (!assignerRole || assignerRole.role !== 'master') {
+    // Verify the assigner is master (verifyAdmin looked the role up for the
+    // signed-in wallet; an exact-case lookup here never matched a lowercase session).
+    if (req.adminRole !== 'master') {
       return res.status(403).json({
         success: false,
         error: 'Only MASTER accounts can assign roles'
@@ -7565,7 +8176,7 @@ app.post('/api/admin/roles/assign', verifyAdmin, validateWallet, validateTextLen
     }
 
     // Insert or update role
-    const { error } = await supabase
+    const { error } = await db
       .from('admin_roles')
       .upsert({
         wallet_address,
@@ -7600,24 +8211,11 @@ app.post('/api/admin/roles/assign', verifyAdmin, validateWallet, validateTextLen
 app.delete('/api/admin/roles/:wallet', verifyAdmin, async (req, res) => {
   try {
     const { wallet } = req.params;
-    const { removed_by } = req.body;
+    // Who is removing comes from the verified session, not the body: any admin
+    // could name the master wallet as removed_by and pass the old check.
+    const removed_by = req.adminWallet;
 
-    if (!removed_by) {
-      return res.status(400).json({
-        success: false,
-        error: 'Missing required field: removed_by'
-      });
-    }
-
-    // Verify the remover is master
-    const { data: removerRole } = await supabase
-      .from('admin_roles')
-      .select('role')
-      .eq('wallet_address', removed_by)
-      .eq('is_active', true)
-      .single();
-
-    if (!removerRole || removerRole.role !== 'master') {
+    if (req.adminRole !== 'master') {
       return res.status(403).json({
         success: false,
         error: 'Only MASTER accounts can remove roles'
@@ -7625,7 +8223,7 @@ app.delete('/api/admin/roles/:wallet', verifyAdmin, async (req, res) => {
     }
 
     // Prevent removing master account
-    if (wallet === 'rKkkYMCvC63HEgxjQHmayKADaxYqnsMUkT') {
+    if (walletKey(wallet) === walletKey('rKkkYMCvC63HEgxjQHmayKADaxYqnsMUkT')) {
       return res.status(403).json({
         success: false,
         error: 'Cannot remove the MASTER account'
@@ -7640,7 +8238,7 @@ app.delete('/api/admin/roles/:wallet', verifyAdmin, async (req, res) => {
       .single();
 
     // Deactivate the role
-    const { error } = await supabase
+    const { error } = await db
       .from('admin_roles')
       .update({ is_active: false })
       .eq('wallet_address', wallet);
@@ -7674,7 +8272,10 @@ app.post('/api/admin/reset-economy', verifyAdmin, async (req, res) => {
       });
     }
 
-    const resetPoints = reset_amount || 5000;
+    const resetPoints = reset_amount === undefined || reset_amount === null ? 5000 : roundHoneyAmount(reset_amount);
+    if (!Number.isFinite(Number(reset_amount ?? 5000)) || resetPoints < 0) {
+      return res.status(400).json({ success: false, error: 'reset_amount must be a number ≥ 0' });
+    }
 
     // Ensure admin client is available
     if (!supabaseAdmin) {
@@ -7689,19 +8290,59 @@ app.post('/api/admin/reset-economy', verifyAdmin, async (req, res) => {
     console.log(`   Clearing all cosmetic inventories`);
     console.log(`   Using ADMIN CLIENT (bypasses RLS)`);
 
-    // 1. Reset all honey points to specified amount (default 5000) - USE ADMIN CLIENT
-    const { error: pointsError } = await supabaseAdmin
-      .from('honey_points')
-      .update({
-        total_points: resetPoints,
-        raiding_points: 0,
-        games_points: 0
-      })
-      .neq('wallet_address', 'dummy'); // Update all rows
+    // 1. Reset every balance. With Postgres, in one transaction that also writes
+    //    each wallet's ledger row (the difference), so honey_ledger still adds
+    //    up to every balance afterwards; this used to be the one honey write
+    //    that left no trace.
+    if (pgPool) {
+      const ledgerReady = await ensureHoneyLedgerReady();
+      const client = await pgPool.connect();
+      try {
+        await client.query('BEGIN');
+        const { rows: resetRows } = await client.query(
+          `WITH before AS (
+             SELECT wallet_address, COALESCE(total_points, 0) AS total_points FROM honey_points FOR UPDATE
+           )
+           UPDATE honey_points hp
+              SET total_points = $1::numeric, raiding_points = 0, games_points = 0, updated_at = NOW()
+             FROM before
+            WHERE hp.wallet_address = before.wallet_address
+          RETURNING hp.wallet_address, before.total_points AS previous_total`,
+          [resetPoints]
+        );
+        for (const row of resetRows) {
+          await insertHoneyLedgerRowDb(client, ledgerReady, {
+            wallet: row.wallet_address,
+            storedWallet: row.wallet_address,
+            delta: resetPoints - parseHoneyNumber(row.previous_total),
+            balanceAfter: resetPoints,
+            source: 'admin_reset_economy',
+            actor: admin_wallet,
+            reason: `Economy reset to ${resetPoints}`
+          });
+        }
+        await client.query('COMMIT');
+      } catch (resetError) {
+        await client.query('ROLLBACK').catch(() => {});
+        console.error('Error resetting honey points:', resetError);
+        throw resetError;
+      } finally {
+        client.release();
+      }
+    } else {
+      const { error: pointsError } = await supabaseAdmin
+        .from('honey_points')
+        .update({
+          total_points: resetPoints,
+          raiding_points: 0,
+          games_points: 0
+        })
+        .neq('wallet_address', 'dummy'); // Update all rows
 
-    if (pointsError) {
-      console.error('Error resetting honey points:', pointsError);
-      throw pointsError;
+      if (pointsError) {
+        console.error('Error resetting honey points:', pointsError);
+        throw pointsError;
+      }
     }
 
     // 2. Clear all cosmetic inventories (user_cosmetics table) - USE ADMIN CLIENT
@@ -7904,7 +8545,8 @@ app.post('/api/admin/merge-ghost-wallets', verifyAdmin, async (req, res) => {
 app.post('/api/admin/reset-wallet', verifyAdmin, async (req, res) => {
   try {
     const { target_wallet } = req.body;
-    if (!target_wallet) {
+    // A real address only: this used ILIKE, so '%' would have zeroed every wallet.
+    if (!target_wallet || !isValidXRPLWallet(target_wallet)) {
       return res.status(400).json({ success: false, error: 'target_wallet required' });
     }
     if (req.adminRole !== 'master') {
@@ -7922,21 +8564,39 @@ app.post('/api/admin/reset-wallet', verifyAdmin, async (req, res) => {
 
       // 1. Zero every honey_points row matching ILIKE. Returns the rows
       //    we touched so the caller can see exactly which cases existed.
+      await lockWalletInTransaction(client, target_wallet);
       const zeroRes = await client.query(
-        `UPDATE honey_points
+        `WITH before AS (
+           SELECT wallet_address, COALESCE(total_points, 0) AS total_points
+           FROM honey_points WHERE lower(wallet_address) = lower($1) FOR UPDATE
+         )
+         UPDATE honey_points hp
             SET total_points   = 0,
                 raiding_points = 0,
                 games_points   = 0,
                 updated_at     = NOW()
-          WHERE wallet_address ILIKE $1
-          RETURNING wallet_address`,
+           FROM before
+          WHERE hp.wallet_address = before.wallet_address
+          RETURNING hp.wallet_address, before.total_points AS previous_total`,
         [target_wallet]
       );
       result.walletsZeroed = zeroRes.rows.map(r => r.wallet_address);
+      const ledgerReady = await ensureHoneyLedgerReady();
+      for (const row of zeroRes.rows) {
+        await insertHoneyLedgerRowDb(client, ledgerReady, {
+          wallet: row.wallet_address,
+          storedWallet: row.wallet_address,
+          delta: -parseHoneyNumber(row.previous_total),
+          balanceAfter: 0,
+          source: 'admin_reset_wallet',
+          actor: req.adminWallet,
+          reason: 'Wallet reset to zero by admin'
+        });
+      }
 
       // 2. Clear raid_completions so the user can re-test raids.
       const rcRes = await client.query(
-        `DELETE FROM raid_completions WHERE wallet_address ILIKE $1 RETURNING id`,
+        `DELETE FROM raid_completions WHERE lower(wallet_address) = lower($1) RETURNING id`,
         [target_wallet]
       );
       result.raidCompletionsCleared = rcRes.rowCount;
@@ -7944,7 +8604,7 @@ app.post('/api/admin/reset-wallet', verifyAdmin, async (req, res) => {
       // 3. Clear honey_points_activity so the 24h BEARdrops counter resets.
       try {
         const actRes = await client.query(
-          `DELETE FROM honey_points_activity WHERE wallet_address ILIKE $1 RETURNING id`,
+          `DELETE FROM honey_points_activity WHERE lower(wallet_address) = lower($1) RETURNING id`,
           [target_wallet]
         );
         result.activityCleared = actRes.rowCount;
@@ -8043,11 +8703,11 @@ app.get('/api/push/vapid-public-key', (req, res) => {
 });
 
 // Subscribe to push notifications
-app.post('/api/push/subscribe', async (req, res) => {
+app.post('/api/push/subscribe', validateWallet, requireWalletOwnership(['wallet_address']), async (req, res) => {
   const { wallet_address, subscription, device_info } = req.body;
 
   try {
-    const { error } = await supabase
+    const { error } = await db
       .from('push_subscriptions')
       .upsert({
         wallet_address,
@@ -8070,11 +8730,11 @@ app.post('/api/push/subscribe', async (req, res) => {
 });
 
 // Unsubscribe from push notifications
-app.post('/api/push/unsubscribe', async (req, res) => {
+app.post('/api/push/unsubscribe', validateWallet, requireWalletOwnership(['wallet_address']), async (req, res) => {
   const { wallet_address } = req.body;
 
   try {
-    await supabase
+    await db
       .from('push_subscriptions')
       .update({ is_active: false })
       .eq('wallet_address', wallet_address);
@@ -8118,7 +8778,7 @@ async function sendRaidNotification(raid) {
         console.error(`Failed to send to ${sub.wallet_address}:`, error.message);
         // If subscription is invalid, mark as inactive
         if (error.statusCode === 410) {
-          await supabase
+          await db
             .from('push_subscriptions')
             .update({ is_active: false })
             .eq('wallet_address', sub.wallet_address);
@@ -8135,7 +8795,7 @@ async function sendRaidNotification(raid) {
 }
 
 // Test notification endpoint
-app.post('/api/push/test', async (req, res) => {
+app.post('/api/push/test', validateWallet, requireWalletOwnership(['wallet_address']), async (req, res) => {
   const { wallet_address } = req.body;
 
   try {
@@ -8203,17 +8863,26 @@ app.get('/api/notifications/:wallet', async (req, res) => {
   }
 });
 
-// Mark notification as read
-app.post('/api/notifications/:notificationId/read', async (req, res) => {
+// Mark notification as read. Only the signed-in owner can (this used to take
+// any id from anyone, so one request could clear a stranger's bell).
+app.post('/api/notifications/:notificationId/read', validateWallet, requireWalletOwnership(['wallet_address']), async (req, res) => {
   try {
-    const { notificationId } = req.params;
+    const notificationId = Number.parseInt(req.params.notificationId, 10);
+    if (!Number.isSafeInteger(notificationId) || notificationId <= 0) {
+      return res.status(400).json({ success: false, error: 'Invalid notification id' });
+    }
 
-    const { error } = await supabase
+    const { data, error } = await db
       .from('notifications')
       .update({ is_read: true })
-      .eq('id', notificationId);
+      .eq('id', notificationId)
+      .ilike('wallet_address', req.authWallet)
+      .select('id');
 
     if (error) throw error;
+    if (!data?.length) {
+      return res.status(404).json({ success: false, error: 'Notification not found' });
+    }
 
     res.json({ success: true });
   } catch (error) {
@@ -8222,15 +8891,64 @@ app.post('/api/notifications/:notificationId/read', async (req, res) => {
   }
 });
 
-// Helper function to add a notification (now uses database)
-async function addNotification(targetWallet, type, data) {
+// Mark every notification of the signed-in wallet read: one request instead of
+// one per notification when the bell opens.
+app.post('/api/notifications/read-all', validateWallet, requireWalletOwnership(['wallet_address']), async (req, res) => {
   try {
-    // Don't send notification to yourself
-    if (data.wallet && data.wallet === targetWallet) {
+    const { data, error } = await db
+      .from('notifications')
+      .update({ is_read: true })
+      .ilike('wallet_address', req.authWallet)
+      .eq('is_read', false)
+      .select('id');
+
+    if (error) throw error;
+    res.json({ success: true, updated: data?.length || 0 });
+  } catch (error) {
+    console.error('Error marking notifications as read:', error);
+    safeErrorResponse(res, error);
+  }
+});
+
+/**
+ * Store a notification for `targetWallet`. Never for yourself (any letter case).
+ * `merge` (a list of data keys, e.g. ['postId']) folds a repeat from the same
+ * person about the same thing into their existing UNREAD notification, so a
+ * burst of reaction taps or a follow / unfollow / follow is one line, not ten.
+ */
+async function addNotification(targetWallet, type, data, { merge = null } = {}) {
+  try {
+    if (!targetWallet) return;
+    if (data.wallet && normalizeWalletAddress(data.wallet) === normalizeWalletAddress(targetWallet)) {
       return;
     }
 
-    const { error } = await supabase
+    if (merge && data.wallet) {
+      let query = db
+        .from('notifications')
+        .select('id, data')
+        .eq('wallet_address', targetWallet)
+        .eq('type', type)
+        .eq('is_read', false)
+        .eq('data->>wallet', data.wallet);
+      for (const key of merge) query = query.eq(`data->>${key}`, String(data[key] ?? ''));
+      const { data: existing, error: findError } = await query.order('created_at', { ascending: false }).limit(1);
+      if (findError) throw findError;
+      if (existing?.[0]) {
+        const prev = existing[0].data || {};
+        const reactions = Array.isArray(data.reactions)
+          ? [...new Set([...(Array.isArray(prev.reactions) ? prev.reactions : []), ...data.reactions])]
+          : undefined;
+        const { error: updateError } = await db
+          .from('notifications')
+          .update({ data: { ...prev, ...data, ...(reactions ? { reactions } : {}) }, created_at: new Date().toISOString() })
+          .eq('id', existing[0].id);
+        if (updateError) throw updateError;
+        return;
+      }
+    }
+
+    const { error } = await db
       .from('notifications')
       .insert({
         wallet_address: targetWallet,
@@ -8245,6 +8963,119 @@ async function addNotification(targetWallet, type, data) {
   } catch (error) {
     console.error('Error adding notification:', error);
   }
+}
+
+/**
+ * Drop the notifications that point at deleted content (`data[key]` in `ids`),
+ * so nobody's bell links to a post or comment that is gone. Best effort.
+ */
+async function forgetNotifications(types, key, ids) {
+  const wanted = [...new Set((ids || []).map(String))];
+  if (!wanted.length) return;
+  try {
+    const { error } = await db.from('notifications').delete().in('type', types).in(`data->>${key}`, wanted);
+    if (error) throw error;
+  } catch (error) {
+    console.warn('[notifications] cleanup failed:', error.message);
+  }
+}
+
+/** A comment's id plus every reply under it, however deep (one read of the thread). */
+function withDescendants(rootId, rows) {
+  const kids = new Map();
+  for (const r of rows || []) {
+    if (r.parent_id == null) continue;
+    const k = String(r.parent_id);
+    if (!kids.has(k)) kids.set(k, []);
+    kids.get(k).push(String(r.id));
+  }
+  const out = [String(rootId)];
+  for (let i = 0; i < out.length; i += 1) out.push(...(kids.get(out[i]) || []));
+  return out;
+}
+
+// ===== SOCIAL HELPERS (board, wall, follows) =====
+const REACTION_TYPES = ['like', 'laugh', 'heart', 'cry', 'thumbs_down', 'troll'];
+const REACTION_EMOJI = { like: '👍', laugh: '😂', heart: '❤️', cry: '😢', thumbs_down: '👎', troll: '🤡' };
+const BULLETIN_POST_MAX = 2000;
+const BULLETIN_COMMENT_MAX = 2000;
+const STAFF_ROLES = new Set(['master', 'admin', 'moderator']);
+
+/** The wallet's active staff role ('master' | 'admin' | 'moderator') or null, whatever case admin_roles stores. */
+async function staffRoleOf(wallet) {
+  if (!isValidXRPLWallet(wallet)) return null;
+  const { data, error } = await db
+    .from('admin_roles')
+    .select('role')
+    .ilike('wallet_address', wallet)
+    .eq('is_active', true)
+    .limit(1);
+  if (error) {
+    console.warn('[social] role lookup failed:', error.message);
+    return null;
+  }
+  return data?.[0]?.role || null;
+}
+
+/** User text: a non-blank string up to `max` characters, else { error }. */
+function cleanUserText(value, max, label = 'Text') {
+  if (typeof value !== 'string') return { error: `${label} must be text` };
+  const text = value.trim();
+  if (!text) return { error: `${label} can't be empty` };
+  if (text.length > max) return { error: `${label} is too long (max ${max} characters)` };
+  return { text };
+}
+
+/** A link preview as the board stores it: known string fields only, http(s) links only. */
+function cleanLinkPreview(pv) {
+  if (!pv || typeof pv !== 'object' || Array.isArray(pv)) return null;
+  const str = (v, max) => (typeof v === 'string' ? v.slice(0, max) : null);
+  const link = (v) => {
+    try { const u = new URL(String(v)); return /^https?:$/.test(u.protocol) && String(v).length <= 2048 ? String(v) : null; } catch { return null; }
+  };
+  const url = link(pv.url);
+  if (!url) return null;
+  return {
+    url,
+    title: str(pv.title, 300) || '',
+    description: str(pv.description, 600) || '',
+    image: pv.image ? link(pv.image) : null,
+    type: pv.type === 'youtube' ? 'youtube' : 'website'
+  };
+}
+
+/** Current names and bears for a set of wallets, one query: Map(lower wallet → profile). */
+async function currentProfiles(wallets) {
+  const wanted = [...new Set((wallets || []).filter(Boolean))];
+  const out = new Map();
+  if (!wanted.length) return out;
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('wallet_address, display_name, avatar_nft')
+    .in('wallet_address', wanted);
+  if (error) {
+    console.warn('[social] profile lookup failed:', error.message);
+    return out;
+  }
+  for (const p of data || []) out.set(normalizeWalletAddress(p.wallet_address), p);
+  return out;
+}
+
+/**
+ * Posts and comments carry the author's name and bear from when they were
+ * written; show who they are NOW (a rename or a new bear reaches every old post).
+ */
+async function withCurrentAuthors(rows) {
+  const profiles = await currentProfiles(rows.map((r) => r.wallet_address));
+  return rows.map((row) => {
+    const p = profiles.get(normalizeWalletAddress(row.wallet_address));
+    if (!p) return row;
+    return {
+      ...row,
+      author_name: p.display_name || row.author_name,
+      author_avatar: p.avatar_nft || null
+    };
+  });
 }
 
 // ===================================================
@@ -8272,6 +9103,9 @@ app.get('/api/cosmetics/catalog', async (req, res) => {
 app.get('/api/cosmetics/inventory/:wallet', async (req, res) => {
   try {
     const { wallet } = req.params;
+    if (!isValidXRPLWallet(wallet)) {
+      return res.status(400).json({ success: false, error: 'Invalid wallet' });
+    }
 
     const { data, error } = await supabase
       .from('user_cosmetics')
@@ -8279,7 +9113,8 @@ app.get('/api/cosmetics/inventory/:wallet', async (req, res) => {
         *,
         cosmetic:cosmetics_catalog(*)
       `)
-      .eq('wallet_address', wallet);
+      // Purchases are keyed lowercase, older rows as signed: match either.
+      .ilike('wallet_address', wallet);
 
     if (error) throw error;
 
@@ -8294,19 +9129,28 @@ app.get('/api/cosmetics/inventory/:wallet', async (req, res) => {
 app.get('/api/cosmetics/equipped/:wallet', async (req, res) => {
   try {
     const { wallet } = req.params;
+    if (!isValidXRPLWallet(wallet)) {
+      return res.status(400).json({ success: false, error: 'Invalid wallet' });
+    }
 
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('profiles')
       .select(`
         equipped_ring_id,
         equipped_banner_id,
+        updated_at,
         equipped_ring:cosmetics_catalog!profiles_equipped_ring_id_fkey(*),
         equipped_banner:cosmetics_catalog!profiles_equipped_banner_id_fkey(*)
       `)
-      .eq('wallet_address', wallet)
-      .single();
+      // Equip used to create a lowercase twin of the profile row. Read every
+      // letter case; the newest row that wears something wins.
+      .ilike('wallet_address', wallet)
+      .order('updated_at', { ascending: false })
+      .limit(5);
 
-    if (error && error.code !== 'PGRST116') throw error;
+    if (error) throw error;
+    const rows = Array.isArray(data) ? data : [];
+    data = rows.find((r) => r.equipped_ring_id || r.equipped_banner_id) || rows[0] || null;
 
     res.json({
       success: true,
@@ -8369,8 +9213,9 @@ app.get('/api/cosmetics/equipped-batch', async (req, res) => {
   }
 });
 
-// Purchase a cosmetic item
-app.post('/api/cosmetics/purchase', validateWallet, requireWalletOwnership(['wallet_address']), async (req, res) => {
+// Purchase a cosmetic item. Under the wallet lock the ownership check, the
+// charge and the inventory row are one step, so two clicks can't charge twice.
+app.post('/api/cosmetics/purchase', validateWallet, requireWalletOwnership(['wallet_address']), refuseBannedWallet, limitPerWallet({ windowMs: 60 * 1000, max: 10 }), async (req, res) => {
   try {
     const { wallet_address, cosmetic_id } = req.body;
     const normalizedWallet = req.authWallet || normalizeWalletAddress(wallet_address);
@@ -8389,79 +9234,82 @@ app.post('/api/cosmetics/purchase', validateWallet, requireWalletOwnership(['wal
       .eq('id', cosmetic_id)
       .single();
 
-    if (cosmeticError) throw cosmeticError;
-    if (!cosmetic) {
+    if (cosmeticError || !cosmetic) {
       return res.status(404).json({ success: false, error: 'Cosmetic not found' });
     }
 
-    // Check if user already owns this item
-    const { data: existing } = await supabase
-      .from('user_cosmetics')
-      .select('id')
-      .eq('wallet_address', normalizedWallet)
-      .eq('cosmetic_id', cosmetic_id)
-      .single();
-
-    if (existing) {
-      return res.status(400).json({
-        success: false,
-        error: 'You already own this item'
-      });
+    const honeyCost = roundHoneyAmount(cosmetic.honey_cost);
+    if (!(honeyCost > 0)) {
+      return res.status(400).json({ success: false, error: 'This item is not for sale' });
     }
 
-    const balanceBeforePurchase = await getHoneyBalance(normalizedWallet);
-    if (balanceBeforePurchase.total_points < cosmetic.honey_cost) {
-      return res.status(400).json({
-        success: false,
-        error: `Not enough Honey Points. Need ${cosmetic.honey_cost}, have ${balanceBeforePurchase.total_points}`
-      });
-    }
+    return await withWalletLock(normalizedWallet, async () => {
+      const { data: existingRows, error: ownedError } = await supabase
+        .from('user_cosmetics')
+        .select('id')
+        .ilike('wallet_address', normalizedWallet)
+        .eq('cosmetic_id', cosmetic.id)
+        .limit(1);
 
-    const { balance } = await spendHoney({
-      wallet: normalizedWallet,
-      amount: cosmetic.honey_cost,
-      transactionType: 'cosmetic_purchase',
-      reason: `Cosmetic purchase ${cosmetic_id}`,
-      insufficientMessage: `Not enough Honey Points. Need ${cosmetic.honey_cost}, have ${balanceBeforePurchase.total_points}`
-    });
+      if (ownedError) throw ownedError;
+      if (existingRows && existingRows.length) {
+        return res.status(400).json({
+          success: false,
+          error: 'You already own this item'
+        });
+      }
 
-    // Add item to user's inventory
-    const { error: inventoryError } = await supabase
-      .from('user_cosmetics')
-      .insert({
-        wallet_address: normalizedWallet,
-        cosmetic_id
-      });
-
-    if (inventoryError) {
-      await applyHoneyDelta({
+      const notEnough = `Not enough Honey Points. Need ${honeyCost}.`;
+      const { balance } = await spendHoney({
         wallet: normalizedWallet,
-        totalDelta: cosmetic.honey_cost,
-        transactionType: 'cosmetic_purchase_refund',
-        reason: `Refund cosmetic purchase ${cosmetic_id}`
-      });
-      throw inventoryError;
-    }
-
-    // Record transaction
-    await supabase
-      .from('cosmetics_transactions')
-      .insert({
-        wallet_address: normalizedWallet,
-        cosmetic_id,
-        honey_spent: cosmetic.honey_cost,
-        transaction_type: 'purchase'
+        amount: honeyCost,
+        transactionType: 'cosmetic_purchase',
+        refId: cosmetic.id,
+        reason: `Cosmetic purchase ${cosmetic.id}`,
+        insufficientMessage: notEnough
       });
 
-    res.json({
-      success: true,
-      message: 'Purchase successful',
-      new_balance: balance.total_points,
-      item: cosmetic
+      const { error: inventoryError } = await db
+        .from('user_cosmetics')
+        .insert({
+          wallet_address: normalizedWallet,
+          cosmetic_id: cosmetic.id
+        });
+
+      if (inventoryError) {
+        // The insert definitively failed: nothing was delivered, give it back.
+        await applyHoneyDelta({
+          wallet: normalizedWallet,
+          totalDelta: honeyCost,
+          transactionType: 'cosmetic_purchase_refund',
+          refId: cosmetic.id,
+          reason: `Refund cosmetic purchase ${cosmetic.id}`
+        });
+        throw inventoryError;
+      }
+
+      const { error: historyError } = await db
+        .from('cosmetics_transactions')
+        .insert({
+          wallet_address: normalizedWallet,
+          cosmetic_id: cosmetic.id,
+          honey_spent: honeyCost,
+          transaction_type: 'purchase'
+        });
+      if (historyError) {
+        console.error('cosmetics_transactions insert failed (purchase stands):', historyError.message);
+      }
+
+      return res.json({
+        success: true,
+        message: 'Purchase successful',
+        new_balance: balance.total_points,
+        item: cosmetic
+      });
     });
   } catch (error) {
     console.error('Error purchasing cosmetic:', error);
-    safeErrorResponse(res, error, error.statusCode, error.publicMessage);
+    safeErrorResponse(res, error, error.statusCode || 500, error.publicMessage || 'Internal server error');
   }
 });
 
@@ -8479,40 +9327,53 @@ app.post('/api/cosmetics/equip', validateWallet, requireWalletOwnership(['wallet
     }
 
     // Verify user owns this item
-    const { data: owned } = await supabase
+    const { data: ownedRows } = await supabase
       .from('user_cosmetics')
       .select('id')
-      .eq('wallet_address', normalizedWallet)
+      .ilike('wallet_address', normalizedWallet)
       .eq('cosmetic_id', cosmetic_id)
-      .single();
+      .limit(1);
 
-    if (!owned) {
+    if (!ownedRows || !ownedRows.length) {
       return res.status(403).json({
         success: false,
         error: 'You do not own this item'
       });
     }
 
-    // Ensure profile exists
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('wallet_address')
-      .eq('wallet_address', normalizedWallet)
-      .single();
+    // The slot comes from the catalog, not the client: a ring sent as
+    // cosmetic_type "banner" used to be worn as a banner.
+    const { data: catalogItem } = await supabase
+      .from('cosmetics_catalog')
+      .select('cosmetic_type')
+      .eq('id', cosmetic_id)
+      .maybeSingle();
+    if (!catalogItem || catalogItem.cosmetic_type !== cosmetic_type) {
+      return res.status(400).json({
+        success: false,
+        error: `This item is a ${catalogItem?.cosmetic_type || 'different item'}, not a ${cosmetic_type}`
+      });
+    }
 
-    if (!profile) {
-      // Create profile if it doesn't exist
-      await supabase
+    // Ensure a profile exists in any letter case; a new one is keyed as signed.
+    const { data: profileRows } = await supabase
+      .from('profiles')
+      .select('id')
+      .ilike('wallet_address', normalizedWallet)
+      .limit(1);
+
+    if (!profileRows || !profileRows.length) {
+      await db
         .from('profiles')
-        .insert({ wallet_address: normalizedWallet });
+        .insert({ wallet_address: String(wallet_address).trim() });
     }
 
     // Update equipped cosmetic
     const updateField = cosmetic_type === 'ring' ? 'equipped_ring_id' : 'equipped_banner_id';
-    const { error: equipError } = await supabase
+    const { error: equipError } = await db
       .from('profiles')
       .update({ [updateField]: cosmetic_id })
-      .eq('wallet_address', normalizedWallet);
+      .ilike('wallet_address', normalizedWallet);
 
     if (equipError) throw equipError;
 
@@ -8541,10 +9402,10 @@ app.post('/api/cosmetics/unequip', validateWallet, requireWalletOwnership(['wall
 
     // Update equipped cosmetic to null
     const updateField = cosmetic_type === 'ring' ? 'equipped_ring_id' : 'equipped_banner_id';
-    const { error: unequipError } = await supabase
+    const { error: unequipError } = await db
       .from('profiles')
       .update({ [updateField]: null })
-      .eq('wallet_address', normalizedWallet);
+      .ilike('wallet_address', normalizedWallet);
 
     if (unequipError) throw unequipError;
 
@@ -8610,39 +9471,65 @@ app.get('/api/cosmetics/history', async (req, res) => {
 // =====================================================
 
 // Get all bulletin posts (sorted by newest first)
+/**
+ * Every reaction for a set of rows, in ONE query: Map(String(id) -> { counts,
+ * userReactions, total }). Replaces one-request-per-post/comment lookups.
+ */
+async function reactionsFor(table, column, ids) {
+  const out = new Map();
+  const wanted = [...new Set((ids || []).filter((id) => id !== null && id !== undefined))];
+  if (!wanted.length) return out;
+  const { data, error } = await db
+    .from(table)
+    .select(`${column}, reaction_type, wallet_address`)
+    .in(column, wanted)
+    .limit(20000);
+  if (error) throw error;
+  for (const row of data || []) {
+    const key = String(row[column]);
+    let r = out.get(key);
+    if (!r) out.set(key, (r = { counts: {}, userReactions: {}, total: 0 }));
+    r.counts[row.reaction_type] = (r.counts[row.reaction_type] || 0) + 1;
+    r.total += 1;
+    (r.userReactions[row.wallet_address] ||= []).push(row.reaction_type);
+  }
+  return out;
+}
+
+/** Attach `reactions` (and, for posts, `reaction_count`) to each row; never fails the request. */
+async function withReactions(rows, table, column, { countField = null } = {}) {
+  let byId = null;
+  try {
+    byId = await reactionsFor(table, column, rows.map((r) => r.id));
+  } catch (err) {
+    console.warn(`[reactions] ${table} batch failed:`, err.message);
+  }
+  return rows.map((row) => {
+    if (!byId) return countField ? { ...row, [countField]: row[countField] ?? 0 } : row;
+    const r = byId.get(String(row.id)) || { counts: {}, userReactions: {}, total: 0 };
+    const out = { ...row, reactions: { counts: r.counts, userReactions: r.userReactions } };
+    if (countField) out[countField] = r.total;
+    return out;
+  });
+}
+
 app.get('/api/bulletin/posts', async (req, res) => {
   try {
     // PERF: Paginate to avoid fetching unbounded post history
-    const limit = Math.min(parseInt(req.query.limit) || 50, 100);
-    const offset = parseInt(req.query.offset) || 0;
+    const limit = Math.min(Math.max(parseInt(req.query.limit) || 50, 1), 100);
+    const offset = Math.max(parseInt(req.query.offset) || 0, 0);
     const { data: posts, error } = await supabase
       .from('bulletin_posts')
       .select('*')
       .order('created_at', { ascending: false })
+      .order('id', { ascending: false }) // a stable order, so pages never overlap
       .range(offset, offset + limit - 1);
 
     if (error) throw error;
 
-    // Add reaction counts to each post
-    const postsWithReactions = await Promise.all((posts || []).map(async (post) => {
-      try {
-        const { data: reactions } = await supabase
-          .from('bulletin_post_reactions')
-          .select('id')
-          .eq('post_id', post.id);
-
-        return {
-          ...post,
-          reaction_count: reactions?.length || 0
-        };
-      } catch (err) {
-        console.error(`Error fetching reactions for post ${post.id}:`, err);
-        return {
-          ...post,
-          reaction_count: 0
-        };
-      }
-    }));
+    // Every post's reactions in one query (this used to be one query per post),
+    // and every author's current name and bear in one more.
+    const postsWithReactions = await withReactions(await withCurrentAuthors(posts || []), 'bulletin_post_reactions', 'post_id', { countField: 'reaction_count' });
 
     res.json(postsWithReactions);
   } catch (error) {
@@ -8652,12 +9539,13 @@ app.get('/api/bulletin/posts', async (req, res) => {
 });
 
 // Create a new bulletin post
-app.post('/api/bulletin/posts', async (req, res) => {
+app.post('/api/bulletin/posts', validateWallet, requireWalletOwnership(['wallet_address']), async (req, res) => {
   try {
-    const { wallet_address, content, link_preview } = req.body;
+    const { wallet_address, link_preview } = req.body;
+    const { text: content, error: contentError } = cleanUserText(req.body.content, BULLETIN_POST_MAX, 'Your post');
 
-    if (!wallet_address || !content) {
-      return res.status(400).json({ error: 'wallet_address and content are required' });
+    if (!wallet_address || contentError) {
+      return res.status(400).json({ success: false, error: contentError || 'wallet_address and content are required' });
     }
 
     // Get user profile for author info
@@ -8665,15 +9553,15 @@ app.post('/api/bulletin/posts', async (req, res) => {
       .from('profiles')
       .select('display_name, avatar_nft')
       .eq('wallet_address', wallet_address)
-      .single();
+      .maybeSingle();
 
     // Insert post into Supabase
-    const { data: newPost, error } = await supabase
+    const { data: newPost, error } = await db
       .from('bulletin_posts')
       .insert({
         wallet_address,
         content,
-        link_preview: link_preview || null,
+        link_preview: cleanLinkPreview(link_preview),
         author_name: profile?.display_name || 'Anonymous',
         author_avatar: profile?.avatar_nft || null,
         comment_count: 0
@@ -8691,7 +9579,7 @@ app.post('/api/bulletin/posts', async (req, res) => {
 });
 
 // Delete a bulletin post
-app.delete('/api/bulletin/posts/:postId', async (req, res) => {
+app.delete('/api/bulletin/posts/:postId', validateWallet, requireWalletOwnership(['wallet_address']), async (req, res) => {
   try {
     const { postId } = req.params;
     const { wallet_address } = req.body;
@@ -8700,27 +9588,38 @@ app.delete('/api/bulletin/posts/:postId', async (req, res) => {
       return res.status(400).json({ error: 'wallet_address is required' });
     }
 
-    // Verify ownership
+    if (!/^\d+$/.test(String(postId))) {
+      return res.status(400).json({ success: false, error: 'Invalid post id' });
+    }
+
+    // Verify ownership (or a moderator removing a post for the board)
     const { data: post, error: fetchError } = await supabase
       .from('bulletin_posts')
       .select('wallet_address')
       .eq('id', postId)
-      .single();
+      .maybeSingle();
 
     if (fetchError) throw fetchError;
-
-    if (post.wallet_address !== wallet_address) {
-      return res.status(403).json({ error: 'You can only delete your own posts' });
+    if (!post) {
+      return res.status(404).json({ success: false, error: 'That post is no longer on the board' });
     }
 
+    const isAuthor = normalizeWalletAddress(post.wallet_address) === normalizeWalletAddress(wallet_address);
+    const role = isAuthor ? null : await staffRoleOf(wallet_address);
+    if (!isAuthor && !STAFF_ROLES.has(role)) {
+      return res.status(403).json({ success: false, error: 'You can only delete your own posts' });
+    }
+    if (!isAuthor) console.log(`🛡️ ${role} ${wallet_address} removed bulletin post ${postId}`);
+
     // Delete the post (cascade will delete all comments and reactions)
-    const { error: deleteError } = await supabase
+    const { error: deleteError } = await db
       .from('bulletin_posts')
       .delete()
       .eq('id', postId);
 
     if (deleteError) throw deleteError;
 
+    await forgetNotifications(['bulletin_comment', 'bulletin_reply', 'bulletin_post_reaction', 'bulletin_comment_reaction'], 'postId', [postId]);
     res.json({ success: true, message: 'Post deleted successfully' });
   } catch (error) {
     console.error('❌ Error deleting bulletin post:', error);
@@ -8733,18 +9632,23 @@ app.get('/api/bulletin/posts/:postId/comments', async (req, res) => {
   try {
     const { postId } = req.params;
 
+    if (!/^\d+$/.test(String(postId))) {
+      return res.status(400).json({ success: false, error: 'Invalid post id' });
+    }
+
     // PERF: Cap comments per post to avoid unbounded fetches on viral posts
-    const limit = Math.min(parseInt(req.query.limit) || 200, 500);
+    const limit = Math.min(Math.max(parseInt(req.query.limit) || 200, 1), 500);
     const { data: comments, error } = await supabase
       .from('bulletin_comments')
       .select('*')
       .eq('post_id', postId)
       .order('created_at', { ascending: true })
+      .order('id', { ascending: true })
       .limit(limit);
 
     if (error) throw error;
 
-    res.json(comments || []);
+    res.json(await withReactions(await withCurrentAuthors(comments || []), 'bulletin_comment_reactions', 'comment_id'));
   } catch (error) {
     console.error('❌ Error fetching bulletin comments:', error);
     safeErrorResponse(res, error);
@@ -8752,12 +9656,43 @@ app.get('/api/bulletin/posts/:postId/comments', async (req, res) => {
 });
 
 // Create a new bulletin comment or reply
-app.post('/api/bulletin/comments', async (req, res) => {
+app.post('/api/bulletin/comments', validateWallet, requireWalletOwnership(['wallet_address']), async (req, res) => {
   try {
-    const { post_id, wallet_address, content, parent_id } = req.body;
+    const { post_id, wallet_address, parent_id } = req.body;
+    const { text: content, error: contentError } = cleanUserText(req.body.content, BULLETIN_COMMENT_MAX, 'Your comment');
 
-    if (!post_id || !wallet_address || !content) {
-      return res.status(400).json({ error: 'post_id, wallet_address, and content are required' });
+    if (!post_id || !wallet_address || contentError) {
+      return res.status(400).json({ success: false, error: contentError || 'post_id, wallet_address, and content are required' });
+    }
+    if (!/^\d+$/.test(String(post_id)) || (parent_id != null && !/^\d+$/.test(String(parent_id)))) {
+      return res.status(400).json({ success: false, error: 'Invalid post or comment id' });
+    }
+
+    // The post must exist, and a reply must answer a comment on the same post.
+    const { data: targetPost, error: postError } = await supabase
+      .from('bulletin_posts')
+      .select('id, wallet_address')
+      .eq('id', post_id)
+      .maybeSingle();
+    if (postError) throw postError;
+    if (!targetPost) {
+      return res.status(404).json({ success: false, error: 'That post is no longer on the board' });
+    }
+    let parentComment = null;
+    if (parent_id != null) {
+      const { data: parentRow, error: parentError } = await supabase
+        .from('bulletin_comments')
+        .select('id, post_id, wallet_address')
+        .eq('id', parent_id)
+        .maybeSingle();
+      if (parentError) throw parentError;
+      if (!parentRow) {
+        return res.status(404).json({ success: false, error: 'The comment you replied to was deleted' });
+      }
+      if (String(parentRow.post_id) !== String(post_id)) {
+        return res.status(400).json({ success: false, error: 'That reply belongs to another post' });
+      }
+      parentComment = parentRow;
     }
 
     // Get user profile for author info from database (always fetch fresh data)
@@ -8765,10 +9700,10 @@ app.post('/api/bulletin/comments', async (req, res) => {
       .from('profiles')
       .select('display_name, avatar_nft')
       .eq('wallet_address', wallet_address)
-      .single();
+      .maybeSingle();
 
     // Insert comment into Supabase with fresh profile data
-    const { data: newComment, error } = await supabase
+    const { data: newComment, error } = await db
       .from('bulletin_comments')
       .insert({
         post_id,
@@ -8785,15 +9720,9 @@ app.post('/api/bulletin/comments', async (req, res) => {
 
     // Send notifications
     try {
-      if (parent_id) {
+      if (parentComment) {
         // This is a reply - notify the parent comment author
-        const { data: parentComment } = await supabase
-          .from('bulletin_comments')
-          .select('wallet_address')
-          .eq('id', parent_id)
-          .single();
-
-        if (parentComment && parentComment.wallet_address !== wallet_address) {
+        if (normalizeWalletAddress(parentComment.wallet_address) !== normalizeWalletAddress(wallet_address)) {
           await addNotification(parentComment.wallet_address, 'bulletin_reply', {
             wallet: wallet_address,
             displayName: profile?.display_name || 'Anonymous',
@@ -8806,13 +9735,9 @@ app.post('/api/bulletin/comments', async (req, res) => {
         }
       } else {
         // This is a top-level comment - notify the post author
-        const { data: post } = await supabase
-          .from('bulletin_posts')
-          .select('wallet_address')
-          .eq('id', post_id)
-          .single();
+        const post = targetPost;
 
-        if (post && post.wallet_address !== wallet_address) {
+        if (normalizeWalletAddress(post.wallet_address) !== normalizeWalletAddress(wallet_address)) {
           await addNotification(post.wallet_address, 'bulletin_comment', {
             wallet: wallet_address,
             displayName: profile?.display_name || 'Anonymous',
@@ -8837,58 +9762,53 @@ app.post('/api/bulletin/comments', async (req, res) => {
 });
 
 // Delete a bulletin comment
-app.delete('/api/bulletin/comments/:commentId', async (req, res) => {
+app.delete('/api/bulletin/comments/:commentId', validateWallet, requireWalletOwnership(['wallet_address']), async (req, res) => {
   try {
     const { commentId } = req.params;
     const { wallet_address } = req.body;
 
     if (!wallet_address) {
-      return res.status(400).json({ error: 'wallet_address is required' });
+      return res.status(400).json({ success: false, error: 'wallet_address is required' });
     }
-
-    // Check if user is admin/moderator (server-side verification)
-    let is_admin = false;
-    try {
-      const { data: adminRole } = await supabase
-        .from('admin_roles')
-        .select('role, is_active')
-        .eq('wallet_address', wallet_address)
-        .eq('is_active', true)
-        .single();
-
-      is_admin = adminRole && (adminRole.role === 'admin' || adminRole.role === 'master' || adminRole.role === 'moderator');
-
-      if (is_admin) {
-        console.log(`🛡️ Admin/moderator ${wallet_address} (${adminRole.role}) deleting bulletin comment ${commentId}`);
-      }
-    } catch (adminCheckError) {
-      // Not an admin - continue with normal authorization check
-      is_admin = false;
+    if (!/^\d+$/.test(String(commentId))) {
+      return res.status(400).json({ success: false, error: 'Invalid comment id' });
     }
 
     // Get comment data
     const { data: comment, error: fetchError } = await supabase
       .from('bulletin_comments')
-      .select('wallet_address')
+      .select('wallet_address, post_id')
       .eq('id', commentId)
-      .single();
+      .maybeSingle();
 
     if (fetchError) throw fetchError;
-
-    // Check permissions: admin/moderator OR comment author
-    const canDelete = is_admin || comment.wallet_address === wallet_address;
-
-    if (!canDelete) {
-      return res.status(403).json({ error: 'You can only delete your own comments' });
+    if (!comment) {
+      return res.status(404).json({ success: false, error: 'That comment was already deleted' });
     }
 
+    // Check permissions: comment author OR admin/moderator (admin_roles may
+    // store the address in any letter case; an exact match missed lowercase rows)
+    const isAuthor = normalizeWalletAddress(comment.wallet_address) === normalizeWalletAddress(wallet_address);
+    const role = isAuthor ? null : await staffRoleOf(wallet_address);
+    const is_admin = STAFF_ROLES.has(role);
+
+    if (!isAuthor && !is_admin) {
+      return res.status(403).json({ success: false, error: 'You can only delete your own comments' });
+    }
+    if (is_admin) console.log(`🛡️ ${role} ${wallet_address} deleting bulletin comment ${commentId}`);
+
+    // The replies under it go too (cascade); note their ids for the bells.
+    const { data: thread } = await supabase.from('bulletin_comments').select('id, parent_id').eq('post_id', comment.post_id).limit(2000);
+    const goneIds = withDescendants(commentId, thread);
+
     // Delete the comment (cascade will delete reactions and child comments)
-    const { error: deleteError } = await supabase
+    const { error: deleteError } = await db
       .from('bulletin_comments')
       .delete()
       .eq('id', commentId);
 
     if (deleteError) throw deleteError;
+    await forgetNotifications(['bulletin_comment', 'bulletin_reply', 'bulletin_comment_reaction'], 'commentId', goneIds);
 
     console.log(`✅ Bulletin comment ${commentId} deleted by ${wallet_address}${is_admin ? ' (admin/moderator)' : ''}`);
     res.json({ success: true, message: 'Comment deleted successfully' });
@@ -8952,13 +9872,30 @@ app.get('/api/bulletin/comments/:commentId/reactions', async (req, res) => {
 });
 
 // Toggle reaction on a bulletin comment (add if doesn't exist, remove if exists)
-app.post('/api/bulletin/comments/:commentId/react', async (req, res) => {
+app.post('/api/bulletin/comments/:commentId/react', validateWallet, requireWalletOwnership(['wallet_address']), async (req, res) => {
   try {
     const { commentId } = req.params;
     const { wallet_address, reaction_type } = req.body;
 
     if (!wallet_address || !reaction_type) {
-      return res.status(400).json({ error: 'wallet_address and reaction_type are required' });
+      return res.status(400).json({ success: false, error: 'wallet_address and reaction_type are required' });
+    }
+    if (!REACTION_TYPES.includes(reaction_type)) {
+      return res.status(400).json({ success: false, error: 'Invalid reaction type' });
+    }
+    if (!/^\d+$/.test(String(commentId))) {
+      return res.status(400).json({ success: false, error: 'Invalid comment id' });
+    }
+
+    // The comment must exist (an insert against a deleted one used to surface as a 500).
+    const { data: comment, error: commentError } = await supabase
+      .from('bulletin_comments')
+      .select('wallet_address, content, post_id')
+      .eq('id', commentId)
+      .maybeSingle();
+    if (commentError) throw commentError;
+    if (!comment) {
+      return res.status(404).json({ success: false, error: 'That comment was deleted' });
     }
 
     // Check if reaction already exists
@@ -8975,7 +9912,7 @@ app.post('/api/bulletin/comments/:commentId/react', async (req, res) => {
     let action;
     if (existing) {
       // Remove reaction (toggle off)
-      const { error: deleteError } = await supabase
+      const { error: deleteError } = await db
         .from('bulletin_comment_reactions')
         .delete()
         .eq('id', existing.id);
@@ -8984,7 +9921,7 @@ app.post('/api/bulletin/comments/:commentId/react', async (req, res) => {
       action = 'removed';
     } else {
       // Add reaction (toggle on)
-      const { error: insertError } = await supabase
+      const { error: insertError } = await db
         .from('bulletin_comment_reactions')
         .insert({
           comment_id: commentId,
@@ -8992,36 +9929,29 @@ app.post('/api/bulletin/comments/:commentId/react', async (req, res) => {
           reaction_type
         });
 
-      if (insertError) throw insertError;
+      // A double tap that raced past the check above: it's added either way.
+      if (insertError && insertError.code !== '23505') throw insertError;
       action = 'added';
 
       // Send notification to comment author
       try {
-        const { data: comment } = await supabase
-          .from('bulletin_comments')
-          .select('wallet_address, content, post_id')
-          .eq('id', commentId)
-          .single();
-
-        if (comment && comment.wallet_address !== wallet_address) {
+        if (normalizeWalletAddress(comment.wallet_address) !== normalizeWalletAddress(wallet_address)) {
           // Get reactor's profile
           const { data: profile } = await supabase
             .from('profiles')
             .select('display_name, avatar_nft')
             .eq('wallet_address', wallet_address)
-            .single();
-
-          const reactionEmojis = { like: '👍', laugh: '😂', heart: '❤️', cry: '😢', thumbs_down: '👎', troll: '🤡' };
+            .maybeSingle();
 
           await addNotification(comment.wallet_address, 'bulletin_comment_reaction', {
             wallet: wallet_address,
             displayName: profile?.display_name || 'Anonymous',
             avatarNft: profile?.avatar_nft || null,
-            reactions: [reactionEmojis[reaction_type]],
+            reactions: [REACTION_EMOJI[reaction_type]],
             commentText: comment.content?.substring(0, 100),
             commentId: commentId.toString(),
             postId: comment.post_id.toString()
-          });
+          }, { merge: ['commentId'] });
           console.log(`📬 Comment reaction notification sent to ${comment.wallet_address}`);
         }
       } catch (notifError) {
@@ -9140,13 +10070,30 @@ app.get('/api/bulletin/posts/:postId/reactions', async (req, res) => {
 });
 
 // Toggle reaction on a bulletin post (add if doesn't exist, remove if exists)
-app.post('/api/bulletin/posts/:postId/react', async (req, res) => {
+app.post('/api/bulletin/posts/:postId/react', validateWallet, requireWalletOwnership(['wallet_address']), async (req, res) => {
   try {
     const { postId } = req.params;
     const { wallet_address, reaction_type } = req.body;
 
     if (!wallet_address || !reaction_type) {
-      return res.status(400).json({ error: 'wallet_address and reaction_type are required' });
+      return res.status(400).json({ success: false, error: 'wallet_address and reaction_type are required' });
+    }
+    if (!REACTION_TYPES.includes(reaction_type)) {
+      return res.status(400).json({ success: false, error: 'Invalid reaction type' });
+    }
+    if (!/^\d+$/.test(String(postId))) {
+      return res.status(400).json({ success: false, error: 'Invalid post id' });
+    }
+
+    // The post must exist (an insert against a deleted one used to surface as a 500).
+    const { data: post, error: postError } = await supabase
+      .from('bulletin_posts')
+      .select('wallet_address')
+      .eq('id', postId)
+      .maybeSingle();
+    if (postError) throw postError;
+    if (!post) {
+      return res.status(404).json({ success: false, error: 'That post is no longer on the board' });
     }
 
     // Check if reaction already exists
@@ -9163,7 +10110,7 @@ app.post('/api/bulletin/posts/:postId/react', async (req, res) => {
     let action;
     if (existing) {
       // Remove reaction (toggle off)
-      const { error: deleteError } = await supabase
+      const { error: deleteError } = await db
         .from('bulletin_post_reactions')
         .delete()
         .eq('id', existing.id);
@@ -9172,7 +10119,7 @@ app.post('/api/bulletin/posts/:postId/react', async (req, res) => {
       action = 'removed';
     } else {
       // Add reaction (toggle on)
-      const { error: insertError } = await supabase
+      const { error: insertError } = await db
         .from('bulletin_post_reactions')
         .insert({
           post_id: postId,
@@ -9180,34 +10127,27 @@ app.post('/api/bulletin/posts/:postId/react', async (req, res) => {
           reaction_type
         });
 
-      if (insertError) throw insertError;
+      // A double tap that raced past the check above: it's added either way.
+      if (insertError && insertError.code !== '23505') throw insertError;
       action = 'added';
 
       // Send notification to post author
       try {
-        const { data: post } = await supabase
-          .from('bulletin_posts')
-          .select('wallet_address')
-          .eq('id', postId)
-          .single();
-
-        if (post && post.wallet_address !== wallet_address) {
+        if (normalizeWalletAddress(post.wallet_address) !== normalizeWalletAddress(wallet_address)) {
           // Get reactor's profile
           const { data: profile } = await supabase
             .from('profiles')
             .select('display_name, avatar_nft')
             .eq('wallet_address', wallet_address)
-            .single();
-
-          const reactionEmojis = { like: '👍', laugh: '😂', heart: '❤️', cry: '😢', thumbs_down: '👎', troll: '🤡' };
+            .maybeSingle();
 
           await addNotification(post.wallet_address, 'bulletin_post_reaction', {
             wallet: wallet_address,
             displayName: profile?.display_name || 'Anonymous',
             avatarNft: profile?.avatar_nft || null,
-            reactions: [reactionEmojis[reaction_type]],
+            reactions: [REACTION_EMOJI[reaction_type]],
             postId: postId.toString()
-          });
+          }, { merge: ['postId'] });
           console.log(`📬 Post reaction notification sent to ${post.wallet_address}`);
         }
       } catch (notifError) {
@@ -9274,22 +10214,30 @@ app.post('/api/bulletin/posts/:postId/react', async (req, res) => {
 
 // Fetch link preview metadata (Open Graph tags) for URLs
 app.get('/api/link-preview', async (req, res) => {
+  // Only a real http(s) URL gets this far: `new URL()` on anything else used to
+  // throw from inside the catch below, an unhandled rejection that ended the
+  // whole API process (GET /api/link-preview?url=x took the site down).
+  const url = typeof req.query.url === 'string' ? req.query.url.trim() : '';
+  let parsedUrl = null;
+  try { parsedUrl = url && url.length <= 2048 ? new URL(url) : null; } catch { parsedUrl = null; }
+  if (!parsedUrl || !/^https?:$/.test(parsedUrl.protocol)) {
+    return res.status(400).json({ success: false, error: url ? 'url must be an http(s) link' : 'url parameter is required' });
+  }
+  const basicPreview = () => ({ url, title: parsedUrl.hostname, description: 'Click to open link', image: null, type: 'website' });
+
   try {
-    const { url } = req.query;
-
-    if (!url) {
-      return res.status(400).json({ error: 'url parameter is required' });
-    }
-
     console.log('🔗 Fetching link preview for:', url);
 
     // Special handling for YouTube URLs
-    const youtubeRegex = /(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/;
+    // watch?v=, watch?…&v=, shorts/, embed/, live/ and youtu.be links
+    const youtubeRegex = /(?:youtube\.com\/(?:watch\?(?:[^#]*&)?v=|shorts\/|embed\/|live\/)|youtu\.be\/)([a-zA-Z0-9_-]{6,})/;
     const youtubeMatch = url.match(youtubeRegex);
 
     if (youtubeMatch) {
       const videoId = youtubeMatch[1];
-      const thumbnailUrl = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+      // hqdefault exists for every video; maxresdefault does not, and YouTube
+      // answers a missing one with a grey "no thumbnail" image the card showed.
+      let thumbnailUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
 
       console.log('🎥 YouTube video detected:', videoId);
 
@@ -9302,6 +10250,9 @@ app.get('/api/link-preview', async (req, res) => {
           const oembedData = await oembedResponse.json();
 
           console.log('✅ YouTube metadata fetched:', oembedData.title);
+          if (typeof oembedData.thumbnail_url === 'string' && /^https:\/\/i\d?\.ytimg\.com\//.test(oembedData.thumbnail_url)) {
+            thumbnailUrl = oembedData.thumbnail_url;
+          }
 
           return res.json({
             url: url,
@@ -9338,7 +10289,7 @@ app.get('/api/link-preview', async (req, res) => {
     if (data.status === 'success' && data.data) {
       const preview = {
         url: url,
-        title: data.data.title || data.data.publisher || new URL(url).hostname,
+        title: data.data.title || data.data.publisher || parsedUrl.hostname,
         description: data.data.description || 'Click to open link',
         image: data.data.image?.url || data.data.logo?.url || null,
         type: 'website'
@@ -9351,24 +10302,22 @@ app.get('/api/link-preview', async (req, res) => {
     }
   } catch (error) {
     console.error('❌ Error fetching link preview:', error.message);
-
-    // Return a basic preview on error
-    const { url } = req.query;
-    const hostname = url ? new URL(url).hostname : 'Link';
-
-    res.json({
-      url: url,
-      title: hostname,
-      description: 'Click to open link',
-      image: null,
-      type: 'website'
-    });
+    // A basic card (the host name) rather than nothing.
+    if (!res.headersSent) res.json(basicPreview());
   }
 });
 
 // ============================================
 // 🎭 MEME OF THE WEEK API ENDPOINTS
 // ============================================
+
+// The contest was taken off the site on 2026-04-16 (owner's call), but these
+// routes still paid 50 honey a week for a submission: a faucet with no screen.
+// Entering and voting stay closed unless MEME_CONTEST=on; reads keep answering
+// for old links, and the weekly reset only scores memes that already exist.
+const memeContestOpen = (req, res, next) => (process.env.MEME_CONTEST === 'on'
+  ? next()
+  : res.status(410).json({ success: false, error: 'Meme of the Week has ended.' }));
 
 // 📅 Get current week timer
 app.get('/api/memes/timer', async (req, res) => {
@@ -9557,13 +10506,13 @@ app.get('/api/memes/user-votes/:wallet', async (req, res) => {
 });
 
 // 📤 Submit a meme
-app.post('/api/memes/submit', upload.single('file'), validateWallet, requireWalletOwnership(['wallet_address']), async (req, res) => {
+app.post('/api/memes/submit', memeContestOpen, upload.single('file'), validateWallet, requireWalletOwnership(['wallet_address']), limitEarningPerIp, limitPerWallet({ windowMs: 60 * 1000, max: 5 }), requireHoneyEarner, async (req, res) => {
   try {
     const { wallet_address, file_name } = req.body;
     const normalizedWallet = req.authWallet || normalizeWalletAddress(wallet_address);
     const file = req.file;
 
-    if (!wallet_address || !file) {
+    if (!wallet_address || !file || !file_name) {
       return res.status(400).json({ success: false, error: 'Missing required fields' });
     }
 
@@ -9576,105 +10525,112 @@ app.post('/api/memes/submit', upload.single('file'), validateWallet, requireWall
       return res.status(400).json({ success: false, error: 'Invalid file type' });
     }
 
-    // Get current week
-    const { data: weekData, error: weekError } = await supabase
-      .from('meme_weeks')
-      .select('id')
-      .order('week_start', { ascending: false })
-      .limit(1)
-      .single();
+    // One meme per wallet per week, and the 50-honey reward once per week even
+    // if the meme is deleted and posted again. The wallet lock makes each check
+    // and its write one step (two parallel uploads used to both pass).
+    return await withWalletLock(normalizedWallet, async () => {
+      const { data: weekData, error: weekError } = await supabase
+        .from('meme_weeks')
+        .select('id')
+        .order('week_start', { ascending: false })
+        .limit(1)
+        .single();
 
-    if (weekError) throw weekError;
+      if (weekError) throw weekError;
 
-    // Check if user already submitted this week
-    const { data: existingMeme, error: checkError } = await supabase
-      .from('memes')
-      .select('id')
-      .eq('wallet_address', normalizedWallet)
-      .eq('week_id', weekData.id)
-      .single();
+      const { data: existingMemes, error: checkError } = await supabase
+        .from('memes')
+        .select('id')
+        .ilike('wallet_address', normalizedWallet)
+        .eq('week_id', weekData.id)
+        .limit(1);
 
-    if (existingMeme) {
-      return res.status(400).json({
-        success: false,
-        error: 'You have already submitted a meme this week!'
-      });
-    }
-
-    // Upload to Supabase Storage
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('bearpark-memes')
-      .upload(file_name, file.buffer, {
-        contentType: file.mimetype,
-        upsert: false
-      });
-
-    if (uploadError) throw uploadError;
-
-    // Get public URL
-    const { data: urlData } = supabase.storage
-      .from('bearpark-memes')
-      .getPublicUrl(file_name);
-
-    // Insert meme record
-    const { data: memeData, error: memeError } = await supabase
-      .from('memes')
-      .insert({
-        week_id: weekData.id,
-        wallet_address: normalizedWallet,
-        image_url: urlData.publicUrl,
-        vote_count: 0
-      })
-      .select()
-      .single();
-
-    if (memeError) throw memeError;
-
-    // Check if user already received submission reward this week
-    const { data: existingReward } = await supabase
-      .from('meme_submission_rewards')
-      .select('id')
-      .eq('wallet_address', normalizedWallet)
-      .eq('week_id', weekData.id)
-      .single();
-
-    let pointsAwarded = 0;
-
-    if (!existingReward) {
-      // Award 50 honey points for first submission this week
-      let pointsError = null;
-      try {
-        await applyHoneyDelta({
-          wallet: normalizedWallet,
-          totalDelta: 50,
-          transactionType: 'meme_submission_reward',
-          reason: `Meme submission week ${weekData.id}`,
-          activityType: 'meme_submission',
-          activityId: String(weekData.id)
+      if (checkError) throw checkError;
+      if (existingMemes && existingMemes.length) {
+        return res.status(400).json({
+          success: false,
+          error: 'You have already submitted a meme this week!'
         });
-      } catch (error) {
-        pointsError = error;
       }
 
-      if (pointsError) {
-        console.warn('⚠️ Failed to award honey points:', pointsError);
-      } else {
-        // Record that user received submission reward
-        await supabase
+      // Upload to Supabase Storage
+      const { error: uploadError } = await db.storage
+        .from('bearpark-memes')
+        .upload(file_name, file.buffer, {
+          contentType: file.mimetype,
+          upsert: false
+        });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('bearpark-memes')
+        .getPublicUrl(file_name);
+
+      // Insert meme record
+      const { data: memeData, error: memeError } = await db
+        .from('memes')
+        .insert({
+          week_id: weekData.id,
+          wallet_address: normalizedWallet,
+          image_url: urlData.publicUrl,
+          vote_count: 0
+        })
+        .select()
+        .single();
+
+      if (memeError) throw memeError;
+
+      let pointsAwarded = 0;
+      const { data: rewardRows, error: rewardCheckError } = await supabase
+        .from('meme_submission_rewards')
+        .select('id')
+        .ilike('wallet_address', normalizedWallet)
+        .eq('week_id', weekData.id)
+        .limit(1);
+
+      if (rewardCheckError) {
+        console.warn('⚠️ Meme reward check failed; no reward this time:', rewardCheckError.message);
+      } else if (!rewardRows || !rewardRows.length) {
+        // Claim row first (it is what blocks a second reward), then the credit.
+        const { error: claimError } = await db
           .from('meme_submission_rewards')
-          .insert({
-            wallet_address: normalizedWallet,
-            week_id: weekData.id
-          });
+          .insert({ wallet_address: normalizedWallet, week_id: weekData.id });
 
-        pointsAwarded = 50;
+        if (claimError) {
+          console.warn('⚠️ Meme reward claim row failed; no reward:', claimError.message);
+        } else {
+          try {
+            const credit = await applyHoneyDelta({
+              wallet: normalizedWallet,
+              totalDelta: 50,
+              transactionType: 'meme_submission_reward',
+              reason: `Meme submission week ${weekData.id}`,
+              activityType: 'meme_submission',
+              activityId: String(weekData.id),
+              idempotencyKey: `meme_submission:${weekData.id}:${normalizedWallet}`,
+              preferredAddress: req.ledgerAddress
+            });
+            if (!credit.duplicate) {
+              pointsAwarded = 50;
+            }
+          } catch (creditError) {
+            console.warn('⚠️ Failed to award meme honey:', creditError.message);
+            await db
+              .from('meme_submission_rewards')
+              .delete()
+              .eq('wallet_address', normalizedWallet)
+              .eq('week_id', weekData.id);
+          }
+        }
       }
-    }
 
-    res.json({
-      success: true,
-      meme: memeData,
-      points_awarded: pointsAwarded
+      return res.json({
+        success: true,
+        meme: memeData,
+        points_awarded: pointsAwarded
+      });
     });
   } catch (error) {
     console.error('❌ Submit meme error:', error);
@@ -9683,7 +10639,9 @@ app.post('/api/memes/submit', upload.single('file'), validateWallet, requireWall
 });
 
 // 🗳️ Vote for a meme
-app.post('/api/memes/:id/vote', validateWallet, requireWalletOwnership(['wallet_address']), async (req, res) => {
+// Votes pick the weekly winners, who are paid honey, so voting follows the
+// same entry rule as earning.
+app.post('/api/memes/:id/vote', memeContestOpen, validateWallet, requireWalletOwnership(['wallet_address']), limitPerWallet({ windowMs: 60 * 1000, max: 20 }), requireHoneyEarner, async (req, res) => {
   try {
     const { id } = req.params;
     const { wallet_address } = req.body;
@@ -9747,7 +10705,7 @@ app.post('/api/memes/:id/vote', validateWallet, requireWalletOwnership(['wallet_
       console.log('🔄 Switching vote from meme', oldMemeId, 'to meme', id);
 
       // Delete old vote
-      const { error: deleteError } = await supabase
+      const { error: deleteError } = await db
         .from('meme_votes')
         .delete()
         .eq('id', previousVote.id);
@@ -9765,7 +10723,7 @@ app.post('/api/memes/:id/vote', validateWallet, requireWalletOwnership(['wallet_
         .single();
 
       if (oldMeme) {
-        await supabase
+        await db
           .from('memes')
           .update({ vote_count: Math.max(0, oldMeme.vote_count - 1) })
           .eq('id', oldMemeId);
@@ -9775,7 +10733,7 @@ app.post('/api/memes/:id/vote', validateWallet, requireWalletOwnership(['wallet_
     console.log('➕ Inserting new vote for meme', id);
 
     // Insert new vote
-    const { error: voteError } = await supabase
+    const { error: voteError } = await db
       .from('meme_votes')
       .insert({
         meme_id: id,
@@ -9789,7 +10747,7 @@ app.post('/api/memes/:id/vote', validateWallet, requireWalletOwnership(['wallet_
     }
 
     // Increment new meme's vote count
-    const { error: updateError } = await supabase.rpc('increment_meme_votes', {
+    const { error: updateError } = await db.rpc('increment_meme_votes', {
       meme_id: id
     });
 
@@ -9845,7 +10803,7 @@ app.delete('/api/memes/:id/vote', validateWallet, requireWalletOwnership(['walle
     }
 
     // Delete the vote directly by meme_id and wallet_address
-    const { error: deleteError, count } = await supabase
+    const { error: deleteError, count } = await db
       .from('meme_votes')
       .delete()
       .eq('meme_id', id)
@@ -9867,7 +10825,7 @@ app.delete('/api/memes/:id/vote', validateWallet, requireWalletOwnership(['walle
 
     if (meme) {
       const newCount = Math.max(0, meme.vote_count - 1);
-      await supabase
+      await db
         .from('memes')
         .update({ vote_count: newCount })
         .eq('id', id);
@@ -9916,7 +10874,7 @@ app.delete('/api/memes/:id', validateWallet, requireWalletOwnership(['wallet_add
     }
 
     // Delete from database (cascades to votes)
-    const { error: deleteError } = await supabase
+    const { error: deleteError } = await db
       .from('memes')
       .delete()
       .eq('id', id)
@@ -9940,7 +10898,12 @@ app.delete('/api/memes/:id', validateWallet, requireWalletOwnership(['wallet_add
 });
 
 // 🔄 WEEK RESET: Award winners and create new week
-app.post('/api/memes/reset-week', verifyAdminOrCron, async (req, res) => {
+// The cron and an admin can fire this at the same moment; one runs at a time
+// (and the second then finds a week that has not ended).
+const memeWeekResetLock = createKeyedMutex();
+app.post('/api/memes/reset-week', verifyAdminOrCron, (req, res) => memeWeekResetLock.run('reset', () => resetMemeWeek(req, res)));
+
+async function resetMemeWeek(req, res) {
   try {
     console.log('🔄 Week reset triggered...');
 
@@ -10009,13 +10972,15 @@ app.post('/api/memes/reset-week', verifyAdminOrCron, async (req, res) => {
 
         let pointsError = null;
         try {
+          // One payout per winner per week, even if the reset runs twice.
           await applyHoneyDelta({
             wallet: meme.wallet_address,
             totalDelta: reward,
             transactionType: 'meme_winner_reward',
             reason: `Meme winner rank ${currentRank} week ${currentWeek.id}`,
             activityType: 'meme_winner',
-            activityId: String(currentWeek.id)
+            activityId: String(currentWeek.id),
+            idempotencyKey: `meme_winner:${currentWeek.id}:${walletKey(meme.wallet_address)}`
           });
         } catch (error) {
           pointsError = error;
@@ -10065,7 +11030,7 @@ app.post('/api/memes/reset-week', verifyAdminOrCron, async (req, res) => {
             const filePath = urlParts[1];
             console.log(`Deleting file: ${filePath}`);
 
-            const { error: deleteFileError } = await supabase.storage
+            const { error: deleteFileError } = await db.storage
               .from('bearpark-memes')
               .remove([filePath]);
 
@@ -10081,7 +11046,7 @@ app.post('/api/memes/reset-week', verifyAdminOrCron, async (req, res) => {
       }
 
       // Delete memes from database (CASCADE will delete votes too)
-      const { error: deleteMemesError } = await supabase
+      const { error: deleteMemesError } = await db
         .from('memes')
         .delete()
         .eq('week_id', currentWeek.id);
@@ -10120,7 +11085,7 @@ app.post('/api/memes/reset-week', verifyAdminOrCron, async (req, res) => {
 
     const newWeekEnd = getNextSundayMidnightUTC(newWeekStart);
 
-    const { data: newWeek, error: createError } = await supabase
+    const { data: newWeek, error: createError } = await db
       .from('meme_weeks')
       .insert({
         week_start: newWeekStart.toISOString(),
@@ -10154,7 +11119,7 @@ app.post('/api/memes/reset-week', verifyAdminOrCron, async (req, res) => {
     console.error('❌ Week reset error:', error);
     safeErrorResponse(res, error);
   }
-});
+}
 
 // =======================
 // BEARDROPS AIRDROP SYSTEM
@@ -10195,7 +11160,7 @@ app.get('/api/beardrops/eligibility/:wallet', async (req, res) => {
   try {
     const { wallet } = req.params;
 
-    if (!wallet) {
+    if (!wallet || !isValidXRPLWallet(wallet)) {
       return res.status(400).json({ success: false, error: 'Wallet address required' });
     }
 
@@ -10215,10 +11180,10 @@ app.get('/api/beardrops/eligibility/:wallet', async (req, res) => {
     const { data: activityData } = await supabase
       .from('honey_points_activity')
       .select('points')
-      .eq('wallet_address', wallet)
+      .ilike('wallet_address', String(wallet))
       .gte('created_at', midnightUTC.toISOString());
 
-    const honeyPoints24h = activityData?.reduce((sum, row) => sum + row.points, 0) || 0;
+    const honeyPoints24h = activityData?.reduce((sum, row) => sum + parseHoneyNumber(row.points), 0) || 0;
 
     // Check if wallet is blacklisted
     const { data: blacklistData } = await supabase
@@ -10251,7 +11216,7 @@ app.get('/api/beardrops/snapshot/:wallet', async (req, res) => {
   try {
     const { wallet } = req.params;
 
-    if (!wallet) {
+    if (!wallet || !isValidXRPLWallet(wallet)) {
       return res.status(400).json({ success: false, error: 'Wallet address required' });
     }
 
@@ -10281,7 +11246,7 @@ app.get('/api/beardrops/history/:wallet', async (req, res) => {
     const { wallet } = req.params;
     const limit = parseInt(req.query.limit) || 30;
 
-    if (!wallet) {
+    if (!wallet || !isValidXRPLWallet(wallet)) {
       return res.status(400).json({ success: false, error: 'Wallet address required' });
     }
 
@@ -10318,7 +11283,7 @@ app.post('/api/beardrops/activity', async (req, res) => {
       return res.status(400).json({ success: false, error: 'wallet, points, and activity_type required' });
     }
 
-    const { error } = await supabase
+    const { error } = await db
       .from('honey_points_activity')
       .insert({
         wallet_address: wallet,
@@ -10337,6 +11302,37 @@ app.post('/api/beardrops/activity', async (req, res) => {
 });
 
 // ADMIN: Get pending claims summary (APEX only)
+// Staff-only reads for admin-beardrops.html, which used to query Supabase
+// directly with the public anon key. Allowlisted tables and a tiny query shape.
+const ADMIN_QUERY_TABLES = new Set(['airdrop_snapshots', 'lp_blacklist', 'lp_balance_history']);
+const SAFE_IDENT = /^[a-z_][a-z0-9_]*$/;
+app.get('/api/beardrops/admin/query/:table', verifyApex, async (req, res) => {
+  try {
+    const { table } = req.params;
+    if (!ADMIN_QUERY_TABLES.has(table)) return res.status(400).json({ success: false, error: 'Unknown table' });
+    const select = String(req.query.select || '*');
+    if (!/^[a-z0-9_,*\s]+$/i.test(select)) return res.status(400).json({ success: false, error: 'Bad select' });
+    let query = db.from(table).select(select);
+    for (const [key, value] of Object.entries(req.query)) {
+      const [op, column] = key.split('.');
+      if (!column || !SAFE_IDENT.test(column)) continue;
+      if (op === 'eq') query = query.eq(column, value);
+      else if (op === 'gte') query = query.gte(column, value);
+    }
+    // "a.desc,b.desc" sorts by a, then b (PostgREST's order syntax).
+    for (const part of String(req.query.order || '').split(',').filter(Boolean)) {
+      const [column, dir] = part.split('.');
+      if (SAFE_IDENT.test(column)) query = query.order(column, { ascending: dir !== 'desc' });
+    }
+    query = query.limit(Math.min(Math.max(parseInt(req.query.limit, 10) || 1000, 1), 5000));
+    const { data, error } = await query;
+    if (error) throw error;
+    res.json({ success: true, rows: data || [] });
+  } catch (error) {
+    safeErrorResponse(res, error);
+  }
+});
+
 app.get('/api/beardrops/admin/pending', verifyApex, async (req, res) => {
   try {
     const { data, error } = await supabase
@@ -10382,7 +11378,7 @@ app.post('/api/beardrops/admin/blacklist', verifyApex, async (req, res) => {
       return res.status(400).json({ success: false, error: 'target_wallet and reason required' });
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('lp_blacklist')
       .upsert({
         wallet_address: target_wallet,
@@ -10415,7 +11411,7 @@ app.post('/api/beardrops/admin/unblacklist', verifyApex, async (req, res) => {
       return res.status(400).json({ success: false, error: 'target_wallet required' });
     }
 
-    const { error } = await supabase
+    const { error } = await db
       .from('lp_blacklist')
       .update({ is_active: false, updated_at: new Date().toISOString() })
       .eq('wallet_address', target_wallet);
@@ -10458,7 +11454,7 @@ app.post('/api/beardrops/admin/config', verifyApex, async (req, res) => {
       return res.status(400).json({ success: false, error: 'key and value required' });
     }
 
-    const { error } = await supabase
+    const { error } = await db
       .from('airdrop_config')
       .update({ value: value.toString(), updated_at: new Date().toISOString() })
       .eq('key', key);
@@ -10476,20 +11472,39 @@ app.post('/api/beardrops/admin/config', verifyApex, async (req, res) => {
 
 // CLAIM AIRDROP - Send $BEAR tokens to eligible wallet
 // Requires AIRDROP_WALLET_SECRET env variable
-// SECURITY: Multiple layers of protection against exploits
-// - Rate limiter: 3 requests per minute per IP+wallet
-// - Mutex check: Blocks if already processing
-// - Atomic lock: Only one request can acquire lock
-// - Row count verification: Ensures lock was actually acquired
-app.post('/api/beardrops/claim', claimRateLimiter, validateWallet, requireWalletOwnership(['wallet_address']), async (req, res) => {
+// SECURITY, in order:
+// - claimRateLimiter (5/min per IP+wallet) and the wallet's in-process lock
+// - the snapshot moves pending -> processing with a conditional UPDATE, and only
+//   the request whose UPDATE changed the row (1 row back) may pay. The old check
+//   re-read the status, which a racing twin also saw as 'processing', so two
+//   requests could both send.
+// - the hash is recorded before the payment is submitted
+// - the claim is reopened ONLY when the payment definitively failed. An unknown
+//   outcome (timeout, dropped socket) keeps it 'processing' for an admin, because
+//   reopening it would let the wallet be paid twice.
+const BEARDROP_FRIENDLY_ERRORS = {
+  tecPATH_DRY: 'You need to set up your $BEAR trustline before we can send you the BEARdrop! 🐻🍯',
+  tecNO_LINE_INSUF_RESERVE: 'Your wallet needs a bit more XRP reserve to hold a $BEAR trustline. Top up ~2 XRP and try again.',
+  tecNO_DST: 'This wallet doesn\'t exist on XRPL yet. Fund it with at least 1 XRP first, then try again.',
+  tecNO_DST_INSUF_XRP: 'This wallet needs at least 1 XRP to activate before it can receive $BEAR.',
+  tecDST_TAG_NEEDED: 'Your wallet requires a destination tag, which the airdrop doesn\'t send. Disable the tag requirement or use a different wallet.',
+  tecUNFUNDED_PAYMENT: 'The airdrop wallet is temporarily out of $BEAR. Please ping an admin — we\'ll top it up shortly.',
+  expired_unvalidated: 'The transaction timed out before XRPL validated it. Try the claim again in a moment.',
+  tecINSUFFICIENT_RESERVE: 'Your wallet is slightly under the XRP reserve needed. Top up ~1 XRP and try again.'
+};
+
+app.post('/api/beardrops/claim', claimRateLimiter, validateWallet, requireWalletOwnership(['wallet_address']), refuseBannedWallet, async (req, res) => {
   try {
     const { wallet_address } = req.body;
+    const normalizedWallet = req.authWallet;
+    // Snapshots are keyed by the ledger's spelling, and the payment needs it.
+    const ledgerWallet = String(wallet_address || '').trim();
 
     // Check if airdrop wallet is configured
     if (!process.env.AIRDROP_WALLET_SECRET) {
       return res.status(503).json({
         success: false,
-        error: 'Airdrop system not configured. Contact admin.'
+        error: 'BEARdrop payouts are paused for a moment, so nothing was sent. Try again a little later.'
       });
     }
 
@@ -10502,278 +11517,247 @@ app.post('/api/beardrops/claim', claimRateLimiter, validateWallet, requireWallet
       });
     }
 
-    // ========== SECURITY FIX #1: CLAIM MUTEX ==========
-    // Check if there's already a claim in progress for this wallet
-    const { data: inProgress } = await supabase
-      .from('airdrop_snapshots')
-      .select('id')
-      .eq('wallet_address', wallet_address)
-      .eq('claim_status', 'processing')
-      .maybeSingle();
-
-    if (inProgress) {
-      return res.status(429).json({
-        success: false,
-        error: 'Claim already in progress. Please wait.'
-      });
-    }
-
-    // ========== CLAIM WINDOW LOGIC ==========
-    // Users can ONLY claim YESTERDAY's snapshot
-    // Claim window: 00:00 UTC to 23:59 UTC (exactly 24 hours)
-    // NO grace period - miss it and it's gone!
-    const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
-
-    // Yesterday's date - this is the ONLY snapshot that can be claimed
-    const yesterdayDate = new Date(now);
-    yesterdayDate.setUTCDate(yesterdayDate.getUTCDate() - 1);
-    const yesterdayStr = yesterdayDate.toISOString().split('T')[0];
-
-    console.log(`📅 Claim window open for snapshot: ${yesterdayStr}`);
-
-    // Only yesterday's snapshot is valid - no grace period
-    const validDates = [yesterdayStr];
-
-    // Get the latest pending snapshot for this wallet (only valid dates)
-    const { data: snapshot, error: snapshotError } = await supabase
-      .from('airdrop_snapshots')
-      .select('*')
-      .eq('wallet_address', wallet_address)
-      .eq('claim_status', 'pending')
-      .eq('is_eligible', true)
-      .eq('is_blacklisted', false)
-      .in('snapshot_date', validDates)
-      .order('snapshot_date', { ascending: false })
-      .limit(1)
-      .single();
-
-    if (snapshotError || !snapshot) {
-      console.log(`❌ Snapshot query failed for ${wallet_address}:`, snapshotError);
-      return res.status(404).json({
-        success: false,
-        error: 'No pending airdrop found for this wallet'
-      });
-    }
-
-    console.log(`✅ Found snapshot for ${wallet_address}: id=${snapshot.id}, date=${snapshot.snapshot_date}, status=${snapshot.claim_status}`);
-
-    // Double-check eligibility (daily honey points - resets at 00:00 UTC)
-    const midnightUTC = new Date();
-    midnightUTC.setUTCHours(0, 0, 0, 0);
-
-    const { data: activityData } = await supabase
-      .from('honey_points_activity')
-      .select('points')
-      .eq('wallet_address', wallet_address)
-      .gte('created_at', midnightUTC.toISOString());
-
-    const honeyPoints24h = activityData?.reduce((sum, row) => sum + row.points, 0) || 0;
-
-    // Get minimum required points
-    const { data: configData } = await supabase
-      .from('airdrop_config')
-      .select('value')
-      .eq('key', 'min_honey_points_24h')
-      .single();
-
-    const minHoneyPoints = parseInt(configData?.value || '30');
-
-    if (honeyPoints24h < minHoneyPoints) {
-      return res.status(403).json({
-        success: false,
-        error: `Need ${minHoneyPoints} honey points in 24h to claim. You have ${honeyPoints24h}.`
-      });
-    }
-
-    // ========== SECURITY FIX #3: RECALCULATE AMOUNT SERVER-SIDE ==========
-    // Don't trust the database value - recalculate from snapshot data
-    const BEAR_PER_PIXEL = 1;
-    const BEAR_PER_ULTRA = 5;
-    const LP_PER_BEAR = 250000;
-
-    const nftReward = (snapshot.pixel_bears || 0) * BEAR_PER_PIXEL +
-      (snapshot.ultra_rares || 0) * BEAR_PER_ULTRA;
-    const lpReward = Math.floor(parseFloat(snapshot.lp_tokens || 0) / LP_PER_BEAR);
-    const calculatedAmount = nftReward + lpReward;
-
-    // Use the LOWER of stored vs calculated (prevent inflation attacks)
-    const claimAmount = Math.min(parseFloat(snapshot.total_reward), calculatedAmount);
-
-    if (claimAmount <= 0) {
+    if (!isValidClassicAddress(ledgerWallet) || ledgerWallet.toLowerCase() !== normalizedWallet) {
       return res.status(400).json({
         success: false,
-        error: 'No reward to claim'
+        error: 'Send your wallet address exactly as your wallet app shows it (letter case matters).'
       });
     }
 
-    // ========== SECURITY FIX #4: SET PROCESSING LOCK ==========
-    // Mark as processing BEFORE sending transaction (prevents race condition)
-    // Using two-step approach: UPDATE then verify with SELECT
-    console.log(`🔐 Attempting lock for ${wallet_address}: snapshotId=${snapshot.id}, current status=${snapshot.claim_status}`);
+    return await withWalletLock(normalizedWallet, async () => {
+      const { data: inProgress, error: inProgressError } = await supabaseAdmin
+        .from('airdrop_snapshots')
+        .select('id')
+        .eq('wallet_address', ledgerWallet)
+        .eq('claim_status', 'processing')
+        .limit(1);
 
-    // Step 1: Try to update to 'processing' (using admin client to bypass RLS)
-    const { error: updateError, data: updateData } = await supabaseAdmin
-      .from('airdrop_snapshots')
-      .update({ claim_status: 'processing', updated_at: new Date().toISOString() })
-      .eq('id', snapshot.id)
-      .eq('claim_status', 'pending')  // Only if still pending (atomic check)
-      .select();
+      if (inProgressError) {
+        return res.status(500).json({ success: false, error: 'Database error during claim. Please try again.' });
+      }
+      if (inProgress && inProgress.length) {
+        return res.status(429).json({
+          success: false,
+          error: 'Claim already in progress. Please wait.'
+        });
+      }
 
-    console.log(`📝 Update result for ${wallet_address}: rows=${updateData?.length || 0}, error=`, updateError);
+      // ========== CLAIM WINDOW LOGIC ==========
+      // Only YESTERDAY's snapshot can be claimed, 00:00-23:59 UTC. No grace period.
+      const now = new Date();
+      const yesterdayDate = new Date(now);
+      yesterdayDate.setUTCDate(yesterdayDate.getUTCDate() - 1);
+      const yesterdayStr = yesterdayDate.toISOString().split('T')[0];
 
-    if (updateError) {
-      console.error(`❌ Update error for ${wallet_address}:`, updateError);
-      return res.status(500).json({
-        success: false,
-        error: 'Database error during claim. Please try again.'
-      });
-    }
+      const { data: snapshots, error: snapshotError } = await supabaseAdmin
+        .from('airdrop_snapshots')
+        .select('*')
+        .eq('wallet_address', ledgerWallet)
+        .eq('claim_status', 'pending')
+        .eq('is_eligible', true)
+        .eq('is_blacklisted', false)
+        .eq('snapshot_date', yesterdayStr)
+        .order('snapshot_date', { ascending: false })
+        .limit(1);
 
-    // Step 2: Verify the lock was acquired by checking current status
-    const { data: verifyData, error: verifyError } = await supabaseAdmin
-      .from('airdrop_snapshots')
-      .select('id, claim_status')
-      .eq('id', snapshot.id)
-      .single();
+      const snapshot = snapshots && snapshots[0];
+      if (snapshotError || !snapshot) {
+        if (snapshotError) console.log(`❌ Snapshot query failed for ${ledgerWallet}:`, snapshotError);
+        return res.status(404).json({
+          success: false,
+          error: 'No pending airdrop found for this wallet'
+        });
+      }
 
-    console.log(`🔍 Lock verification for ${wallet_address}: verifyData=`, verifyData, 'verifyError=', verifyError);
+      // Daily honey points (resets at 00:00 UTC), in every letter case the
+      // wallet's activity rows were written. A failed read refuses.
+      const midnightUTC = new Date();
+      midnightUTC.setUTCHours(0, 0, 0, 0);
 
-    if (verifyError || !verifyData || verifyData.claim_status !== 'processing') {
-      console.warn(`⚠️ Claim lock failed for ${wallet_address} - status is ${verifyData?.claim_status || 'unknown'}, expected 'processing'`);
-      return res.status(409).json({
-        success: false,
-        error: 'Claim already in progress or completed. Please refresh and try again.'
-      });
-    }
+      const { data: activityData, error: activityError } = await supabaseAdmin
+        .from('honey_points_activity')
+        .select('points')
+        .ilike('wallet_address', normalizedWallet)
+        .gte('created_at', midnightUTC.toISOString());
 
-    console.log(`🔒 Claim lock acquired for ${wallet_address}, snapshot ${snapshot.id}`);
+      if (activityError) {
+        return res.status(503).json({ success: false, error: 'Could not check your Honey for today. Try again in a moment.' });
+      }
 
-    // Send $BEAR via XRPL
-    const xrpl = require('xrpl');
-    const client = new xrpl.Client('wss://s1.ripple.com');
+      const honeyPoints24h = (activityData || []).reduce((sum, row) => sum + parseHoneyNumber(row.points), 0);
 
-    await client.connect();
+      const { data: configData } = await supabase
+        .from('airdrop_config')
+        .select('value')
+        .eq('key', 'min_honey_points_24h')
+        .single();
 
-    try {
-      const airdropWallet = xrpl.Wallet.fromSecret(process.env.AIRDROP_WALLET_SECRET);
+      const minHoneyPoints = parseInt(configData?.value || '30');
 
-      // Prepare payment transaction
-      // BEAR currency in hex format (required for xrpl v4+)
-      const BEAR_CURRENCY_HEX = '4245415200000000000000000000000000000000';
-      const payment = {
-        TransactionType: 'Payment',
-        Account: airdropWallet.address,
-        Destination: wallet_address,
-        Amount: {
-          currency: BEAR_CURRENCY_HEX,
-          issuer: 'rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW',
-          value: claimAmount.toFixed(6)
-        }
-      };
+      if (honeyPoints24h < minHoneyPoints) {
+        return res.status(403).json({
+          success: false,
+          error: `Need ${minHoneyPoints} honey points in 24h to claim. You have ${honeyPoints24h}.`
+        });
+      }
 
-      // Autofill, sign, and submit
-      const prepared = await client.autofill(payment);
-      const signed = airdropWallet.sign(prepared);
-      const result = await client.submitAndWait(signed.tx_blob);
+      // ========== RECALCULATE AMOUNT SERVER-SIDE ==========
+      const BEAR_PER_PIXEL = 1;
+      const BEAR_PER_ULTRA = 5;
+      const LP_PER_BEAR = 250000;
 
-      const txHash = result.result.hash;
-      const txResult = result.result.meta.TransactionResult;
+      const nftReward = (snapshot.pixel_bears || 0) * BEAR_PER_PIXEL +
+        (snapshot.ultra_rares || 0) * BEAR_PER_ULTRA;
+      const lpReward = Math.floor(parseFloat(snapshot.lp_tokens || 0) / LP_PER_BEAR);
+      const calculatedAmount = nftReward + lpReward;
 
-      if (txResult === 'tesSUCCESS') {
-        // Update snapshot as claimed (using admin client to bypass RLS)
+      // Use the LOWER of stored vs calculated (prevent inflation attacks)
+      const claimAmount = Math.min(parseFloat(snapshot.total_reward), calculatedAmount);
+
+      if (!(claimAmount > 0)) {
+        return res.status(400).json({
+          success: false,
+          error: 'No reward to claim'
+        });
+      }
+
+      // ========== PROCESSING LOCK ==========
+      // Only the request whose UPDATE moved THIS row from pending may pay.
+      const { error: lockError, data: lockedRows } = await supabaseAdmin
+        .from('airdrop_snapshots')
+        .update({ claim_status: 'processing', updated_at: new Date().toISOString() })
+        .eq('id', snapshot.id)
+        .eq('claim_status', 'pending')
+        .select('id');
+
+      if (lockError) {
+        console.error(`❌ Lock update error for ${ledgerWallet}:`, lockError);
+        return res.status(500).json({
+          success: false,
+          error: 'Database error during claim. Please try again.'
+        });
+      }
+
+      if (!lockedRows || lockedRows.length !== 1) {
+        console.warn(`⚠️ Claim lock not acquired for ${ledgerWallet} (snapshot ${snapshot.id}): another request has it`);
+        return res.status(409).json({
+          success: false,
+          error: 'Claim already in progress or completed. Please refresh and try again.'
+        });
+      }
+
+      console.log(`🔒 Claim lock acquired for ${ledgerWallet}, snapshot ${snapshot.id}`);
+
+      const reopenClaim = () => supabaseAdmin
+        .from('airdrop_snapshots')
+        .update({ claim_status: 'pending', updated_at: new Date().toISOString() })
+        .eq('id', snapshot.id)
+        .eq('claim_status', 'processing');
+
+      // Send $BEAR via XRPL
+      const xrpl = require('xrpl');
+      const client = new xrpl.Client('wss://s1.ripple.com', { connectionTimeout: 10000 });
+      let payout;
+      try {
+        await client.connect();
+        const airdropWallet = xrpl.Wallet.fromSecret(process.env.AIRDROP_WALLET_SECRET);
+        payout = await payoutLocks.run(HOT_WALLET_PAYOUT_KEY, () => sendPaymentOnce({
+          client,
+          wallet: airdropWallet,
+          payment: {
+            TransactionType: 'Payment',
+            Account: airdropWallet.address,
+            Destination: ledgerWallet,
+            Amount: {
+              currency: '4245415200000000000000000000000000000000',
+              issuer: 'rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW',
+              value: claimAmount.toFixed(6)
+            }
+          },
+          // Written before submitting, so even a crash mid-payment leaves the hash.
+          onSigned: async ({ hash }) => {
+            const { error } = await supabaseAdmin
+              .from('airdrop_transactions')
+              .insert({
+                snapshot_id: snapshot.id,
+                wallet_address: ledgerWallet,
+                amount: claimAmount,
+                tx_hash: hash,
+                tx_status: 'submitted',
+                submitted_at: new Date().toISOString()
+              });
+            if (error) throw error;
+          }
+        }));
+      } catch (sendError) {
+        payout = { status: 'not_submitted', error: sendError };
+      } finally {
+        try { await client.disconnect(); } catch (e) { }
+      }
+
+      const markTransaction = (fields) => (payout.hash
+        ? supabaseAdmin.from('airdrop_transactions').update(fields).eq('tx_hash', payout.hash)
+        : Promise.resolve());
+
+      if (payout.status === 'success') {
         await supabaseAdmin
           .from('airdrop_snapshots')
           .update({
             claim_status: 'claimed',
             claimed_at: new Date().toISOString(),
-            claim_tx_hash: txHash,
+            claim_tx_hash: payout.hash,
             updated_at: new Date().toISOString()
           })
           .eq('id', snapshot.id);
 
-        // Record transaction
-        await supabaseAdmin
-          .from('airdrop_transactions')
-          .insert({
-            snapshot_id: snapshot.id,
-            wallet_address,
-            amount: claimAmount,
-            tx_hash: txHash,
-            tx_status: 'validated',
-            tx_result: txResult,
-            ledger_index: result.result.ledger_index,
-            submitted_at: new Date().toISOString(),
-            validated_at: new Date().toISOString()
-          });
+        await markTransaction({
+          tx_status: 'validated',
+          tx_result: payout.code || 'tesSUCCESS',
+          ledger_index: payout.ledger_index || null,
+          validated_at: new Date().toISOString()
+        });
 
-        console.log(`🐻 Airdrop claimed: ${claimAmount} $BEAR sent to ${wallet_address}`);
-        console.log(`   TX: ${txHash}`);
+        console.log(`🐻 Airdrop claimed: ${claimAmount} $BEAR sent to ${ledgerWallet} (${payout.hash})`);
 
-        res.json({
+        return res.json({
           success: true,
           message: `Successfully claimed ${claimAmount.toFixed(2)} $BEAR!`,
           amount: claimAmount,
-          tx_hash: txHash,
-          explorer_url: `https://xrpscan.com/tx/${txHash}`
-        });
-      } else {
-        // Transaction failed - ROLLBACK the processing lock
-        await supabaseAdmin
-          .from('airdrop_snapshots')
-          .update({ claim_status: 'pending', updated_at: new Date().toISOString() })
-          .eq('id', snapshot.id);
-
-        await supabaseAdmin
-          .from('airdrop_transactions')
-          .insert({
-            snapshot_id: snapshot.id,
-            wallet_address,
-            amount: claimAmount,
-            tx_hash: txHash,
-            tx_status: 'failed',
-            tx_result: txResult,
-            submitted_at: new Date().toISOString()
-          });
-
-        console.error(`❌ Airdrop claim failed: ${txResult}`);
-
-        // Translate XRPL engine results into something a bear can read.
-        const friendlyByCode = {
-          tecPATH_DRY: 'You need to set up your $BEAR trustline before we can send you the BEARdrop! 🐻🍯',
-          tecNO_LINE_INSUF_RESERVE: 'Your wallet needs a bit more XRP reserve to hold a $BEAR trustline. Top up ~2 XRP and try again.',
-          tecNO_DST: 'This wallet doesn\'t exist on XRPL yet. Fund it with at least 1 XRP first, then try again.',
-          tecNO_DST_INSUF_XRP: 'This wallet needs at least 1 XRP to activate before it can receive $BEAR.',
-          tecDST_TAG_NEEDED: 'Your wallet requires a destination tag, which the airdrop doesn\'t send. Disable the tag requirement or use a different wallet.',
-          tecUNFUNDED_PAYMENT: 'The airdrop wallet is temporarily out of $BEAR. Please ping an admin — we\'ll top it up shortly.',
-          tefMAX_LEDGER: 'The transaction timed out before XRPL validated it. Try the claim again in a moment.',
-          tefPAST_SEQ: 'A temporary sequence hiccup on the airdrop wallet. Try again in a minute.',
-          tecINSUFFICIENT_RESERVE: 'Your wallet is slightly under the XRP reserve needed. Top up ~1 XRP and try again.'
-        };
-        const friendly = friendlyByCode[txResult] ||
-          `Couldn't send the BEARdrop (${txResult}). Try again in a minute, or ping an admin.`;
-
-        res.status(500).json({
-          success: false,
-          error: friendly,
-          code: txResult
+          tx_hash: payout.hash,
+          explorer_url: `https://xrpscan.com/tx/${payout.hash}`
         });
       }
-    } catch (txError) {
-      // XRPL error - ROLLBACK the processing lock
-      console.error('❌ XRPL Transaction error:', txError);
-      await supabaseAdmin
-        .from('airdrop_snapshots')
-        .update({ claim_status: 'pending', updated_at: new Date().toISOString() })
-        .eq('id', snapshot.id);
-      throw txError;
-    } finally {
-      await client.disconnect();
-    }
 
+      if (payout.status === 'failed' || payout.status === 'not_submitted') {
+        // Definitively not delivered: reopen the claim.
+        await reopenClaim();
+        await markTransaction({ tx_status: 'failed', tx_result: payout.code || 'not_submitted' });
+
+        const code = payout.code || 'not_submitted';
+        console.error(`❌ Airdrop claim failed for ${ledgerWallet}: ${code}`, payout.error?.message || '');
+        return res.status(500).json({
+          success: false,
+          error: BEARDROP_FRIENDLY_ERRORS[code] || `Couldn't send the BEARdrop (${code}). Try again in a minute, or ping an admin.`,
+          code
+        });
+      }
+
+      // Unknown: it may have landed. The claim stays 'processing' (nobody can
+      // claim it again) until an admin checks the hash.
+      await markTransaction({ tx_result: `UNKNOWN:${payout.code || 'no answer'}`.substring(0, 50) });
+      console.error(`⚠️ Airdrop claim for ${ledgerWallet} has UNKNOWN outcome (${payout.hash}); snapshot ${snapshot.id} left processing`);
+      return res.status(202).json({
+        success: false,
+        pending: true,
+        tx_hash: payout.hash,
+        error: 'Your BEARdrop was sent but the XRP Ledger has not confirmed it yet. Check your wallet in a few minutes; if it never arrives, contact an admin with this transaction hash.'
+      });
+    });
   } catch (error) {
     console.error('❌ Error processing claim:', error);
-    safeErrorResponse(res, error);
+    if (!res.headersSent) {
+      safeErrorResponse(res, error);
+    }
   }
 });
 
@@ -10801,6 +11785,9 @@ app.get('/api/beardrops/debug-snapshots/:wallet', verifyAdmin, async (req, res) 
 app.get('/api/beardrops/claim-status/:wallet', claimRateLimiter, async (req, res) => {
   try {
     const { wallet } = req.params;
+    if (!isValidXRPLWallet(wallet)) {
+      return res.status(400).json({ success: false, error: 'Wallet address required' });
+    }
 
     // ========== CLAIM WINDOW LOGIC ==========
     // Users can ONLY claim YESTERDAY's snapshot
@@ -10847,10 +11834,10 @@ app.get('/api/beardrops/claim-status/:wallet', claimRateLimiter, async (req, res
     const { data: activityData } = await supabase
       .from('honey_points_activity')
       .select('points')
-      .eq('wallet_address', wallet)
+      .ilike('wallet_address', String(wallet))
       .gte('created_at', midnightUTC.toISOString());
 
-    const honeyPoints24h = activityData?.reduce((sum, row) => sum + row.points, 0) || 0;
+    const honeyPoints24h = activityData?.reduce((sum, row) => sum + parseHoneyNumber(row.points), 0) || 0;
 
     // Get config
     const { data: configData } = await supabase
@@ -11171,11 +12158,9 @@ app.get('/api/store/check-trustline/:wallet/:tokenType', async (req, res) => {
     return res.status(400).json({ success: false, error: 'Invalid token type' });
   }
 
-  const client = new xrpl.Client('wss://s1.ripple.com');
-
   try {
-    await client.connect();
-
+    // The shared connection: a fresh one cost ~1 s per check.
+    const client = await getXrplClient();
     const response = await client.request({
       command: 'account_lines',
       account: wallet,
@@ -11186,8 +12171,6 @@ app.get('/api/store/check-trustline/:wallet/:tokenType', async (req, res) => {
       line => line.currency === token.currency || line.currency === token.currencyHex
     );
 
-    await client.disconnect();
-
     res.json({
       success: true,
       hasTrustline,
@@ -11195,8 +12178,6 @@ app.get('/api/store/check-trustline/:wallet/:tokenType', async (req, res) => {
       issuer: token.issuer
     });
   } catch (error) {
-    try { await client.disconnect(); } catch (e) { }
-
     // If account not found, they definitely don't have trustline
     if (error.message?.includes('actNotFound')) {
       return res.json({ success: true, hasTrustline: false, token: token.currency, issuer: token.issuer });
@@ -11207,219 +12188,245 @@ app.get('/api/store/check-trustline/:wallet/:tokenType', async (req, res) => {
   }
 });
 
-// Purchase token from store
-app.post('/api/store/purchase-token', validateWallet, requireWalletOwnership(['wallet_address']), async (req, res) => {
+function recordStoreTokenTransaction(row) {
+  return db
+    .from('store_token_transactions')
+    .insert(row)
+    .then(({ error }) => {
+      if (error) console.error('store_token_transactions insert failed:', error.message, JSON.stringify(row));
+    }, (error) => console.error('store_token_transactions insert threw:', error.message, JSON.stringify(row)));
+}
+
+// Purchase token from store. Order of steps, so nobody gets tokens without
+// paying and nobody pays twice:
+//   wallet lock -> trustline check -> CHARGE honey (conditional, ledgered) ->
+//   send on the ledger -> success: done | definitive failure: refund |
+//   unknown outcome: keep the honey and the hash for an admin, never refund.
+app.post('/api/store/purchase-token', validateWallet, requireWalletOwnership(['wallet_address']), refuseBannedWallet, limitPerWallet({ windowMs: 60 * 1000, max: 3 }), async (req, res) => {
   const xrpl = require('xrpl');
   const { wallet_address, token_type } = req.body;
   const normalizedWallet = normalizeWalletAddress(req.authWallet || wallet_address);
+  // The database keys wallets lowercase, but an XRPL address is a case-sensitive
+  // checksum: the ledger must get it exactly as signed.
+  const ledgerWallet = String(wallet_address || '').trim();
 
-  if (!wallet_address || !token_type) {
+  if (!wallet_address || !token_type || typeof token_type !== 'string') {
     return res.status(400).json({
       success: false,
       error: 'wallet_address and token_type are required'
     });
   }
 
-  const token = STORE_TOKENS[token_type.toUpperCase()];
+  const tokenKey = token_type.toUpperCase();
+  const token = Object.prototype.hasOwnProperty.call(STORE_TOKENS, tokenKey) ? STORE_TOKENS[tokenKey] : null;
   if (!token) {
     return res.status(400).json({ success: false, error: 'Invalid token type' });
   }
 
-  const client = new xrpl.Client('wss://s1.ripple.com', { connectionTimeout: 10000 });
+  if (!isValidClassicAddress(ledgerWallet) || ledgerWallet.toLowerCase() !== normalizedWallet) {
+    return res.status(400).json({
+      success: false,
+      error: 'Send your wallet address exactly as your wallet app shows it (letter case matters).'
+    });
+  }
+
+  if (!process.env.AIRDROP_WALLET_SECRET) {
+    return res.status(503).json({ success: false, error: 'Token sends are paused for a moment, so no honey was spent. Try again a little later.' });
+  }
 
   try {
-    console.log(`🛒 Token purchase attempt: ${token_type} for ${wallet_address}`);
+    return await withWalletLock(normalizedWallet, async () => {
+      const purchaseId = crypto.randomUUID();
+      const client = new xrpl.Client('wss://s1.ripple.com', { connectionTimeout: 10000 });
+      let charged = false;
+      let payoutStarted = false;
+      const notEnough = `Not enough Honey Points. Need ${token.honeyCost.toLocaleString()}.`;
 
-    const currentBalance = await getHoneyBalance(normalizedWallet);
-    if (currentBalance.total_points < token.honeyCost) {
-      return res.status(400).json({
-        success: false,
-        error: `Not enough Honey Points. Need ${token.honeyCost.toLocaleString()}, have ${Math.floor(currentBalance.total_points).toLocaleString()}`
+      const refund = (why) => applyHoneyDelta({
+        wallet: normalizedWallet,
+        totalDelta: token.honeyCost,
+        transactionType: 'store_token_refund',
+        refId: purchaseId,
+        idempotencyKey: `store_refund:${purchaseId}`,
+        reason: `Refund ${tokenKey} purchase: ${why}`
       });
-    }
 
-    // 2. Check trustline BEFORE deducting points
-    console.log(`   Connecting to XRPL...`);
-    await client.connect();
-    console.log(`   Connected! Checking trustline for ${token.currency}...`);
-
-    const trustlineResponse = await client.request({
-      command: 'account_lines',
-      account: normalizedWallet,
-      peer: token.issuer
-    });
-    console.log(`   Got trustline response, lines: ${trustlineResponse.result?.lines?.length || 0}`);
-
-    const lines = trustlineResponse.result?.lines || [];
-    const hasTrustline = lines.some(
-      line => line.currency === token.currency || line.currency === token.currencyHex
-    );
-    console.log(`   Has trustline: ${hasTrustline}`);
-
-    if (!hasTrustline) {
-      console.log(`   No trustline - disconnecting client...`);
-      try { await client.disconnect(); } catch (e) { console.log('   Disconnect error (ignored):', e.message); }
-
-      // Log the failed attempt (no trustline)
-      console.log(`   Logging failed attempt to database...`);
       try {
-        await supabase
-          .from('store_token_transactions')
-          .insert({
+        console.log(`🛒 Token purchase attempt ${purchaseId}: ${tokenKey} for ${ledgerWallet}`);
+
+        const currentBalance = await getHoneyBalance(normalizedWallet);
+        if (currentBalance.total_points < token.honeyCost) {
+          return res.status(400).json({
+            success: false,
+            error: `Not enough Honey Points. Need ${token.honeyCost.toLocaleString()}, have ${Math.floor(currentBalance.total_points).toLocaleString()}`
+          });
+        }
+
+        await client.connect();
+        const trustlineResponse = await client.request({
+          command: 'account_lines',
+          account: ledgerWallet,
+          peer: token.issuer,
+          ledger_index: 'validated'
+        }).catch((error) => {
+          if (error?.data?.error === 'actNotFound') return { result: { lines: [] } };
+          throw error;
+        });
+
+        const lines = trustlineResponse.result?.lines || [];
+        const hasTrustline = lines.some(
+          line => line.currency === token.currency || line.currency === token.currencyHex
+        );
+
+        if (!hasTrustline) {
+          await recordStoreTokenTransaction({
             wallet_address: normalizedWallet,
-            token_type: token_type.toUpperCase(),
+            token_type: tokenKey,
             token_amount: token.amount,
             honey_spent: 0,
             tx_hash: null,
             tx_status: 'failed',
             error_message: `No ${token.currency} trustline set`
           });
-        console.log(`   Database insert successful`);
-      } catch (dbErr) {
-        console.log(`   Database insert failed (ignored):`, dbErr.message);
-      }
-
-      console.log(`❌ Token purchase FAILED: No trustline for ${token.currency} - ${wallet_address}`);
-
-      return res.status(400).json({
-        success: false,
-        error: `YOU NEED TO SET THE ${token.currency} TRUST LINE FIRST!`,
-        needsTrustline: true,
-        trustlineInfo: {
-          currency: token.currency,
-          issuer: token.issuer
+          return res.status(400).json({
+            success: false,
+            error: `YOU NEED TO SET THE ${token.currency} TRUST LINE FIRST!`,
+            needsTrustline: true,
+            trustlineInfo: {
+              currency: token.currency,
+              issuer: token.issuer
+            }
+          });
         }
-      });
-    }
 
-    const { balance } = await spendHoney({
-      wallet: normalizedWallet,
-      amount: token.honeyCost,
-      transactionType: 'store_token_purchase',
-      reason: `Store token purchase ${token_type.toUpperCase()}`,
-      insufficientMessage: `Not enough Honey Points. Need ${token.honeyCost.toLocaleString()}, have ${Math.floor(currentBalance.total_points).toLocaleString()}`
-    });
+        // Charge first. The UPDATE is conditional on the balance, so this is
+        // the real balance check; it throws if the honey isn't there.
+        const { balance } = await spendHoney({
+          wallet: normalizedWallet,
+          amount: token.honeyCost,
+          transactionType: 'store_token_purchase',
+          refId: purchaseId,
+          reason: `${token.amount} ${tokenKey} to ${ledgerWallet}`,
+          insufficientMessage: notEnough
+        });
+        charged = true;
 
-    // 4. Send tokens via XRPL
-    const airdropWallet = xrpl.Wallet.fromSecret(process.env.AIRDROP_WALLET_SECRET);
+        const airdropWallet = xrpl.Wallet.fromSecret(process.env.AIRDROP_WALLET_SECRET);
+        payoutStarted = true;
+        const payout = await payoutLocks.run(HOT_WALLET_PAYOUT_KEY, () => sendPaymentOnce({
+          client,
+          wallet: airdropWallet,
+          payment: {
+            TransactionType: 'Payment',
+            Account: airdropWallet.address,
+            Destination: ledgerWallet,
+            Amount: {
+              currency: token.currencyHex,
+              issuer: token.issuer,
+              value: token.amount
+            }
+          },
+          onSigned: ({ hash, lastLedger }) => {
+            console.log(`🛒 [${purchaseId}] signed ${hash} (last ledger ${lastLedger}) for ${ledgerWallet}`);
+          }
+        }));
 
-      const payment = {
-      TransactionType: 'Payment',
-      Account: airdropWallet.address,
-      Destination: normalizedWallet,
-      Amount: {
-        currency: token.currencyHex,
-        issuer: token.issuer,
-        value: token.amount
-      }
-    };
+        if (payout.status === 'success') {
+          await recordStoreTokenTransaction({
+            wallet_address: normalizedWallet,
+            token_type: tokenKey,
+            token_amount: token.amount,
+            honey_spent: token.honeyCost,
+            tx_hash: payout.hash,
+            tx_status: 'validated'
+          });
+          console.log(`🛒 Store purchase ${purchaseId}: ${token.amount} ${token.currency} sent to ${ledgerWallet} (${payout.hash})`);
+          return res.json({
+            success: true,
+            message: `Successfully purchased ${Number(token.amount).toLocaleString()} ${token.currency}!`,
+            amount: token.amount,
+            currency: token.currency,
+            new_balance: balance.total_points,
+            tx_hash: payout.hash,
+            explorer_url: `https://xrpscan.com/tx/${payout.hash}`
+          });
+        }
 
-    const prepared = await client.autofill(payment);
-    const signed = airdropWallet.sign(prepared);
-    const result = await client.submitAndWait(signed.tx_blob);
+        if (payout.status === 'failed' || payout.status === 'not_submitted') {
+          const why = payout.code || payout.error?.message || payout.status;
+          await refund(why);
+          await recordStoreTokenTransaction({
+            wallet_address: normalizedWallet,
+            token_type: tokenKey,
+            token_amount: token.amount,
+            honey_spent: 0,
+            tx_hash: payout.hash || null,
+            tx_status: 'failed',
+            error_message: String(why).substring(0, 255)
+          });
+          console.log(`❌ Token purchase ${purchaseId} FAILED (${why}); honey refunded`);
+          return res.status(502).json({
+            success: false,
+            error: `Transaction failed${payout.code ? `: ${payout.code}` : ''}. Your Honey Points have been refunded.`
+          });
+        }
 
-    const txHash = result.result.hash;
-    const txResult = result.result.meta.TransactionResult;
-
-    await client.disconnect();
-
-    if (txResult === 'tesSUCCESS') {
-      // Record transaction
-      const { error: insertError } = await supabase
-        .from('store_token_transactions')
-        .insert({
+        // Unknown: it may have been delivered. Keep the honey; an admin
+        // reconciles with the hash (the ledger row has purchaseId as ref_id).
+        await recordStoreTokenTransaction({
           wallet_address: normalizedWallet,
-          token_type: token_type.toUpperCase(),
+          token_type: tokenKey,
           token_amount: token.amount,
           honey_spent: token.honeyCost,
-          tx_hash: txHash,
-          tx_status: 'validated'
+          tx_hash: payout.hash || null,
+          tx_status: 'error',
+          error_message: `UNKNOWN OUTCOME (${payout.code || 'no answer'}): reconcile ${payout.hash} before any refund; purchase ${purchaseId}`
         });
-
-      if (insertError) {
-        console.log('Transaction record error (table may not exist):', insertError.message);
-      }
-
-      console.log(`🛒 Store purchase: ${token.amount} ${token.currency} sent to ${wallet_address}`);
-      console.log(`   TX: ${txHash}`);
-
-      res.json({
-        success: true,
-        message: `Successfully purchased ${Number(token.amount).toLocaleString()} ${token.currency}!`,
-        amount: token.amount,
-        currency: token.currency,
-        new_balance: balance.total_points,
-        tx_hash: txHash,
-        explorer_url: `https://xrpscan.com/tx/${txHash}`
-      });
-    } else {
-      // Transaction failed - REFUND honey points
-      await applyHoneyDelta({
-        wallet: normalizedWallet,
-        totalDelta: token.honeyCost,
-        transactionType: 'store_token_refund',
-        reason: `Refund failed store token purchase ${token_type.toUpperCase()}`
-      });
-
-      // Log failed transaction
-      await supabase
-        .from('store_token_transactions')
-        .insert({
-          wallet_address: normalizedWallet,
-          token_type: token_type.toUpperCase(),
-          token_amount: token.amount,
-          honey_spent: 0, // Refunded
-          tx_hash: txHash || null,
-          tx_status: 'failed',
-          error_message: txResult
+        console.error(`⚠️ Token purchase ${purchaseId} outcome UNKNOWN (${payout.hash}); honey held for reconciliation`);
+        return res.status(202).json({
+          success: false,
+          pending: true,
+          tx_hash: payout.hash,
+          error: 'Your purchase was sent but the XRP Ledger has not confirmed it yet. Check your wallet; if the tokens never arrive, contact support with this transaction hash.'
         });
+      } catch (error) {
+        if (charged && !payoutStarted) {
+          // Charged, but nothing reached the ledger (e.g. hot wallet secret).
+          try {
+            await refund(error.message || 'payout not started');
+          } catch (refundError) {
+            console.error(`❌ Refund for ${purchaseId} failed; honey must be returned by an admin:`, refundError);
+          }
+        }
 
-      console.log(`❌ Token purchase FAILED: ${txResult} for ${wallet_address}`);
+        if (error?.statusCode) {
+          return res.status(error.statusCode).json({ success: false, error: error.publicMessage || 'Purchase failed' });
+        }
 
-      res.status(500).json({
-        success: false,
-        error: `Transaction failed: ${txResult}. Your Honey Points have been refunded.`
-      });
-    }
-  } catch (error) {
-    try { await client.disconnect(); } catch (e) { }
-
-    // Log error transaction
-    if (token) {
-      await supabase
-        .from('store_token_transactions')
-        .insert({
+        await recordStoreTokenTransaction({
           wallet_address: normalizedWallet,
-          token_type: token_type.toUpperCase(),
+          token_type: tokenKey,
           token_amount: token.amount,
           honey_spent: 0,
           tx_hash: null,
           tx_status: 'error',
           error_message: error.message?.substring(0, 255) || 'Unknown error'
-        }).catch(() => { }); // Ignore if insert fails
-    }
-
-    // Handle account not found (no trustline)
-    if (error.message?.includes('actNotFound')) {
-      return res.status(400).json({
-        success: false,
-        error: `YOU NEED TO SET THE ${token.currency} TRUST LINE FIRST!`,
-        needsTrustline: true,
-        trustlineInfo: {
-          currency: token.currency,
-          issuer: token.issuer
+        });
+        console.error('Error purchasing token:', error.message, error.stack);
+        if (!res.headersSent) {
+          return res.status(500).json({
+            success: false,
+            error: charged ? 'Purchase failed. If your Honey was not returned, contact support.' : 'Purchase failed. Try again in a moment.'
+          });
         }
-      });
-    }
-
-    console.error('Error purchasing token:', error.message, error.stack);
-
-    // Make sure we always send a response
+      } finally {
+        try { await client.disconnect(); } catch (e) { }
+      }
+    });
+  } catch (error) {
+    console.error('Error purchasing token:', error);
     if (!res.headersSent) {
-      res.status(error.statusCode || 500).json({
-        success: false,
-        error: error.publicMessage || error.message || 'Unknown error occurred'
-      });
+      safeErrorResponse(res, error, error.statusCode || 500, error.publicMessage || 'Purchase failed');
     }
   }
 });
@@ -11445,129 +12452,93 @@ function hexToString(hex) {
 }
 
 // Get available NFTs from the store wallet (filters out already purchased)
+// NFT metadata never changes (it lives on IPFS), so each URI is resolved once.
+// Failures are retried after 10 minutes. Filebase answers BEAR's CIDs reliably;
+// ipfs.io often stalls, and the old code's `timeout` option was silently ignored
+// by Node's fetch, so one slow gateway held the whole store page.
+const STORE_NFT_GATEWAYS = ['https://ipfs.filebase.io/ipfs/', 'https://ipfs.io/ipfs/', 'https://gateway.pinata.cloud/ipfs/'];
+const storeNftMeta = new Map(); // uri -> { at, ok, imageUrl, name }
+const STORE_NFT_DEFAULT_IMAGE = 'https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/v2jedg.png';
+
+function ipfsPathOf(ref) {
+  if (!ref) return null;
+  let path = null;
+  if (ref.startsWith('ipfs://')) path = ref.slice(7);
+  else if (/^(Qm[a-zA-Z0-9]{44}|bafy[a-zA-Z0-9]+)/.test(ref)) path = ref;
+  else if (ref.includes('/ipfs/')) path = ref.split('/ipfs/')[1];
+  if (!path) return null;
+  const [cid, ...rest] = path.split('/');
+  const clean = (part) => { try { return encodeURIComponent(decodeURIComponent(part)); } catch { return encodeURIComponent(part); } };
+  return rest.length ? `${cid}/${rest.map(clean).join('/')}` : cid;
+}
+
+async function fetchFromGateways(ref) {
+  const path = ipfsPathOf(ref);
+  const urls = path ? STORE_NFT_GATEWAYS.map((g) => g + path) : (ref && /^https?:/.test(ref) ? [ref] : []);
+  for (const url of urls) {
+    try {
+      const r = await fetchWithTimeout(url, { headers: { Accept: 'application/json, image/*' } }, 4000);
+      if (r.ok) return { response: r, url };
+    } catch { /* next gateway */ }
+  }
+  return null;
+}
+
+async function resolveStoreNftMeta(uri) {
+  const known = storeNftMeta.get(uri);
+  if (known && (known.ok || Date.now() - known.at < 10 * 60 * 1000)) return known;
+  let meta = { at: Date.now(), ok: false, imageUrl: STORE_NFT_DEFAULT_IMAGE, name: 'Pixel BEAR' };
+  const hit = await fetchFromGateways(uri);
+  if (hit) {
+    const type = hit.response.headers.get('content-type') || '';
+    if (type.includes('image/')) {
+      meta = { ...meta, ok: true, imageUrl: hit.url };
+    } else {
+      try {
+        const json = await hit.response.json();
+        const img = json.image || json.image_url || json.imageUrl || json.animation_url || json.file || json.media;
+        const imgPath = ipfsPathOf(img);
+        meta = {
+          ...meta,
+          ok: true,
+          name: json.name || meta.name,
+          imageUrl: imgPath ? STORE_NFT_GATEWAYS[0] + imgPath : (img && /^https?:/.test(img) ? img : meta.imageUrl),
+        };
+      } catch { /* keep the default */ }
+    }
+  }
+  storeNftMeta.set(uri, meta);
+  return meta;
+}
+
 app.get('/api/store/nfts', async (req, res) => {
-  const xrpl = require('xrpl');
-  const client = new xrpl.Client('wss://s1.ripple.com');
-
   try {
-    await client.connect();
-
-    // Get all NFTs from the store wallet
+    // The shared ledger connection: a fresh one cost ~1 s per page view.
+    const client = await getXrplClient();
     const response = await client.request({
       command: 'account_nfts',
       account: NFT_STORE_WALLET,
       limit: 100
     });
-
-    await client.disconnect();
-
     const allNfts = response.result.account_nfts || [];
 
-    // Get already purchased NFT token IDs from database
-    const { data: purchased } = await supabase
+    // Already-claimed NFTs are not for sale.
+    const { data: purchased } = await db
       .from('nft_purchase_requests')
       .select('nft_token_id')
       .in('status', ['pending', 'fulfilled']);
-
     const purchasedIds = new Set((purchased || []).map(p => p.nft_token_id).filter(Boolean));
 
-    // Filter out already purchased NFTs (show ALL NFTs in the wallet)
-    // First map to basic info, then fetch metadata for each
-    const availableNftsBasic = allNfts.filter(nft => !purchasedIds.has(nft.NFTokenID));
-
-    // Process each NFT and try to fetch metadata for images
-    const availableNfts = await Promise.all(availableNftsBasic.map(async (nft) => {
-      let uri = '';
-      let imageUrl = 'https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/v2jedg.png'; // default
-      let name = 'Pixel BEAR';
-      let rawUri = nft.URI || '';
-
-      // Helper to properly encode IPFS paths (handles spaces, #, etc.)
-      const encodeIpfsPath = (ipfsPath) => {
-        const parts = ipfsPath.split('/');
-        // First part is the CID, rest is the filename that needs encoding
-        const cid = parts[0];
-        const filename = parts.slice(1).join('/');
-        if (filename) {
-          return cid + '/' + encodeURIComponent(filename);
-        }
-        return cid;
-      };
-
-      if (nft.URI) {
-        uri = hexToString(nft.URI);
-        console.log(`NFT ${nft.NFTokenID.substring(0, 8)}... Raw URI: ${uri}`);
-
-        // Handle different URI formats
-        let metadataUrl = null;
-
-        if (uri.startsWith('ipfs://')) {
-          // IPFS protocol URI - need to encode the path for special chars
-          const ipfsPath = uri.replace('ipfs://', '');
-          metadataUrl = `https://ipfs.io/ipfs/${encodeIpfsPath(ipfsPath)}`;
-        } else if (uri.startsWith('https://') || uri.startsWith('http://')) {
-          // Direct HTTP URL
-          metadataUrl = uri;
-        } else if (uri.match(/^Qm[a-zA-Z0-9]{44}/) || uri.match(/^bafy[a-zA-Z0-9]+/)) {
-          // Raw IPFS CID (starts with Qm or bafy)
-          metadataUrl = `https://ipfs.io/ipfs/${encodeIpfsPath(uri)}`;
-        }
-
-        // If we have a metadata URL, try to fetch it to get the image
-        if (metadataUrl) {
-          try {
-            console.log(`Fetching metadata from: ${metadataUrl}`);
-            const metaResponse = await fetch(metadataUrl, {
-              timeout: 5000,
-              headers: { 'Accept': 'application/json, image/*' }
-            });
-
-            const contentType = metaResponse.headers.get('content-type') || '';
-
-            if (contentType.includes('application/json') || contentType.includes('text/')) {
-              // It's JSON metadata - parse and get image
-              const metadata = await metaResponse.json();
-              console.log(`Metadata keys: ${Object.keys(metadata).join(', ')}`);
-
-              // Try common image field names
-              let imgField = metadata.image || metadata.image_url || metadata.imageUrl ||
-                metadata.animation_url || metadata.file || metadata.media;
-
-              if (imgField) {
-                if (imgField.startsWith('ipfs://')) {
-                  // Encode the IPFS path properly for special chars like # and spaces
-                  const imgPath = imgField.replace('ipfs://', '');
-                  imageUrl = `https://ipfs.io/ipfs/${encodeIpfsPath(imgPath)}`;
-                } else if (imgField.startsWith('http')) {
-                  imageUrl = imgField;
-                } else if (imgField.match(/^Qm[a-zA-Z0-9]{44}/) || imgField.match(/^bafy/)) {
-                  imageUrl = `https://ipfs.io/ipfs/${encodeIpfsPath(imgField)}`;
-                }
-                console.log(`Found image URL: ${imageUrl}`);
-              }
-
-              // Get name from metadata
-              if (metadata.name) {
-                name = metadata.name;
-              }
-            } else if (contentType.includes('image/')) {
-              // The URI itself points directly to an image
-              imageUrl = metadataUrl;
-              console.log(`URI is direct image: ${imageUrl}`);
-            }
-          } catch (fetchError) {
-            console.log(`Could not fetch metadata: ${fetchError.message}`);
-            // Keep default image if metadata fetch fails
-          }
-        }
-      }
-
+    const available = allNfts.filter(nft => !purchasedIds.has(nft.NFTokenID));
+    const availableNfts = await Promise.all(available.map(async (nft) => {
+      const uri = nft.URI ? hexToString(nft.URI) : '';
+      const meta = uri ? await resolveStoreNftMeta(uri) : { imageUrl: STORE_NFT_DEFAULT_IMAGE, name: 'Pixel BEAR' };
       return {
         nftTokenId: nft.NFTokenID,
-        name: name,
-        uri: uri,
-        rawUri: rawUri,
-        imageUrl: imageUrl,
+        name: meta.name,
+        uri,
+        rawUri: nft.URI || '',
+        imageUrl: meta.imageUrl,
         honeyCost: NFT_HONEY_COST,
         issuer: nft.Issuer,
         taxon: nft.NFTokenTaxon
@@ -11580,9 +12551,7 @@ app.get('/api/store/nfts', async (req, res) => {
       totalAvailable: availableNfts.length,
       honeyCost: NFT_HONEY_COST
     });
-
   } catch (error) {
-    try { await client.disconnect(); } catch (e) { }
     console.error('Error fetching store NFTs:', error);
     safeErrorResponse(res, error);
   }
@@ -11690,10 +12659,13 @@ app.get('/api/nft/image/:hexUri', async (req, res) => {
   }
 });
 
-// Request specific NFT purchase (by NFTokenID)
-app.post('/api/store/request-nft', validateWallet, requireWalletOwnership(['wallet_address']), async (req, res) => {
+// Request specific NFT purchase (by NFTokenID). One buyer per NFT: the NFT's
+// lock makes "is it taken?" and "it's mine" one step (two buyers used to both
+// pay for the same NFT), and the wallet's lock covers the charge.
+app.post('/api/store/request-nft', validateWallet, requireWalletOwnership(['wallet_address']), refuseBannedWallet, limitPerWallet({ windowMs: 60 * 1000, max: 3 }), async (req, res) => {
   const { wallet_address, nft_token_id } = req.body;
   const normalizedWallet = normalizeWalletAddress(req.authWallet || wallet_address);
+  const ledgerWallet = String(wallet_address || '').trim();
 
   if (!wallet_address || !nft_token_id) {
     return res.status(400).json({
@@ -11702,102 +12674,123 @@ app.post('/api/store/request-nft', validateWallet, requireWalletOwnership(['wall
     });
   }
 
+  if (typeof nft_token_id !== 'string' || !/^[0-9A-Fa-f]{64}$/.test(nft_token_id)) {
+    return res.status(400).json({ success: false, error: 'Invalid NFT id' });
+  }
+
+  // An admin sends the NFT to this exact spelling; a wrong-case address fails.
+  if (!isValidClassicAddress(ledgerWallet) || ledgerWallet.toLowerCase() !== normalizedWallet) {
+    return res.status(400).json({
+      success: false,
+      error: 'Send your wallet address exactly as your wallet app shows it (letter case matters).'
+    });
+  }
+
+  const nftId = nft_token_id.toUpperCase();
+
   try {
-    // 1. Check if this NFT is already purchased/pending
-    const { data: existingPurchase } = await supabase
-      .from('nft_purchase_requests')
-      .select('id, status, wallet_address')
-      .eq('nft_token_id', nft_token_id)
-      .in('status', ['pending', 'fulfilled'])
-      .single();
+    return await walletLocks.runAll([`nft:${nftId}`, walletLockKey(normalizedWallet)], async () => {
+      // 1. Is this NFT already purchased or pending? A failed query refuses.
+      const { data: takenRows, error: takenError } = await db
+        .from('nft_purchase_requests')
+        .select('id, status')
+        .ilike('nft_token_id', nftId)
+        .in('status', ['pending', 'fulfilled'])
+        .limit(1);
 
-    if (existingPurchase) {
-      return res.status(400).json({
-        success: false,
-        error: 'NFT ALREADY PURCHASED! This NFT has been claimed by another user.',
-        alreadyPurchased: true
-      });
-    }
+      if (takenError) throw takenError;
+      if (takenRows && takenRows.length) {
+        return res.status(400).json({
+          success: false,
+          error: 'NFT ALREADY PURCHASED! This NFT has been claimed by another user.',
+          alreadyPurchased: true
+        });
+      }
 
-    // 2. Verify NFT still exists in store wallet
-    const xrpl = require('xrpl');
-    const client = new xrpl.Client('wss://s1.ripple.com');
-    await client.connect();
+      // 2. Verify NFT still exists in store wallet
+      const xrpl = require('xrpl');
+      const client = new xrpl.Client('wss://s1.ripple.com');
+      let nftExists = false;
+      try {
+        await client.connect();
+        let marker;
+        for (let page = 0; page < 20 && !nftExists; page++) {
+          const response = await client.request({
+            command: 'account_nfts',
+            account: NFT_STORE_WALLET,
+            ledger_index: 'validated',
+            limit: 400,
+            ...(marker ? { marker } : {})
+          });
+          nftExists = (response.result.account_nfts || []).some(nft => nft.NFTokenID === nftId);
+          marker = response.result.marker;
+          if (!marker) break;
+        }
+      } finally {
+        try { await client.disconnect(); } catch (e) { }
+      }
 
-    const response = await client.request({
-      command: 'account_nfts',
-      account: NFT_STORE_WALLET,
-      limit: 100
-    });
+      if (!nftExists) {
+        return res.status(400).json({
+          success: false,
+          error: 'NFT ALREADY PURCHASED! This NFT is no longer available.',
+          alreadyPurchased: true
+        });
+      }
 
-    await client.disconnect();
-
-    const nftExists = response.result.account_nfts.some(nft => nft.NFTokenID === nft_token_id);
-
-    if (!nftExists) {
-      return res.status(400).json({
-        success: false,
-        error: 'NFT ALREADY PURCHASED! This NFT is no longer available.',
-        alreadyPurchased: true
-      });
-    }
-
-    // 3. Check user's honey points
-    const currentBalance = await getHoneyBalance(normalizedWallet);
-    if (currentBalance.total_points < NFT_HONEY_COST) {
-      return res.status(400).json({
-        success: false,
-        error: `Not enough Honey Points. Need ${NFT_HONEY_COST.toLocaleString()}, have ${Math.floor(currentBalance.total_points).toLocaleString()}`
-      });
-    }
-
-    const { balance } = await spendHoney({
-      wallet: normalizedWallet,
-      amount: NFT_HONEY_COST,
-      transactionType: 'nft_request_purchase',
-      reason: `NFT request ${nft_token_id}`,
-      insufficientMessage: `Not enough Honey Points. Need ${NFT_HONEY_COST.toLocaleString()}, have ${Math.floor(currentBalance.total_points).toLocaleString()}`
-    });
-
-    // 5. Create NFT request record with specific token ID
-    const { data: request, error: requestError } = await supabase
-      .from('nft_purchase_requests')
-      .insert({
-        wallet_address: normalizedWallet,
-        nft_token_id: nft_token_id,
-        nft_type: 'PIXEL_BEAR',
-        nft_name: 'Pixel BEAR NFT',
-        honey_spent: NFT_HONEY_COST,
-        status: 'pending',
-        requested_at: new Date().toISOString()
-      })
-      .select()
-      .single();
-
-    if (requestError) {
-      await applyHoneyDelta({
+      // 3. Charge (conditional on the balance; throws if it isn't there)
+      const { balance } = await spendHoney({
         wallet: normalizedWallet,
-        totalDelta: NFT_HONEY_COST,
-        transactionType: 'nft_request_refund',
-        reason: `Refund NFT request ${nft_token_id}`
+        amount: NFT_HONEY_COST,
+        transactionType: 'nft_request_purchase',
+        refId: nftId,
+        reason: `NFT request ${nftId} for ${ledgerWallet}`,
+        insufficientMessage: `Not enough Honey Points. Need ${NFT_HONEY_COST.toLocaleString()}.`
       });
-      throw requestError;
-    }
 
-    console.log(`🎨 NFT Request: Pixel BEAR (${nft_token_id.slice(0, 16)}...) requested by ${wallet_address}`);
-    console.log(`   Request ID: ${request.id}`);
+      // 4. Record the request (an admin sends the NFT to this exact address)
+      const { data: request, error: requestError } = await db
+        .from('nft_purchase_requests')
+        .insert({
+          wallet_address: ledgerWallet,
+          nft_token_id: nftId,
+          nft_type: 'PIXEL_BEAR',
+          nft_name: 'Pixel BEAR NFT',
+          honey_spent: NFT_HONEY_COST,
+          status: 'pending',
+          requested_at: new Date().toISOString()
+        })
+        .select()
+        .single();
 
-    res.json({
-      success: true,
-      message: 'Your Pixel BEAR NFT request has been submitted! It will be sent to you shortly.',
-      request_id: request.id,
-      nft_token_id: nft_token_id,
-      new_balance: balance.total_points,
-      status: 'pending'
+      if (requestError) {
+        // Nothing was promised: give the honey back.
+        await applyHoneyDelta({
+          wallet: normalizedWallet,
+          totalDelta: NFT_HONEY_COST,
+          transactionType: 'nft_request_refund',
+          refId: nftId,
+          reason: `Refund NFT request ${nftId}`
+        });
+        throw requestError;
+      }
+
+      console.log(`🎨 NFT Request: Pixel BEAR (${nftId.slice(0, 16)}...) requested by ${ledgerWallet}, request ${request.id}`);
+
+      return res.json({
+        success: true,
+        message: 'Your Pixel BEAR NFT request has been submitted! It will be sent to you shortly.',
+        request_id: request.id,
+        nft_token_id: nftId,
+        new_balance: balance.total_points,
+        status: 'pending'
+      });
     });
   } catch (error) {
     console.error('Error creating NFT request:', error);
-    safeErrorResponse(res, error, error.statusCode, error.publicMessage);
+    if (!res.headersSent) {
+      safeErrorResponse(res, error, error.statusCode || 500, error.publicMessage || 'Internal server error');
+    }
   }
 });
 
@@ -11809,7 +12802,7 @@ app.get('/api/store/nft-requests/:wallet', async (req, res) => {
     const { data: requests, error } = await supabase
       .from('nft_purchase_requests')
       .select('*')
-      .eq('wallet_address', wallet)
+      .ilike('wallet_address', wallet)
       .order('requested_at', { ascending: false });
 
     if (error) throw error;
@@ -11864,7 +12857,7 @@ app.post('/api/admin/fulfill-nft-request', verifyAdmin, async (req, res) => {
   }
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('nft_purchase_requests')
       .update({
         status: 'fulfilled',

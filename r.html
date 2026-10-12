@@ -621,9 +621,33 @@
 
     const payload = JSON.stringify({ wallet_address: wallet, raid_id: raidId });
 
-    let queued = false;
+    // The park's session token (core/session.js) proves the wallet on its own.
+    // sendBeacon can't carry it, and the cookie isn't always there (in-app
+    // browsers drop it), so send it on a keepalive fetch that outlives the redirect.
+    let token = null;
     try {
-      if (navigator.sendBeacon) {
+      if ((localStorage.getItem('bearpark_auth_token_wallet') || '') === wallet.toLowerCase()) {
+        token = localStorage.getItem('bearpark_auth_token');
+      }
+    } catch (_) {}
+
+    let queued = false;
+    if (token) {
+      try {
+        fetch('/api/raids/tg-claim', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: payload,
+          cache: 'no-store',
+          credentials: 'include',
+          keepalive: true,
+          mode: 'same-origin'
+        }).catch(() => {});
+        queued = true;
+      } catch (_) {}
+    }
+    try {
+      if (!queued && navigator.sendBeacon) {
         const blob = new Blob([payload], { type: 'application/json' });
         queued = navigator.sendBeacon('/api/raids/tg-claim', blob);
       }

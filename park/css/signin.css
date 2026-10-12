@@ -1,0 +1,133 @@
+/* Sign-in sheet and landing. Shapes follow BEAR Swap's connect modal
+   (walletMetro.css): a light display title with the gold BEAR, rows with a
+   glyph, title, caption and chevron; one gold row, the rest quiet glass. */
+
+.si { --dlg-w: 460px; }
+.si .dlg__body { padding: 6px 24px 26px; }
+@media (min-width: 640px) { .si .dlg__body { padding: 10px 32px 32px; } }
+.si-stage { display: grid; }
+.si-stage > * { grid-area: 1 / 1; min-width: 0; }
+
+.si-head { text-align: center; margin: 4px 0 22px; }
+.si-head .eyebrow { color: var(--ink-3); }
+.si-title { margin: 6px 0 8px; font: 200 46px/1 var(--font); letter-spacing: -1px; }
+@media (min-width: 640px) { .si-title { font-size: 52px; } }
+.si-title .bear { color: var(--gold); font-weight: 400; }
+.si-title--sm { font-size: 34px; letter-spacing: -.8px; }
+.si-head .lede { margin: 0 auto; max-width: 32ch; color: var(--ink-3); }
+
+.si-rows { display: flex; flex-direction: column; gap: 10px; }
+.si-row { position: relative; display: grid; grid-template-columns: 36px minmax(0, 1fr) 18px; align-items: center; gap: 14px; width: 100%; min-height: 64px; padding: 12px 16px; border-radius: var(--r); text-align: left; background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .10); color: #fff; transition: background-color 180ms linear, border-color 180ms linear, scale 160ms var(--ease-std); }
+@media (hover: hover) { .si-row:hover { background: rgba(255, 255, 255, .08); border-color: color-mix(in srgb, var(--gold) 38%, transparent); } }
+.si-row:active { scale: .985; transition-duration: 60ms; }
+.si-row__glyph { width: 36px; height: 36px; border-radius: 10px; object-fit: cover; display: grid; place-items: center; background: #0b0b12; }
+.si-row__glyph .icon { font-size: 20px; color: var(--gold); }
+.si-row__title { display: block; font: 700 16px/1.25 var(--font); letter-spacing: -.1px; }
+.si-row__title .bear { color: var(--gold); }
+.si-row__sub { display: block; margin-top: 2px; font: 500 12.5px/1.35 var(--font); color: var(--ink-3); }
+.si-row > .icon { color: var(--ink-4); font-size: 18px; }
+.si-row--gold { background: var(--gold); border-color: var(--gold); color: var(--gold-ink); }
+.si-row--gold .si-row__title .bear { color: var(--gold-ink); }
+.si-row--gold .si-row__sub { color: rgba(22, 18, 10, .72); }
+.si-row--gold > .icon { color: rgba(22, 18, 10, .7); }
+@media (hover: hover) { .si-row--gold:hover { background: color-mix(in srgb, var(--gold) 88%, #fff); border-color: transparent; } }
+
+.si-foot { margin-top: 18px; display: flex; align-items: center; justify-content: center; gap: 7px; font: 500 12.5px/1.4 var(--font); color: var(--ink-3); }
+.si-foot .icon { font-size: 14px; }
+.si-entry { margin-top: 10px; text-align: center; }
+
+.si-back { display: inline-flex; align-items: center; gap: 4px; margin: -4px 0 14px -6px; padding: 6px; font: 700 11px/1 var(--font); letter-spacing: 2px; text-transform: uppercase; color: var(--ink-3); }
+@media (hover: hover) { .si-back:hover { color: #fff; } }
+.si-back .icon { font-size: 16px; }
+
+.si-qr { position: relative; width: 248px; height: 248px; margin: 4px auto 0; border-radius: 22px; padding: 8px; background: #fff; display: grid; place-items: center; box-shadow: 0 20px 60px rgba(0, 0, 0, .5); }
+.si-qr svg, .si-qr img { width: 232px; height: 232px; border-radius: 14px; }
+.si-qr .sk { width: 232px; height: 232px; border-radius: 14px; background: rgba(0, 0, 0, .06); }
+.si-qr__badge { position: absolute; left: 50%; top: 50%; width: 52px; height: 52px; translate: -50% -50%; border-radius: 14px; background: #fff; padding: 4px; }
+.si-qr__badge img { width: 44px; height: 44px; border-radius: 10px; }
+.si-qr--done svg, .si-qr--done img { opacity: .12; }
+.si-qr__tick { position: absolute; inset: 0; display: grid; place-items: center; color: #0b0b12; }
+.si-qr__tick .icon { font-size: 72px; stroke-width: 2.4; }
+
+.si-status { margin: 20px 0 0; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; min-height: 58px; }
+.si-status__text { font: 600 14px/1.4 var(--font); color: var(--ink-2); }
+.si-status__sub { font: 800 10.5px/1 var(--font); letter-spacing: 1.4px; text-transform: uppercase; color: var(--ink-4); font-variant-numeric: tabular-nums; }
+.si-actions { margin-top: 20px; display: flex; flex-direction: column; gap: 10px; }
+.si-steps { margin: 18px 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center; }
+.si-steps li { font: 600 12px/1.35 var(--font); color: var(--ink-3); }
+.si-steps b { display: block; font: 200 26px/1 var(--font); color: var(--gold); margin-bottom: 4px; }
+
+/* Windows Phone's indeterminate progress: dots that rush in, drift, rush out. */
+.dots { position: relative; width: min(220px, 70%); height: 6px; overflow: hidden; }
+.dots i { position: absolute; top: 1px; left: 0; width: 4px; height: 4px; border-radius: 50%; background: var(--gold); opacity: 0; animation: dots-fly 2.6s infinite; }
+.dots i:nth-child(2) { animation-delay: .16s; }
+.dots i:nth-child(3) { animation-delay: .32s; }
+.dots i:nth-child(4) { animation-delay: .48s; }
+.dots i:nth-child(5) { animation-delay: .64s; }
+@keyframes dots-fly {
+  0% { transform: translateX(-10px); opacity: 0; animation-timing-function: cubic-bezier(.1, .9, .3, 1); }
+  8% { opacity: 1; }
+  36% { transform: translateX(calc(min(220px, 70vw) * .42)); animation-timing-function: linear; }
+  64% { transform: translateX(calc(min(220px, 70vw) * .58)); opacity: 1; animation-timing-function: cubic-bezier(.7, 0, .9, .1); }
+  92% { opacity: 1; }
+  100% { transform: translateX(calc(min(220px, 70vw) + 10px)); opacity: 0; }
+}
+
+.si-welcome { text-align: center; padding: 8px 0 4px; }
+.si-welcome .ava { margin: 0 auto 14px; }
+.si-welcome__name { font: 200 34px/1.1 var(--font); letter-spacing: -.8px; margin: 4px 0 6px; }
+.si-figures { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 18px 0 4px; text-align: left; }
+.si-figures .frost { padding: 12px 14px; }
+
+/* ───────── landing ───────── */
+.land { position: relative; width: 100%; max-width: var(--page-max); margin: 0 auto; padding: calc(var(--hdr-h) + 30px) var(--gutter) 24px; flex: 1; }
+.land-hero { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); gap: 34px; align-items: center; min-height: min(760px, calc(100dvh - var(--hdr-h) - 40px)); isolation: isolate; }
+/* The old hero's illustrated park, now a quiet backdrop that fades into the orbs. */
+.land-art { position: absolute; z-index: -1; left: calc(var(--gutter) * -1); right: calc(var(--gutter) * -1); top: calc((var(--hdr-h) + 30px) * -1); height: min(620px, 78vh); overflow: hidden; pointer-events: none;
+  -webkit-mask-image: linear-gradient(180deg, #000 30%, transparent 100%); mask-image: linear-gradient(180deg, #000 30%, transparent 100%); }
+.land-art img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 70%; opacity: .42; }
+.land-art::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(0, 0, 0, .8) 0%, rgba(0, 0, 0, .35) 55%, rgba(0, 0, 0, .1) 100%); }
+.land-brand { display: flex; align-items: center; gap: 18px; }
+.land-sign { width: clamp(58px, 11vw, 132px); height: auto; flex: none; filter: drop-shadow(0 14px 22px rgba(0, 0, 0, .55)); transform: rotate(-4deg); }
+@media (min-width: 1024px) { .land-hero { grid-template-columns: minmax(0, 1.15fr) minmax(380px, .85fr); gap: 56px; } }
+.land-copy { display: flex; flex-direction: column; gap: 18px; }
+.land-mark { font-size: clamp(40px, 11.5vw, 124px); line-height: .95; }
+.land-brand { min-width: 0; }
+.land-brand > div { min-width: 0; }
+.land-pitch { margin: 0; max-width: 46ch; font: 400 17px/1.55 var(--font); color: var(--ink-2); text-shadow: var(--halo); }
+/* Each fact carries its own leading dot; the strip is shifted left by one dot
+   and clipped there, so a line never starts with a stray "·" when it wraps. */
+.land-facts { --sep: 30px; display: flex; flex-wrap: wrap; row-gap: 6px; margin-left: calc(-1 * var(--sep)); clip-path: inset(-8px -8px -8px var(--sep)); font: 800 11px/1.4 var(--font); letter-spacing: 1.6px; text-transform: uppercase; color: var(--ink-3); text-shadow: var(--halo); }
+.land-facts span::before { content: '·'; display: inline-block; width: var(--sep); text-align: center; letter-spacing: 0; color: var(--ink-4); }
+@media (max-width: 480px) { .land-brand { gap: 12px; } .land-pitch { font-size: 15.5px; } .land-facts { --sep: 22px; } }
+.land-card { padding: 26px 22px 22px; }
+@media (min-width: 640px) { .land-card { padding: 30px 30px 26px; } }
+.land-card .si-head { margin-top: 0; }
+.land-tiles { margin-top: 56px; }
+.land-ticker { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (min-width: 900px) { .land-ticker { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+/* Bear City: the park's street under the copy (beside the card on desktop,
+   after it on phones), where the BEARs stroll. The wooden sign hides the
+   Jester: five quick taps, so they must never zoom the page. */
+.land-hero { grid-template-areas: "copy" "card" "city"; }
+.land-copy { grid-area: copy; }
+.land-card { grid-area: card; }
+.land-city { grid-area: city; min-height: clamp(150px, 15vw, 186px); --pos: 50% 100%; }
+.land-city::after { background: linear-gradient(180deg, rgba(0, 0, 0, .55) 0%, rgba(0, 0, 0, .1) 42%, rgba(0, 0, 0, 0) 62%), linear-gradient(0deg, rgba(0, 0, 0, .3), transparent 30%); }
+.land-city__note { position: absolute; left: var(--pane-pad); top: 14px; z-index: 1; display: flex; flex-direction: column; gap: 4px; pointer-events: none; text-shadow: var(--halo); }
+.land-city__note .caption { color: var(--ink-2); }
+.land-sign { touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-user-drag: none; }
+@media (min-width: 1024px) {
+  .land-hero { grid-template-areas: "copy card" "city card"; row-gap: 26px; align-content: center; }
+  .land-copy { align-self: end; }
+  .land-city { align-self: start; }
+}
+.si-row__glyph--wc { background: #3b99fc; }
+.si-row__glyph--wc .icon { color: #fff; }
+/* Two columns: the wordmark and sign share the left column with the copy, so they
+   scale with it instead of running under the sign-in card. */
+@media (min-width: 1024px) {
+  .land-mark { font-size: clamp(56px, 5.6vw, 100px); }
+  .land-sign { width: clamp(72px, 6.6vw, 112px); }
+  .land-brand { gap: 16px; }
+}

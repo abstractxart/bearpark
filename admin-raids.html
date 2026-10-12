@@ -590,7 +590,7 @@
     </div>
 
     <div id="loginSection">
-      <button onclick="connectWallet()">🔐 Connect Admin Wallet</button>
+      <button onclick="connectWallet()">🔐 Sign in at BEAR Park</button>
     </div>
 
     <div class="admin-section" id="adminContent">
@@ -730,9 +730,13 @@
     <div id="status" class="status"></div>
   </div>
 
-  <script src="https://unpkg.com/xrpl@2.7.0/build/xrpl-latest-min.js"></script>
   <script>
     const ADMIN_WALLET = 'rKkkYMCvC63HEgxjQHmayKADaxYqnsMUkT';
+
+    // People choose their own names: anything they typed is text, never markup.
+    function esc(value) {
+      return String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
     const SITE_URL = 'https://bearpark.xyz'; // Base URL for share links
     let currentWallet = null;
     let userRole = null; // Stores the user's role data (master, admin, moderator)
@@ -852,25 +856,22 @@
       return response;
     }
 
+    // Staff sign in at the park like everyone else; this page reads that session.
     async function connectWallet() {
       try {
-        const wallet = await xrpl.Wallet.generate();
-        currentWallet = localStorage.getItem('bearpark_wallet');
-
-        if (!currentWallet) {
-          showStatus('Please connect your wallet on the main site first', 'error');
-          setTimeout(() => {
-            window.location.href = '/';
-          }, 2000);
+        const live = window.getBearparkSession && window.getBearparkSession();
+        if (!live) {
+          window.location.href = '/';
           return;
         }
+        currentWallet = live.wallet;
 
         // Check if user has any admin role
         const roleResponse = await fetch(`/api/admin/check-role/${currentWallet}`);
         const roleResult = await roleResponse.json();
 
         if (!roleResult.has_role) {
-          showStatus(`❌ Unauthorized: You do not have admin/moderator access. Wallet: ${currentWallet}`, 'error');
+          showStatus(`❌ This wallet (${currentWallet}) isn't on the staff list, so the admin tools stay closed.`, 'error');
           return;
         }
 
@@ -966,11 +967,11 @@
 
         raidsList.innerHTML = result.raids.map(raid => `
           <div class="raid-item">
-            <h3>${raid.description}</h3>
-            <p><strong>URL:</strong> ${raid.twitter_url}</p>
+            <h3>${esc(raid.description)}</h3>
+            <p><strong>URL:</strong> ${esc(raid.twitter_url)}</p>
             <p><strong>Reward:</strong> ${raid.reward} points</p>
             <p><strong>Verification:</strong> ${(raid.verification_type || 'unverified').toUpperCase()}</p>
-            <p><strong>Handle:</strong> ${raid.profile_handle}</p>
+            <p><strong>Handle:</strong> ${esc(raid.profile_handle)}</p>
             <p><strong>Expires:</strong> ${new Date(raid.expires_at).toLocaleString()}</p>
             <p><strong>Active:</strong> ${raid.is_active ? '✅ Yes' : '❌ No'}</p>
             <p><strong>Discord Link:</strong> <code style="background: rgba(0,0,0,0.3); padding: 4px 8px; border-radius: 4px; font-size: 12px;">${SITE_URL}?raid=${raid.id}</code>
@@ -1008,38 +1009,36 @@
 
     async function loadUsers() {
       try {
-        const response = await fetch('/api/users');
+        // no-cache: the list is CDN-cacheable (stale-while-revalidate), and a rename must show at once.
+        const response = await fetch('/api/users', { cache: 'no-cache' });
         const result = await response.json();
-
-        const usersList = document.getElementById('usersList');
-
-        if (!result.users || result.users.length === 0) {
-          usersList.innerHTML = '<div class="no-users">No users found</div>';
-          return;
-        }
-
-        usersList.innerHTML = result.users.map(user => `
-          <div class="user-item" id="user-${user.wallet_address}">
-            <h3>👤 ${user.display_name || 'Unnamed User'}</h3>
-            <p><strong>Wallet:</strong> ${user.wallet_address}</p>
-            <p><strong>Honey Points:</strong> ${user.honey_points || 0}</p>
-            <div id="edit-${user.wallet_address}">
-              <button class="edit-btn" onclick="showEditName('${user.wallet_address}', '${user.display_name || ''}')">✏️ Edit Name</button>
-            </div>
-          </div>
-        `).join('');
+        allUsers = result.users || [];
+        filterUsers();
       } catch (error) {
         console.error('Error loading users:', error);
         document.getElementById('usersList').innerHTML = '<div class="no-users">Error loading users</div>';
       }
     }
 
+    function userItem(user) {
+      const wallet = esc(user.wallet_address);
+      return `
+        <div class="user-item" id="user-${wallet}">
+          <h3>👤 ${esc(user.display_name || 'Unnamed User')}</h3>
+          <p><strong>Wallet:</strong> ${wallet}</p>
+          <div id="edit-${wallet}">
+            <button class="edit-btn" data-wallet="${wallet}" data-name="${esc(user.display_name || '')}" onclick="showEditName(this.dataset.wallet, this.dataset.name)">✏️ Edit Name</button>
+          </div>
+        </div>
+      `;
+    }
+
     function showEditName(walletAddress, currentName) {
       const editDiv = document.getElementById(`edit-${walletAddress}`);
       editDiv.innerHTML = `
-        <input type="text" class="user-name-input" id="name-${walletAddress}" value="${currentName}" placeholder="New name">
-        <button class="edit-btn" onclick="updateUserName('${walletAddress}')">💾 Save</button>
-        <button class="delete-btn" onclick="loadUsers()">❌ Cancel</button>
+        <input type="text" class="user-name-input" id="name-${esc(walletAddress)}" value="${esc(currentName)}" placeholder="New name" maxlength="50">
+        <button class="edit-btn" data-wallet="${esc(walletAddress)}" onclick="updateUserName(this.dataset.wallet)">💾 Save</button>
+        <button class="delete-btn" onclick="filterUsers()">❌ Cancel</button>
       `;
     }
 
@@ -1052,7 +1051,7 @@
       }
 
       try {
-        const response = await fetch(`/api/users/${walletAddress}`, {
+        const response = await adminFetch(`/api/users/${walletAddress}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ display_name: newName })
@@ -1146,16 +1145,7 @@
       );
 
       const usersList = document.getElementById('usersList');
-      usersList.innerHTML = filtered.map(user => `
-        <div class="user-item" id="user-${user.wallet_address}">
-          <h3>👤 ${user.display_name || 'Unnamed User'}</h3>
-          <p><strong>Wallet:</strong> ${user.wallet_address}</p>
-          <p><strong>Honey Points:</strong> ${user.honey_points || 0}</p>
-          <div id="edit-${user.wallet_address}">
-            <button class="edit-btn" onclick="showEditName('${user.wallet_address}', '${user.display_name || ''}')">✏️ Edit Name</button>
-          </div>
-        </div>
-      `).join('');
+      usersList.innerHTML = filtered.map(userItem).join('') || '<div class="no-users">No users found</div>';
     }
 
     // Manual Point Adjustments
@@ -1193,20 +1183,18 @@
     // Load Points Adjustment History
     async function loadPointsHistory() {
       try {
-        const response = await fetch('/api/admin/point-transactions?limit=50');
-        const result = await response.json();
+        // Manual adjustments live in the honey ledger (point_transactions is no longer written).
+        const [adds, subtracts] = await Promise.all(['manual_add', 'manual_subtract'].map(async (source) => {
+          const response = await adminFetch(`/api/admin/honey-ledger?source=${source}&limit=50`);
+          const result = await response.json();
+          if (!response.ok || result.success === false) throw new Error(result.error || 'Could not load the history');
+          return result.entries || [];
+        }));
 
         const historyList = document.getElementById('pointsHistoryList');
-
-        if (!result.transactions || result.transactions.length === 0) {
-          historyList.innerHTML = '<div class="no-raids">No adjustment history yet</div>';
-          return;
-        }
-
-        // Filter to only show manual adjustments
-        const manualAdjustments = result.transactions.filter(tx =>
-          tx.transaction_type === 'manual_add' || tx.transaction_type === 'manual_subtract'
-        );
+        const manualAdjustments = [...adds, ...subtracts]
+          .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))
+          .slice(0, 50);
 
         if (manualAdjustments.length === 0) {
           historyList.innerHTML = '<div class="no-raids">No manual adjustments yet</div>';
@@ -1214,10 +1202,11 @@
         }
 
         historyList.innerHTML = manualAdjustments.map(tx => {
-          const isPositive = tx.amount > 0;
+          const amount = Number(tx.delta) || 0;
+          const isPositive = amount > 0;
           const amountClass = isPositive ? 'amount-positive' : 'amount-negative';
-          const amountDisplay = isPositive ? `+${tx.amount}` : tx.amount;
-          const timestamp = new Date(tx.timestamp).toLocaleString();
+          const amountDisplay = isPositive ? `+${amount}` : amount;
+          const timestamp = new Date(tx.created_at).toLocaleString();
 
           return `
             <div class="history-item">
@@ -1225,8 +1214,8 @@
                 <span class="${amountClass}">${amountDisplay} points</span>
                 <span class="timestamp">${timestamp}</span>
               </div>
-              <div class="wallet">Wallet: ${tx.wallet_address}</div>
-              ${tx.reason ? `<div class="reason">"${tx.reason}"</div>` : ''}
+              <div class="wallet">Wallet: ${esc(tx.stored_wallet || tx.wallet_address)} · balance after ${esc(tx.balance_after)}</div>
+              ${tx.reason ? `<div class="reason">"${esc(tx.reason)}"</div>` : ''}
             </div>
           `;
         }).join('');
@@ -1284,8 +1273,8 @@
           <div class="user-item">
             <h3>🚫 ${user.wallet_address}</h3>
             <p><strong>Banned At:</strong> ${new Date(user.banned_at).toLocaleString()}</p>
-            <p><strong>Reason:</strong> ${user.reason}</p>
-            <p><strong>Banned By:</strong> ${user.banned_by}</p>
+            <p><strong>Reason:</strong> ${esc(user.reason)}</p>
+            <p><strong>Banned By:</strong> ${esc(user.banned_by)}</p>
             <button class="edit-btn" onclick="unbanUser('${user.wallet_address}')">✅ Unban</button>
           </div>
         `).join('');
@@ -1373,7 +1362,7 @@
               <p><strong>Full Wallet:</strong> ${role.wallet_address}</p>
               <p><strong>Assigned By:</strong> ${role.assigned_by}</p>
               <p><strong>Assigned On:</strong> ${new Date(role.assigned_at).toLocaleString()}</p>
-              ${role.notes ? `<p><strong>Notes:</strong> ${role.notes}</p>` : ''}
+              ${role.notes ? `<p><strong>Notes:</strong> ${esc(role.notes)}</p>` : ''}
               ${!isMasterAccount ? `<button class="delete-btn" onclick="removeRole('${role.wallet_address}')">🗑️ Remove Role</button>` : '<p style="color: var(--stripe-purple); font-weight: bold;">⚠️ Master account cannot be removed</p>'}
             </div>
           `;
@@ -1453,10 +1442,11 @@
 
     // Auto-check if wallet is already connected
     window.addEventListener('DOMContentLoaded', async () => {
-      const wallet = localStorage.getItem('bearpark_wallet');
+      const live = window.getBearparkSession && window.getBearparkSession();
+      const wallet = live && live.wallet;
 
       if (!wallet) {
-        showStatus('❌ No wallet connected. Please connect your wallet on the main site first.', 'error');
+        showStatus('🔐 Sign in at BEAR Park first (the button above takes you there), then come back to this page.', 'error');
         return;
       }
 
@@ -1499,14 +1489,12 @@
 
           // Load all data
           await loadCurrentRaids();
-          const usersResponse = await fetch('/api/users');
-          const usersResult = await usersResponse.json();
-          allUsers = usersResult.users || [];
-          filterUsers();
+          await loadUsers();
           await loadBannedUsers();
           await loadPointsHistory();
         } else {
-          showStatus(`❌ Your wallet (${wallet}) does not have admin permissions. Please contact the site administrator.`, 'error');
+          showStatus(`❌ This wallet (${wallet}) isn't on the staff list, so the admin tools stay closed.`, 'error');
+          document.getElementById('loginSection').style.display = 'none';
           console.error('User does not have admin role:', wallet);
         }
       } catch (error) {

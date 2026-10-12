@@ -597,7 +597,7 @@
       </div>
 
       <button class="auth-btn" id="authBtn" onclick="startAuth()">
-        Connect XAMAN Wallet
+        Sign in at BEAR Park
       </button>
 
       <div class="auth-status" id="authStatus"></div>
@@ -843,12 +843,11 @@
       'rKkkYMCvC63HEgxjQHmayKADaxYqnsMUkT' // MUKT (APEX)
     ];
 
-    const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-      ? 'http://localhost:3000'
-      : '';
+    // Same origin everywhere: /api is proxied to the API (vercel.json, and the local servers do the same).
+    const API_BASE_URL = '';
 
-    const SUPABASE_URL = 'https://cfdgdisaexvyrdjjcuss.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNmZGdkaXNhZXh2eXJkampjdXNzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIwMzg1NjUsImV4cCI6MjA3NzYxNDU2NX0.jPjk2nE295VBXTned5Gh7jbU0MqmrfxNdW4nq8uWUqE';
+    // Reads go through the API (staff-only, service role on the server). This page used
+    // to query Supabase directly with the public anon key.
 
     // State
     let distributionChart = null;
@@ -864,11 +863,11 @@
       const status = document.getElementById('authStatus');
       const btn = document.getElementById('authBtn');
 
-      // Check if already logged into BEARpark
-      const isAuthenticated = localStorage.getItem('bearpark_auth') === 'true';
-      const walletAddress = localStorage.getItem('bearpark_wallet');
+      // The park's live session (signed in at BEAR Park, token still good)
+      const live = window.getBearparkSession && window.getBearparkSession();
+      const walletAddress = live && live.wallet;
 
-      if (isAuthenticated && walletAddress) {
+      if (walletAddress) {
         // Check if this wallet is an admin
         if (ADMIN_WALLETS.includes(walletAddress)) {
           currentWallet = walletAddress;
@@ -884,52 +883,40 @@
             setInterval(loadDashboard, 60000);
           }, 300);
         } else {
-          status.textContent = '⛔ ACCESS DENIED - You are not an authorized admin';
+          status.textContent = '⛔ This wallet isn’t the BEARdrops admin wallet, so the dashboard stays closed.';
           status.className = 'auth-status error';
           btn.textContent = 'Not Authorized';
           btn.disabled = true;
         }
       } else {
-        status.textContent = 'Please login to BEARpark first';
+        status.textContent = 'Sign in at BEAR Park first, then come back to this page.';
         status.className = 'auth-status';
-        btn.textContent = 'Go to BEARpark Login';
-        btn.onclick = () => window.location.href = 'index.html';
+        btn.textContent = 'Sign in at BEAR Park';
+        btn.onclick = () => window.location.href = '/';
       }
     }
 
     // Redirect to login if not authenticated
     function startAuth() {
-      window.location.href = 'index.html';
+      window.location.href = '/';
     }
 
     // ========== SUPABASE HELPERS ==========
     async function supabaseQuery(table, options = {}) {
-      let url = `${SUPABASE_URL}/rest/v1/${table}`;
       const params = new URLSearchParams();
-
-      if (options.select) params.append('select', options.select);
-      if (options.order) params.append('order', options.order);
-      if (options.limit) params.append('limit', options.limit);
-      if (options.eq) {
-        for (const [key, value] of Object.entries(options.eq)) {
-          params.append(key, `eq.${value}`);
-        }
-      }
-      if (options.gte) {
-        for (const [key, value] of Object.entries(options.gte)) {
-          params.append(key, `gte.${value}`);
-        }
-      }
-
-      if (params.toString()) url += '?' + params.toString();
-
-      const response = await fetch(url, {
-        headers: {
-          'apikey': SUPABASE_ANON_KEY,
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
-        }
+      if (options.select) params.set('select', options.select);
+      if (options.order) params.set('order', options.order);
+      if (options.limit) params.set('limit', options.limit);
+      for (const [key, value] of Object.entries(options.eq || {})) params.append(`eq.${key}`, value);
+      for (const [key, value] of Object.entries(options.gte || {})) params.append(`gte.${key}`, value);
+      const token = localStorage.getItem('bearpark_auth_token') || '';
+      const response = await fetch(`${API_BASE_URL}/api/beardrops/admin/query/${encodeURIComponent(table)}?${params}`, {
+        credentials: 'include',
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
       });
-      return response.json();
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok || body.success === false) throw new Error(body.error || `Request failed (${response.status})`);
+      return body.rows || [];
     }
 
     // ========== DASHBOARD FUNCTIONS ==========
@@ -949,6 +936,7 @@
         ]);
       } catch (err) {
         console.error('Dashboard load error:', err);
+        document.getElementById('lastUpdated').textContent = `⚠️ Couldn't refresh: ${err.message}`;
       }
     }
 
@@ -1237,7 +1225,8 @@
         const changeColor = c.change_type === 'new' ? 'var(--stripe-green)' : 'var(--gold)';
         const lpBalance = parseFloat(c.lp_balance).toLocaleString(undefined, {maximumFractionDigits: 2});
         const balanceChange = parseFloat(c.balance_change).toLocaleString(undefined, {maximumFractionDigits: 2});
-        const dateStr = c.snapshot_date ? new Date(c.snapshot_date).toLocaleDateString() : '-';
+        // A UTC calendar day: new Date('YYYY-MM-DD') would show the day before west of UTC.
+        const dateStr = c.snapshot_date ? new Date(`${c.snapshot_date}T00:00:00Z`).toLocaleDateString(undefined, { timeZone: 'UTC' }) : '-';
 
         return `
           <tr style="${isBlacklisted ? 'opacity: 0.5;' : ''}">

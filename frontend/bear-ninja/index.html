@@ -2,6 +2,9 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!-- Ensures runtime-loaded assets (asset-pack.json, sprites, audio) resolve
+         correctly whether the page is reached as /bear-ninja, /bear-ninja/ or /frontend/bear-ninja/index.html -->
+    <base href="/bear-ninja/" />
     <link rel="icon" type="image/x-icon" href="/bear-ninja/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>BEAR Ninja</title>

@@ -1,0 +1,15 @@
+{
+  "name": "bearpark-sandbox",
+  "private": true,
+  "version": "1.0.0",
+  "description": "A local, production-free sandbox for BEAR Park's backend: the real server.js on an in-process Postgres (PGlite).",
+  "scripts": {
+    "start": "node run.js",
+    "reset": "node run.js --reset",
+    "mint": "node mint.js",
+    "e2e": "node e2e-social.js"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "0.5.8"
+  }
+}

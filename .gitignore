@@ -27,3 +27,7 @@ nul
 .vercel
 # Remove .env.production from git - NEVER commit secrets
 .env.production
+
+# Backend sandbox (backend/sandbox): its own dependencies and its local database
+backend/sandbox/node_modules/
+backend/sandbox/.data*/

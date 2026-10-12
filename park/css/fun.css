@@ -1,0 +1,80 @@
+/* BEAR Park — the fun layer (js/core/fun.js): Bear City, the Jester,
+   celebrations, Friends' floating heads, live tiles and "where to?".
+   Transform and opacity only. Every layer ignores the pointer except the
+   characters themselves. Under reduced motion core.css stills the CSS loops
+   and fun.js starts none of its own. */
+
+/* ───────── Bear City ───────── */
+.city { position: absolute; inset: 0; z-index: 2; pointer-events: none; overflow: hidden; border-radius: inherit; }
+.city-bear { position: absolute; left: 0; display: block; pointer-events: auto; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; will-change: transform; }
+/* a soft contact shadow on the grass */
+.city-bear::before { content: ''; position: absolute; left: 12%; right: 12%; bottom: -4px; height: 9px; border-radius: 50%; background: radial-gradient(closest-side, rgba(0, 0, 0, .55), rgba(0, 0, 0, 0)); pointer-events: none; }
+.city-bear img { display: block; width: 100%; height: 100%; transform-origin: 50% 100%; pointer-events: none; -webkit-user-drag: none; }
+.city-bear[data-face="left"] img { scale: -1 1; }
+.city-bear.is-walking img { animation: city-step .36s ease-in-out infinite alternate; }
+.city.is-paused .city-bear img { animation-play-state: paused; }
+.city-bear:has(> .city-say:not([hidden])) { z-index: 30 !important; }
+@keyframes city-step { from { transform: translateY(0) rotate(-2deg); } to { transform: translateY(-3px) rotate(2deg); } }
+
+/* The speech bubble: white, inked, in the park's cartoon type. */
+.city-say { position: absolute; left: 50%; bottom: calc(100% + 9px); translate: calc(-50% + var(--sx, 0px)) 0; z-index: 1; padding: 6px 10px 4px; border-radius: 12px; background: #fff; color: #14110a; border: 2px solid #000; box-shadow: 0 6px 16px rgba(0, 0, 0, .4); font: 400 14px/1 var(--font-brand); letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; text-shadow: none; pointer-events: none; }
+.city-say::after { content: ''; position: absolute; left: calc(50% - var(--sx, 0px)); bottom: -7px; width: 10px; height: 10px; margin-left: -5px; background: #fff; border-right: 2px solid #000; border-bottom: 2px solid #000; transform: rotate(45deg); }
+
+/* Home's park banner: the title sits higher so the BEARs have the grass. */
+.home-band.has-city { padding-bottom: 80px; }
+@media (min-width: 768px) { .home-band.has-city { padding-bottom: 98px; min-height: clamp(230px, 22vw, 256px); } }
+.home-band .zune { position: relative; z-index: 3; }
+.home-where { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 14px; }
+.home-where__q { font: 800 11px/1.3 var(--font); letter-spacing: 1.4px; text-transform: uppercase; color: var(--ink-2); text-shadow: var(--halo); }
+.home-where__short { display: none; }
+@media (max-width: 479px) {
+  .home-band.has-city { padding-bottom: 72px; }
+  .home-where { flex-wrap: nowrap; margin-top: 12px; }
+  .home-where__long { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .home-where__short { display: inline; }
+}
+
+/* "Surprise me": quiet glass whose label reels to a place. */
+.where { gap: 8px; background: rgba(8, 8, 14, .45); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); text-shadow: none; }
+.where > .icon { color: var(--gold); font-size: 16px; }
+.where__reel { display: inline-block; height: 1.25em; overflow: hidden; vertical-align: middle; }
+.where__col { display: flex; flex-direction: column; }
+.where__col > span { display: block; height: 1.25em; line-height: 1.25em; white-space: nowrap; }
+.where.is-picked { border-color: var(--gold); color: var(--gold-text); }
+
+/* ───────── Celebrations ───────── */
+.fun-burst, .fun-jester { position: fixed; inset: 0; pointer-events: none; overflow: hidden; contain: strict; }
+.fun-burst { z-index: 1500; }  /* over dialogs (1000), under toasts (9999) */
+.fun-jester { z-index: 1400; }
+.fun-bit, .fun-hex { position: absolute; display: block; }
+.fun-hex { clip-path: polygon(25% 6%, 75% 6%, 100% 50%, 75% 94%, 25% 94%, 0 50%); background-image: linear-gradient(160deg, rgba(255, 255, 255, .34), rgba(255, 255, 255, 0) 48%, rgba(0, 0, 0, .16)); }
+.fun-bit--coin { border-radius: 50%; box-shadow: 0 4px 10px rgba(0, 0, 0, .35); }
+.fun-ring { position: absolute; width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 50%; border: 2px solid var(--gold); }
+/* white over anything (a gold tile included), on the halo plus a soft dark bloom */
+.fun-amount { position: absolute; translate: -50% -72%; display: flex; align-items: baseline; gap: 7px; white-space: nowrap; color: #fff; text-shadow: var(--halo), 0 2px 18px rgba(0, 0, 0, .55); }
+.fun-amount__fig { font: 300 46px/1 var(--font); letter-spacing: -1.5px; }
+.fun-amount__unit { font: 800 11px/1 var(--font); letter-spacing: 1.6px; }
+
+/* ───────── The Jester ───────── */
+.fun-jester__run { position: absolute; left: 0; bottom: 14vh; }
+.fun-jester__big, .fun-jester__hop { position: relative; width: 100%; height: 100%; }
+.fun-jester__img { display: block; width: 100%; height: 100%; rotate: var(--lean, 0deg); transform-origin: 50% 100%; filter: drop-shadow(0 14px 18px rgba(0, 0, 0, .45)); }
+.fun-jester .city-say { font-size: 16px; bottom: calc(100% + 4px); }
+
+/* ───────── Floating heads (Friends) ───────── */
+.heads { position: absolute; inset: 0; z-index: -1; pointer-events: none; }
+.head { position: absolute; translate: -50% -50%; pointer-events: auto; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.head img { display: block; width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 6px 10px rgba(0, 0, 0, .35)); pointer-events: none; -webkit-user-drag: none; }
+
+/* ───────── Live tiles (Home) ───────── */
+.live { display: grid; flex: 1; min-height: 0; transform-origin: 50% 50%; }
+.live > * { grid-area: 1 / 1; min-width: 0; display: flex; flex-direction: column; justify-content: space-between; gap: 10px; }
+.live > [aria-hidden="true"] { visibility: hidden; }
+.live-who { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.live-ava { width: 36px; height: 36px; flex: none; border-radius: 50%; overflow: hidden; display: grid; place-items: center; background: rgba(0, 0, 0, .28); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .2); }
+.live-ava img { width: 100%; height: 100%; object-fit: cover; }
+.live-ava .icon { font-size: 16px; }
+.live-who b { font: 700 16px/1.2 var(--font); letter-spacing: -.1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+
+/* the header logo's secret: rapid taps must not zoom */
+.hdr__logo { touch-action: manipulation; }

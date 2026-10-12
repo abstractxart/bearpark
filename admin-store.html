@@ -368,6 +368,8 @@
     <p class="subtitle">Manage token purchases and NFT requests</p>
   </div>
 
+  <div id="gate" class="card" style="display: none; max-width: 640px; margin: 0 auto 24px; text-align: center;"></div>
+
   <div class="tabs">
     <button class="tab active" onclick="switchTab('nft-requests')">🎨 NFT Requests</button>
     <button class="tab" onclick="switchTab('token-purchases')">🪙 Token Purchases</button>
@@ -500,10 +502,34 @@
   <button class="refresh-btn" onclick="loadAllData()" title="Refresh">🔄</button>
 
   <script>
-    // Supabase config
-    const SUPABASE_URL = 'https://trglxtqfebplmvhuzgso.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRyZ2x4dHFmZWJwbG12aHV6Z3NvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMwMDYwNDYsImV4cCI6MjA1ODU4MjA0Nn0.wRz6J7apnaEgM5mLFxVs2vgfgZ8xdakfNTKmQWOcpL4';
     const API_BASE_URL = '';
+
+    // People choose their own names: anything they typed is text, never markup.
+    function esc(value) {
+      return String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    // Staff sign in at the park like everyone else; this page reads that session.
+    async function gate() {
+      const box = document.getElementById('gate');
+      const shut = (html) => {
+        box.innerHTML = html;
+        box.style.display = 'block';
+        for (const sel of ['.tabs', '.container', '.refresh-btn']) document.querySelector(sel).style.display = 'none';
+        return false;
+      };
+      const live = window.getBearparkSession && window.getBearparkSession();
+      if (!live) return shut('🔐 Sign in at <a href="/" style="color:#60a5fa;">BEAR Park</a> first, then come back to this page.');
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/admin/check-role/${encodeURIComponent(live.wallet)}`);
+        const role = await res.json();
+        if (!res.ok) throw new Error(role.error || `Request failed (${res.status})`);
+        if (!role.is_admin) return shut(`⛔ This wallet (${esc(live.wallet)}) isn’t on the staff list, so the store admin stays closed.`);
+      } catch (error) {
+        return shut(`⚠️ Couldn’t check staff access: ${esc(error.message)}. Refresh to try again.`);
+      }
+      return true;
+    }
 
     const TOKEN_LOGOS = {
       FARM: 'https://img.xmagnetic.org/u/rPrAEfVATUNDTJm9CUa8tYeD7oJrVdEGhU_FARM.webp',
@@ -578,7 +604,7 @@
         tbody.innerHTML = requests.map(req => `
           <tr>
             <td class="wallet" title="${req.wallet_address}">${formatWallet(req.wallet_address)}</td>
-            <td style="font-family:monospace; font-size:11px; color:#8b5cf6;" title="${req.nft_token_id || 'N/A'}">${req.nft_token_id ? req.nft_token_id.slice(0, 12) + '...' : req.nft_name || req.nft_type}</td>
+            <td style="font-family:monospace; font-size:11px; color:#8b5cf6;" title="${esc(req.nft_token_id || 'N/A')}">${esc(req.nft_token_id ? req.nft_token_id.slice(0, 12) + '...' : req.nft_name || req.nft_type)}</td>
             <td class="hp-cost">${(req.honey_spent || 0).toLocaleString()} HP</td>
             <td class="timestamp">${formatTimestamp(req.requested_at)}</td>
             <td><span class="status ${req.status}">${req.status}</span></td>
@@ -638,7 +664,7 @@
           const status = purchase.tx_status || 'validated';
           const statusColor = status === 'validated' ? '#4ade80' : status === 'failed' ? '#ef4444' : '#f59e0b';
           const statusIcon = status === 'validated' ? '✓' : status === 'failed' ? '✗' : '⚠';
-          const errorTitle = purchase.error_message ? `title="${purchase.error_message}"` : '';
+          const errorTitle = purchase.error_message ? `title="${esc(purchase.error_message)}"` : '';
 
           return `
             <tr style="${status !== 'validated' ? 'background:rgba(239,68,68,0.1);' : ''}">
@@ -753,10 +779,10 @@
 
           return `
             <tr>
-              <td class="wallet" title="${t.wallet_address}">${t.display_name || formatWallet(t.wallet_address)}</td>
+              <td class="wallet" title="${esc(t.wallet_address)}">${esc(t.display_name || formatWallet(t.wallet_address))}</td>
               <td>
                 ${t.cosmetic?.image_url ? `<img src="${t.cosmetic.image_url}" alt="" style="width:24px;height:24px;object-fit:contain;vertical-align:middle;margin-right:6px;">` : ''}
-                ${t.cosmetic?.name || 'Unknown Item'}
+                ${esc(t.cosmetic?.name || 'Unknown Item')}
               </td>
               <td style="text-transform: capitalize;">${t.cosmetic?.cosmetic_type || '-'}</td>
               <td><span style="${rarityStyle}">${rarity.toUpperCase()}</span></td>
@@ -780,11 +806,12 @@
       loadCosmeticsHistory();
     }
 
-    // Load data on page load
-    loadAllData();
-
-    // Auto-refresh every 30 seconds
-    setInterval(loadAllData, 30000);
+    // Load data on page load, then auto-refresh every 30 seconds
+    gate().then((ok) => {
+      if (!ok) return;
+      loadAllData();
+      setInterval(loadAllData, 30000);
+    });
   </script>
 </body>
 </html>

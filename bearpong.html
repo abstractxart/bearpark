@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>BEAR PONG - BEAR Park</title>
   <meta name="description" content="Play multiplayer BEAR PONG and compete on the leaderboard!" />
-  <meta name="theme-color" content="#edb723" />
+  <meta name="theme-color" content="#000000" />
   <link rel="icon" href="/favicon.ico">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 
@@ -25,195 +25,26 @@
   })();
   </script>
 
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
 
-    html, body {
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      background: #000;
-      /* Mobile touch optimization - prevents 300ms tap delay */
-      touch-action: manipulation;
-      -webkit-touch-callout: none;
-      -webkit-user-select: none;
-      user-select: none;
-    }
-
-    #game-frame {
-      width: 100%;
-      height: 100%;
-      border: none;
-      display: block;
-      touch-action: manipulation;
-    }
-
-    #loading {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: #141619;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      z-index: 9999;
-      font-family: 'Luckiest Guy', Arial, sans-serif;
-      color: #edb723;
-    }
-
-    #loading.hidden {
-      display: none;
-    }
-
-    .spinner {
-      width: 60px;
-      height: 60px;
-      border: 6px solid rgba(237, 183, 35, 0.2);
-      border-top-color: #edb723;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin-bottom: 20px;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    .loading-text {
-      font-size: 24px;
-      text-shadow: 2px 2px 0px #000;
-    }
-
-    #access-denied {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: linear-gradient(135deg, #141619 0%, #0b0d0e 100%);
-      display: none;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      z-index: 10000;
-      font-family: 'Luckiest Guy', Arial, sans-serif;
-      padding: 20px;
-    }
-
-    #access-denied.show {
-      display: flex;
-    }
-
-    .denied-icon {
-      font-size: 80px;
-      margin-bottom: 20px;
-    }
-
-    .denied-title {
-      font-size: 36px;
-      color: #edb723;
-      text-shadow: 2px 2px 0px #000;
-      margin-bottom: 10px;
-      text-align: center;
-    }
-
-    .denied-text {
-      font-size: 18px;
-      color: rgba(255, 255, 255, 0.8);
-      text-shadow: 1px 1px 0px #000;
-      margin-bottom: 30px;
-      text-align: center;
-      max-width: 500px;
-      line-height: 1.4;
-    }
-
-    .connect-button {
-      padding: 16px 32px;
-      background: linear-gradient(135deg, #edb723 0%, #d19e1e 100%);
-      color: #000;
-      border: 3px solid rgba(255, 255, 255, 0.3);
-      border-radius: 12px;
-      font-family: 'Luckiest Guy', Arial, sans-serif;
-      font-size: 20px;
-      cursor: pointer;
-      text-decoration: none;
-      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
-      transition: all 0.2s ease;
-      display: inline-block;
-    }
-
-    .connect-button:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
-    }
-
-    .connect-button:active {
-      transform: translateY(0);
-    }
-
-    .back-button {
-      position: fixed;
-      bottom: 20px;
-      left: 20px;
-      z-index: 10000;
-      padding: 12px 20px;
-      background: linear-gradient(135deg, #edb723 0%, #d19e1e 100%);
-      color: #000;
-      border: 3px solid rgba(255, 255, 255, 0.3);
-      border-radius: 12px;
-      font-family: 'Luckiest Guy', Arial, sans-serif;
-      font-size: 16px;
-      cursor: pointer;
-      text-decoration: none;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-      transition: all 0.2s ease;
-    }
-
-    .back-button:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6);
-    }
-
-    .back-button:active {
-      transform: translateY(0);
-    }
-
-    @media (max-width: 640px) {
-      .back-button {
-        bottom: 10px;
-        left: 10px;
-        padding: 10px 16px;
-        font-size: 14px;
-      }
-    }
-  </style>
-
-  <!-- BEAR Park Font -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Plus+Jakarta+Sans:wght@400..800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/park/css/launch.css" />
 </head>
 <body>
-  <div id="loading">
-    <div class="spinner"></div>
-    <div class="loading-text">Loading BEAR PONG...</div>
+  <div id="loading" style="--art:url('https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/bs753i.png')">
+    <div class="launch-eyebrow">BEAR Park · Bearcade</div>
+    <div class="launch-title">Pong <b>Lab</b></div>
+    <div class="launch-tri"></div>
+    <div class="dots" aria-label="Loading Pong Lab"><i></i><i></i><i></i><i></i><i></i></div>
   </div>
 
-  <div id="access-denied">
-    <div class="denied-icon">🔒</div>
-    <div class="denied-title">ACCESS RESTRICTED</div>
-    <div class="denied-text">
-      You must connect your XAMAN or Joey wallet to play BEAR PONG!<br>
-      Connect your wallet to unlock access to all BEAR Park games.
-    </div>
-    <a href="/" class="connect-button">Connect Wallet</a>
+  <div id="access-denied" style="--art:url('https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/bs753i.png')">
+    <div class="launch-eyebrow">BEAR Park · Bearcade</div>
+    <div class="launch-title">Pong <b>Lab</b></div>
+    <div class="launch-tri"></div>
+    <p class="launch-text">Sign in to BEAR Park to play — every minute you play earns honey.</p>
+    <a href="/" class="connect-button">Sign in to BEAR Park</a>
   </div>
 
   <!-- No iframe needed - direct redirect to game -->

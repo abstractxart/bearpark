@@ -34,6 +34,10 @@
       "use": "@vercel/static"
     },
     {
+      "src": "park/**",
+      "use": "@vercel/static"
+    },
+    {
       "src": "frontend/**",
       "use": "@vercel/static"
     },
@@ -78,6 +82,14 @@
       "headers": {
         "Location": "https://bear-meme-world.vercel.app/"
       }
+    },
+    {
+      "src": "/market/(leaderboard|holders/[0-9A-F]{40}/r[1-9A-HJ-NP-Za-km-z]{24,34}|xrpl/account/r[1-9A-HJ-NP-Za-km-z]{24,34}/(?:lines|nfts|info)|xrpl/amm_info)",
+      "methods": [
+        "GET",
+        "HEAD"
+      ],
+      "dest": "https://bear-market-api-production.up.railway.app/api/$1"
     },
     {
       "src": "/api/(.*)",
@@ -163,7 +175,14 @@
       "dest": "/data-deletion.html"
     },
     {
-      "src": "/(.*\\.(html|css|js|png|jpg|jpeg|gif|svg|ico))",
+      "src": "/park/media/(.*)",
+      "headers": {
+        "Cache-Control": "public, max-age=31536000, immutable"
+      },
+      "continue": true
+    },
+    {
+      "src": "/(.*\\.(html|css|js|png|jpg|jpeg|gif|svg|ico|webp|mp4))",
       "dest": "/$1"
     },
     {

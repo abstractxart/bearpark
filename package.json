@@ -2,13 +2,13 @@
   "name": "bearpark-xaman-proxy",
   "version": "1.0.0",
   "description": "XAMAN authentication proxy for BEAR Park",
-  "main": "server.js",
+  "main": "backend/server.js",
   "engines": {
     "node": ">=18.0.0"
   },
   "scripts": {
     "start": "node backend/server.js",
-    "dev": "node server.js"
+    "dev": "node backend/server.js"
   },
   "dependencies": {
     "@capacitor/android": "^7.4.4",

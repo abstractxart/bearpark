@@ -870,9 +870,16 @@
     </div>
   </div>
 
+  <script src="/auth-fetch.js"></script>
   <script>
     const API_BASE = '';
     let sessionToken = null;
+
+    // Customers type their names and addresses: anything they typed is text, never markup.
+    function esc(value) {
+      return String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+    const safeImg = (url) => (/^https:\/\//.test(String(url || '')) ? esc(url) : '');
     let connectedWallet = null;
     let allOrders = [];
     let currentFilter = 'all';
@@ -883,13 +890,14 @@
       const statusEl = document.getElementById('authStatus');
       const btn = document.getElementById('authBtn');
 
-      // Check localStorage for wallet from main site XAMAN login
-      const wallet = localStorage.getItem('bearpark_wallet');
+      // The park's live session (signed in at BEAR Park, token still good)
+      const live = window.getBearparkSession && window.getBearparkSession();
+      const wallet = live && live.wallet;
 
       if (!wallet) {
-        // No wallet - show login prompt
+        // No live session - show login prompt
         statusEl.className = 'auth-status';
-        statusEl.innerHTML = 'Please <a href="/" style="color:#00ff88;">login on the main site</a> first with your XAMAN wallet.';
+        statusEl.innerHTML = 'Please <a href="/" style="color:#00ff88;">sign in at BEAR Park</a> first, then come back to this page.';
         statusEl.style.display = 'block';
         btn.textContent = 'Check Login Status';
         btn.onclick = checkExistingAuth;
@@ -1069,14 +1077,14 @@
           shipping.apt,
           `${shipping.city}, ${shipping.state} ${shipping.zip}`,
           shipping.country
-        ].filter(Boolean).join('<br>');
+        ].filter(Boolean).map(esc).join('<br>');
 
         const date = new Date(order.created_at).toLocaleDateString();
 
         // Format customer display: username or "No Username", plus short wallet
-        const username = order.username || 'No Username';
-        const shortWallet = order.wallet_address ? order.wallet_address.slice(0,8) + '...' : 'N/A';
-        const destTag = order.destination_tag ? `<br><small style="color:#888;">Tag: ${order.destination_tag}</small>` : '';
+        const username = esc(order.username || 'No Username');
+        const shortWallet = order.wallet_address ? esc(order.wallet_address.slice(0,8)) + '...' : 'N/A';
+        const destTag = order.destination_tag ? `<br><small style="color:#888;">Tag: ${esc(order.destination_tag)}</small>` : '';
 
         // Parse items for multi-item orders
         let itemsDisplay = '';
@@ -1091,20 +1099,20 @@
           // Multi-item order
           const itemCount = orderItems.reduce((sum, item) => sum + (item.quantity || 1), 0);
           const itemsList = orderItems.map(item =>
-            `${item.quantity || 1}x ${item.name || 'Product'} (${item.size || 'N/A'})`
+            `${esc(item.quantity || 1)}x ${esc(item.name || 'Product')} (${esc(item.size || 'N/A')})`
           ).join('<br>');
           itemsDisplay = `<div style="font-size:12px;line-height:1.5;">${itemsList}</div><div style="font-size:10px;color:#888;margin-top:4px;">${itemCount} item(s) total</div>`;
         } else if (order.items_summary) {
           // Has summary string
-          itemsDisplay = `<div style="font-size:12px;">${order.items_summary}</div>`;
+          itemsDisplay = `<div style="font-size:12px;">${esc(order.items_summary)}</div>`;
         } else {
           // Legacy single item
-          itemsDisplay = `<div style="font-size:12px;">${order.product_name || order.product_id || 'Product'} (${order.size || 'N/A'})</div>`;
+          itemsDisplay = `<div style="font-size:12px;">${esc(order.product_name || order.product_id || 'Product')} (${esc(order.size || 'N/A')})</div>`;
         }
 
         return `
           <tr>
-            <td><strong>${order.order_number || order.id.slice(0,8)}</strong></td>
+            <td><strong>${esc(order.order_number || order.id.slice(0,8))}</strong></td>
             <td>${date}</td>
             <td>
               <strong style="color:#00ff88;">${username}</strong><br>
@@ -1112,8 +1120,8 @@
               ${destTag}
             </td>
             <td>${itemsDisplay}</td>
-            <td>$${order.amount_usd}</td>
-            <td><span class="status-badge ${order.status}">${order.status}</span></td>
+            <td>$${esc(order.amount_usd)}</td>
+            <td><span class="status-badge ${esc(order.status)}">${esc(order.status)}</span></td>
             <td class="address-cell">${address}</td>
             <td>
               <button class="action-btn details" onclick="showDetails('${order.id}')">Details</button>
@@ -1136,9 +1144,9 @@
         shipping.apt,
         `${shipping.city}, ${shipping.state} ${shipping.zip}`,
         shipping.country
-      ].filter(Boolean).join('\n');
+      ].filter(Boolean).map(esc).join('\n');
 
-      const usernameDisplay = order.username || 'No Username';
+      const usernameDisplay = esc(order.username || 'No Username');
 
       // Parse items for multi-item orders
       let orderItems = [];
@@ -1158,10 +1166,10 @@
           <div style="background:rgba(0,0,0,0.3);border-radius:12px;padding:15px;">
             ${orderItems.map(item => `
               <div style="display:flex;gap:12px;align-items:center;padding:10px;background:rgba(104,12,217,0.1);border-radius:8px;margin-bottom:8px;border:1px solid rgba(104,12,217,0.3);">
-                ${item.image ? `<img src="${item.image}" style="width:50px;height:50px;object-fit:cover;border-radius:6px;">` : '<div style="width:50px;height:50px;background:#333;border-radius:6px;display:flex;align-items:center;justify-content:center;">👕</div>'}
+                ${safeImg(item.image) ? `<img src="${safeImg(item.image)}" style="width:50px;height:50px;object-fit:cover;border-radius:6px;">` : '<div style="width:50px;height:50px;background:#333;border-radius:6px;display:flex;align-items:center;justify-content:center;">👕</div>'}
                 <div style="flex:1;">
-                  <div style="font-weight:700;color:#fff;">${item.name || 'Product'}</div>
-                  <div style="font-size:12px;color:#888;">Size: ${item.size || 'N/A'} | Qty: ${item.quantity || 1}</div>
+                  <div style="font-weight:700;color:#fff;">${esc(item.name || 'Product')}</div>
+                  <div style="font-size:12px;color:#888;">Size: ${esc(item.size || 'N/A')} | Qty: ${esc(item.quantity || 1)}</div>
                 </div>
                 <div style="font-weight:700;color:#00ff88;">$${((item.price || 0) * (item.quantity || 1)).toFixed(2)}</div>
               </div>
@@ -1171,25 +1179,25 @@
       } else {
         // Legacy single item display
         itemsHtml = `
-          <div class="detail-row"><span class="label">Product</span><span class="value">${order.product_name || order.product_id || 'Product'}</span></div>
-          <div class="detail-row"><span class="label">Size</span><span class="value">${order.size || 'N/A'}</span></div>
+          <div class="detail-row"><span class="label">Product</span><span class="value">${esc(order.product_name || order.product_id || 'Product')}</span></div>
+          <div class="detail-row"><span class="label">Size</span><span class="value">${esc(order.size || 'N/A')}</span></div>
         `;
       }
 
       document.getElementById('modalBody').innerHTML = `
-        <div class="detail-row"><span class="label">Order Number</span><span class="value">${order.order_number || order.id}</span></div>
-        <div class="detail-row"><span class="label">Status</span><span class="value"><span class="status-badge ${order.status}">${order.status}</span></span></div>
+        <div class="detail-row"><span class="label">Order Number</span><span class="value">${esc(order.order_number || order.id)}</span></div>
+        <div class="detail-row"><span class="label">Status</span><span class="value"><span class="status-badge ${esc(order.status)}">${esc(order.status)}</span></span></div>
         <div class="detail-row"><span class="label">Customer</span><span class="value" style="color:#00ff88;font-weight:bold;">${usernameDisplay}</span></div>
-        <div class="detail-row"><span class="label">Wallet</span><span class="value" style="font-family:monospace;font-size:12px;">${order.wallet_address}</span></div>
-        ${order.destination_tag ? `<div class="detail-row"><span class="label">Destination Tag</span><span class="value" style="font-family:monospace;">${order.destination_tag}</span></div>` : ''}
+        <div class="detail-row"><span class="label">Wallet</span><span class="value" style="font-family:monospace;font-size:12px;">${esc(order.wallet_address)}</span></div>
+        ${order.destination_tag ? `<div class="detail-row"><span class="label">Destination Tag</span><span class="value" style="font-family:monospace;">${esc(order.destination_tag)}</span></div>` : ''}
 
         ${itemsHtml}
 
-        <div class="detail-row"><span class="label">Total Amount</span><span class="value" style="color:#00ff88;font-size:18px;font-weight:bold;">$${order.amount_usd} USD</span></div>
-        <div class="detail-row"><span class="label">Payment Method</span><span class="value">${order.payment_method || 'RLUSD'}</span></div>
+        <div class="detail-row"><span class="label">Total Amount</span><span class="value" style="color:#00ff88;font-size:18px;font-weight:bold;">$${esc(order.amount_usd)} USD</span></div>
+        <div class="detail-row"><span class="label">Payment Method</span><span class="value">${esc(order.payment_method || 'RLUSD')}</span></div>
         <div class="detail-row"><span class="label">Created</span><span class="value">${new Date(order.created_at).toLocaleString()}</span></div>
-        ${order.payment_tx_hash ? `<div class="detail-row"><span class="label">TX Hash</span><span class="value" style="font-family:monospace;font-size:11px;">${order.payment_tx_hash}</span></div>` : ''}
-        ${order.tracking_number ? `<div class="detail-row"><span class="label">Tracking</span><span class="value">${order.tracking_number}</span></div>` : ''}
+        ${order.payment_tx_hash ? `<div class="detail-row"><span class="label">TX Hash</span><span class="value" style="font-family:monospace;font-size:11px;">${esc(order.payment_tx_hash)}</span></div>` : ''}
+        ${order.tracking_number ? `<div class="detail-row"><span class="label">Tracking</span><span class="value">${esc(order.tracking_number)}</span></div>` : ''}
 
         <h4 style="margin-top:20px;margin-bottom:10px;color:#00ff88;">Shipping Address</h4>
         <pre style="background:rgba(0,0,0,0.3);padding:15px;border-radius:8px;white-space:pre-wrap;">${address}</pre>
@@ -1201,7 +1209,7 @@
           </div>
           <div class="form-group">
             <label>Notes</label>
-            <textarea id="notesInput" rows="3" placeholder="Internal notes...">${order.notes || ''}</textarea>
+            <textarea id="notesInput" rows="3" placeholder="Internal notes...">${esc(order.notes || '')}</textarea>
           </div>
           <div class="modal-actions">
             <button class="cancel-btn" onclick="closeModal()">Cancel</button>
@@ -1241,6 +1249,9 @@
         } else if (res.status === 401) {
           alert('Session expired. Please sign in again.');
           location.reload();
+        } else {
+          const data = await res.json().catch(() => ({}));
+          alert('Error: ' + (data.error || 'The order could not be updated'));
         }
       } catch (error) {
         alert('Error updating order');
@@ -1301,6 +1312,9 @@
         } else if (res.status === 401) {
           alert('Session expired. Please sign in again.');
           location.reload();
+        } else {
+          const data = await res.json().catch(() => ({}));
+          alert('Error: ' + (data.error || 'The order could not be updated'));
         }
       } catch (error) {
         alert('Error updating order');

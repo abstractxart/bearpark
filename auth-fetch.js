@@ -78,12 +78,50 @@
     }
   }
 
+  // The game builds hard-code https://www.bearpark.xyz/api. Wherever a game
+  // page actually runs (bearpark.xyz without www, a preview, the local
+  // sandbox) its API is this origin's /api (vercel.json rewrites it), so send
+  // those calls here: same origin carries the session token, and a local copy
+  // can never write to production.
+  const siteHosts = new Set(['www.bearpark.xyz', 'bearpark.xyz']);
+  function sameOriginApiUrl(url) {
+    try {
+      const parsedUrl = new URL(url, window.location.origin);
+      if (parsedUrl.host !== window.location.host && siteHosts.has(parsedUrl.host) && parsedUrl.pathname.startsWith('/api/')) {
+        return window.location.origin + parsedUrl.pathname + parsedUrl.search;
+      }
+    } catch (error) {
+      // not a URL we route
+    }
+    return null;
+  }
+
+  // The park's live session (park/js/core/session.js keys), or null when this
+  // browser isn't signed in or its token has run out. Staff pages use it to
+  // tell "sign in first" apart from "not staff".
+  function getBearparkSession() {
+    const wallet = readStorage('bearpark_wallet');
+    const token = getBearparkAuthToken();
+    if (readStorage('bearpark_auth') !== 'true' || !wallet || !token) return null;
+    try {
+      const claims = JSON.parse(atob(token.split('.')[0].replace(/-/g, '+').replace(/_/g, '/')));
+      if (!claims || !(claims.exp > Date.now())) return null;
+    } catch (error) {
+      return null;
+    }
+    return { wallet, token };
+  }
+
   const originalFetch = window.fetch.bind(window);
 
+  window.getBearparkSession = getBearparkSession;
   window.getBearparkAuthToken = getBearparkAuthToken;
   window.getBearparkAuthHeaders = getBearparkAuthHeaders;
 
   window.fetch = function patchedFetch(input, init) {
+    if (input instanceof URL) input = input.href;
+    const localUrl = sameOriginApiUrl(typeof input === 'string' ? input : input?.url);
+    if (localUrl) input = input instanceof Request ? new Request(localUrl, input) : localUrl;
     const requestUrl = typeof input === 'string' ? input : input?.url;
     if (!requestUrl || !isInternalApiRequest(requestUrl)) {
       return originalFetch(input, init);

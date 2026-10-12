@@ -10,9 +10,10 @@ const gamePointsApi = (() => {
     MAX_DAILY_MINUTES: 123,
     HEARTBEAT_INTERVAL_MS: 15000,
     CLIENT_ACTIVITY_WINDOW_MS: 25000,
-    API_BASE_URL: (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-      ? 'http://localhost:3000'
-      : ''
+    // Same origin everywhere: Vercel, the local dev server and the sandbox all
+    // route /api. (localhost used to mean http://localhost:3000, where nothing
+    // serves the games any more, so local play could never earn.)
+    API_BASE_URL: ''
   };
 
   const GAME_SESSION_STORAGE_PREFIX = 'bearpark_game_session_';
@@ -24,8 +25,23 @@ const gamePointsApi = (() => {
     heartbeatPromise: null,
     lastHeartbeatAt: 0,
     lastTrustedActivityAt: 0,
-    lastTrustedActivitySampleAt: 0
+    lastTrustedActivitySampleAt: 0,
+    unclaimedMinutes: 0,
+    sessionPromise: null,
+    earnRefusal: null
   };
+
+  // The server refuses wallets that cannot earn (no 10,000 $BEAR or BEAR NFT,
+  // or banned). Remember it for this page: say so, and stop asking every 15 s.
+  const EARN_REFUSAL_CODES = ['HONEY_ACCESS_REQUIRED', 'WALLET_BANNED'];
+  // A game that draws its own results (Pong) swaps this out while it claims.
+  const helperPointsUi = showPointsNotification;
+
+  function earnRefusalError(refusal) {
+    const error = new Error(refusal.message);
+    error.code = refusal.code;
+    return error;
+  }
 
   function getConnectedWalletAddress() {
     return window.parent?.localStorage?.getItem('bearpark_wallet') ||
@@ -101,12 +117,25 @@ const gamePointsApi = (() => {
     }
   }
 
-  async function ensureGameSession(gameId, walletAddress) {
+  // One start at a time: the page load, the 15 s tick and a run's claim can all
+  // ask at once, and two starts left whichever answered last stored, often the
+  // session the other had already replaced on the server.
+  function ensureGameSession(gameId, walletAddress) {
     const existingToken = readStoredGameSession(gameId);
     if (existingToken) {
-      return existingToken;
+      return Promise.resolve(existingToken);
     }
+    if (runtimeState.earnRefusal) {
+      return Promise.reject(earnRefusalError(runtimeState.earnRefusal));
+    }
+    if (!runtimeState.sessionPromise) {
+      runtimeState.sessionPromise = startGameSession(gameId, walletAddress)
+        .finally(() => { runtimeState.sessionPromise = null; });
+    }
+    return runtimeState.sessionPromise;
+  }
 
+  async function startGameSession(gameId, walletAddress) {
     const response = await fetch(
       `${GAME_POINTS_CONFIG.API_BASE_URL}/api/games/session/start`,
       getRequestInit(walletAddress, {
@@ -122,6 +151,14 @@ const gamePointsApi = (() => {
 
     const data = await response.json().catch(() => ({}));
     if (!response.ok || !data.success || !data.session_token) {
+      if (EARN_REFUSAL_CODES.includes(data.code)) {
+        const first = !runtimeState.earnRefusal;
+        runtimeState.earnRefusal = { code: data.code, message: data.error || 'This wallet cannot earn Honey.' };
+        if (first) {
+          showNoHoneyNotice(runtimeState.earnRefusal.message);
+        }
+        throw earnRefusalError(runtimeState.earnRefusal);
+      }
       throw new Error(data.error || 'Failed to start secure game session');
     }
 
@@ -171,9 +208,62 @@ const gamePointsApi = (() => {
       document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {
           primeCurrentGameSession();
+        } else {
+          claimOnExit();
+        }
+      });
+      window.addEventListener('pagehide', () => claimOnExit({ leaving: true }));
+      // Back from the back-forward cache: a fresh session, as on a first load.
+      window.addEventListener('pageshow', (event) => {
+        if (event.persisted) {
+          primeCurrentGameSession();
         }
       });
       runtimeState.visibilityAttached = true;
+    }
+  }
+
+  // Leaving the game (back to the park, closing it, switching away) cashes out
+  // what the server has already counted for this session. Without it, play
+  // that never reached a game-over screen was never paid: a run abandoned
+  // mid-way, Pong Lab (only ranked matches claim), a Jumpventure run steered
+  // with the keyboard alone (its own timer never starts).
+  // Leaving the page also forgets the session: the server keeps one live
+  // session per wallet, so by the time this tab opens the game again another
+  // game has usually replaced it, and a stale token cost the next run's claim.
+  function claimOnExit({ leaving = false } = {}) {
+    const gameId = detectCurrentGameId();
+    const walletAddress = getConnectedWalletAddress();
+    const sessionToken = gameId ? readStoredGameSession(gameId) : null;
+    const minutes = runtimeState.unclaimedMinutes || 0;
+    if (!walletAddress || !sessionToken || runtimeState.earnRefusal || minutes < 0.1) {
+      if (leaving && sessionToken) {
+        clearStoredGameSession(gameId);
+        runtimeState.lastHeartbeatAt = 0;
+      }
+      return;
+    }
+    runtimeState.unclaimedMinutes = 0;
+    runtimeState.lastHeartbeatAt = 0;
+    clearStoredGameSession(gameId);
+    try {
+      fetch(
+        `${GAME_POINTS_CONFIG.API_BASE_URL}/api/games/complete`,
+        getRequestInit(walletAddress, {
+          'Content-Type': 'application/json'
+        }, {
+          method: 'POST',
+          keepalive: true,
+          body: JSON.stringify({
+            wallet_address: walletAddress,
+            game_id: gameId,
+            session_token: sessionToken,
+            client_minutes_played: minutes
+          })
+        })
+      ).catch(() => { });
+    } catch (error) {
+      // The page is going away; nothing to tell anyone.
     }
   }
 
@@ -231,6 +321,7 @@ const gamePointsApi = (() => {
       }
 
       runtimeState.lastHeartbeatAt = now;
+      runtimeState.unclaimedMinutes = Number(data.tracked_minutes) || 0;
       return data;
     })();
 
@@ -249,7 +340,7 @@ const gamePointsApi = (() => {
     runtimeState.heartbeatTimer = window.setInterval(() => {
       const gameId = detectCurrentGameId();
       const walletAddress = getConnectedWalletAddress();
-      if (!gameId || !walletAddress) {
+      if (!gameId || !walletAddress || runtimeState.earnRefusal) {
         return;
       }
 
@@ -305,13 +396,16 @@ const gamePointsApi = (() => {
       );
 
       const data = await response.json().catch(() => ({}));
+      // A run too short to pay leaves the session open (session_kept), so its
+      // seconds count toward the next run instead of being thrown away.
       const shouldRotateSession =
-        (response.ok && data.success !== undefined) ||
+        (response.ok && data.success !== undefined && !data.session_kept) ||
         [401, 409, 410].includes(response.status);
 
       if (shouldRotateSession) {
         clearStoredGameSession(gameId);
         runtimeState.lastHeartbeatAt = 0;
+        runtimeState.unclaimedMinutes = 0;
         ensureGameSession(gameId, walletAddress).catch(() => { });
       }
 
@@ -341,6 +435,18 @@ const gamePointsApi = (() => {
 
       return data;
     } catch (error) {
+      if (EARN_REFUSAL_CODES.includes(error?.code)) {
+        // Not a failure to hide: this wallet plays for fun. Say why, once a run.
+        if (window.showPointsNotification === helperPointsUi) {
+          showNoHoneyNotice(error.message);
+        }
+        return {
+          success: false,
+          code: error.code,
+          message: error.message,
+          points_awarded: 0
+        };
+      }
       console.error('Error awarding game points:', error);
       return {
         success: false,
@@ -431,8 +537,8 @@ function showPointsNotification(points, remaining, minutesToday, maxMinutes) {
   `;
 
   // Calculate progress percentage
-  const progressPercent = (minutesToday / maxMinutes) * 100;
-  const progressColor = minutesToday <= 8 ? '#50fa7b' : minutesToday <= 16 ? '#f1fa8c' : '#ff79c6';
+  const progressPercent = Math.min(100, (minutesToday / maxMinutes) * 100);
+  const progressColor = progressPercent <= 33 ? '#50fa7b' : progressPercent <= 66 ? '#f1fa8c' : '#ff79c6';
 
   notification.innerHTML = `
     <div style="font-size: 72px; margin-bottom: 15px; animation: honeyBounce 0.8s ease-in-out infinite; filter: drop-shadow(0 0 20px rgba(255,215,0,0.8));">🍯</div>
@@ -472,14 +578,14 @@ function showPointsNotification(points, remaining, minutesToday, maxMinutes) {
   overlay.appendChild(notification);
   document.body.appendChild(overlay);
 
-  // Function to dismiss and show celebration if 20/20
+  // Function to dismiss and show celebration at the daily cap
   const dismissOverlay = () => {
     overlay.style.animation = 'fadeOut 0.3s ease-out';
     setTimeout(() => {
       overlay.remove();
-      // Show celebration if they just hit 20/20 minutes
+      // Show celebration if they just hit the daily cap
       if (minutesToday >= maxMinutes && remaining === 0) {
-        showCelebration();
+        showCelebration(maxMinutes);
       }
     }, 300);
   };
@@ -493,6 +599,51 @@ function showPointsNotification(points, remaining, minutesToday, maxMinutes) {
       dismissOverlay();
     }
   }, 3500);
+}
+
+/**
+ * This wallet cannot earn honey (the server said why). A small banner, not a
+ * game-over screen: the game stays playable and scores still count.
+ */
+function showNoHoneyNotice(reason) {
+  let notice = document.getElementById('bearpark-no-honey');
+  if (!notice) {
+    notice = document.createElement('div');
+    notice.id = 'bearpark-no-honey';
+    notice.setAttribute('role', 'status');
+    notice.style.cssText = `
+      position: fixed;
+      top: max(12px, env(safe-area-inset-top));
+      left: 50%;
+      transform: translateX(-50%);
+      width: max-content;
+      max-width: min(440px, calc(100vw - 24px));
+      box-sizing: border-box;
+      padding: 12px 16px;
+      border-radius: 14px;
+      background: rgba(12, 10, 20, 0.92);
+      border: 2px solid rgba(255, 194, 36, 0.55);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      color: #fff;
+      font: 600 14px/1.4 system-ui, -apple-system, 'Segoe UI', sans-serif;
+      text-align: center;
+      z-index: 999999;
+      pointer-events: auto;
+      cursor: pointer;
+      animation: fadeIn 0.3s ease-out;
+    `;
+    notice.addEventListener('click', () => notice.remove());
+    document.body.appendChild(notice);
+  }
+  notice.innerHTML = '';
+  const title = document.createElement('div');
+  title.style.cssText = "font-family: 'Luckiest Guy', cursive, Arial, sans-serif; font-weight: 400; font-size: 18px; color: #ffc224; letter-spacing: 0.5px; margin-bottom: 2px;";
+  title.textContent = 'No honey on this wallet';
+  const body = document.createElement('div');
+  body.textContent = `${reason || 'This wallet cannot earn Honey.'} You can still play, and your scores still count.`;
+  notice.append(title, body);
+  clearTimeout(notice._hideTimer);
+  notice._hideTimer = setTimeout(() => notice.remove(), 7000);
 }
 
 /**
@@ -561,9 +712,9 @@ function showLimitNotification() {
 }
 
 /**
- * Show "Amazing job BEAR!" celebration when hitting 20/20 minutes
+ * Show "Amazing job BEAR!" celebration when hitting the daily cap
  */
-function showCelebration() {
+function showCelebration(maxMinutes = GAME_POINTS_CONFIG.MAX_DAILY_MINUTES) {
   const celebration = document.createElement('div');
   celebration.style.cssText = `
     position: fixed;
@@ -591,7 +742,7 @@ function showCelebration() {
       AMAZING JOB<br>BEAR!
     </div>
     <div style="font-size: 28px; margin-top: 25px; background: linear-gradient(90deg, #ffd700 0%, #50fa7b 50%, #bd93f9 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: 700;">
-      20/20 MINUTES COMPLETED! 🍯
+      ${maxMinutes}/${maxMinutes} MINUTES COMPLETED! 🍯
     </div>
     <div style="font-size: 22px; margin-top: 20px; color: #f1fa8c; opacity: 0.9; font-weight: 600; text-shadow: 0 0 10px #f1fa8c;">
       DAILY MAX REACHED! 🔥

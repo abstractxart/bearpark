@@ -1,12 +1,12 @@
 {
-  "name": "BEAR Park - XRP NFT Gaming Hub",
+  "name": "BEAR Park",
   "short_name": "BEAR Park",
-  "description": "Play games, earn honey points, raid with your BEAR NFTs!",
+  "description": "The home of $BEAR on the XRP Ledger: games that pay honey, X raids, daily BEARdrops and the community.",
   "start_url": "/main.html",
   "display": "standalone",
-  "orientation": "portrait-primary",
-  "theme_color": "#8b5cf6",
-  "background_color": "#1a1a1a",
+  "orientation": "any",
+  "theme_color": "#000000",
+  "background_color": "#000000",
   "icons": [
     {
       "src": "/android-chrome-192x192.png",
@@ -29,28 +29,47 @@
       "form_factor": "wide"
     }
   ],
-  "categories": ["games", "entertainment", "social"],
+  "categories": [
+    "games",
+    "entertainment",
+    "social"
+  ],
   "shortcuts": [
     {
-      "name": "Play Games",
-      "short_name": "Games",
-      "description": "Jump into BEAR games",
-      "url": "/main.html#games",
-      "icons": [{ "src": "/android-chrome-192x192.png", "sizes": "192x192" }]
+      "name": "Play",
+      "short_name": "Play",
+      "description": "The Bearcade and leaderboards",
+      "url": "/main.html#/play",
+      "icons": [
+        {
+          "src": "/android-chrome-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
     },
     {
       "name": "Raids",
       "short_name": "Raids",
-      "description": "Join or create raids",
-      "url": "/main.html#honey-points",
-      "icons": [{ "src": "/android-chrome-192x192.png", "sizes": "192x192" }]
+      "description": "Live X raids",
+      "url": "/main.html#/raids",
+      "icons": [
+        {
+          "src": "/android-chrome-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
     },
     {
-      "name": "Leaderboard",
-      "short_name": "Leaderboard",
-      "description": "Check top players",
-      "url": "/main.html#leaderboards",
-      "icons": [{ "src": "/android-chrome-192x192.png", "sizes": "192x192" }]
+      "name": "Earn",
+      "short_name": "Earn",
+      "description": "Honey points and BEARdrops",
+      "url": "/main.html#/earn",
+      "icons": [
+        {
+          "src": "/android-chrome-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
     }
   ]
 }

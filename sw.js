@@ -1,5 +1,5 @@
-// 🐻❄️ COCAINE BEAR: Optimized Service Worker with Smart Caching
-const CACHE_VERSION = 'bearpark-v23';
+// BEAR Park service worker: cache-first art and fonts, network-first everything that changes.
+const CACHE_VERSION = 'bearpark-v25';
 const STATIC_CACHE = CACHE_VERSION + '-static';
 const DYNAMIC_CACHE = CACHE_VERSION + '-dynamic';
 
@@ -64,6 +64,11 @@ self.addEventListener('fetch', (event) => {
   // Skip non-GET requests
   if (request.method !== 'GET') return;
 
+  // The park's content-hashed media is cached by the browser for a year already;
+  // answering it here as well only breaks <link rel=preload> matching (the hero
+  // image downloaded twice).
+  if (url.origin === self.location.origin && url.pathname.startsWith('/park/media/')) return;
+
   // Skip cross-origin requests except for allowed CDNs
   if (url.origin !== self.location.origin &&
       !url.hostname.includes('catbox.moe') &&
@@ -108,23 +113,19 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Stale-while-revalidate for HTML
+  // Network-first for HTML: the site is a few KB of shell that names its code by
+  // path, so a stale page would boot yesterday's app. The cache is only the
+  // offline fallback.
   const acceptHeader = request.headers.get('accept');
   if (acceptHeader && acceptHeader.includes('text/html')) {
     event.respondWith(
-      caches.match(request).then(cached => {
-        const fetchPromise = fetch(request).then(response => {
-          if (response.ok) {
-            const clone = response.clone();
-            caches.open(DYNAMIC_CACHE).then(cache => {
-              cache.put(request, clone);
-            });
-          }
-          return response;
-        }).catch(() => cached);
-
-        return cached || fetchPromise;
-      })
+      fetch(request).then(response => {
+        if (response.ok) {
+          const clone = response.clone();
+          caches.open(DYNAMIC_CACHE).then(cache => cache.put(request, clone));
+        }
+        return response;
+      }).catch(() => caches.match(request))
     );
     return;
   }
