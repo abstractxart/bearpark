@@ -39,16 +39,28 @@
       "type": "frame",
       "frames": [
         {
-          "key": "bee_fly_frame1",
-          "duration": 150
+          "key": "pepe_fly_frame1",
+          "duration": 100
         },
         {
-          "key": "bee_fly_frame2",
-          "duration": 150
+          "key": "pepe_fly_frame2",
+          "duration": 100
+        },
+        {
+          "key": "pepe_fly_frame3",
+          "duration": 100
+        },
+        {
+          "key": "pepe_fly_frame4",
+          "duration": 100
+        },
+        {
+          "key": "pepe_fly_frame5",
+          "duration": 100
         }
       ],
       "repeat": -1,
-      "originX": 0.422,
+      "originX": 0.5,
       "originY": 1.0
     },
     {

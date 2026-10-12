@@ -2,6 +2,9 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!-- Ensures runtime-loaded assets (asset-pack.json, sprites, audio) resolve
+         correctly whether the page is reached as /flappy-bear, /flappy-bear/ or /frontend/flappy-bear/index.html -->
+    <base href="/flappy-bear/" />
     <link rel="icon" type="image/x-icon" href="/flappy-bear/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>FLAPPY BEAR</title>
@@ -70,10 +73,283 @@
         padding: 0;
       }
     </style>
-    <script type="module" crossorigin src="/flappy-bear/assets/index-C1Kq3oJ4.js"></script>
-    <link rel="stylesheet" crossorigin href="/flappy-bear/assets/index-CREfEJvI.css">
+    <script type="module" crossorigin src="/flappy-bear/assets/index-rvBuun41.js"></script>
+    <link rel="stylesheet" crossorigin href="/flappy-bear/assets/index-CBpds57R.css">
   </head>
   <body>
     <div id="game-container"></div>
+    <!-- =====================================================================
+         BOOT SCREEN
+
+         Lives in the document rather than in Phaser on purpose. The bundle is
+         ~1.7MB; until it has downloaded AND parsed, Phaser cannot draw
+         anything at all, so a Phaser-drawn loading bar leaves the player
+         staring at an empty page through the slowest part of startup. This
+         paints on the first frame and then reports real asset progress.
+
+         Everything is inline - no external CSS, no external JS - for the same
+         reason: anything it had to fetch first would defeat the point.
+         ================================================================== -->
+    <style>
+      @keyframes bl-dawn   { 0%,100% { transform: scale(1) translate3d(0,0,0); opacity:.85 }
+                             50%     { transform: scale(1.12) translate3d(0,-2%,0); opacity:1 } }
+      @keyframes bl-flyin  { 0%   { transform: translate3d(-46vw,34vh,0) rotate(-26deg) scale(.5); opacity:0 }
+                             55%  { opacity:1 }
+                             70%  { transform: translate3d(0,-14px,0) rotate(7deg) scale(1.1) }
+                             100% { transform: translate3d(0,0,0) rotate(0) scale(1); opacity:1 } }
+      @keyframes bl-bob    { 0%,100% { transform: translate3d(0,0,0) rotate(-2deg) }
+                             50%     { transform: translate3d(0,-13px,0) rotate(2deg) } }
+      @keyframes bl-halo   { 0%,100% { transform: scale(.92); opacity:.35 }
+                             50%     { transform: scale(1.14); opacity:.7 } }
+      /* Squash on landing, then settle. The scaleX/scaleY split is what
+         makes it read as weight rather than as a thing that merely moved. */
+      @keyframes bl-drop   { 0%   { transform: translate3d(0,-60px,0) scale(.68,.86) rotate(-3deg); opacity:0 }
+                             55%  { opacity:1 }
+                             68%  { transform: translate3d(0,9px,0)   scale(1.12,.86) rotate(1.5deg); opacity:1 }
+                             84%  { transform: translate3d(0,-4px,0)  scale(.97,1.05) rotate(-.5deg) }
+                             100% { transform: translate3d(0,0,0)     scale(1,1) rotate(0); opacity:1 } }
+      @keyframes bl-shine  { 0%   { transform: translateX(-130%) skewX(-18deg) }
+                             100% { transform: translateX(240%)  skewX(-18deg) } }
+      @keyframes bl-rise   { from { opacity:0; transform: translate3d(0,14px,0) }
+                             to   { opacity:1; transform: translate3d(0,0,0) } }
+      /* Bar draws itself out from the centre rather than just fading up. */
+      @keyframes bl-wipe   { from { opacity:0; transform: scaleX(.05) }
+                             to   { opacity:1; transform: scaleX(1) } }
+
+      /* --- exit ---------------------------------------------------------
+         M3's rule for this: exits are shorter than entrances and use an
+         ACCELERATE curve, because something leaving should look like it is
+         getting out of the way rather than politely retiring. They also run
+         in reverse order - the chrome goes first, the hero last. */
+      @keyframes bl-out-bar  { from { opacity:1; transform: scaleX(1) }
+                               to   { opacity:0; transform: scaleX(.04) } }
+      @keyframes bl-out-sub  { from { opacity:1; transform: translate3d(0,0,0) }
+                               to   { opacity:0; transform: translate3d(0,12px,0) } }
+      @keyframes bl-out-word { 0%   { opacity:1; transform: translate3d(0,0,0) scale(1) }
+                               28%  { transform: translate3d(0,8px,0) scale(.95,.9) }
+                               100% { opacity:0; transform: translate3d(0,-54px,0) scale(1.14) } }
+      @keyframes bl-out-badge{ 0%   { opacity:1; transform: scale(1)   translate3d(0,0,0);   filter: brightness(1) }
+                               30%  {            transform: scale(.84) translate3d(0,10px,0); filter: brightness(1.5) }
+                               100% { opacity:0; transform: scale(1.6) translate3d(0,-34px,0); filter: brightness(2.6) } }
+
+      #bear-loader {
+        position: fixed; inset: 0; z-index: 99999;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center; gap: 4px;
+        background: #0b0d12;
+        font-family: "Luckiest Guy", "Arial Black", sans-serif;
+        overflow: hidden;
+        transition: opacity .42s cubic-bezier(.3,0,.8,.15);
+        padding: 0 16px; box-sizing: border-box;
+      }
+      #bear-loader.bl-out { opacity: 0; pointer-events: none; }
+      /* Reverse stagger on the way out: bar, caption, wordmark, badge. */
+      #bear-loader.bl-out .bl-barwrap { animation: bl-out-bar   .30s cubic-bezier(.3,0,.8,.15) 0s    both; }
+      #bear-loader.bl-out .bl-sub     { animation: bl-out-sub   .28s cubic-bezier(.3,0,.8,.15) .04s  both; }
+      #bear-loader.bl-out .bl-word    { animation: bl-out-word  .46s cubic-bezier(.3,0,.8,.15) .08s  both; opacity: 1; }
+      #bear-loader.bl-out .bl-badge   { animation: bl-out-badge .50s cubic-bezier(.3,0,.8,.15) .14s  both; }
+
+      /* Dawn-canyon wash, matching the first biome the player will fly into. */
+      #bear-loader::before {
+        content: ""; position: absolute; inset: -20%;
+        background:
+          radial-gradient(42% 38% at 50% 42%, rgba(255,170,60,.34), transparent 70%),
+          radial-gradient(60% 50% at 50% 108%, rgba(255,86,40,.26), transparent 72%);
+        animation: bl-dawn 7s ease-in-out infinite;
+        pointer-events: none;
+      }
+
+      .bl-badge { position: relative; width: 132px; height: 132px; margin-bottom: 20px;
+                  animation: bl-flyin 1s cubic-bezier(.2,.9,.25,1) both; }
+      .bl-badge__inner { width: 100%; height: 100%; animation: bl-bob 2.6s ease-in-out 1s infinite; }
+      .bl-badge img { width: 100%; height: 100%; display: block;
+                      filter: drop-shadow(0 12px 26px rgba(0,0,0,.6)); }
+      .bl-badge::after {
+        content: ""; position: absolute; inset: -22%;
+        border-radius: 50%; background: radial-gradient(circle, rgba(255,194,36,.6), transparent 66%);
+        animation: bl-halo 2.6s ease-in-out infinite; z-index: -1;
+      }
+
+      /* The wordmark stays hidden until Luckiest Guy is actually available,
+         so nobody watches it animate in Arial and then pop into the real
+         font halfway through. */
+      .bl-word { display: flex; align-items: baseline; gap: .30em; line-height: 1;
+                 font-size: clamp(44px, 13vw, 86px); letter-spacing: .02em;
+                 opacity: 0; position: relative; }
+      .bl-ready .bl-word { opacity: 1; }
+      .bl-ready .bl-word > span { animation: bl-drop .72s cubic-bezier(.2,.9,.25,1) both; }
+      .bl-ready .bl-word > span:nth-child(2) { animation-delay: .13s; }
+
+      /* TWO REAL ELEMENTS, not a pseudo-element.
+         -webkit-text-stroke paints over the glyph, so the outline has to sit
+         on its own layer underneath. The obvious version of that - an
+         absolutely-positioned ::before at z-index:-1 - does NOT work here:
+         the gold is a background clipped to the text, and a negative-z child
+         paints ABOVE its parent's background, so the outline buried the gold
+         and the word came out solid black. Two siblings have unambiguous
+         paint order: the later one wins. */
+      .bl-t { position: relative; display: inline-block; }
+      .bl-t__out {
+        position: absolute; left: 0; top: 0; white-space: nowrap;
+        /* 7px, not 11. At this size a heavier stroke closes up the counters
+           in B, A and R and the word turns into a slab. */
+        -webkit-text-stroke: 7px #05070a; color: #05070a;
+      }
+      .bl-t__in { position: relative; }
+
+      .bl-gold .bl-t__in {
+        background: linear-gradient(#FFF6CF 4%, #FFE071 30%, #FFC224 52%, #E89000 76%, #B36A00 100%);
+        -webkit-background-clip: text; background-clip: text;
+        color: transparent;
+      }
+      .bl-gold { filter: drop-shadow(0 0 18px rgba(255,194,36,.6)) drop-shadow(0 3px 0 rgba(0,0,0,.55)); }
+      .bl-white .bl-t__in { color: #fff; }
+      .bl-white { filter: drop-shadow(0 0 13px rgba(255,255,255,.38)) drop-shadow(0 3px 0 rgba(0,0,0,.55)); }
+
+      /* Light sweeping across the gold once it has landed. */
+      .bl-shine { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 2; }
+      .bl-ready .bl-shine::after {
+        content: ""; position: absolute; top: -12%; left: 0; width: 20%; height: 124%;
+        /* Narrow and semi-transparent: a glint travelling over the metal.
+           Wider or whiter and it stops reading as a highlight and starts
+           looking like the gold has been washed out to silver. */
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,.5), transparent);
+        /* `both` matters: without a fill mode the sweep returns to its
+           un-animated position when it finishes, which is left: 0 - leaving
+           a permanent silver band parked over the B. */
+        animation: bl-shine 1.25s cubic-bezier(.3,0,.2,1) 1.05s 2 both;
+      }
+
+      .bl-sub { margin-top: 16px; font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+                font-size: 11px; letter-spacing: .34em; color: #9fb0c0;
+                animation: bl-rise .6s ease-out .75s both; }
+
+      .bl-barwrap { margin-top: 20px; width: min(300px, 74vw);
+                    animation: bl-wipe .52s cubic-bezier(.2,.9,.25,1) .88s both; }
+      .bl-bar { height: 6px; border-radius: 999px; background: rgba(255,255,255,.12); overflow: hidden; }
+      .bl-bar__fill { height: 100%; width: 0%; border-radius: 999px;
+                      background: linear-gradient(90deg, #FFC224, #FF8A3C);
+                      box-shadow: 0 0 14px rgba(255,194,36,.75);
+                      /* linear: a progress bar that eases is a progress bar
+                         that lies about how far along it is. */
+                      transition: width .18s linear; }
+      .bl-pct { margin-top: 9px; display: flex; justify-content: space-between;
+                font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+                font-size: 10px; letter-spacing: .2em; color: #7d8d9c; }
+
+      @media (prefers-reduced-motion: reduce) {
+        #bear-loader::before, .bl-badge, .bl-badge__inner,
+        .bl-ready .bl-word > span, .bl-sub, .bl-barwrap,
+        #bear-loader.bl-out .bl-barwrap, #bear-loader.bl-out .bl-sub,
+        #bear-loader.bl-out .bl-word, #bear-loader.bl-out .bl-badge { animation: none !important; }
+        .bl-ready .bl-shine::after { display: none; }
+        .bl-word { opacity: 1; }
+      }
+    </style>
+
+    <div id="bear-loader">
+      <div class="bl-badge"><div class="bl-badge__inner">
+        <img src="android-chrome-192x192.png" alt="" width="192" height="192" decoding="async" />
+      </div></div>
+
+      <div class="bl-word">
+        <span class="bl-gold">
+          <span class="bl-t">
+            <span class="bl-t__out" aria-hidden="true">BEAR</span>
+            <span class="bl-t__in">BEAR</span>
+            <span class="bl-shine"></span>
+          </span>
+        </span>
+        <span class="bl-white">
+          <span class="bl-t">
+            <span class="bl-t__out" aria-hidden="true">Park</span>
+            <span class="bl-t__in">Park</span>
+          </span>
+        </span>
+      </div>
+
+      <div class="bl-sub">FLAPPY BEAR</div>
+
+      <div class="bl-barwrap">
+        <div class="bl-bar"><div class="bl-bar__fill" id="bl-fill"></div></div>
+        <div class="bl-pct"><span id="bl-status">WAKING THE BEAR</span><span id="bl-num">0%</span></div>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        var el = document.getElementById("bear-loader");
+        var fill = document.getElementById("bl-fill");
+        var num = document.getElementById("bl-num");
+        var status = document.getElementById("bl-status");
+        if (!el || !fill || !num || !status) return;
+
+        var reveal = function () { el.classList.add("bl-ready"); };
+        try {
+          if (document.fonts && document.fonts.load) {
+            Promise.race([
+              document.fonts.load("1em 'Luckiest Guy'"),
+              new Promise(function (r) { setTimeout(r, 1200); })
+            ]).then(reveal, reveal);
+          } else { reveal(); }
+        } catch (e) { reveal(); }
+
+        var shown = 0, done = false, started = false, neverStarted = null;
+        var LINES = ["WAKING THE BEAR", "STACKING PIPES", "BRIBING THE FLIES", "POLISHING THE GOLD", "COUNTING THE CANDLES", "ALMOST THERE"];
+
+        var hide = function () {
+          if (done) return;
+          done = true;
+          clearTimeout(neverStarted);
+          fill.style.width = "100%";
+          num.textContent = "100%";
+          el.classList.add("bl-out");
+
+          // Tell the game to start its own entrance NOW, not after this has
+          // finished. The title screen's elements already morph in, but they
+          // were doing it UNDERNEATH this screen - so the animation played
+          // to nobody and the handover looked like a hard cut. Overlapping
+          // the two is what turns it into one continuous movement.
+          try {
+            window.__bearBootGone = true;
+            window.dispatchEvent(new Event("bearpark:bootdone"));
+          } catch (e) { /* the game falls back to animating immediately */ }
+
+          setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 700);
+        };
+
+        window.__bearLoader = {
+          set: function (p) {
+            if (done) return;
+            p = Math.max(0, Math.min(1, Number(p) || 0));
+            // Never go backwards: Phaser reports per-file progress and the
+            // total can shift as asset packs resolve into more files.
+            if (p < shown) return;
+            shown = p;
+            if (!started) { started = true; clearTimeout(neverStarted); }
+            fill.style.width = (p * 100).toFixed(1) + "%";
+            num.textContent = Math.round(p * 100) + "%";
+            status.textContent = LINES[Math.min(LINES.length - 1, Math.floor(p * LINES.length))];
+          },
+          done: hide
+        };
+
+        // Two backstops, and NEITHER is a stall timer.
+        //
+        // A stall timer was the obvious design and it was wrong: Phaser emits
+        // progress once per COMPLETED FILE, not continuously, so on a slow
+        // connection a large file can easily leave a ten-second silence in
+        // the middle of a perfectly healthy load. Timing out on that tears
+        // the boot screen away at exactly the moment it is doing its job and
+        // reveals a half-built game.
+        //
+        // What is actually diagnostic is whether the game EVER started. If
+        // nothing has called set() after 20s the bundle almost certainly did
+        // not parse, and there is nothing to wait for. Once it has started,
+        // trust it, and keep only a long ceiling for a true hang.
+        neverStarted = setTimeout(function () { if (!started) hide(); }, 20000);
+        setTimeout(hide, 90000);
+      })();
+    </script>
   </body>
 </html>
